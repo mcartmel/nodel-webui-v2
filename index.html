@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nodel</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body class="bg-[rgb(var(--nodel-bg))] text-[rgb(var(--nodel-fg))]">
+    <nodel-app theme="default" title="Nodel">
+      <nodel-toolbar title="Nodel" icon-src="./v2/img/logo.png" icon-alt="Nodel">
+        <nodel-theme-toggle></nodel-theme-toggle>
+      </nodel-toolbar>
+
+      <nodel-page title="Base UI">
+        <nodel-row>
+          <nodel-column span="12">
+            <nodel-text>
+              New Nodel UI base layer. Navigation is generated automatically from the
+              declared pages in this document.
+            </nodel-text>
+          </nodel-column>
+        </nodel-row>
+        <nodel-row>
+          <nodel-column span="12" md="6">
+            <nodel-text surface="card">
+              Full width on small screens, half width from medium screens upward.
+            </nodel-text>
+          </nodel-column>
+          <nodel-column span="12" md="6">
+            <nodel-text surface="card">
+              This uses <code>span=&quot;12&quot; md=&quot;6&quot;</code> on each column.
+            </nodel-text>
+          </nodel-column>
+        </nodel-row>
+      </nodel-page>
+
+      <nodel-page title="Authoring">
+        <nodel-page title="Markup">
+          <nodel-row>
+            <nodel-column span="12">
+              <nodel-text>
+                Core pages can be overridden with plain HTML using the provided
+                web components and stable v2 assets.
+              </nodel-text>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+
+        <nodel-page title="Deployment">
+          <nodel-row>
+            <nodel-column span="12">
+              <nodel-text>
+                The root page is deployed as index.html with supporting JavaScript,
+                CSS, and images under the v2 folder.
+              </nodel-text>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>

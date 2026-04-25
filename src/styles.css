@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --nodel-bg: 248 250 252;
+    --nodel-fg: 15 23 42;
+    --nodel-surface: 255 255 255;
+    --nodel-muted: 71 85 105;
+    --nodel-border: 226 232 240;
+    --nodel-accent: 14 165 233;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --nodel-bg: 2 6 23;
+    --nodel-fg: 226 232 240;
+    --nodel-surface: 15 23 42;
+    --nodel-muted: 148 163 184;
+    --nodel-border: 51 65 85;
+    --nodel-accent: 56 189 248;
+  }
+
+  html,
+  body {
+    @apply min-h-full;
+  }
+
+  body {
+    @apply m-0 font-sans;
+    background: rgb(var(--nodel-bg));
+    color: rgb(var(--nodel-fg));
+  }
+
+  nodel-app,
+  nodel-toolbar,
+  nodel-page,
+  nodel-row,
+  nodel-column,
+  nodel-text,
+  nodel-theme-toggle {
+    @apply block;
+  }
+
+  nodel-page,
+  nodel-row,
+  nodel-column {
+    @apply w-full;
+  }
+
+  nodel-column {
+    grid-column: span var(--nodel-column-span, 12) / span var(--nodel-column-span, 12);
+  }
+
+  nodel-text {
+    color: var(--nodel-text-color, rgb(var(--nodel-muted)));
+    font-size: var(--nodel-text-size, 0.875rem);
+    line-height: var(--nodel-text-line-height, 1.5rem);
+  }
+
+  nodel-text[data-surface='card'] {
+    @apply rounded-xl border;
+    background: var(--nodel-text-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-text-border-color, rgb(var(--nodel-border)));
+    padding: var(--nodel-text-padding, 1rem);
+    border-radius: var(--nodel-text-radius, 0.75rem);
+  }
+
+  nodel-text[data-size='xs'] {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  nodel-text[data-size='sm'] {
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+  }
+
+  nodel-text[data-size='md'] {
+    font-size: 1rem;
+    line-height: 1.625rem;
+  }
+
+  nodel-text[data-size='lg'] {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  @media (min-width: 640px) {
+    nodel-column {
+      grid-column: span var(--nodel-column-sm, var(--nodel-column-span, 12)) / span var(--nodel-column-sm, var(--nodel-column-span, 12));
+    }
+  }
+
+  @media (min-width: 768px) {
+    nodel-column {
+      grid-column: span var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))) / span var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    nodel-column {
+      grid-column: span var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))) / span var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    nodel-column {
+      grid-column: span var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))))) / span var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))));
+    }
+  }
+
+  @media (min-width: 1536px) {
+    nodel-column {
+      grid-column: span var(--nodel-column-2xl, var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))))) / span var(--nodel-column-2xl, var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))))));
+    }
+  }
+}
+
+@layer components {
+  .nodel-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .nodel-surface {
+    background: rgb(var(--nodel-surface));
+  }
+
+  .nodel-border {
+    border-color: rgb(var(--nodel-border));
+  }
+
+  .nodel-muted {
+    color: rgb(var(--nodel-muted));
+  }
+
+  .nodel-theme-switch {
+    @apply relative inline-flex h-8 w-16 items-center rounded-full border p-1 transition;
+    background: rgb(var(--nodel-border));
+    border-color: rgb(var(--nodel-border));
+  }
+
+  .nodel-theme-switch:hover {
+    border-color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-theme-switch:focus-visible {
+    @apply outline-none ring-2 ring-[rgb(var(--nodel-accent))]/40;
+  }
+
+  .nodel-theme-switch[data-theme='dark'] {
+    background: rgb(var(--nodel-accent));
+    border-color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-theme-switch-thumb {
+    @apply flex h-6 w-6 items-center justify-center rounded-full bg-white text-amber-500 shadow-sm transition-transform;
+  }
+
+  .nodel-theme-switch[data-theme='dark'] .nodel-theme-switch-thumb {
+    color: rgb(var(--nodel-accent));
+    transform: translateX(2rem);
+  }
+}
