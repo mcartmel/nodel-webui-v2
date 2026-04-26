@@ -11,6 +11,8 @@
     --nodel-muted: 71 85 105;
     --nodel-border: 226 232 240;
     --nodel-accent: 14 165 233;
+    --nodel-theme-transition-duration: 200ms;
+    --nodel-theme-transition-easing: ease;
   }
 
   :root[data-theme='dark'] {
@@ -26,12 +28,31 @@
   html,
   body {
     @apply min-h-full;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply m-0 font-sans;
-    background: rgb(var(--nodel-bg));
-    color: rgb(var(--nodel-fg));
+    background: var(--nodel-body-background, rgb(var(--nodel-bg)));
+    color: var(--nodel-body-color, rgb(var(--nodel-fg)));
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, fill, stroke, box-shadow, outline-color;
+    transition-duration: var(--nodel-theme-transition-duration, 200ms);
+    transition-timing-function: var(--nodel-theme-transition-easing, ease);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms;
+    }
   }
 
   nodel-app,
@@ -40,6 +61,10 @@
   nodel-row,
   nodel-column,
   nodel-text,
+  nodel-host-icon,
+  nodel-node-list,
+  nodel-add-node,
+  nodel-diagnostics,
   nodel-theme-toggle {
     @apply block;
   }
@@ -162,5 +187,54 @@
   .nodel-theme-switch[data-theme='dark'] .nodel-theme-switch-thumb {
     color: rgb(var(--nodel-accent));
     transform: translateX(2rem);
+  }
+
+  nodel-host-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    flex: none;
+  }
+
+  .nodel-host-icon-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .nodel-host-icon-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .nodel-toolbar-host-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .nodel-node-list-item.is-unreachable {
+    opacity: 0.6;
+  }
+
+  .nodel-node-icon {
+    height: 20px;
+    width: 20px;
+  }
+
+  .nodel-template-autocomplete,
+  .nodel-template-selected {
+    z-index: 10;
+  }
+
+  .nodel-template-autocomplete ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nodel-node-list-total {
+    margin: 0;
   }
 }

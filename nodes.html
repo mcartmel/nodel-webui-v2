@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nodel Nodes</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <nodel-app>
+      <nodel-toolbar icon-src="./v2/img/logo.png">
+        <nodel-theme-toggle></nodel-theme-toggle>
+      </nodel-toolbar>
+
+      <nodel-page title="Locals">
+        <nodel-row>
+          <nodel-column>
+            <nodel-add-node redirect="false"></nodel-add-node>
+          </nodel-column>
+        </nodel-row>
+        <nodel-row>
+          <nodel-column>
+            <nodel-node-list scope="local"></nodel-node-list>
+          </nodel-column>
+        </nodel-row>
+      </nodel-page>
+
+      <nodel-page title="Network">
+        <nodel-row>
+          <nodel-column>
+            <nodel-node-list scope="network"></nodel-node-list>
+          </nodel-column>
+        </nodel-row>
+      </nodel-page>
+
+      <nodel-page title="Diagnostics">
+        <nodel-row>
+          <nodel-column>
+            <nodel-diagnostics></nodel-diagnostics>
+          </nodel-column>
+        </nodel-row>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>

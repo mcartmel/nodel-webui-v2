@@ -230,7 +230,6 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private syncTheme() {
     const theme = resolveTheme(this.getAttribute('theme'));
-    this.dataset.theme = theme;
     setRootTheme(theme);
     this.dispatchEvent(
       new CustomEvent('nodel-theme-change', {

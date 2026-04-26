@@ -26,7 +26,12 @@ tasks.register('npmBuild', NpmTask) {
     inputs.file('package-lock.json')
     inputs.dir('src')
     inputs.dir('test')
-    inputs.file('index.html')
+    inputs.dir('public')
+    inputs.file('elements.html')
+    inputs.file('nodes.html')
+    inputs.file('nodel.html')
+    inputs.file('vite.config.ts')
+    inputs.file('tailwind.config.ts')
     outputs.dir('dist')
 }
 

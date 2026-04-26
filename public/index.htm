@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nodel</title>
+    <script>
+      (function () {
+        var parts = window.location.pathname.split('/');
+        var isNodePath = parts[1] === 'nodes' && parts[2];
+
+        if (!isNodePath) {
+          window.location.replace('/nodes.html');
+          return;
+        }
+
+        var nodeRoot = '/nodes/' + parts[2] + '/';
+        var customUrl = nodeRoot + 'index.html';
+        var request = new XMLHttpRequest();
+
+        try {
+          request.open('GET', customUrl, false);
+          request.send(null);
+          if (request.status === 200) {
+            window.location.replace(customUrl);
+            return;
+          }
+        } catch (error) {
+          // Fall back to the core Nodel page when the custom UI probe fails.
+        }
+
+        window.location.replace(nodeRoot + 'nodel.html');
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

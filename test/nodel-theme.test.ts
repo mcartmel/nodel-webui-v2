@@ -9,8 +9,6 @@ describe('theme synchronization', () => {
     await customElements.whenDefined('nodel-app');
     await Promise.resolve();
 
-    const app = document.querySelector('nodel-app') as HTMLElement | null;
-    expect(app?.dataset.theme).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
@@ -22,7 +20,6 @@ describe('theme synchronization', () => {
     app?.setAttribute('theme', 'dark');
     await Promise.resolve();
 
-    expect(app?.dataset.theme).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });

@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
+    "identicon.js": "^2.3.3",
     "jquery": "^3.7.1",
-    "jsviews": "^1.0.16"
+    "jsviews": "^1.0.16",
+    "xxhashjs": "^0.2.2"
   },
   "devDependencies": {
     "@types/jquery": "^3.5.33",

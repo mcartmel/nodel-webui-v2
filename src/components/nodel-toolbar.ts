@@ -6,6 +6,7 @@ import {
   type NodelNavItem,
   type NodelNavSelectDetail
 } from '../navigation/navigation';
+import './nodel-host-icon';
 
 type NavigationAppElement = HTMLElement & NodelNavigationHost;
 
@@ -19,6 +20,7 @@ export class NodelToolbar extends HTMLElement {
   private openGroupId = '';
   private shellReady = false;
   private iconNode: HTMLImageElement | null = null;
+  private hostIconNode: HTMLElement | null = null;
   private titleNode: HTMLElement | null = null;
   private actionsNode: HTMLElement | null = null;
 
@@ -49,7 +51,7 @@ export class NodelToolbar extends HTMLElement {
   private render() {
     const title = this.getAttribute('title') ?? 'Nodel';
     const iconSrc = this.getAttribute('icon-src');
-    const iconAlt = this.getAttribute('icon-alt') ?? 'Nodel';
+    const iconAlt = this.getAttribute('icon-alt') ?? title;
     const children = this.shellReady ? [] : Array.from(this.childNodes);
 
     if (!this.shellReady) {
@@ -57,6 +59,7 @@ export class NodelToolbar extends HTMLElement {
         <div class="nodel-shell flex min-h-16 flex-wrap items-center gap-3 py-2">
           <div class="flex min-w-0 items-center gap-2">
             <img data-toolbar-icon class="hidden h-12 w-24 shrink-0 object-contain" alt="" />
+            <nodel-host-icon data-toolbar-host-icon class="nodel-toolbar-host-icon" href="" title="Browse this host"></nodel-host-icon>
             <span data-toolbar-title class="truncate text-base font-semibold tracking-wide"></span>
           </div>
           <nav data-toolbar-nav class="flex min-w-0 flex-1 flex-wrap items-center gap-1" aria-label="Page navigation"></nav>
@@ -64,6 +67,7 @@ export class NodelToolbar extends HTMLElement {
         </div>
       `;
       this.iconNode = this.querySelector('[data-toolbar-icon]');
+      this.hostIconNode = this.querySelector('[data-toolbar-host-icon]');
       this.titleNode = this.querySelector('[data-toolbar-title]');
       this.navNode = this.querySelector('[data-toolbar-nav]');
       this.actionsNode = this.querySelector('[data-toolbar-actions]');
@@ -89,6 +93,14 @@ export class NodelToolbar extends HTMLElement {
 
     if (this.titleNode) {
       this.titleNode.textContent = title;
+    }
+
+    if (this.hostIconNode) {
+      this.hostIconNode.setAttribute('host', window.location.host);
+      this.hostIconNode.setAttribute('icon-host', window.location.host);
+      this.hostIconNode.setAttribute('href', `${window.location.protocol}//${window.location.host}/`);
+      this.hostIconNode.setAttribute('title', 'Browse this host');
+      this.hostIconNode.setAttribute('alt', 'Browse this host');
     }
 
     this.renderNavigation();

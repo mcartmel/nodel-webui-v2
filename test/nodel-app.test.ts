@@ -11,7 +11,7 @@ describe('nodel app base layer', () => {
     document.documentElement.dataset.theme = 'light';
     document.body.innerHTML = `
       <nodel-app theme="default" title="Nodel">
-        <nodel-toolbar title="Nodel" icon-src="./v2/img/logo.png" icon-alt="Nodel">
+        <nodel-toolbar title="Nodel" icon-src="./v2/img/logo.png">
           <nodel-theme-toggle></nodel-theme-toggle>
         </nodel-toolbar>
         <nodel-page title="Base UI">
@@ -33,6 +33,7 @@ describe('nodel app base layer', () => {
     const page = document.querySelector('nodel-page');
     const column = document.querySelector('nodel-column') as HTMLElement | null;
     const icon = document.querySelector('nodel-toolbar img[data-toolbar-icon]');
+    const hostIcon = document.querySelector('nodel-toolbar nodel-host-icon img') as HTMLImageElement | null;
 
     expect(toolbar).not.toBeNull();
     expect(page).not.toBeNull();
@@ -40,6 +41,8 @@ describe('nodel app base layer', () => {
     expect(column?.dataset.span).toBe('12');
     expect(column?.style.getPropertyValue('--nodel-column-span')).toBe('12');
     expect(icon?.getAttribute('src')).toContain('./v2/img/logo.png');
+    expect(icon?.getAttribute('alt')).toBe('Nodel');
+    expect(hostIcon?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
     expect(document.querySelector('#content')?.textContent).toBe('Base layer');
   });
 

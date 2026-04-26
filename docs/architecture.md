@@ -14,6 +14,7 @@ Do not modify v1 code for new UI work. Legacy-loader remains the compatibility p
 - Keep JsViews for schema-form generation and live data binding.
 - Do not add placeholder code.
 - Do not copy v1 implementation patterns unless a behavior is being intentionally re-created.
+- Keep page markup minimal by relying on safe web-component defaults; see `web-components.md`.
 
 ## Current Base Layer
 
@@ -24,6 +25,12 @@ The first UI layer is intentionally small:
 - `nodel-page` renders page sections.
 - `nodel-row` and `nodel-column` provide simple layout primitives.
 - `nodel-theme-toggle` switches between light and dark themes using the `theme` attribute.
+- `nodel-text` provides default body text styling.
+- `nodel-node-list` encapsulates the v1-style locals/network node lists with JsViews-backed data binding.
+- `nodel-add-node` encapsulates the add-node UI and recipe/node lookup flow.
+- `nodel-diagnostics` renders the host diagnostics table.
+
+Node list and add-node behavior intentionally preserve the existing v1 look and feel, including the host icon algorithm and the local vs network list split.
 
 `nodel-app` also owns page navigation. It discovers declared `nodel-page` elements, creates the toolbar navigation model, tracks the active page, and hides inactive pages with the `hidden` attribute. Nested `nodel-page` elements create toolbar submenu groups. This preserves the v1 behavior concept without using Bootstrap dropdowns or jQuery page switching.
 
@@ -38,7 +45,7 @@ User-authored pages should reference the stable v2 entry files, not the Vite sou
 
 The page title can then be controlled by `nodel-app title="..."`.
 
-The Vite source `index.html` is development/sample markup only and may still reference `/src/main.ts` during local dev.
+Vite source pages may reference `/src/main.ts` during local dev. Built/deployed pages should reference the stable v2 support files.
 
 ## Test Deployment
 
@@ -50,10 +57,11 @@ The deploy script follows the v1 convention of a root page plus versioned suppor
 
 Both deployment commands write:
 
-- `index.html` into the target content root.
+- `index.htm` into the target content root as the non-visual redirector.
+- visual pages such as `nodes.html`, `nodel.html`, and `elements.html` into the target content root.
 - built JavaScript and CSS under the `v2/` support folder in that same target.
 
-This lets the custom content root override the built-in `index.html` for testing without replacing the built-in v1 support files. The support folder can be changed with `--support-subdir`, but `v2` is the default convention for this UI.
+This lets the custom content root override the built-in default document and visual pages for testing without replacing the built-in v1 support files. The support folder can be changed with `--support-subdir`, but `v2` is the default convention for this UI.
 
 ## JsViews
 

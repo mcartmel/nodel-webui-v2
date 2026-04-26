@@ -34,3 +34,13 @@ Form field binding:
 ## Cleanup
 
 Future form components must tear down linked templates when removed from the DOM.
+
+## Current Non-Form Use
+
+`nodel-node-list` is the first non-schema component to use JsViews in the new UI. It uses a linked template for the filter, page-size selection, item rendering, and highlight binding while the component owns fetch cadence and state refresh.
+
+This is a good use of JsViews because it keeps the list rendering logic concise and close to the v1 behavior while still being isolated behind a web component.
+
+`nodel-add-node` remains native DOM because it is primarily an interaction/submit flow rather than a continuously reactive list.
+
+Components that link templates should call `unlinkTemplate(...)` or `$.unlink(...)` in `disconnectedCallback()`.
