@@ -1,5 +1,7 @@
 import { getVerySimpleName } from '../utils/node-name';
 import type {
+  NodelActivityLogEntry,
+  NodelConsoleLogEntry,
   NodelBuildInfo,
   NodelDiagnosticsResponse,
   NodelLocalNodeEntry,
@@ -64,6 +66,19 @@ export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosti
 
 export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> {
   return fetchJson<NodelBuildInfo>('/build.json', init);
+}
+
+export async function getNodeConsoleLogs(options: { from: number; max: number; timeout?: number }, init?: RequestInit): Promise<NodelConsoleLogEntry[]> {
+  const timeout = options.timeout ?? 0;
+  return fetchJson<NodelConsoleLogEntry[]>(`REST/console?from=${options.from}&max=${options.max}${timeout > 0 ? `&timeout=${timeout}` : ''}`, init);
+}
+
+export async function executeNodeConsoleCommand(code: string, init?: RequestInit): Promise<unknown> {
+  return postJson<unknown>('REST/exec', { code }, init);
+}
+
+export async function getNodeActivity(options: { from: number }, init?: RequestInit): Promise<NodelActivityLogEntry[]> {
+  return fetchJson<NodelActivityLogEntry[]>(`REST/activity?from=${options.from}`, init);
 }
 
 export async function searchNodeUrls(filter: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {

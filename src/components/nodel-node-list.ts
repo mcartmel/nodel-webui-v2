@@ -3,6 +3,7 @@ import type { NodelLocalNodeEntry, NodelNodeUrlEntry } from '../api/nodel-types'
 import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { getHostFromAddress, getSimpleName, getVerySimpleName } from '../utils/node-name';
+import { escapeHtml } from '../utils/html';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
@@ -75,15 +76,6 @@ function normalizeScope(value: string | null): NodeListScope {
   return value === 'network' ? 'network' : 'local';
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function nextPageSize(current: number): number {
   const index = pageSizes.indexOf(current);
   if (index === -1 || index === pageSizes.length - 1) {
@@ -128,13 +120,6 @@ export class NodelNodeList extends HTMLElement {
   attributeChangedCallback() {
     if (this.connected) {
       void this.initialize();
-    }
-  }
-
-  private clearTimers() {
-    if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
     }
   }
 

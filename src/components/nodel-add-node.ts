@@ -1,6 +1,7 @@
 import { createNode, duplicateNode, listRecipes, searchNodeUrls } from '../api/nodel-host-client';
 import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
 import { getVerySimpleName } from '../utils/node-name';
+import { escapeHtml } from '../utils/html';
 
 type Selection =
   | { type: 'recipe'; path: string }
@@ -25,15 +26,6 @@ const recipeCache: RecipeCache = {
 
 const recipeCacheTtlMs = 60 * 1000;
 const debounceMs = 200;
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function buildResultLabel(primary: string, secondary?: string) {
   return `${escapeHtml(primary)}${secondary ? `<br><span>${escapeHtml(secondary)}</span>` : ''}`;

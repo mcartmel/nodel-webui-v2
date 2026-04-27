@@ -6,6 +6,7 @@ import {
   type NodelNavItem,
   type NodelNavSelectDetail
 } from '../navigation/navigation';
+import { getNodePathName, getSimpleName } from '../utils/node-name';
 import './nodel-host-icon';
 
 type NavigationAppElement = HTMLElement & NodelNavigationHost;
@@ -19,6 +20,8 @@ export class NodelToolbar extends HTMLElement {
   private navNode: HTMLElement | null = null;
   private openGroupId = '';
   private shellReady = false;
+  private autoTitle = '';
+  private titleLoadToken = 0;
   private iconNode: HTMLImageElement | null = null;
   private hostIconNode: HTMLElement | null = null;
   private titleNode: HTMLElement | null = null;
@@ -27,6 +30,7 @@ export class NodelToolbar extends HTMLElement {
   connectedCallback() {
     this.appNode = this.closest('nodel-app') as NavigationAppElement | null;
     this.render();
+    void this.loadDefaultTitle();
     this.addEventListener('click', this.handleClick);
     this.appNode?.addEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     document.addEventListener('click', this.handleDocumentClick);
@@ -35,6 +39,7 @@ export class NodelToolbar extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.titleLoadToken += 1;
     this.removeEventListener('click', this.handleClick);
     this.appNode?.removeEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     document.removeEventListener('click', this.handleDocumentClick);
@@ -45,11 +50,13 @@ export class NodelToolbar extends HTMLElement {
   attributeChangedCallback() {
     if (this.isConnected) {
       this.render();
+      void this.loadDefaultTitle();
     }
   }
 
   private render() {
-    const title = this.getAttribute('title') ?? 'Nodel';
+    const title = this.getAttribute('title') ?? this.autoTitle;
+    const hasTitle = title.trim().length > 0;
     const iconSrc = this.getAttribute('icon-src');
     const iconAlt = this.getAttribute('icon-alt') ?? title;
     const children = this.shellReady ? [] : Array.from(this.childNodes);
@@ -92,6 +99,7 @@ export class NodelToolbar extends HTMLElement {
     }
 
     if (this.titleNode) {
+      this.titleNode.hidden = !hasTitle;
       this.titleNode.textContent = title;
     }
 
@@ -104,6 +112,36 @@ export class NodelToolbar extends HTMLElement {
     }
 
     this.renderNavigation();
+  }
+
+  private async loadDefaultTitle() {
+    const token = ++this.titleLoadToken;
+
+    if (this.hasAttribute('title') || !getNodePathName()) {
+      this.autoTitle = '';
+      this.render();
+      return;
+    }
+
+    try {
+      const response = await fetch('REST/');
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json() as { name?: unknown };
+      if (token !== this.titleLoadToken || this.hasAttribute('title')) {
+        return;
+      }
+
+      const name = typeof data.name === 'string' ? getSimpleName(data.name).trim() : '';
+      if (name) {
+        this.autoTitle = name;
+        this.render();
+      }
+    } catch {
+      // Host-level pages intentionally have no title, and node title lookup is best-effort.
+    }
   }
 
   private handleClick = (event: MouseEvent) => {

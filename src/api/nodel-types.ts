@@ -19,6 +19,32 @@ export interface NodelLocalRestResponse {
   [key: string]: unknown;
 }
 
+export interface NodelConsoleLogEntry {
+  seq: number;
+  timestamp: string;
+  console: 'out' | 'err' | 'warn' | 'info';
+  comment: string;
+  [key: string]: unknown;
+}
+
+export interface NodelActivityLogEntry {
+  seq: number;
+  timestamp: string;
+  source: 'local' | 'remote' | 'unbound';
+  type: 'action' | 'event' | 'actionBinding' | 'eventBinding';
+  alias: string;
+  arg?: unknown;
+  [key: string]: unknown;
+}
+
+export interface NodelActivityWebSocketMessage {
+  node?: string;
+  error?: string;
+  activity?: NodelActivityLogEntry;
+  activityHistory?: NodelActivityLogEntry[];
+  [key: string]: unknown;
+}
+
 export interface NodelDiagnosticsResponse {
   hostname?: string;
   httpAddresses?: string[];

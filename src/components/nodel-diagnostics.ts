@@ -1,6 +1,7 @@
 import { getBuildInfo, getDiagnostics } from '../api/nodel-host-client';
 import type { NodelBuildInfo, NodelDiagnosticsResponse } from '../api/nodel-types';
 import { registerNodelOneShotSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
+import { escapeHtml } from '../utils/html';
 
 interface DiagnosticsState {
   loading: boolean;
@@ -12,15 +13,6 @@ interface DiagnosticsState {
 interface DiagnosticsPayload {
   diagnostics: NodelDiagnosticsResponse;
   build: NodelBuildInfo | null;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function safeText(value: unknown, fallback = 'Unavailable') {

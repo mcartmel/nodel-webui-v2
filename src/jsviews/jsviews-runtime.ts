@@ -1,19 +1,11 @@
 import $ from 'jquery';
+import { escapeHtml } from '../utils/html';
 
 let bootstrapped = false;
 let bootPromise: Promise<typeof $> | null = null;
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 export function registerJsViewsHelpers() {

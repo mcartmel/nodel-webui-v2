@@ -46,7 +46,7 @@ Use the stable v2 asset path when authoring pages:
 <nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>
 ```
 
-The title defaults to `Nodel`, and `icon-alt` defaults to the title.
+The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
 
 ## Page Navigation
 

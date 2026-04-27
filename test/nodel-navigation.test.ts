@@ -17,7 +17,7 @@ async function waitForNavigation() {
 function renderNavigationFixture() {
   document.body.innerHTML = `
     <nodel-app theme="default" title="Nodel">
-      <nodel-toolbar title="Nodel" icon-src="./v2/img/logo.png"></nodel-toolbar>
+      <nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>
 
         <nodel-page title="Overview">
           <nodel-row>

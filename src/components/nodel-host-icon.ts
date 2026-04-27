@@ -1,13 +1,5 @@
 import { generateHostIconDataUri } from '../icons/host-identicon';
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { escapeHtml } from '../utils/html';
 
 export class NodelHostIcon extends HTMLElement {
   static observedAttributes = ['host', 'icon-host', 'href', 'title', 'alt'];

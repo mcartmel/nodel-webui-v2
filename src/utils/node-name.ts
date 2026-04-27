@@ -31,6 +31,18 @@ export function getSimpleName(name: string): string {
   return match ? match[1] : name;
 }
 
+export function getNodePathName(pathname = window.location.pathname): string | null {
+  const pathParts = pathname.split('/');
+  const nodesIndex = pathParts.indexOf('nodes');
+  const nodeName = nodesIndex >= 0 ? pathParts[nodesIndex + 1] : '';
+
+  if (!nodeName) {
+    return null;
+  }
+
+  return decodeURIComponent(nodeName.replace(/\+/g, '%20'));
+}
+
 export function getVerySimpleName(name: string): string {
   return reduceNodeNameForPath(name);
 }
