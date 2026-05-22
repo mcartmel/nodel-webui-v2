@@ -18,3 +18,5 @@
 - Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for common controls and surfaces.
 - Use variant/state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` instead of encoding state as raw utility classes.
 - Keep one-off Tailwind utilities for layout, spacing, sizing, and component-specific structure when a shared class would be less clear.
+- Use `nodel-collapse` for collapsible sections instead of ad-hoc disclosure markup.
+- Components that summarize state for a parent `nodel-collapse` should emit plain-text `nodel-collapse-preview` events rather than directly depending on the collapse component.

@@ -25,6 +25,7 @@ The first UI layer is intentionally small:
 - `nodel-toolbar` renders the top bar.
 - `nodel-page` renders page sections.
 - `nodel-row` and `nodel-column` provide simple layout primitives.
+- `nodel-collapse` renders reusable collapsible panels.
 - `nodel-theme-toggle` switches between light and dark themes using the `theme` attribute.
 - `nodel-text` provides default body text styling.
 - `nodel-node-list` encapsulates the v1-style locals/network node lists with JsViews-backed data binding.
@@ -36,7 +37,7 @@ The first UI layer is intentionally small:
 
 Node list and add-node behavior intentionally preserve the existing v1 look and feel, including the host icon algorithm and the local vs network list split.
 
-Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`.
+Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`. Components that can summarize themselves inside `nodel-collapse` use bubbled `nodel-collapse-preview` events with plain-text preview details rather than coupling directly to the collapse component.
 
 Node editor behavior intentionally preserves the v1 file endpoints while using CodeMirror 6 rather than CodeMirror 5. The editor shell, file browser, controls, and status state are JsViews-linked. CodeMirror owns only the editor viewport. Custom layout hints are maintained in `src/editor/nodel-document-definition.ts` and should be updated whenever a public `nodel-*` component is added.
 

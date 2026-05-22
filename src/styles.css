@@ -70,6 +70,7 @@
   nodel-page,
   nodel-row,
   nodel-column,
+  nodel-collapse,
   nodel-text,
   nodel-host-icon,
   nodel-node-list,
@@ -87,6 +88,7 @@
   nodel-page:not(:defined),
   nodel-row:not(:defined),
   nodel-column:not(:defined),
+  nodel-collapse:not(:defined),
   nodel-console:not(:defined),
   nodel-log:not(:defined),
   nodel-editor:not(:defined) {
@@ -356,6 +358,78 @@
     border-color: rgb(var(--nodel-danger-border) / 0.45);
     background: rgb(var(--nodel-danger-bg) / 0.75);
     color: rgb(var(--nodel-danger));
+  }
+
+  .nodel-collapse {
+    overflow: hidden;
+  }
+
+  .nodel-collapse-summary {
+    display: flex;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: rgb(var(--nodel-fg));
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+  }
+
+  .nodel-collapse-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .nodel-collapse-summary:hover {
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-collapse-summary:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+  }
+
+  .nodel-collapse-label {
+    flex: none;
+  }
+
+  .nodel-collapse-preview {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgb(var(--nodel-muted));
+    font-size: 0.8125rem;
+    font-weight: 400;
+  }
+
+  .nodel-collapse[open] .nodel-collapse-preview {
+    display: none;
+  }
+
+  .nodel-collapse-icon::before {
+    content: '+';
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: rgb(var(--nodel-muted));
+    font-weight: 600;
+  }
+
+  .nodel-collapse[open] .nodel-collapse-icon::before {
+    content: '-';
+  }
+
+  .nodel-collapse-content {
+    border-top: 1px solid rgb(var(--nodel-border));
+    padding: 1rem;
   }
 
   .nodel-theme-switch {

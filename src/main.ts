@@ -3,6 +3,7 @@ import './components/nodel-toolbar';
 import './components/nodel-page';
 import './components/nodel-row';
 import './components/nodel-column';
+import './components/nodel-collapse';
 import './components/nodel-text';
 import './components/nodel-host-icon';
 import './components/nodel-node-list';

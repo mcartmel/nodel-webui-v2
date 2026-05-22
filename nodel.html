@@ -16,14 +16,16 @@
       <nodel-page title="Activity">
         <nodel-row>
           <nodel-column>
-            <nodel-text><b>Console</b></nodel-text>
-            <nodel-console></nodel-console>
+            <nodel-collapse label="Console" preview="No console output yet" open>
+              <nodel-console collapse-preview="last-line"></nodel-console>
+            </nodel-collapse>
           </nodel-column>
         </nodel-row>
         <nodel-row>
           <nodel-column>
-            <nodel-text><b>Recipe</b></nodel-text>
-            <nodel-editor></nodel-editor>
+            <nodel-collapse label="Recipe">
+              <nodel-editor></nodel-editor>
+            </nodel-collapse>
           </nodel-column>
         </nodel-row>
         <nodel-row>

@@ -28,6 +28,7 @@ Examples:
 - `nodel-page`
 - `nodel-row`
 - `nodel-column`
+- `nodel-collapse`
 - `nodel-text`
 - `nodel-host-icon`
 - `nodel-node-list`
@@ -159,6 +160,37 @@ Use `md="6"` for full width on small screens and half width from medium screens 
 
 `nodel-page title="..."` is used for generated navigation labels. It does not render a visible page heading. Add explicit heading/content components inside the page when a visible title is needed.
 
+## Collapsible Sections
+
+Use `nodel-collapse` for reusable collapsible panels. It is closed by default, matching the v1 editor section behavior. Add `open` when a section should start expanded. Add `preview` for fallback summary text while collapsed.
+
+```html
+<nodel-collapse label="Recipe">
+  <nodel-editor></nodel-editor>
+</nodel-collapse>
+
+<nodel-collapse label="Diagnostics" preview="Loading diagnostics" open>
+  <nodel-diagnostics></nodel-diagnostics>
+</nodel-collapse>
+```
+
+Supported attributes:
+
+- `label="..."`
+- `open`
+- `preview="..."`
+
+Behavior:
+
+- Uses native disclosure semantics for keyboard and accessibility behavior.
+- Reflects user toggles to the host `open` attribute.
+- Dispatches `nodel-collapse-toggle` with `{ open: boolean }` when toggled.
+- Shows static `preview` text while collapsed when provided.
+- Updates its preview from descendant `nodel-collapse-preview` events with `{ text: string }` detail.
+- Keeps child content connected while collapsed so nested components retain their normal lifecycle.
+
+Components that support collapse previews should emit plain-text `nodel-collapse-preview` events for meaningful state changes. Keep preview text short and never depend on a direct import or reference to `nodel-collapse`.
+
 ## Text
 
 Use `nodel-text` for ordinary body text. It applies the default muted body styling so override pages do not need to repeat Tailwind utility classes.
@@ -242,14 +274,16 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 <nodel-page title="Activity">
   <nodel-row>
     <nodel-column>
-      <nodel-text><b>Console</b></nodel-text>
-      <nodel-console></nodel-console>
+      <nodel-collapse label="Console" preview="No console output yet" open>
+        <nodel-console collapse-preview="last-line"></nodel-console>
+      </nodel-collapse>
     </nodel-column>
   </nodel-row>
   <nodel-row>
     <nodel-column>
-      <nodel-text><b>Recipe</b></nodel-text>
-      <nodel-editor></nodel-editor>
+      <nodel-collapse label="Recipe">
+        <nodel-editor></nodel-editor>
+      </nodel-collapse>
     </nodel-column>
   </nodel-row>
   <nodel-row>
@@ -268,6 +302,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Posts entered commands to relative `REST/exec` as `{ "code": "..." }`.
 - Supports Enter to submit and Up/Down to move through local command history.
 - Pauses polling while its page or browser tab is hidden.
+- Set `collapse-preview="last-line"` to emit the newest console line through `nodel-collapse-preview` for a parent `nodel-collapse`.
 
 `nodel-log` behavior:
 

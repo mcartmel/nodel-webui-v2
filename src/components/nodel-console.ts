@@ -49,6 +49,11 @@ function toEntryView(entry: NodelConsoleLogEntry): ConsoleEntryView {
   };
 }
 
+function consolePreviewText(entry: ConsoleEntryView) {
+  const label = entry.console === 'err' ? 'error: ' : entry.console === 'warn' ? 'warn: ' : entry.console === 'info' ? 'info: ' : '';
+  return `${entry.displayTime} ${label}${entry.comment}`.replace(/\s+/g, ' ').trim();
+}
+
 export class NodelConsole extends HTMLElement {
   private history: string[] = [];
   private historyIndex = -1;
@@ -106,6 +111,10 @@ export class NodelConsole extends HTMLElement {
     this.querySelector('[data-console-input]')?.removeEventListener('keydown', this.handleKeydownEvent);
   }
 
+  private get collapsePreviewMode() {
+    return this.getAttribute('collapse-preview');
+  }
+
   private updateStatus(loading: boolean, error: string, connected: boolean) {
     const label = error || (loading ? 'Loading console history' : connected ? 'Console polling active' : 'Console polling paused');
     const statusState = error ? 'error' : loading ? 'loading' : connected ? 'active' : 'paused';
@@ -128,10 +137,25 @@ export class NodelConsole extends HTMLElement {
     const $ = getJQuery();
 
     $.observable(this.state.entries).refresh(nextEntries);
+    this.emitCollapsePreview(nextEntries[nextEntries.length - 1]);
 
     if (shouldScroll && output) {
       output.scrollTop = output.scrollHeight;
     }
+  }
+
+  private emitCollapsePreview(entry: ConsoleEntryView | undefined) {
+    if (this.collapsePreviewMode !== 'last-line' || !entry) {
+      return;
+    }
+
+    this.dispatchEvent(new CustomEvent('nodel-collapse-preview', {
+      bubbles: true,
+      detail: {
+        source: 'console',
+        text: consolePreviewText(entry)
+      }
+    }));
   }
 
   private handleKeydownEvent = (event: Event) => {

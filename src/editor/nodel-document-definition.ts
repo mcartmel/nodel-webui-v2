@@ -60,6 +60,16 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-column md="6">\n  ${}\n</nodel-column>'
   },
   {
+    name: 'nodel-collapse',
+    description: 'Collapsible section, closed by default.',
+    attributes: [
+      { name: 'label', description: 'Visible section label.' },
+      { name: 'preview', description: 'Fallback preview text shown while collapsed.' },
+      { name: 'open', description: 'Start expanded.' }
+    ],
+    snippet: '<nodel-collapse label="Section">\n  ${}\n</nodel-collapse>'
+  },
+  {
     name: 'nodel-text',
     description: 'Theme-aware text block.',
     attributes: [
@@ -115,7 +125,9 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
   {
     name: 'nodel-console',
     description: 'Node console history and command prompt.',
-    attributes: []
+    attributes: [
+      { name: 'collapse-preview', description: 'Emit preview updates for a parent nodel-collapse.', values: ['last-line'] }
+    ]
   },
   {
     name: 'nodel-log',

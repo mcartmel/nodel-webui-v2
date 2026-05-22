@@ -34,6 +34,8 @@ describe('nodel-console', () => {
     document.body.innerHTML = '<nodel-console></nodel-console>';
     await customElements.whenDefined('nodel-console');
     await waitFor(() => consoleMock.listeners.length === 1);
+    const preview = vi.fn();
+    document.querySelector('nodel-console')?.addEventListener('nodel-collapse-preview', preview);
 
     consoleMock.listeners[0]?.({
       loading: false,
@@ -56,6 +58,7 @@ describe('nodel-console', () => {
     expect(document.querySelector('[data-console-output]')?.className).toContain('h-[14.4rem]');
     expect(document.querySelector('[data-console-status]')).toBeNull();
     expect(document.querySelector('nodel-console')?.getAttribute('data-state')).toBe('active');
+    expect(preview).not.toHaveBeenCalled();
 
     const input = document.querySelector<HTMLInputElement>('[data-console-input]');
     expect(input).toBeTruthy();
@@ -75,5 +78,57 @@ describe('nodel-console', () => {
     input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     await flush();
     expect(input!.value).toBe('');
+  });
+
+  it('emits the latest console line as an opt-in collapse preview', async () => {
+    document.body.innerHTML = '<nodel-console collapse-preview="last-line"></nodel-console>';
+    await customElements.whenDefined('nodel-console');
+    await waitFor(() => consoleMock.listeners.length === 1);
+
+    const preview = vi.fn();
+    document.querySelector('nodel-console')?.addEventListener('nodel-collapse-preview', preview);
+
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: {
+        entries: [
+          { seq: 1, timestamp: '2026-01-01T00:00:00Z', console: 'out', comment: 'ready' },
+          { seq: 2, timestamp: '2026-01-01T00:00:01Z', console: 'err', comment: 'bad <value>' }
+        ],
+        replace: true,
+        nextSeq: 3
+      }
+    });
+    await flush();
+
+    expect(preview).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: {
+        source: 'console',
+        text: expect.stringContaining('error: bad <value>')
+      }
+    }));
+
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: {
+        entries: [
+          { seq: 3, timestamp: '2026-01-01T00:00:02Z', console: 'warn', comment: 'careful' }
+        ],
+        replace: false,
+        nextSeq: 4
+      }
+    });
+    await flush();
+
+    expect(preview).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: {
+        source: 'console',
+        text: expect.stringContaining('warn: careful')
+      }
+    }));
   });
 });
