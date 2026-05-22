@@ -71,6 +71,16 @@
     @apply block;
   }
 
+  nodel-app:not(:defined),
+  nodel-toolbar:not(:defined),
+  nodel-page:not(:defined),
+  nodel-row:not(:defined),
+  nodel-column:not(:defined),
+  nodel-console:not(:defined),
+  nodel-log:not(:defined) {
+    visibility: hidden;
+  }
+
   nodel-page,
   nodel-row,
   nodel-column {

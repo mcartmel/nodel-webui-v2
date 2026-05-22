@@ -1,11 +1,28 @@
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 
+function cssBeforeEntryScriptPlugin(): Plugin {
+  return {
+    name: 'nodel-css-before-entry-script',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        return html.replace(
+          /^([\t ]*<script\b[^>]*\bsrc="\.\/v2\/nodel-webui\.js"[^>]*><\/script>\r?\n)([\t ]*<link\b[^>]*\bhref="\.\/v2\/nodel-webui\.css"[^>]*>\r?\n?)/m,
+          '$2$1'
+        );
+      }
+    }
+  };
+}
+
 export default defineConfig({
   base: './',
+  plugins: [cssBeforeEntryScriptPlugin()],
   server: {
     host: '0.0.0.0'
   },
