@@ -24,10 +24,18 @@ describe('nodel-log', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders activity history newest first and filters by alias', async () => {
+  async function mountLog() {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
-    await waitFor(() => activityMock.listeners.length === 1);
+    await waitFor(() => activityMock.listeners.length === 1, {
+      attempts: 100,
+      intervalMs: 1,
+      message: 'Timed out waiting for nodel-log activity subscription'
+    });
+  }
+
+  it('renders activity history newest first and filters by alias', async () => {
+    await mountLog();
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -72,9 +80,7 @@ describe('nodel-log', () => {
   });
 
   it('does not render placeholder text when there are no visible rows', async () => {
-    document.body.innerHTML = '<nodel-log></nodel-log>';
-    await customElements.whenDefined('nodel-log');
-    await waitFor(() => activityMock.listeners.length === 1);
+    await mountLog();
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -95,9 +101,7 @@ describe('nodel-log', () => {
   });
 
   it('highlights JSON tokens safely when filter enables highlighted arguments', async () => {
-    document.body.innerHTML = '<nodel-log></nodel-log>';
-    await customElements.whenDefined('nodel-log');
-    await waitFor(() => activityMock.listeners.length === 1);
+    await mountLog();
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -142,9 +146,7 @@ describe('nodel-log', () => {
   });
 
   it('updates existing rows without moving them while hold is enabled', async () => {
-    document.body.innerHTML = '<nodel-log></nodel-log>';
-    await customElements.whenDefined('nodel-log');
-    await waitFor(() => activityMock.listeners.length === 1);
+    await mountLog();
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -201,9 +203,7 @@ describe('nodel-log', () => {
   });
 
   it('renders incomplete activity entries without crashing', async () => {
-    document.body.innerHTML = '<nodel-log></nodel-log>';
-    await customElements.whenDefined('nodel-log');
-    await waitFor(() => activityMock.listeners.length === 1);
+    await mountLog();
 
     expect(() => activityMock.listeners[0]?.({
       loading: false,

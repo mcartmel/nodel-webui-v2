@@ -116,7 +116,10 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
     await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
 
+    expect(document.querySelector('[data-editor-toggle-add]')?.parentElement?.className).not.toContain('nodel-card');
+    expect(document.querySelector('[data-editor-add-form]')?.parentElement?.className).toContain('nodel-editor-add-wrap');
     const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    expect(input.placeholder).toBe('e.g. content/index.html');
     input.value = 'content/new.html';
     input.dispatchEvent(new InputEvent('input', { bubbles: true }));
     await flush();

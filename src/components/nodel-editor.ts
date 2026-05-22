@@ -53,14 +53,16 @@ const template = `
     </div>
 
     {^{if adding}}
-      <form data-editor-add-form class="nodel-editor-add nodel-card grid gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-        <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
-          File path
-          <input data-editor-add-path class="nodel-field mt-1 w-full" type="text" placeholder="content/index.html" data-link="addFilePath trigger=true" />
-        </label>
-        <button data-editor-create-empty type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">Create</button>
-        <button data-editor-cancel-add type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Cancel</button>
-      </form>
+      <div class="nodel-editor-add-wrap pt-1">
+        <form data-editor-add-form class="nodel-editor-add nodel-card grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+          <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
+            File path
+            <input data-editor-add-path class="nodel-field mt-1 w-full" type="text" placeholder="e.g. content/index.html" data-link="addFilePath trigger=true" />
+          </label>
+          <button data-editor-create-empty type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">Create</button>
+          <button data-editor-cancel-add type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Cancel</button>
+        </form>
+      </div>
     {{/if}}
 
     <div class="nodel-editor-status text-sm" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'}">

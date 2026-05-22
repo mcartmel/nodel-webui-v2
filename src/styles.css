@@ -301,6 +301,8 @@
 
   .nodel-field::placeholder {
     color: rgb(var(--nodel-muted));
+    font-style: italic;
+    opacity: 0.65;
   }
 
   .nodel-field:focus-visible {
