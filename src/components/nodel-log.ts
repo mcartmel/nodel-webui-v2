@@ -54,7 +54,7 @@ const template = `
     </div>
     <div data-log-output class="nodel-log-output space-y-1">
       {^{for visibleRows}}
-        <div data-link="class{:rowClass} data-log-key{:key}">
+        <div data-link="class{:rowClass}">
           <span data-link="class{:iconClass}" aria-hidden="true">{^{:iconMarkup}}</span>
           <span class="nodel-log-main">
             <span class="nodel-log-titleline">
@@ -91,19 +91,29 @@ function formatArg(arg: unknown) {
 }
 
 function highlightJson(json: string) {
-  const escaped = escapeHtml(json);
-  return escaped.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+  const tokenPattern = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g;
+  let markup = '';
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenPattern.exec(json)) !== null) {
+    markup += escapeHtml(json.slice(lastIndex, match.index));
+
     let cls = 'jsonnumber';
-    if (match.startsWith('&quot;')) {
-      cls = /:\s*$/.test(match) ? 'jsonkey' : 'jsonstring';
-    } else if (/true|false/.test(match)) {
+    const value = match[0];
+    if (value.startsWith('"')) {
+      cls = /:\s*$/.test(value) ? 'jsonkey' : 'jsonstring';
+    } else if (/true|false/.test(value)) {
       cls = 'jsonboolean';
-    } else if (/null/.test(match)) {
+    } else if (/null/.test(value)) {
       cls = 'jsonnull';
     }
 
-    return `<span class="${cls}">${match}</span>`;
-  });
+    markup += `<span class="${cls}">${escapeHtml(value)}</span>`;
+    lastIndex = match.index + value.length;
+  }
+
+  return `${markup}${escapeHtml(json.slice(lastIndex))}`;
 }
 
 function logIcon(entry: NodelActivityLogEntry) {

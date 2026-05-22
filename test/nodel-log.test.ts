@@ -94,6 +94,53 @@ describe('nodel-log', () => {
     expect(document.querySelector('[data-log-output]')?.textContent?.trim()).toBe('');
   });
 
+  it('highlights JSON tokens safely when filter enables highlighted arguments', async () => {
+    document.body.innerHTML = '<nodel-log></nodel-log>';
+    await customElements.whenDefined('nodel-log');
+    await waitFor(() => activityMock.listeners.length === 1);
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [
+          {
+            entry: {
+              seq: 1,
+              timestamp: '2026-01-01T00:00:00Z',
+              source: 'local',
+              type: 'event',
+              alias: 'Level',
+              arg: { value: '<unsafe>', count: 10, enabled: true, missing: null }
+            },
+            changed: false,
+            live: false
+          }
+        ]
+      }
+    });
+
+    const filter = document.querySelector<HTMLInputElement>('[data-log-filter]');
+    filter!.value = 'lev';
+    filter!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => Boolean(document.querySelector('.nodel-log-arg.is-highlighted')));
+
+    const row = document.querySelector<HTMLElement>('.nodel-log-row');
+    const arg = document.querySelector<HTMLElement>('.nodel-log-arg.is-highlighted');
+
+    expect(row?.hasAttribute('data-log-key')).toBe(false);
+    expect(arg?.querySelector('.jsonkey')?.textContent).toBe('"value":');
+    expect(arg?.querySelector('.jsonstring')?.textContent).toBe('"<unsafe>"');
+    expect(arg?.querySelector('.jsonnumber')?.textContent).toBe('10');
+    expect(arg?.querySelector('.jsonboolean')?.textContent).toBe('true');
+    expect(arg?.querySelector('.jsonnull')?.textContent).toBe('null');
+    expect(arg?.querySelector('unsafe')).toBeNull();
+  });
+
   it('updates existing rows without moving them while hold is enabled', async () => {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
