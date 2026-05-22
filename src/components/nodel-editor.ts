@@ -33,7 +33,7 @@ const binaryPlaceholder = 'Binary file - preview not available.';
 
 const template = `
   <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor is-error' : 'nodel-editor'}">
-    <div class="nodel-editor-toolbar nodel-card flex flex-wrap items-center gap-2 p-3">
+    <div class="nodel-editor-toolbar flex flex-wrap items-center gap-2">
       <div class="nodel-editor-picker-wrap min-w-0 flex-1">
         <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="value{:pickerPath trigger=true} disabled{:loading || saving || deleting}">
           {^{for files}}
