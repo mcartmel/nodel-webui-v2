@@ -1,9 +1,11 @@
 import { autocompletion } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import type { Extension } from '@codemirror/state';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
+import { tags } from '@lezer/highlight';
 import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
@@ -29,6 +31,21 @@ export interface NodelCodeEditorOptions {
   onChange?: (text: string) => void;
   onSave?: () => void;
 }
+
+const nodelHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: 'var(--nodel-editor-keyword)' },
+  { tag: [tags.atom, tags.bool], color: 'var(--nodel-editor-atom)' },
+  { tag: tags.number, color: 'var(--nodel-editor-number)' },
+  { tag: [tags.string, tags.special(tags.string)], color: 'var(--nodel-editor-string)' },
+  { tag: tags.comment, color: 'var(--nodel-editor-comment)', fontStyle: 'italic' },
+  { tag: tags.variableName, color: 'var(--nodel-editor-variable)' },
+  { tag: [tags.definition(tags.variableName), tags.function(tags.variableName), tags.className], color: 'var(--nodel-editor-definition)' },
+  { tag: tags.propertyName, color: 'var(--nodel-editor-property)' },
+  { tag: tags.tagName, color: 'var(--nodel-editor-tag)' },
+  { tag: tags.attributeName, color: 'var(--nodel-editor-attribute)' },
+  { tag: tags.typeName, color: 'var(--nodel-editor-type)' },
+  { tag: tags.invalid, color: 'var(--nodel-editor-invalid)' }
+]);
 
 export function languageExtensionForPath(path: string): Extension {
   return languageExtensionForKind(languageKindForPath(path));
@@ -74,13 +91,32 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       minHeight: '100%'
     },
+    '.cm-content': {
+      caretColor: 'var(--nodel-editor-cursor)'
+    },
+    '.cm-cursor, .cm-dropCursor': {
+      borderLeftColor: 'var(--nodel-editor-cursor)'
+    },
+    '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
+      backgroundColor: 'var(--nodel-editor-selection)'
+    },
+    '.cm-content ::selection': {
+      backgroundColor: 'var(--nodel-editor-selection)'
+    },
     '.cm-gutters': {
       backgroundColor: 'rgb(var(--nodel-bg))',
       color: 'rgb(var(--nodel-muted))',
       borderRightColor: 'rgb(var(--nodel-border))'
     },
     '.cm-activeLine, .cm-activeLineGutter': {
-      backgroundColor: 'rgb(var(--nodel-accent) / 0.08)'
+      backgroundColor: 'var(--nodel-editor-active-line)'
+    },
+    '.cm-matchingBracket, .cm-nonmatchingBracket': {
+      backgroundColor: 'var(--nodel-editor-matching-bracket-bg)',
+      outline: '1px solid var(--nodel-editor-matching-bracket-border)'
+    },
+    '.cm-searchMatch': {
+      backgroundColor: 'var(--nodel-editor-search-match)'
     },
     '&.cm-focused': {
       outline: '2px solid rgb(var(--nodel-accent) / 0.35)',
@@ -95,6 +131,7 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
       extensions: [
         basicSetup,
         theme,
+        syntaxHighlighting(nodelHighlightStyle),
         language.of(languageExtensionForPath(path)),
         editable.of(EditorView.editable.of(!options.readOnly)),
         keymap.of([

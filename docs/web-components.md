@@ -322,12 +322,19 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Creates empty text files or uploads local files.
 - Deletes files through relative `REST/files/delete`, except `script.py` is protected.
 - Uses CodeMirror 6 for editing and Python highlighting for `.py` files.
+- Uses theme-aware editor colours for the cursor, selection, matching brackets, active line, search matches, and syntax highlighting.
 - Starts at a sensible editor height and supports vertical drag-resize.
 - Provides custom layout hints from `src/editor/nodel-document-definition.ts` for v2 `nodel-*` markup.
 
 Supported attributes:
 
 - `default-file="script.py"`
+
+Editor colours can be overridden with CSS custom properties when a page needs a custom palette:
+
+```html
+<nodel-editor style="--nodel-editor-cursor: #facc15;"></nodel-editor>
+```
 
 These node-page components do not expose imperative public APIs; page authors configure placement through markup and let each component/source manage its own lifecycle.
 

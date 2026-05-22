@@ -20,3 +20,4 @@
 - Keep one-off Tailwind utilities for layout, spacing, sizing, and component-specific structure when a shared class would be less clear.
 - Use `nodel-collapse` for collapsible sections instead of ad-hoc disclosure markup.
 - Components that summarize state for a parent `nodel-collapse` should emit plain-text `nodel-collapse-preview` events rather than directly depending on the collapse component.
+- CodeMirror editor colour changes should use the shared `--nodel-editor-*` CSS variables instead of hard-coded theme-specific values.
