@@ -1,21 +1,5 @@
+import { flush, waitFor } from './helpers';
 import { registerNodelOneShotSource } from '../src/data/nodel-data-runtime';
-
-function flush() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-async function waitFor(predicate: () => boolean, attempts = 30) {
-  for (let i = 0; i < attempts; i += 1) {
-    if (predicate()) {
-      return;
-    }
-
-    await flush();
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-
-  throw new Error('Timed out waiting for runtime state');
-}
 
 function uniqueKey() {
   return `runtime-${Date.now()}-${Math.random().toString(16).slice(2)}`;

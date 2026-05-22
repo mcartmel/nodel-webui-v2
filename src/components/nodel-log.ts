@@ -1,14 +1,75 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import { subscribeNodeActivity, type NodeActivityBatch } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon } from '../icons/fontawesome';
+import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { escapeHtml } from '../utils/html';
 
-type RowLimit = 10 | 50 | 100 | 'all';
+type RowLimit = '10' | '50' | '100' | 'all';
 
-interface ActivityRow {
+interface ActivityRowView {
+  alias: string;
+  argMarkup: string;
+  argText: string;
+  displayTime: string;
   entry: NodelActivityLogEntry;
+  highlightArg: boolean;
+  iconClass: string;
+  iconMarkup: string;
+  key: string;
   pulse: boolean;
+  rowClass: string;
+  showArg: boolean;
 }
+
+interface LogViewModel {
+  filter: string;
+  hold: boolean;
+  limit: RowLimit;
+  statusLabel: string;
+  statusState: 'loading' | 'active' | 'paused' | 'error';
+  visibleRows: ActivityRowView[];
+}
+
+const template = `
+  <div class="nodel-log relative min-w-0 space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
+    <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
+        <input data-log-filter class="mt-1 block w-full min-w-0 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] outline-none" type="search" placeholder="Alias" data-link="filter trigger=true" />
+      </label>
+      <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-[rgb(var(--nodel-muted))] md:justify-end">
+        <label class="inline-flex shrink-0 items-center gap-2">
+          <input data-log-hold type="checkbox" data-link="hold" />
+          Hold
+        </label>
+        <label class="inline-flex shrink-0 items-center gap-2">
+          Rows
+          <select data-log-limit class="rounded-lg border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-2 py-1 text-[rgb(var(--nodel-fg))]" data-link="limit">
+            <option value="10">10</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div data-log-output class="nodel-log-output space-y-1">
+      {^{for visibleRows}}
+        <div data-link="class{:rowClass} data-log-key{:key}">
+          <span data-link="class{:iconClass}" aria-hidden="true">{^{:iconMarkup}}</span>
+          <span class="nodel-log-main">
+            <span class="nodel-log-titleline">
+              <span class="nodel-log-alias">{^{>alias}}</span>
+              <span class="nodel-log-time"> - {^{>displayTime}}</span>
+            </span>
+            {^{if showArg}}
+              <span data-link="class{:highlightArg ? 'nodel-log-arg is-highlighted' : 'nodel-log-arg'}">{^{:argMarkup}}</span>
+            {{/if}}
+          </span>
+        </div>
+      {{/for}}
+    </div>
+  </div>
+`;
 
 function rowKey(entry: NodelActivityLogEntry) {
   return `${entry.source ?? ''}_${entry.type ?? ''}_${entry.alias ?? ''}`;
@@ -30,13 +91,10 @@ function formatArg(arg: unknown) {
 }
 
 function highlightJson(json: string) {
-  const escaped = json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escaped = escapeHtml(json);
   return escaped.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
     let cls = 'jsonnumber';
-    if (match.startsWith('"')) {
+    if (match.startsWith('&quot;')) {
       cls = /:\s*$/.test(match) ? 'jsonkey' : 'jsonstring';
     } else if (/true|false/.test(match)) {
       cls = 'jsonboolean';
@@ -58,20 +116,52 @@ function logIcon(entry: NodelActivityLogEntry) {
   return `${baseIcon}${remoteIcon}`;
 }
 
+function rowLimitCount(limit: RowLimit) {
+  return limit === 'all' ? Number.POSITIVE_INFINITY : Number(limit);
+}
+
 export class NodelLog extends HTMLElement {
-  private rows = new Map<string, ActivityRow>();
   private order: string[] = [];
-  private rowElements = new Map<string, HTMLElement>();
-  private source: ReturnType<typeof subscribeNodeActivity> | null = null;
-  private filter = '';
-  private hold = false;
-  private limit: RowLimit = 50;
   private pulseTimers = new Map<string, number>();
-  private shellReady = false;
+  private rows = new Map<string, ActivityRowView>();
+  private source: ReturnType<typeof subscribeNodeActivity> | null = null;
+  private linked = false;
+  private state: LogViewModel = {
+    filter: '',
+    hold: false,
+    limit: '50',
+    statusLabel: 'Loading activity',
+    statusState: 'loading',
+    visibleRows: []
+  };
 
   connectedCallback() {
-    this.renderShell();
-    this.bindEvents();
+    void this.initialize();
+  }
+
+  disconnectedCallback() {
+    this.source?.dispose();
+    this.source = null;
+    this.unobserveControls();
+    for (const timer of this.pulseTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    this.pulseTimers.clear();
+    void unlinkTemplate(this);
+    this.linked = false;
+  }
+
+  private async initialize() {
+    if (!this.linked) {
+      await linkTemplate(this, template, this.state);
+      this.linked = true;
+      this.observeControls();
+    }
+
+    if (this.source) {
+      return;
+    }
+
     this.source = subscribeNodeActivity(this, (state) => {
       if (state.batch) {
         this.applyBatch(state.batch);
@@ -80,80 +170,38 @@ export class NodelLog extends HTMLElement {
     });
   }
 
-  disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
-    this.removeEventListeners();
-    for (const timer of this.pulseTimers.values()) {
-      window.clearTimeout(timer);
-    }
-    this.pulseTimers.clear();
+  private observeControls() {
+    const $ = getJQuery() as ReturnType<typeof getJQuery> & {
+      observe: (object: unknown, paths: string, handler: () => void) => void;
+    };
+    $.observe(this.state, 'filter', this.handleControlChange);
+    $.observe(this.state, 'hold', this.handleControlChange);
+    $.observe(this.state, 'limit', this.handleControlChange);
   }
 
-  private renderShell() {
-    if (this.shellReady) {
-      return;
-    }
-
-    this.innerHTML = `
-      <div class="nodel-log relative min-w-0 space-y-3">
-        <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-          <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
-            <input data-log-filter class="mt-1 block w-full min-w-0 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] outline-none" type="search" placeholder="Alias" />
-          </label>
-          <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-[rgb(var(--nodel-muted))] md:justify-end">
-            <label class="inline-flex shrink-0 items-center gap-2">
-              <input data-log-hold type="checkbox" />
-              Hold
-            </label>
-            <label class="inline-flex shrink-0 items-center gap-2">
-              Rows
-              <select data-log-limit class="rounded-lg border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-2 py-1 text-[rgb(var(--nodel-fg))]">
-                <option value="10">10</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="all">All</option>
-              </select>
-            </label>
-          </div>
-        </div>
-        <div data-log-output class="nodel-log-output space-y-1"></div>
-      </div>
-    `;
-    this.shellReady = true;
+  private unobserveControls() {
+    const $ = getJQuery() as ReturnType<typeof getJQuery> & {
+      unobserve: (object: unknown, paths: string, handler: () => void) => void;
+    };
+    $.unobserve?.(this.state, 'filter', this.handleControlChange);
+    $.unobserve?.(this.state, 'hold', this.handleControlChange);
+    $.unobserve?.(this.state, 'limit', this.handleControlChange);
   }
 
-  private bindEvents() {
-    this.querySelector('[data-log-filter]')?.addEventListener('input', this.handleFilter);
-    this.querySelector('[data-log-hold]')?.addEventListener('change', this.handleHold);
-    this.querySelector('[data-log-limit]')?.addEventListener('change', this.handleLimit);
-  }
-
-  private removeEventListeners() {
-    this.querySelector('[data-log-filter]')?.removeEventListener('input', this.handleFilter);
-    this.querySelector('[data-log-hold]')?.removeEventListener('change', this.handleHold);
-    this.querySelector('[data-log-limit]')?.removeEventListener('change', this.handleLimit);
-  }
-
-  private handleFilter = (event: Event) => {
-    this.filter = ((event.currentTarget as HTMLInputElement).value ?? '').trim().toLowerCase();
-    this.renderRows();
-  };
-
-  private handleHold = (event: Event) => {
-    this.hold = (event.currentTarget as HTMLInputElement).checked;
-    this.renderRows();
-  };
-
-  private handleLimit = (event: Event) => {
-    const value = (event.currentTarget as HTMLSelectElement).value;
-    this.limit = value === 'all' ? 'all' : Number(value) as RowLimit;
-    this.renderRows();
+  private handleControlChange = () => {
+    this.refreshVisibleRows();
   };
 
   private updateStatus(loading: boolean, error: string, connected: boolean, transport?: string) {
     const label = error || (loading ? 'Loading activity' : connected ? 'Activity stream connected' : transport === 'poll' ? 'Activity polling active' : 'Activity stream paused');
-    this.dataset.state = error ? 'error' : loading ? 'loading' : connected || transport === 'poll' ? 'active' : 'paused';
+    const statusState = error ? 'error' : loading ? 'loading' : connected || transport === 'poll' ? 'active' : 'paused';
+    const $ = getJQuery();
+
+    $.observable(this.state).setProperty({
+      statusLabel: label,
+      statusState
+    });
+    this.dataset.state = statusState;
     this.setAttribute('aria-label', label);
     this.title = label;
   }
@@ -162,45 +210,36 @@ export class NodelLog extends HTMLElement {
     if (batch.replace) {
       this.rows.clear();
       this.order = [];
-      for (const element of this.rowElements.values()) {
-        element.remove();
-      }
-      this.rowElements.clear();
       for (const timer of this.pulseTimers.values()) {
         window.clearTimeout(timer);
       }
       this.pulseTimers.clear();
     }
 
-    if (batch.replace && batch.items.length > 100 && !this.hold) {
-      this.hold = true;
-      const holdInput = this.querySelector<HTMLInputElement>('[data-log-hold]');
-      if (holdInput) {
-        holdInput.checked = true;
-      }
+    if (batch.replace && batch.items.length > 100 && !this.state.hold) {
+      getJQuery().observable(this.state).setProperty('hold', true);
     }
 
     if (!batch.replace && batch.items.length === 0) {
       return;
     }
 
-    const dirtyKeys = new Set<string>();
     let orderChanged = batch.replace;
-
     for (const item of batch.items) {
       const key = rowKey(item.entry);
       const existing = this.rows.get(key);
-      this.rows.set(key, { entry: item.entry, pulse: item.live && item.changed });
-      dirtyKeys.add(key);
 
-      if (!existing) {
+      if (existing) {
+        this.updateRow(existing, item.entry, item.live && item.changed);
+      } else {
+        this.rows.set(key, this.createRow(key, item.entry, item.live && item.changed));
         this.order.unshift(key);
         orderChanged = true;
-      } else if (item.live && !this.hold) {
-        if (this.order[0] !== key) {
-          this.order = [key, ...this.order.filter((value) => value !== key)];
-          orderChanged = true;
-        }
+      }
+
+      if (existing && item.live && !this.state.hold && this.order[0] !== key) {
+        this.order = [key, ...this.order.filter((value) => value !== key)];
+        orderChanged = true;
       }
 
       if (item.live && item.changed) {
@@ -208,7 +247,46 @@ export class NodelLog extends HTMLElement {
       }
     }
 
-    this.reconcileRows(dirtyKeys, orderChanged);
+    if (orderChanged || batch.items.length > 0) {
+      this.refreshVisibleRows();
+    }
+  }
+
+  private createRow(key: string, entry: NodelActivityLogEntry, pulse: boolean): ActivityRowView {
+    const argText = formatArg(entry.arg);
+    const highlightArg = Boolean(this.state.hold || this.state.filter);
+
+    return {
+      alias: String(entry.alias ?? ''),
+      argMarkup: entry.arg === undefined ? '' : highlightArg ? highlightJson(argText) : escapeHtml(argText),
+      argText,
+      displayTime: formatTimestamp(entry.timestamp),
+      entry,
+      highlightArg,
+      iconClass: `nodel-log-icon nodel-log-source-${escapeHtml(entry.source)} nodel-log-type-${escapeHtml(entry.type)}`,
+      iconMarkup: logIcon(entry),
+      key,
+      pulse,
+      rowClass: `nodel-log-row ${pulse ? 'is-pulsing' : ''}`,
+      showArg: entry.arg !== undefined
+    };
+  }
+
+  private updateRow(row: ActivityRowView, entry: NodelActivityLogEntry, pulse: boolean) {
+    const next = this.createRow(row.key, entry, pulse);
+    getJQuery().observable(row).setProperty({
+      alias: next.alias,
+      argMarkup: next.argMarkup,
+      argText: next.argText,
+      displayTime: next.displayTime,
+      entry: next.entry,
+      highlightArg: next.highlightArg,
+      iconClass: next.iconClass,
+      iconMarkup: next.iconMarkup,
+      pulse: next.pulse,
+      rowClass: next.rowClass,
+      showArg: next.showArg
+    });
   }
 
   private schedulePulseClear(key: string) {
@@ -221,93 +299,31 @@ export class NodelLog extends HTMLElement {
       this.pulseTimers.delete(key);
       const row = this.rows.get(key);
       if (row) {
-        row.pulse = false;
-        this.rowElements.get(key)?.classList.remove('is-pulsing');
+        getJQuery().observable(row).setProperty({
+          pulse: false,
+          rowClass: 'nodel-log-row'
+        });
       }
     }, 700);
     this.pulseTimers.set(key, timer);
   }
 
-  private visibleKeys() {
-    const filtered = this.filter
-      ? this.order.filter((key) => String(this.rows.get(key)?.entry.alias ?? '').toLowerCase().includes(this.filter))
+  private visibleRows() {
+    const filter = this.state.filter.trim().toLowerCase();
+    const filtered = filter
+      ? this.order.filter((key) => String(this.rows.get(key)?.entry.alias ?? '').toLowerCase().includes(filter))
       : this.order;
     const visible = filtered.filter((key) => this.rows.get(key)?.entry.seq !== 0);
 
-    return this.limit === 'all' ? visible : visible.slice(0, this.limit);
+    return visible.slice(0, rowLimitCount(this.state.limit)).map((key) => this.rows.get(key)).filter((row): row is ActivityRowView => Boolean(row));
   }
 
-  private renderRows() {
-    this.reconcileRows(new Set(this.visibleKeys()), true);
-  }
-
-  private reconcileRows(dirtyKeys = new Set<string>(), orderChanged = false) {
-    const output = this.querySelector<HTMLElement>('[data-log-output]');
-    if (!output) {
-      return;
+  private refreshVisibleRows() {
+    for (const row of this.rows.values()) {
+      this.updateRow(row, row.entry, row.pulse);
     }
 
-    const keys = this.visibleKeys();
-    if (keys.length === 0) {
-      for (const element of this.rowElements.values()) {
-        element.remove();
-      }
-      this.rowElements.clear();
-      output.textContent = '';
-      return;
-    }
-
-    const visible = new Set(keys);
-    for (const [key, element] of this.rowElements) {
-      if (!visible.has(key)) {
-        element.remove();
-        this.rowElements.delete(key);
-      }
-    }
-
-    keys.forEach((key, index) => {
-      let element = this.rowElements.get(key);
-      if (!element) {
-        element = document.createElement('div');
-        element.dataset.logKey = key;
-        this.rowElements.set(key, element);
-        dirtyKeys.add(key);
-      }
-
-      if (dirtyKeys.has(key)) {
-        this.updateRowElement(key, element);
-      }
-
-      if (orderChanged || element.parentElement !== output || output.children[index] !== element) {
-        output.insertBefore(element, output.children[index] ?? null);
-      }
-    });
-  }
-
-  private updateRowElement(key: string, element: HTMLElement) {
-    const row = this.rows.get(key);
-    if (!row) {
-      return;
-    }
-
-    const { entry } = row;
-    const arg = formatArg(entry.arg);
-    const shouldHighlightJson = Boolean(this.hold || this.filter);
-    const argMarkup = entry.arg === undefined
-      ? ''
-      : `<span class="nodel-log-arg ${shouldHighlightJson ? 'is-highlighted' : ''}">${shouldHighlightJson ? highlightJson(arg) : escapeHtml(arg)}</span>`;
-    element.className = `nodel-log-row ${row.pulse ? 'is-pulsing' : ''}`;
-    element.dataset.logKey = key;
-    element.innerHTML = `
-      <span class="nodel-log-icon nodel-log-source-${escapeHtml(entry.source)} nodel-log-type-${escapeHtml(entry.type)}" aria-hidden="true">${logIcon(entry)}</span>
-      <span class="nodel-log-main">
-        <span class="nodel-log-titleline">
-          <span class="nodel-log-alias">${escapeHtml(entry.alias)}</span>
-          <span class="nodel-log-time"> - ${escapeHtml(formatTimestamp(entry.timestamp))}</span>
-        </span>
-        ${argMarkup}
-      </span>
-    `;
+    getJQuery().observable(this.state.visibleRows).refresh(this.visibleRows());
   }
 }
 

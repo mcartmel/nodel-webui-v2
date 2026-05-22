@@ -1,15 +1,9 @@
+import { flush, waitFor } from './helpers';
 import '../src/components/nodel-diagnostics';
-
-function flush() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 async function waitForDiagnostics() {
   await customElements.whenDefined('nodel-diagnostics');
-  for (let i = 0; i < 20; i += 1) {
-    if (!document.body.textContent?.includes('Loading diagnostics...')) {
-      return;
-    }
+  for (let i = 0; i < 20 && document.body.textContent?.includes('Loading diagnostics...'); i += 1) {
     await flush();
   }
 }
@@ -155,13 +149,7 @@ describe('nodel-diagnostics', () => {
 
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
-    for (let i = 0; i < 20; i += 1) {
-      if (mockedFetch.mock.calls.length > 0) {
-        break;
-      }
-      await flush();
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
+    await waitFor(() => mockedFetch.mock.calls.length > 0, { attempts: 20, intervalMs: 25 });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(document.body.textContent).toContain('host-hidden');
@@ -220,13 +208,7 @@ describe('nodel-diagnostics', () => {
     await flush();
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
-    for (let i = 0; i < 20; i += 1) {
-      if (document.body.textContent?.includes('host-resumed')) {
-        break;
-      }
-      await flush();
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
+    await waitFor(() => Boolean(document.body.textContent?.includes('host-resumed')), { attempts: 20, intervalMs: 25 });
 
     expect(diagnosticsCalls).toBe(2);
     expect(buildCalls).toBe(2);

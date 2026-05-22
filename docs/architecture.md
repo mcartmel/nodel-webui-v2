@@ -29,8 +29,12 @@ The first UI layer is intentionally small:
 - `nodel-node-list` encapsulates the v1-style locals/network node lists with JsViews-backed data binding.
 - `nodel-add-node` encapsulates the add-node UI and recipe/node lookup flow.
 - `nodel-diagnostics` renders the host diagnostics table.
+- `nodel-console` renders the node console history and command prompt.
+- `nodel-log` renders the node activity stream with hold, filter, and row-limit controls.
 
 Node list and add-node behavior intentionally preserve the existing v1 look and feel, including the host icon algorithm and the local vs network list split.
+
+Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`.
 
 `nodel-app` also owns page navigation. It discovers declared `nodel-page` elements, creates the toolbar navigation model, tracks the active page, and hides inactive pages with the `hidden` attribute. Nested `nodel-page` elements create toolbar submenu groups. This preserves the v1 behavior concept without using Bootstrap dropdowns or jQuery page switching.
 

@@ -1,21 +1,5 @@
+import { flush, waitFor } from './helpers';
 import '../src/components/nodel-toolbar';
-
-async function flush() {
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-async function waitFor(predicate: () => boolean, attempts = 20) {
-  for (let i = 0; i < attempts; i += 1) {
-    if (predicate()) {
-      return;
-    }
-
-    await flush();
-  }
-
-  throw new Error('Timed out waiting for toolbar state');
-}
 
 describe('nodel-toolbar', () => {
   beforeEach(() => {
@@ -62,7 +46,10 @@ describe('nodel-toolbar', () => {
     document.body.innerHTML = '<nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>';
     await customElements.whenDefined('nodel-toolbar');
 
-    await waitFor(() => document.querySelector('[data-toolbar-title]')?.textContent === 'Nodel Recipes Sync for TRANSCENDENCE 8085');
+    await waitFor(
+      () => document.querySelector('[data-toolbar-title]')?.textContent === 'Nodel Recipes Sync for TRANSCENDENCE 8085',
+      { attempts: 20, message: 'Timed out waiting for toolbar state' }
+    );
 
     const title = document.querySelector('[data-toolbar-title]') as HTMLElement | null;
     const icon = document.querySelector('[data-toolbar-icon]') as HTMLImageElement | null;

@@ -29,8 +29,12 @@ Examples:
 - `nodel-row`
 - `nodel-column`
 - `nodel-text`
+- `nodel-host-icon`
 - `nodel-node-list`
 - `nodel-add-node`
+- `nodel-diagnostics`
+- `nodel-console`
+- `nodel-log`
 - `nodel-theme-toggle`
 
 ## Toolbar Icon
@@ -193,6 +197,45 @@ Behavior:
 - Dispatches `nodel-node-created` after success.
 
 The add-node panel is intentionally native HTML and does not depend on Bootstrap.
+
+## Node Activity
+
+`nodel-console` and `nodel-log` are intended for node pages such as `nodel.html`. They use relative REST paths, so they should be rendered from a node context like `/nodes/<node>/nodel.html` or a custom node page.
+
+```html
+<nodel-page title="Activity">
+  <nodel-row>
+    <nodel-column>
+      <nodel-text><b>Console</b></nodel-text>
+      <nodel-console></nodel-console>
+    </nodel-column>
+  </nodel-row>
+  <nodel-row>
+    <nodel-column>
+      <nodel-text><b>Log</b></nodel-text>
+      <nodel-log></nodel-log>
+    </nodel-column>
+  </nodel-row>
+</nodel-page>
+```
+
+`nodel-console` behavior:
+
+- Reads console output from relative `REST/console`.
+- Keeps the newest 200 console entries.
+- Posts entered commands to relative `REST/exec` as `{ "code": "..." }`.
+- Supports Enter to submit and Up/Down to move through local command history.
+- Pauses polling while its page or browser tab is hidden.
+
+`nodel-log` behavior:
+
+- Reads activity history/live updates from the current node WebSocket.
+- Falls back to relative `REST/activity` polling when the WebSocket is unavailable.
+- Coalesces rapid live activity by source/type/alias before rendering.
+- Provides filter, Hold, and row-limit controls.
+- Pauses streaming/polling while its page or browser tab is hidden.
+
+Both components are page-local UI components. They do not expose imperative public APIs; page authors configure placement through markup and let the shared data sources manage visibility and polling/stream lifecycles.
 
 ## Shadow DOM
 

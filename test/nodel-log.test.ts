@@ -1,3 +1,5 @@
+import { waitFor } from './helpers';
+
 const activityMock = vi.hoisted(() => ({
   listeners: [] as Array<(state: unknown) => void>
 }));
@@ -25,6 +27,7 @@ describe('nodel-log', () => {
   it('renders activity history newest first and filters by alias', async () => {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
+    await waitFor(() => activityMock.listeners.length === 1);
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -60,7 +63,8 @@ describe('nodel-log', () => {
 
     const filter = document.querySelector<HTMLInputElement>('[data-log-filter]');
     filter!.value = 'pow';
-    filter!.dispatchEvent(new Event('input', { bubbles: true }));
+    filter!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => document.querySelectorAll('.nodel-log-row').length === 1);
 
     expect(document.querySelectorAll('.nodel-log-row').length).toBe(1);
     expect(document.body.textContent).toContain('Power');
@@ -70,6 +74,7 @@ describe('nodel-log', () => {
   it('does not render placeholder text when there are no visible rows', async () => {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
+    await waitFor(() => activityMock.listeners.length === 1);
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -86,12 +91,13 @@ describe('nodel-log', () => {
     });
 
     expect(document.querySelectorAll('.nodel-log-row').length).toBe(0);
-    expect(document.querySelector('[data-log-output]')?.textContent).toBe('');
+    expect(document.querySelector('[data-log-output]')?.textContent?.trim()).toBe('');
   });
 
   it('updates existing rows without moving them while hold is enabled', async () => {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
+    await waitFor(() => activityMock.listeners.length === 1);
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -150,6 +156,7 @@ describe('nodel-log', () => {
   it('renders incomplete activity entries without crashing', async () => {
     document.body.innerHTML = '<nodel-log></nodel-log>';
     await customElements.whenDefined('nodel-log');
+    await waitFor(() => activityMock.listeners.length === 1);
 
     expect(() => activityMock.listeners[0]?.({
       loading: false,

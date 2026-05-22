@@ -1,3 +1,4 @@
+import { flush } from './helpers';
 import '../src/components/nodel-app';
 import '../src/components/nodel-toolbar';
 import '../src/components/nodel-page';
@@ -9,9 +10,7 @@ async function waitForNavigation() {
   await customElements.whenDefined('nodel-app');
   await customElements.whenDefined('nodel-toolbar');
   await customElements.whenDefined('nodel-page');
-  await Promise.resolve();
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flush();
 }
 
 function renderNavigationFixture() {

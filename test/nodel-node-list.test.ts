@@ -1,10 +1,7 @@
+import { delay, flush, waitFor } from './helpers';
 import '../src/components/nodel-node-list';
 import '../src/components/nodel-text';
 import { generateHostIconDataUri } from '../src/icons/host-identicon';
-
-function flush() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 describe('nodel-node-list', () => {
   beforeEach(() => {
@@ -38,13 +35,10 @@ describe('nodel-node-list', () => {
     document.body.innerHTML = '<nodel-node-list scope="local" poll-interval="999999" page-size="10"></nodel-node-list>';
     await customElements.whenDefined('nodel-node-list');
 
-    for (let i = 0; i < 20; i += 1) {
-      if (document.querySelectorAll('nodel-node-list a.list-group-item').length === 2) {
-        break;
-      }
-      await flush();
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
+    await waitFor(
+      () => document.querySelectorAll('nodel-node-list a.list-group-item').length === 2,
+      { attempts: 20, intervalMs: 25 }
+    );
 
     const links = document.querySelectorAll('nodel-node-list a.list-group-item');
     expect(links.length).toBe(2);
@@ -59,7 +53,7 @@ describe('nodel-node-list', () => {
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     expect(document.body.textContent).not.toContain('Loading...');
     expect(document.querySelectorAll('nodel-node-list a.list-group-item').length).toBe(2);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await delay(250);
     await flush();
     await flush();
 
@@ -139,13 +133,7 @@ describe('nodel-node-list', () => {
 
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
-    for (let i = 0; i < 20; i += 1) {
-      if (mockedFetch.mock.calls.length > 0) {
-        break;
-      }
-      await flush();
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
+    await waitFor(() => mockedFetch.mock.calls.length > 0, { attempts: 20, intervalMs: 25 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain('Alpha Node');
@@ -179,13 +167,10 @@ describe('nodel-node-list', () => {
 
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
-    for (let i = 0; i < 20; i += 1) {
-      if (document.querySelectorAll('nodel-node-list a.list-group-item').length === 1) {
-        break;
-      }
-      await flush();
-      await new Promise((resolve) => setTimeout(resolve, 25));
-    }
+    await waitFor(
+      () => document.querySelectorAll('nodel-node-list a.list-group-item').length === 1,
+      { attempts: 20, intervalMs: 25 }
+    );
 
     expect(fetchMock).toHaveBeenCalledWith('/REST/nodeURLs', expect.anything());
     expect(fetchMock).toHaveBeenCalledWith('//alpha:8085/REST', expect.anything());

@@ -42,11 +42,11 @@ export async function bootstrapJsViews(): Promise<typeof $> {
   return bootPromise;
 }
 
-export async function linkTemplate(target: Element | string, template: string, data: unknown) {
+export async function linkTemplate(target: Element | string, template: string, data: unknown, helpersOrContext?: object) {
   const jq = await bootstrapJsViews();
   const compiled = jq.templates(template);
   const linkedTarget = typeof target === 'string' ? jq(target) : jq(target as HTMLElement);
-  compiled.link(linkedTarget as JQuery<HTMLElement>, data);
+  compiled.link(linkedTarget as JQuery<HTMLElement>, data, helpersOrContext);
   return linkedTarget;
 }
 

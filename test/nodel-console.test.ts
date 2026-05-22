@@ -15,11 +15,8 @@ vi.mock('../src/api/nodel-host-client', () => ({
   executeNodeConsoleCommand: consoleMock.execute
 }));
 
+import { flush, waitFor } from './helpers';
 import '../src/components/nodel-console';
-
-function flush() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 describe('nodel-console', () => {
   beforeEach(() => {
@@ -36,6 +33,7 @@ describe('nodel-console', () => {
   it('renders console output and executes entered commands', async () => {
     document.body.innerHTML = '<nodel-console></nodel-console>';
     await customElements.whenDefined('nodel-console');
+    await waitFor(() => consoleMock.listeners.length === 1);
 
     consoleMock.listeners[0]?.({
       loading: false,
@@ -59,13 +57,23 @@ describe('nodel-console', () => {
     expect(document.querySelector('[data-console-status]')).toBeNull();
     expect(document.querySelector('nodel-console')?.getAttribute('data-state')).toBe('active');
 
-    const input = document.querySelector<HTMLElement>('[data-console-input]');
+    const input = document.querySelector<HTMLInputElement>('[data-console-input]');
     expect(input).toBeTruthy();
-    input!.textContent = 'print("hello")';
+    input!.value = 'print("hello")';
+    input!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flush();
     input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await flush();
 
     expect(consoleMock.execute).toHaveBeenCalledWith('print("hello")');
-    expect(input!.textContent).toBe('');
+    expect(input!.value).toBe('');
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await flush();
+    expect(input!.value).toBe('print("hello")');
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await flush();
+    expect(input!.value).toBe('');
   });
 });

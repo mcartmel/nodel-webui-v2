@@ -1,8 +1,5 @@
+import { flush } from './helpers';
 import '../src/components/nodel-add-node';
-
-function flush() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 describe('nodel-add-node', () => {
   beforeEach(() => {

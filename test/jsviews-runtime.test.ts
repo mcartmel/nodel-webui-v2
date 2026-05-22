@@ -1,4 +1,5 @@
 import { bootstrapJsViews, getJQuery, linkTemplate } from '../src/jsviews/jsviews-runtime';
+import { flushMicrotasks } from './helpers';
 
 describe('JsViews runtime', () => {
   beforeEach(() => {
@@ -42,5 +43,37 @@ describe('JsViews runtime', () => {
     expect(link.className).toContain('is-idle');
     expect(link.textContent).toBe('Updated');
     expect(getJQuery()).toBe($);
+  });
+
+  it('links templates with context event handlers', async () => {
+    const handler = vi.fn();
+    await linkTemplate(
+      '#fixture',
+      '<button id="context-button" data-link="{on \'click\' ~handleClick}">Click</button>',
+      {},
+      { handleClick: handler }
+    );
+
+    document.querySelector<HTMLButtonElement>('#context-button')?.click();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports linked input values with explicit triggers', async () => {
+    const $ = await bootstrapJsViews();
+    const data = { filter: '' };
+    await linkTemplate('#fixture', '<input id="linked-input" type="search" data-link="filter trigger=true" />', data);
+
+    const input = document.querySelector<HTMLInputElement>('#linked-input');
+    input!.value = 'typed';
+    input!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flushMicrotasks();
+
+    expect(data.filter).toBe('typed');
+
+    $.observable(data).setProperty('filter', 'updated');
+    await flushMicrotasks();
+
+    expect(input!.value).toBe('updated');
   });
 });
