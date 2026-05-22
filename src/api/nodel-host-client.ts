@@ -4,6 +4,7 @@ import type {
   NodelConsoleLogEntry,
   NodelBuildInfo,
   NodelDiagnosticsResponse,
+  NodelFileEntry,
   NodelLocalNodeEntry,
   NodelLocalRestResponse,
   NodelNodeUrlEntry,
@@ -33,6 +34,20 @@ async function postJson<T>(input: RequestInfo | URL, body: unknown, init?: Reque
     },
     body: JSON.stringify(body)
   });
+}
+
+async function fetchOk(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
+  const response = await fetch(input, init);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get('Content-Type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+
+  return response.text();
 }
 
 async function wait(ms: number) {
@@ -79,6 +94,38 @@ export async function executeNodeConsoleCommand(code: string, init?: RequestInit
 
 export async function getNodeActivity(options: { from: number }, init?: RequestInit): Promise<NodelActivityLogEntry[]> {
   return fetchJson<NodelActivityLogEntry[]>(`REST/activity?from=${options.from}`, init);
+}
+
+export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {
+  return fetchJson<NodelFileEntry[]>('REST/files', init);
+}
+
+export async function getNodeFileContents(path: string, init?: RequestInit): Promise<string> {
+  const response = await fetch(`REST/files/contents?path=${encodeURIComponent(path)}`, init);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+  return response.text();
+}
+
+export async function saveNodeFile(path: string, content: BodyInit, init?: RequestInit): Promise<unknown> {
+  if (path === 'script.py') {
+    return postJson<unknown>('REST/script/save', { script: String(content) }, init);
+  }
+
+  return fetchOk(`REST/files/save?path=${encodeURIComponent(path)}`, {
+    ...init,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...(init?.headers ?? {})
+    },
+    body: content
+  });
+}
+
+export async function deleteNodeFile(path: string, init?: RequestInit): Promise<unknown> {
+  return fetchOk(`REST/files/delete?path=${encodeURIComponent(path)}`, init);
 }
 
 export async function searchNodeUrls(filter: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {

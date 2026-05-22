@@ -161,7 +161,7 @@ export class NodelDiagnostics extends HTMLElement {
   private render() {
     if (this.state.loading) {
       this.innerHTML = `
-        <div class="rounded-2xl border border-dashed border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-4 py-3 text-sm text-[rgb(var(--nodel-muted))]">
+        <div class="nodel-alert px-4 py-3 text-sm">
           Loading diagnostics...
         </div>
       `;
@@ -170,7 +170,7 @@ export class NodelDiagnostics extends HTMLElement {
 
     if (this.state.error) {
       this.innerHTML = `
-        <div class="rounded-2xl border border-[rgb(239 68 68)]/30 bg-[rgb(239 68 68)]/10 px-4 py-3 text-sm text-[rgb(220 38 38)]">
+        <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">
           ${escapeHtml(this.state.error)}
         </div>
       `;
@@ -184,7 +184,7 @@ export class NodelDiagnostics extends HTMLElement {
     }
 
     this.innerHTML = `
-      <div class="nodel-diagnostics overflow-hidden rounded-2xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] shadow-sm">
+      <div class="nodel-diagnostics nodel-panel overflow-hidden">
         <div class="overflow-x-auto">
           <table class="nodel-diagnostics-table min-w-full border-collapse text-left text-sm">
             <tbody class="divide-y divide-[rgb(var(--nodel-border))]">

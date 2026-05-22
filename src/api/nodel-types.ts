@@ -79,3 +79,10 @@ export interface NodelRecipeEntry {
   path: string;
   [key: string]: unknown;
 }
+
+export interface NodelFileEntry {
+  path: string;
+  size?: number;
+  modified?: string;
+  [key: string]: unknown;
+}

@@ -6,7 +6,7 @@ const toneValues: Record<NodelTextTone, string> = {
   muted: 'rgb(var(--nodel-muted))',
   default: 'rgb(var(--nodel-fg))',
   accent: 'rgb(var(--nodel-accent))',
-  danger: 'rgb(239 68 68)',
+  danger: 'rgb(var(--nodel-danger))',
   success: 'rgb(34 197 94)'
 };
 
@@ -59,7 +59,7 @@ export class NodelText extends HTMLElement {
       this.style.setProperty('--nodel-text-background', 'rgb(var(--nodel-surface))');
       this.style.setProperty('--nodel-text-border-color', 'rgb(var(--nodel-border))');
       this.style.setProperty('--nodel-text-padding', '1rem');
-      this.style.setProperty('--nodel-text-radius', '0.75rem');
+      this.style.setProperty('--nodel-text-radius', 'var(--nodel-radius-card)');
     } else {
       this.style.removeProperty('--nodel-text-background');
       this.style.removeProperty('--nodel-text-border-color');

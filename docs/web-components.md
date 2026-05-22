@@ -35,7 +35,43 @@ Examples:
 - `nodel-diagnostics`
 - `nodel-console`
 - `nodel-log`
+- `nodel-editor`
 - `nodel-theme-toggle`
+
+## Shared Styling Classes
+
+Use the shared semantic classes from `src/styles.css` for common controls and surfaces. These classes are included in the built `v2/nodel-webui.css`, so they are safer for component internals and user-authored pages than relying on arbitrary Tailwind utility classes that may not be present in the production build.
+
+- `.nodel-button` for ordinary buttons and button-like labels or links.
+- `.nodel-button-primary` for primary actions such as save, create, or submit.
+- `.nodel-button-danger` for destructive actions such as delete.
+- `.nodel-button-ghost` for low-emphasis actions such as “more” or inactive navigation.
+- `.nodel-field` for text inputs, search inputs, and selects.
+- `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
+- `.nodel-card` for simple bordered surfaces and list rows.
+- `.nodel-panel` for larger section containers.
+- `.nodel-popover` for dropdowns, autocomplete panels, and floating menus.
+- `.nodel-list-item` for linked rows or selectable rows.
+- `.nodel-menu-item` for menu and autocomplete result buttons.
+- `.nodel-menu-item-active` for the active menu item.
+- `.nodel-alert` for neutral loading or status messages.
+- `.nodel-alert-danger` for error messages.
+
+Prefer semantic state classes over raw visual utility classes. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
+
+One-off Tailwind utilities are still appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, or responsive column classes.
+
+```html
+<button type="button" class="nodel-button nodel-button-primary">Save</button>
+
+<input class="nodel-field w-full" type="search" placeholder="Filter" />
+
+<div class="nodel-panel p-4">
+  <p class="nodel-alert px-4 py-3 text-sm">Loading...</p>
+</div>
+```
+
+Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`.
 
 ## Toolbar Icon
 
@@ -149,7 +185,7 @@ For precise styling overrides, set CSS custom properties on the host:
 </nodel-text>
 ```
 
-Tailwind utilities in user-authored override pages are not guaranteed to exist in the built CSS unless they are part of the build scan or a safelist.
+Tailwind utilities in user-authored override pages are not guaranteed to exist in the built CSS unless they are part of the build scan or a safelist. Prefer the shared styling classes above for common UI elements.
 
 ## Node Lists
 
@@ -200,7 +236,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 
 ## Node Activity
 
-`nodel-console` and `nodel-log` are intended for node pages such as `nodel.html`. They use relative REST paths, so they should be rendered from a node context like `/nodes/<node>/nodel.html` or a custom node page.
+`nodel-console`, `nodel-log`, and `nodel-editor` are intended for node pages such as `nodel.html`. They use relative REST paths, so they should be rendered from a node context like `/nodes/<node>/nodel.html` or a custom node page.
 
 ```html
 <nodel-page title="Activity">
@@ -208,6 +244,12 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
     <nodel-column>
       <nodel-text><b>Console</b></nodel-text>
       <nodel-console></nodel-console>
+    </nodel-column>
+  </nodel-row>
+  <nodel-row>
+    <nodel-column>
+      <nodel-text><b>Recipe</b></nodel-text>
+      <nodel-editor></nodel-editor>
     </nodel-column>
   </nodel-row>
   <nodel-row>
@@ -235,7 +277,24 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Provides filter, Hold, and row-limit controls.
 - Pauses streaming/polling while its page or browser tab is hidden.
 
-Both components are page-local UI components. They do not expose imperative public APIs; page authors configure placement through markup and let the shared data sources manage visibility and polling/stream lifecycles.
+`nodel-editor` behavior:
+
+- Lists current node files from relative `REST/files`.
+- Selects files from a dropdown rather than a persistent side panel.
+- Opens text files from relative `REST/files/contents`.
+- Saves `script.py` through relative `REST/script/save`, preserving v1 script behavior.
+- Saves other files through relative `REST/files/save`.
+- Creates empty text files or uploads local files.
+- Deletes files through relative `REST/files/delete`, except `script.py` is protected.
+- Uses CodeMirror 6 for editing and Python highlighting for `.py` files.
+- Starts at a sensible editor height and supports vertical drag-resize.
+- Provides custom layout hints from `src/editor/nodel-document-definition.ts` for v2 `nodel-*` markup.
+
+Supported attributes:
+
+- `default-file="script.py"`
+
+These node-page components do not expose imperative public APIs; page authors configure placement through markup and let each component/source manage its own lifecycle.
 
 ## Shadow DOM
 

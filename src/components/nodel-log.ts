@@ -34,7 +34,7 @@ const template = `
   <div class="nodel-log relative min-w-0 space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
     <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
       <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
-        <input data-log-filter class="mt-1 block w-full min-w-0 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] outline-none" type="search" placeholder="Alias" data-link="filter trigger=true" />
+        <input data-log-filter class="nodel-field mt-1 w-full" type="search" placeholder="Alias" data-link="filter trigger=true" />
       </label>
       <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-[rgb(var(--nodel-muted))] md:justify-end">
         <label class="inline-flex shrink-0 items-center gap-2">
@@ -43,7 +43,7 @@ const template = `
         </label>
         <label class="inline-flex shrink-0 items-center gap-2">
           Rows
-          <select data-log-limit class="rounded-lg border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-2 py-1 text-[rgb(var(--nodel-fg))]" data-link="limit">
+          <select data-log-limit class="nodel-field nodel-field-compact" data-link="limit">
             <option value="10">10</option>
             <option value="50">50</option>
             <option value="100">100</option>

@@ -101,23 +101,23 @@ export class NodelAddNode extends HTMLElement {
   private render() {
     this.innerHTML = `
       <div class="nodel-add-node space-y-3">
-        <button type="button" class="nodel-add-node-toggle inline-flex items-center rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm font-medium text-[rgb(var(--nodel-fg))] transition hover:border-[rgb(var(--nodel-accent))] hover:text-[rgb(var(--nodel-accent))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--nodel-accent))]/40" aria-expanded="false">
+        <button type="button" class="nodel-add-node-toggle nodel-button" aria-expanded="false">
           Add node here
         </button>
 
-        <div class="nodel-add-node-panel hidden rounded-2xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] p-4 shadow-sm">
+        <div class="nodel-add-node-panel nodel-panel hidden p-4">
           <form class="space-y-4" novalidate>
             <div class="space-y-2">
               <label class="text-sm font-medium text-[rgb(var(--nodel-fg))]" for="nodel-add-node-name">Node name</label>
-              <input id="nodel-add-node-name" class="nodel-add-node-name w-full rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] placeholder:text-[rgb(var(--nodel-muted))]" type="text" autocomplete="off" />
+              <input id="nodel-add-node-name" class="nodel-add-node-name nodel-field w-full" type="text" autocomplete="off" />
             </div>
 
             <div class="space-y-2">
               <label class="text-sm font-medium text-[rgb(var(--nodel-fg))]" for="nodel-add-node-template">Template <small class="text-[rgb(var(--nodel-muted))]">(optional)</small></label>
               <div class="relative">
-                <input id="nodel-add-node-template" class="nodel-add-node-template w-full rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] placeholder:text-[rgb(var(--nodel-muted))]" type="text" placeholder="Search recipes or nodes..." autocomplete="off" />
-                <div class="nodel-template-selected mt-2 hidden rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-muted))]"></div>
-                <div class="nodel-template-autocomplete mt-2 hidden rounded-2xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] shadow-lg">
+                <input id="nodel-add-node-template" class="nodel-add-node-template nodel-field w-full" type="text" placeholder="Search recipes or nodes..." autocomplete="off" />
+                <div class="nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-[rgb(var(--nodel-muted))]"></div>
+                <div class="nodel-template-autocomplete nodel-popover mt-2 hidden">
                   <ul class="divide-y divide-[rgb(var(--nodel-border))]"></ul>
                 </div>
               </div>
@@ -125,7 +125,7 @@ export class NodelAddNode extends HTMLElement {
 
             <div class="flex items-center justify-between gap-3">
               <p class="nodel-add-node-status text-sm text-[rgb(var(--nodel-muted))]"></p>
-              <button type="submit" class="nodeaddsubmit inline-flex items-center rounded-md bg-[rgb(var(--nodel-accent))] px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
+              <button type="submit" class="nodeaddsubmit nodel-button nodel-button-primary">Add</button>
             </div>
           </form>
         </div>
@@ -319,7 +319,7 @@ export class NodelAddNode extends HTMLElement {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'block w-full px-3 py-2 text-left text-sm text-[rgb(var(--nodel-fg))] hover:bg-[rgb(var(--nodel-border))]/30';
+        button.className = 'nodel-menu-item';
         button.innerHTML = buildResultLabel(recipe.path, 'Recipe');
         button.addEventListener('click', () => this.selectRecipe(recipe.path));
         item.appendChild(button);
@@ -337,7 +337,7 @@ export class NodelAddNode extends HTMLElement {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'block w-full px-3 py-2 text-left text-sm text-[rgb(var(--nodel-fg))] hover:bg-[rgb(var(--nodel-border))]/30';
+        button.className = 'nodel-menu-item';
         button.innerHTML = buildResultLabel(node.name, node.host);
         button.addEventListener('click', () => this.selectNode(node.address, node.name, node.host));
         item.appendChild(button);

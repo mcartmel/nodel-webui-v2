@@ -6,7 +6,8 @@ const projectRoot = resolve(import.meta.dirname, '..');
 
 const requiredComponents = [
   'src/components/nodel-console.ts',
-  'src/components/nodel-log.ts'
+  'src/components/nodel-log.ts',
+  'src/components/nodel-editor.ts'
 ];
 
 const forbiddenProperties = new Set(['innerHTML', 'outerHTML', 'textContent', 'value', 'checked']);

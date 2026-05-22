@@ -279,7 +279,7 @@ export class NodelToolbar extends HTMLElement {
     menu.id = menuId;
     menu.hidden = !open;
     menu.role = 'menu';
-    menu.className = 'absolute left-0 top-full z-20 mt-2 min-w-48 overflow-hidden rounded-lg border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] p-1 shadow-lg';
+    menu.className = 'nodel-popover absolute left-0 top-full z-20 mt-2 min-w-48 p-1';
 
     for (const child of item.children) {
       if (child.type !== 'page') {
@@ -298,17 +298,14 @@ export class NodelToolbar extends HTMLElement {
   }
 
   private navButtonClass(active: boolean) {
-    const base = 'rounded-md px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[rgb(var(--nodel-accent))]/40';
+    const base = 'nodel-button';
     return active
-      ? `${base} bg-[rgb(var(--nodel-accent))] text-white`
-      : `${base} text-[rgb(var(--nodel-muted))] hover:bg-[rgb(var(--nodel-border))]/40 hover:text-[rgb(var(--nodel-fg))]`;
+      ? `${base} nodel-button-primary`
+      : `${base} nodel-button-ghost text-[rgb(var(--nodel-muted))]`;
   }
 
   private menuButtonClass(active: boolean) {
-    const base = 'block w-full rounded-md px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[rgb(var(--nodel-accent))]/40';
-    return active
-      ? `${base} bg-[rgb(var(--nodel-accent))] text-white`
-      : `${base} text-[rgb(var(--nodel-muted))] hover:bg-[rgb(var(--nodel-border))]/40 hover:text-[rgb(var(--nodel-fg))]`;
+    return active ? 'nodel-menu-item nodel-menu-item-active' : 'nodel-menu-item text-[rgb(var(--nodel-muted))]';
   }
 }
 

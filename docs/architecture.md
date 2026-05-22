@@ -11,6 +11,7 @@ Do not modify v1 code for new UI work. Legacy-loader remains the compatibility p
 - Use TypeScript.
 - Use custom elements for UI composition.
 - Use Tailwind CSS for the base styling system.
+- Use shared semantic styling classes from `src/styles.css` for common controls and surfaces before adding repeated inline Tailwind utility strings.
 - Keep JsViews for schema-form generation and live data binding.
 - Do not add placeholder code.
 - Do not copy v1 implementation patterns unless a behavior is being intentionally re-created.
@@ -31,12 +32,21 @@ The first UI layer is intentionally small:
 - `nodel-diagnostics` renders the host diagnostics table.
 - `nodel-console` renders the node console history and command prompt.
 - `nodel-log` renders the node activity stream with hold, filter, and row-limit controls.
+- `nodel-editor` renders the node file browser/editor with CodeMirror 6 and JsViews-linked controls.
 
 Node list and add-node behavior intentionally preserve the existing v1 look and feel, including the host icon algorithm and the local vs network list split.
 
 Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`.
 
+Node editor behavior intentionally preserves the v1 file endpoints while using CodeMirror 6 rather than CodeMirror 5. The editor shell, file browser, controls, and status state are JsViews-linked. CodeMirror owns only the editor viewport. Custom layout hints are maintained in `src/editor/nodel-document-definition.ts` and should be updated whenever a public `nodel-*` component is added.
+
 `nodel-app` also owns page navigation. It discovers declared `nodel-page` elements, creates the toolbar navigation model, tracks the active page, and hides inactive pages with the `hidden` attribute. Nested `nodel-page` elements create toolbar submenu groups. This preserves the v1 behavior concept without using Bootstrap dropdowns or jQuery page switching.
+
+## Styling Layer
+
+Common UI styling lives in `src/styles.css` as semantic classes backed by theme tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls and surfaces.
+
+Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` to express behavior-driven appearance. Keep Tailwind utilities for local layout, spacing, sizing, and responsive structure.
 
 ## Stable Head Contract
 

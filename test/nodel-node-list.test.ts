@@ -99,7 +99,7 @@ describe('nodel-node-list', () => {
     expect(items.length).toBe(2);
     expect(items[0].getAttribute('href')).toBe('http://alpha:8085/nodes/Alpha/');
     expect(items[0].className).not.toContain('is-unreachable');
-    expect(items[1].className).toContain('opacity-60');
+    expect(items[1].className).toContain('is-unreachable');
     expect(items[0].querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
     expect(items[1].querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
 

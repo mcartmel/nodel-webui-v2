@@ -36,8 +36,8 @@ const searchDebounceMs = 200;
 const template = `
   <div class="nodel-node-list space-y-4">
     <form class="nodel-node-list-controls flex flex-wrap items-center gap-3">
-      <input class="nodel-node-list-filter min-w-0 flex-1 rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))] placeholder:text-[rgb(var(--nodel-muted))]" type="text" placeholder="filter" data-link="value{:flt}" />
-      <select class="nodel-node-list-show rounded-md border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-sm text-[rgb(var(--nodel-fg))]" data-link="value{:end}">
+      <input class="nodel-node-list-filter nodel-field flex-1" type="text" placeholder="filter" data-link="value{:flt}" />
+      <select class="nodel-node-list-show nodel-field" data-link="value{:end}">
         <option value="10">10</option>
         <option value="20">20</option>
         <option value="50">50</option>
@@ -48,15 +48,15 @@ const template = `
     </form>
 
     {^{if loading}}
-      <div class="rounded-xl border border-dashed border-[rgb(var(--nodel-border))] px-4 py-3 text-sm text-[rgb(var(--nodel-muted))]">Loading...</div>
+      <div class="nodel-alert px-4 py-3 text-sm">Loading...</div>
     {{else}}
       {^{if error}}
-        <div class="rounded-xl border border-[rgb(239 68 68)]/40 bg-[rgb(239 68 68)]/10 px-4 py-3 text-sm text-[rgb(239 68 68)]">{^{:error}}</div>
+        <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{:error}}</div>
       {{/if}}
 
       <div class="nodel-node-list-items list-group list-group-basic space-y-1">
         {^{for lst}}
-          <a class="nodel-node-list-item list-group-item flex items-center gap-3 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-[rgb(var(--nodel-fg))] no-underline transition hover:border-[rgb(var(--nodel-accent))] hover:text-[rgb(var(--nodel-accent))]" data-link="href{:address} class{:reachable ? 'nodel-node-list-item list-group-item flex items-center gap-3 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-[rgb(var(--nodel-fg))] no-underline transition hover:border-[rgb(var(--nodel-accent))] hover:text-[rgb(var(--nodel-accent))]' : 'nodel-node-list-item list-group-item flex items-center gap-3 rounded-xl border border-[rgb(var(--nodel-border))] bg-[rgb(var(--nodel-surface))] px-3 py-2 text-[rgb(var(--nodel-fg))] no-underline opacity-60 transition hover:border-[rgb(var(--nodel-accent))] hover:text-[rgb(var(--nodel-accent))]' }">
+          <a class="nodel-node-list-item list-group-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item list-group-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item list-group-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
             <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
@@ -65,7 +65,7 @@ const template = `
           </a>
         {{/for}}
         {^{if moreAvailable}}
-          <button type="button" class="nodel-node-list-more rounded-md px-3 py-2 text-sm font-medium text-[rgb(var(--nodel-accent))] hover:bg-[rgb(var(--nodel-border))]/30" data-node-list-more>more</button>
+          <button type="button" class="nodel-node-list-more nodel-button nodel-button-ghost" data-node-list-more>more</button>
         {{/if}}
       </div>
     {{/if}}
