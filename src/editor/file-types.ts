@@ -1,5 +1,5 @@
-export const allowedTextExtensions = ['py', 'xml', 'xsl', 'js', 'json', 'html', 'htm', 'css', 'java', 'groovy', 'sql', 'sh', 'cs', 'bat', 'ini', 'txt', 'md', 'cmd'] as const;
-export const allowedBinaryExtensions = ['png', 'jpg', 'ico', 'svg', 'zip', '7z', 'exe'] as const;
+export const allowedTextExtensions = ['py', 'xml', 'xsl', 'svg', 'js', 'json', 'html', 'htm', 'css', 'java', 'groovy', 'sql', 'sh', 'cs', 'bat', 'ini', 'txt', 'md', 'cmd', 'yaml', 'yml', 'properties', 'log', 'csv'] as const;
+export const allowedBinaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', '7z', 'exe', 'pdf'] as const;
 
 const textExtensionSet = new Set<string>(allowedTextExtensions);
 const binaryExtensionSet = new Set<string>(allowedBinaryExtensions);
@@ -58,6 +58,7 @@ export function languageKindForPath(path: string): EditorLanguageKind {
       return 'html';
     case 'xml':
     case 'xsl':
+    case 'svg':
       return 'xml';
     case 'js':
       return 'javascript';

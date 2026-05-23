@@ -83,9 +83,13 @@ describe('nodel-editor', () => {
     const options = Array.from(document.querySelectorAll('[data-editor-file-picker] option'));
     expect(options.map((option) => option.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('script.py'), expect.stringContaining('content/index.html')]));
     expect(options.map((option) => option.textContent)).not.toEqual(expect.arrayContaining([expect.stringContaining(' - text'), expect.stringContaining(' - binary')]));
+    expect(document.querySelector('.nodel-editor')?.className).toContain('space-y-3');
     expect(document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')?.value).toBe('script.py');
     expect(document.body.textContent).not.toContain('File');
     expect(document.body.textContent).not.toContain('Opened script.py');
+    const status = document.querySelector<HTMLElement>('.nodel-editor-body > .nodel-editor-status');
+    expect(status).toBeTruthy();
+    expect(status?.hidden).toBe(true);
     expect(editorApiMock.getNodeFileContents).toHaveBeenCalledWith('script.py', expect.any(Object));
     expect(codeEditorMock.instance.setDocument).toHaveBeenCalledWith('print("hello")', 'script.py');
     expect(document.querySelector('[data-editor-file-picker] option')?.hasAttribute('data-file-path')).toBe(false);

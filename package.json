@@ -33,6 +33,7 @@
     "identicon.js": "^2.3.3",
     "jquery": "^3.7.1",
     "jsviews": "^1.0.16",
+    "pagedown": "^1.1.0",
     "xxhashjs": "^0.2.2"
   },
   "devDependencies": {

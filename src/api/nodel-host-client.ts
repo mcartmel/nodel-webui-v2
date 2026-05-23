@@ -7,6 +7,7 @@ import type {
   NodelFileEntry,
   NodelLocalNodeEntry,
   NodelLocalRestResponse,
+  NodelNodeRestResponse,
   NodelNodeUrlEntry,
   NodelRecipeEntry
 } from './nodel-types';
@@ -81,6 +82,10 @@ export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosti
 
 export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> {
   return fetchJson<NodelBuildInfo>('/build.json', init);
+}
+
+export async function getNodeDetails(init?: RequestInit): Promise<NodelNodeRestResponse> {
+  return fetchJson<NodelNodeRestResponse>('REST/', init);
 }
 
 export async function getNodeConsoleLogs(options: { from: number; max: number; timeout?: number }, init?: RequestInit): Promise<NodelConsoleLogEntry[]> {

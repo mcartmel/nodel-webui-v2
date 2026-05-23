@@ -4,6 +4,7 @@ import './components/nodel-page';
 import './components/nodel-row';
 import './components/nodel-column';
 import './components/nodel-collapse';
+import './components/nodel-description';
 import './components/nodel-text';
 import './components/nodel-host-icon';
 import './components/nodel-node-list';

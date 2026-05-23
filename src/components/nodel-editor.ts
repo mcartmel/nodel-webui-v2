@@ -32,7 +32,7 @@ interface EditorViewModel {
 const binaryPlaceholder = 'Binary file - preview not available.';
 
 const template = `
-  <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor is-error' : 'nodel-editor'}">
+  <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor space-y-3 is-error' : 'nodel-editor space-y-3'}">
     <div class="nodel-editor-toolbar flex flex-wrap items-center gap-2">
       <div class="nodel-editor-picker-wrap min-w-0 flex-1">
         <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="value{:pickerPath trigger=true} disabled{:loading || saving || deleting}">
@@ -65,15 +65,14 @@ const template = `
       </div>
     {{/if}}
 
-    <div class="nodel-editor-status text-sm" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'}">
-      {^{if error}}
-        {^{>error}}
-      {{else}}
-        {^{>status}}
-      {{/if}}
-    </div>
-
-    <div class="nodel-editor-body">
+    <div class="nodel-editor-body relative">
+      <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && !loading && !saving && !deleting}">
+        {^{if error}}
+          {^{>error}}
+        {{else}}
+          {^{>status}}
+        {{/if}}
+      </div>
       <section class="nodel-editor-main min-w-0">
         <div data-editor-host class="nodel-editor-host"></div>
       </section>

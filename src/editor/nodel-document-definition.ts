@@ -70,6 +70,15 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-collapse label="Section">\n  ${}\n</nodel-collapse>'
   },
   {
+    name: 'nodel-description',
+    description: 'Current node description rendered as markdown with a collapsed preview.',
+    attributes: [
+      { name: 'collapsed-height', description: 'Collapsed preview height, e.g. 8rem or 160px.' },
+      { name: 'open', description: 'Start expanded.' }
+    ],
+    snippet: '<nodel-description></nodel-description>'
+  },
+  {
     name: 'nodel-text',
     description: 'Theme-aware text block.',
     attributes: [

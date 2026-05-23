@@ -29,6 +29,7 @@ Examples:
 - `nodel-row`
 - `nodel-column`
 - `nodel-collapse`
+- `nodel-description`
 - `nodel-text`
 - `nodel-host-icon`
 - `nodel-node-list`
@@ -219,6 +220,33 @@ For precise styling overrides, set CSS custom properties on the host:
 
 Tailwind utilities in user-authored override pages are not guaranteed to exist in the built CSS unless they are part of the build scan or a safelist. Prefer the shared styling classes above for common UI elements.
 
+## Description
+
+`nodel-description` renders the current node description from relative `REST/` as markdown. It is intended for node pages such as `nodel.html` and hides itself when the node has no description.
+
+```html
+<nodel-description></nodel-description>
+```
+
+Behavior:
+
+- Reads `desc` from relative `REST/`, matching the v1 node description source.
+- Renders markdown into sanitized HTML.
+- Starts collapsed by default with a short preview.
+- Shows a fade at the bottom and a `Show more` button only when the rendered description is longer than the collapsed preview.
+- Toggles to `Show less` when expanded and reflects the expanded state to the `open` attribute.
+
+Supported attributes:
+
+- `collapsed-height="8rem"`
+- `open`
+
+The collapsed height can also be overridden with CSS:
+
+```html
+<nodel-description style="--nodel-description-collapsed-height: 10rem;"></nodel-description>
+```
+
 ## Node Lists
 
 `nodel-node-list` renders local or network-wide nodes.
@@ -268,10 +296,15 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 
 ## Node Activity
 
-`nodel-console`, `nodel-log`, and `nodel-editor` are intended for node pages such as `nodel.html`. They use relative REST paths, so they should be rendered from a node context like `/nodes/<node>/nodel.html` or a custom node page.
+`nodel-description`, `nodel-console`, `nodel-log`, and `nodel-editor` are intended for node pages such as `nodel.html`. They use relative REST paths, so they should be rendered from a node context like `/nodes/<node>/nodel.html` or a custom node page.
 
 ```html
 <nodel-page title="Activity">
+  <nodel-row>
+    <nodel-column>
+      <nodel-description></nodel-description>
+    </nodel-column>
+  </nodel-row>
   <nodel-row>
     <nodel-column>
       <nodel-collapse label="Console" preview="No console output yet" open>

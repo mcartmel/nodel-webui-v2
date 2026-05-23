@@ -19,6 +19,12 @@ export interface NodelLocalRestResponse {
   [key: string]: unknown;
 }
 
+export interface NodelNodeRestResponse {
+  name?: string;
+  desc?: string;
+  [key: string]: unknown;
+}
+
 export interface NodelConsoleLogEntry {
   seq: number;
   timestamp: string;
