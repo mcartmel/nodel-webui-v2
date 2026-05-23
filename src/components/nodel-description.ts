@@ -3,25 +3,6 @@ import { renderMarkdown } from '../utils/markdown';
 
 const defaultCollapsedHeight = '8rem';
 
-function lengthToPixels(value: string) {
-  const trimmed = value.trim().toLowerCase();
-  const amount = Number.parseFloat(trimmed);
-
-  if (!Number.isFinite(amount)) {
-    return 0;
-  }
-
-  if (trimmed.endsWith('rem')) {
-    return amount * 16;
-  }
-
-  if (trimmed.endsWith('em')) {
-    return amount * 16;
-  }
-
-  return amount;
-}
-
 export class NodelDescription extends HTMLElement {
   static observedAttributes = ['collapsed-height', 'open'];
 
@@ -149,8 +130,17 @@ export class NodelDescription extends HTMLElement {
     }
 
     const actionNode = this.buttonNode.parentElement;
-    const collapsedHeight = lengthToPixels(this.collapsedHeightValue());
-    const overflow = collapsedHeight > 0 && this.contentNode.scrollHeight > collapsedHeight + 1;
+    const wasExpanded = this.bodyNode.classList.contains('is-expanded');
+
+    if (wasExpanded) {
+      this.bodyNode.classList.remove('is-expanded');
+    }
+
+    const overflow = this.bodyNode.scrollHeight > this.bodyNode.clientHeight;
+
+    if (wasExpanded) {
+      this.bodyNode.classList.add('is-expanded');
+    }
 
     this.dataset.overflow = String(overflow);
     this.bodyNode.classList.toggle('is-overflowing', overflow);

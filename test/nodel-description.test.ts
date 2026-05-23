@@ -35,6 +35,13 @@ describe('nodel-description', () => {
     return document.querySelector('nodel-description') as HTMLElement;
   }
 
+  function mockBodySize(element: HTMLElement, sizes: { clientHeight: number; scrollHeight: number }) {
+    const body = element.querySelector('[data-description-body]') as HTMLElement;
+    Object.defineProperty(body, 'clientHeight', { configurable: true, value: sizes.clientHeight });
+    Object.defineProperty(body, 'scrollHeight', { configurable: true, value: sizes.scrollHeight });
+    return body;
+  }
+
   it('renders the REST description as markdown', async () => {
     const element = await mount();
 
@@ -72,10 +79,9 @@ describe('nodel-description', () => {
 
   it('shows the toggle only when content overflows and reflects expanded state', async () => {
     const element = await mount('<nodel-description collapsed-height="40px"></nodel-description>');
-    const content = element.querySelector('[data-description-content]') as HTMLElement;
-    Object.defineProperty(content, 'scrollHeight', { configurable: true, value: 120 });
+    mockBodySize(element, { clientHeight: 40, scrollHeight: 120 });
 
-    element.setAttribute('collapsed-height', '40px');
+    element.setAttribute('collapsed-height', '41px');
     await flush();
 
     const button = element.querySelector<HTMLButtonElement>('[data-description-toggle]')!;
@@ -93,12 +99,23 @@ describe('nodel-description', () => {
 
   it('keeps the toggle hidden for short descriptions', async () => {
     const element = await mount('<nodel-description collapsed-height="200px"></nodel-description>');
-    const content = element.querySelector('[data-description-content]') as HTMLElement;
-    Object.defineProperty(content, 'scrollHeight', { configurable: true, value: 80 });
+    mockBodySize(element, { clientHeight: 200, scrollHeight: 80 });
 
-    element.setAttribute('collapsed-height', '200px');
+    element.setAttribute('collapsed-height', '201px');
     await flush();
 
     expect(element.querySelector<HTMLButtonElement>('[data-description-toggle]')?.parentElement?.hidden).toBe(true);
+  });
+
+  it('detects overflow from rendered body height instead of content height alone', async () => {
+    const element = await mount('<nodel-description collapsed-height="128px"></nodel-description>');
+    const content = element.querySelector('[data-description-content]') as HTMLElement;
+    Object.defineProperty(content, 'scrollHeight', { configurable: true, value: 120 });
+    mockBodySize(element, { clientHeight: 128, scrollHeight: 132 });
+
+    element.setAttribute('collapsed-height', '129px');
+    await flush();
+
+    expect(element.querySelector<HTMLButtonElement>('[data-description-toggle]')?.parentElement?.hidden).toBe(false);
   });
 });
