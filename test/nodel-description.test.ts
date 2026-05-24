@@ -86,14 +86,17 @@ describe('nodel-description', () => {
 
     const button = element.querySelector<HTMLButtonElement>('[data-description-toggle]')!;
     expect(button.parentElement?.hidden).toBe(false);
-    expect(button.textContent).toBe('Show more');
+    expect(button.getAttribute('aria-label')).toBe('Show more');
+    expect(button.getAttribute('title')).toBe('Show more');
     expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.querySelector('.nodel-collapse-icon')).not.toBeNull();
 
     button.click();
     await flush();
 
     expect(element.hasAttribute('open')).toBe(true);
-    expect(button.textContent).toBe('Show less');
+    expect(button.getAttribute('aria-label')).toBe('Show less');
+    expect(button.getAttribute('title')).toBe('Show less');
     expect(button.getAttribute('aria-expanded')).toBe('true');
   });
 

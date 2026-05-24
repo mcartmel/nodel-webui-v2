@@ -471,6 +471,7 @@
   }
 
   .nodel-description {
+    position: relative;
     overflow: hidden;
   }
 
@@ -478,22 +479,16 @@
     position: relative;
     max-height: var(--nodel-description-collapsed-height, 8rem);
     overflow: hidden;
-    padding: 1rem 1rem 0;
+    padding: 1rem;
   }
 
   .nodel-description-body.is-expanded {
     max-height: none;
   }
 
-  .nodel-description-body.is-overflowing:not(.is-expanded)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 3rem;
-    background: linear-gradient(to bottom, rgb(var(--nodel-surface) / 0), rgb(var(--nodel-surface)) 78%);
-    pointer-events: none;
+  .nodel-description-body.is-overflowing:not(.is-expanded) {
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 3rem), transparent);
+    mask-image: linear-gradient(to bottom, black calc(100% - 3rem), transparent);
   }
 
   .nodel-description-content {
@@ -611,12 +606,40 @@
 
   .nodel-description-actions {
     display: flex;
-    justify-content: flex-start;
-    padding: 0.625rem 1rem 1rem;
+    position: absolute;
+    right: 1rem;
+    bottom: 0.75rem;
+    z-index: 1;
+    justify-content: flex-end;
+    padding: 0;
   }
 
   .nodel-description-actions[hidden] {
     display: none;
+  }
+
+  .nodel-description-toggle {
+    display: inline-flex;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    padding: 0;
+  }
+
+  .nodel-description-toggle:hover .nodel-collapse-icon::before {
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-description-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+  }
+
+  .nodel-description-toggle[aria-expanded='true'] .nodel-collapse-icon::before {
+    content: '-';
   }
 
   .nodel-theme-switch {
@@ -735,7 +758,7 @@
 
   .nodel-log-row {
     display: grid;
-    grid-template-columns: 1.85rem minmax(0, 1fr);
+    grid-template-columns: 0.875rem minmax(0, 1fr);
     gap: 0.75rem;
     align-items: start;
     border: 1px solid rgb(var(--nodel-border));
@@ -748,11 +771,14 @@
 
   .nodel-log-icon {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.125rem;
-    width: 1.85rem;
+    width: 0.875rem;
     color: rgb(var(--nodel-muted));
     opacity: 0.35;
+    padding-top: 0.125rem;
   }
 
   .nodel-log-icon svg {

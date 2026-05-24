@@ -54,7 +54,9 @@ export class NodelDescription extends HTMLElement {
             <div data-description-content class="nodel-description-content"></div>
           </div>
           <div data-description-actions class="nodel-description-actions" hidden>
-            <button data-description-toggle type="button" class="nodel-button nodel-button-ghost">Show more</button>
+            <button data-description-toggle type="button" class="nodel-description-toggle">
+              <span class="nodel-collapse-icon" aria-hidden="true"></span>
+            </button>
           </div>
         </section>
       `;
@@ -110,8 +112,9 @@ export class NodelDescription extends HTMLElement {
     this.dataset.expanded = String(expanded);
     this.bodyNode?.classList.toggle('is-expanded', expanded);
     if (this.buttonNode) {
-      this.buttonNode.textContent = expanded ? 'Show less' : 'Show more';
+      this.buttonNode.setAttribute('aria-label', expanded ? 'Show less' : 'Show more');
       this.buttonNode.setAttribute('aria-expanded', String(expanded));
+      this.buttonNode.setAttribute('title', expanded ? 'Show less' : 'Show more');
     }
   }
 
