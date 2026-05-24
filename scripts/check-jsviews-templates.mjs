@@ -7,6 +7,7 @@ const projectRoot = resolve(import.meta.dirname, '..');
 const requiredComponents = [
   'src/components/nodel-console.ts',
   'src/components/nodel-log.ts',
+  'src/components/nodel-actsig.ts',
   'src/components/nodel-editor.ts'
 ];
 

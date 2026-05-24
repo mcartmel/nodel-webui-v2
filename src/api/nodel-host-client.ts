@@ -1,6 +1,7 @@
 import { getVerySimpleName } from '../utils/node-name';
 import type {
   NodelActivityLogEntry,
+  NodelActionDefinition,
   NodelConsoleLogEntry,
   NodelBuildInfo,
   NodelDiagnosticsResponse,
@@ -9,7 +10,8 @@ import type {
   NodelLocalRestResponse,
   NodelNodeRestResponse,
   NodelNodeUrlEntry,
-  NodelRecipeEntry
+  NodelRecipeEntry,
+  NodelSignalDefinition
 } from './nodel-types';
 
 export interface NodelReachabilityResult {
@@ -99,6 +101,22 @@ export async function executeNodeConsoleCommand(code: string, init?: RequestInit
 
 export async function getNodeActivity(options: { from: number }, init?: RequestInit): Promise<NodelActivityLogEntry[]> {
   return fetchJson<NodelActivityLogEntry[]>(`REST/activity?from=${options.from}`, init);
+}
+
+export async function getNodeActions(init?: RequestInit): Promise<Record<string, NodelActionDefinition>> {
+  return fetchJson<Record<string, NodelActionDefinition>>('REST/actions', init);
+}
+
+export async function getNodeSignals(init?: RequestInit): Promise<Record<string, NodelSignalDefinition>> {
+  return fetchJson<Record<string, NodelSignalDefinition>>('REST/events', init);
+}
+
+export async function callNodeAction(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
+  return postJson<unknown>(`REST/actions/${encodeURIComponent(name)}/call`, payload, init);
+}
+
+export async function emitNodeSignal(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
+  return postJson<unknown>(`REST/events/${encodeURIComponent(name)}/emit`, payload, init);
 }
 
 export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {

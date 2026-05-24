@@ -35,11 +35,12 @@ The first UI layer is intentionally small:
 - `nodel-diagnostics` renders the host diagnostics table.
 - `nodel-console` renders the node console history and command prompt.
 - `nodel-log` renders the node activity stream with hold, filter, and row-limit controls.
+- `nodel-actsig` renders current-node actions and signals from their JSON schemas with lazy JsViews form materialization.
 - `nodel-editor` renders the node file browser/editor with CodeMirror 6 and JsViews-linked controls.
 
 Node list and add-node behavior intentionally preserve the existing v1 look and feel, including the host icon algorithm and the local vs network list split.
 
-Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Description data uses the v1-style relative `REST/` `desc` field, rendered through a sanitized markdown component. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`. Components that can summarize themselves inside `nodel-collapse` use bubbled `nodel-collapse-preview` events with plain-text preview details rather than coupling directly to the collapse component.
+Node Activity behavior intentionally preserves the important v1 console/activity mechanics while keeping the implementation inside v2 web components. Description data uses the v1-style relative `REST/` `desc` field, rendered through a sanitized markdown component. Console data uses visible-only relative `REST/console` polling. Activity uses one visible-only WebSocket for the active node with polling fallback through relative `REST/activity`. Actions/signals are loaded from relative `REST/actions` and `REST/events`, paired/grouped like v1, and rendered from JSON schema using JsViews with lazy section expansion rather than the old large-form `Enable` gate. Components that can summarize themselves inside `nodel-collapse` use bubbled `nodel-collapse-preview` events with plain-text preview details rather than coupling directly to the collapse component.
 
 Node editor behavior intentionally preserves the v1 file endpoints while using CodeMirror 6 rather than CodeMirror 5. The editor shell, file browser, controls, and status state are JsViews-linked. CodeMirror owns only the editor viewport. Custom layout hints are maintained in `src/editor/nodel-document-definition.ts` and should be updated whenever a public `nodel-*` component is added.
 

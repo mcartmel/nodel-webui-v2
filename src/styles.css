@@ -113,6 +113,7 @@
   nodel-diagnostics,
   nodel-console,
   nodel-log,
+  nodel-actsig,
   nodel-editor,
   nodel-theme-toggle {
     @apply block;
@@ -127,6 +128,7 @@
   nodel-description:not(:defined),
   nodel-console:not(:defined),
   nodel-log:not(:defined),
+  nodel-actsig:not(:defined),
   nodel-editor:not(:defined) {
     visibility: hidden;
   }
@@ -680,6 +682,60 @@
 
   .nodel-log-arg .jsonkey {
     @apply text-nodel-warning;
+  }
+
+  .nodel-actsig-form {
+    @apply min-w-0 transition-shadow;
+  }
+
+  .nodel-actsig-form.is-pulsing {
+    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.25), 0 0 1rem rgb(var(--nodel-accent) / 0.18);
+  }
+
+  .nodel-actsig-form-icon {
+    @apply inline-flex shrink-0 text-nodel-muted opacity-60;
+  }
+
+  .nodel-actsig-form fieldset:disabled {
+    @apply opacity-[0.62];
+  }
+
+  .nodel-schema-field {
+    @apply min-w-0;
+  }
+
+  .nodel-schema-form > .nodel-schema-field + .nodel-schema-field,
+  .nodel-schema-nested-content > .nodel-schema-field + .nodel-schema-field {
+    @apply mt-3;
+  }
+
+  .nodel-schema-nested {
+    @apply overflow-hidden;
+  }
+
+  .nodel-schema-nested-summary {
+    @apply flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-nodel-fg;
+    list-style: none;
+  }
+
+  .nodel-schema-nested-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .nodel-schema-nested-summary:hover {
+    @apply text-nodel-accent;
+  }
+
+  .nodel-schema-nested-summary small {
+    @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-normal text-nodel-muted;
+  }
+
+  .nodel-schema-nested-content {
+    @apply border-t border-nodel-border p-3;
+  }
+
+  .nodel-schema-array-entry {
+    @apply bg-nodel-bg/35;
   }
 
   .nodel-editor-current {

@@ -51,6 +51,47 @@ export interface NodelActivityWebSocketMessage {
   [key: string]: unknown;
 }
 
+export interface NodelActionDefinition {
+  name: string;
+  title?: string;
+  desc?: string;
+  group?: string;
+  caution?: string;
+  order?: number;
+  schema?: NodelJsonSchema | null;
+  [key: string]: unknown;
+}
+
+export interface NodelSignalDefinition {
+  name: string;
+  title?: string;
+  desc?: string;
+  group?: string;
+  caution?: string;
+  order?: number;
+  schema?: NodelJsonSchema | null;
+  [key: string]: unknown;
+}
+
+export interface NodelJsonSchema {
+  type?: string | NodelJsonSchema[] | null;
+  title?: string;
+  desc?: string;
+  hint?: string;
+  format?: string;
+  enum?: unknown[];
+  properties?: Record<string, NodelJsonSchema>;
+  items?: NodelJsonSchema;
+  order?: number;
+  required?: boolean;
+  min?: number;
+  max?: number;
+  step?: number | string;
+  minItems?: number;
+  maxItems?: number;
+  [key: string]: unknown;
+}
+
 export interface NodelDiagnosticsResponse {
   hostname?: string;
   httpAddresses?: string[];

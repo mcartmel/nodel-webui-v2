@@ -144,6 +144,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: []
   },
   {
+    name: 'nodel-actsig',
+    description: 'Schema-driven current-node actions and signals UI.',
+    attributes: [],
+    snippet: '<nodel-actsig></nodel-actsig>'
+  },
+  {
     name: 'nodel-editor',
     description: 'Node file editor using CodeMirror.',
     attributes: [

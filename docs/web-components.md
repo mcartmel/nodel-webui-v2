@@ -37,6 +37,7 @@ Examples:
 - `nodel-diagnostics`
 - `nodel-console`
 - `nodel-log`
+- `nodel-actsig`
 - `nodel-editor`
 - `nodel-theme-toggle`
 
@@ -323,6 +324,12 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
   </nodel-row>
   <nodel-row>
     <nodel-column>
+      <nodel-text><b>Actions &amp; Signals</b></nodel-text>
+      <nodel-actsig></nodel-actsig>
+    </nodel-column>
+  </nodel-row>
+  <nodel-row>
+    <nodel-column>
       <nodel-text><b>Log</b></nodel-text>
       <nodel-log></nodel-log>
     </nodel-column>
@@ -346,6 +353,15 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Coalesces rapid live activity by source/type/alias before rendering.
 - Provides filter, Hold, and row-limit controls.
 - Pauses streaming/polling while its page or browser tab is hidden.
+
+`nodel-actsig` behavior:
+
+- Reads current-node actions from relative `REST/actions` and signals from relative `REST/events`.
+- Pairs actions and signals by matching name, groups them by metadata `group`, and sorts by metadata `order`, matching v1 behavior.
+- Builds form controls from each action/signal JSON schema using JsViews live bindings.
+- Posts action payloads to relative `REST/actions/<name>/call` and signal override payloads to relative `REST/events/<name>/emit`.
+- Keeps signals read-only by default; enable `Override signals` in the component to emit signal values manually.
+- Lazily materializes grouped schema forms when a section is expanded and caches hidden activity updates until forms are visible.
 
 `nodel-editor` behavior:
 
