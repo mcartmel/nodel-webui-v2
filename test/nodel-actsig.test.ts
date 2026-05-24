@@ -205,4 +205,17 @@ describe('nodel-actsig', () => {
 
     expect(formByTitle('Status')?.querySelector<HTMLInputElement>('input[type="text"]')?.value).toBe('Ready');
   });
+
+  it('shows only the load error when definitions fail to load', async () => {
+    actsigMock.getNodeActions.mockRejectedValue(new Error('Actions unavailable'));
+    actsigMock.getNodeSignals.mockResolvedValue({
+      Status: { name: 'Status', title: 'Status', schema: { type: 'string' } }
+    });
+
+    await mountActSig();
+
+    expect(document.body.textContent).toContain('Actions unavailable');
+    expect(document.body.textContent).not.toContain('No actions or signals.');
+    expect(document.querySelector('[data-actsig-override]')).toBeNull();
+  });
 });

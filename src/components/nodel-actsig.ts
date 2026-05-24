@@ -315,7 +315,8 @@ export class NodelActSig extends HTMLElement {
         loading: false,
         error: apiErrorMessage(error, 'Failed to load actions and signals'),
         sections: [],
-        empty: true
+        hasSignals: false,
+        empty: false
       });
     }
   }
