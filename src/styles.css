@@ -373,7 +373,7 @@
     @apply inline-flex h-5 w-5 items-center justify-center rounded-full font-semibold text-nodel-muted;
   }
 
-  .nodel-collapse[open] .nodel-collapse-icon::before {
+  .nodel-collapse[open] > .nodel-collapse-summary > .nodel-collapse-icon::before {
     content: '-';
   }
 
