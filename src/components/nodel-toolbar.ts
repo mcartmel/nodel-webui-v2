@@ -301,11 +301,11 @@ export class NodelToolbar extends HTMLElement {
     const base = 'nodel-button';
     return active
       ? `${base} nodel-button-primary`
-      : `${base} nodel-button-ghost text-[rgb(var(--nodel-muted))]`;
+      : `${base} nodel-button-ghost text-nodel-muted`;
   }
 
   private menuButtonClass(active: boolean) {
-    return active ? 'nodel-menu-item nodel-menu-item-active' : 'nodel-menu-item text-[rgb(var(--nodel-muted))]';
+    return active ? 'nodel-menu-item nodel-menu-item-active' : 'nodel-menu-item text-nodel-muted';
   }
 }
 

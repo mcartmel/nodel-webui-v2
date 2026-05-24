@@ -108,23 +108,23 @@ export class NodelAddNode extends HTMLElement {
         <div class="nodel-add-node-panel nodel-panel hidden p-4">
           <form class="space-y-4" novalidate>
             <div class="space-y-2">
-              <label class="text-sm font-medium text-[rgb(var(--nodel-fg))]" for="nodel-add-node-name">Node name</label>
+              <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-name">Node name</label>
               <input id="nodel-add-node-name" class="nodel-add-node-name nodel-field w-full" type="text" autocomplete="off" />
             </div>
 
             <div class="space-y-2">
-              <label class="text-sm font-medium text-[rgb(var(--nodel-fg))]" for="nodel-add-node-template">Template <small class="text-[rgb(var(--nodel-muted))]">(optional)</small></label>
+              <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-template">Template <small class="text-nodel-muted">(optional)</small></label>
               <div class="relative">
                 <input id="nodel-add-node-template" class="nodel-add-node-template nodel-field w-full" type="text" placeholder="Search recipes or nodes..." autocomplete="off" />
-                <div class="nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-[rgb(var(--nodel-muted))]"></div>
+                <div class="nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-nodel-muted"></div>
                 <div class="nodel-template-autocomplete nodel-popover mt-2 hidden">
-                  <ul class="divide-y divide-[rgb(var(--nodel-border))]"></ul>
+                  <ul class="divide-y divide-nodel-border"></ul>
                 </div>
               </div>
             </div>
 
             <div class="flex items-center justify-between gap-3">
-              <p class="nodel-add-node-status text-sm text-[rgb(var(--nodel-muted))]"></p>
+              <p class="nodel-add-node-status text-sm text-nodel-muted"></p>
               <button type="submit" class="nodeaddsubmit nodel-button nodel-button-primary">Add</button>
             </div>
           </form>
@@ -311,7 +311,7 @@ export class NodelAddNode extends HTMLElement {
 
     if (recipes.length > 0) {
       const header = document.createElement('li');
-      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[rgb(var(--nodel-muted))]';
+      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted';
       header.textContent = 'Recipes';
       list.appendChild(header);
 
@@ -329,7 +329,7 @@ export class NodelAddNode extends HTMLElement {
 
     if (nodes.length > 0) {
       const header = document.createElement('li');
-      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[rgb(var(--nodel-muted))]';
+      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted';
       header.textContent = 'Existing Nodes';
       list.appendChild(header);
 

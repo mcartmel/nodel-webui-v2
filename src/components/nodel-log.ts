@@ -33,10 +33,10 @@ interface LogViewModel {
 const template = `
   <div class="nodel-log relative min-w-0 space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
     <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-      <label class="block min-w-0 text-sm font-medium text-[rgb(var(--nodel-fg))]">
+      <label class="block min-w-0 text-sm font-medium text-nodel-fg">
         <input data-log-filter class="nodel-field mt-1 w-full" type="search" placeholder="Alias" data-link="filter trigger=true" />
       </label>
-      <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-[rgb(var(--nodel-muted))] md:justify-end">
+      <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-nodel-muted md:justify-end">
         <label class="inline-flex shrink-0 items-center gap-2">
           <input data-log-hold type="checkbox" data-link="hold" />
           Hold

@@ -187,42 +187,42 @@ export class NodelDiagnostics extends HTMLElement {
       <div class="nodel-diagnostics nodel-panel overflow-hidden">
         <div class="overflow-x-auto">
           <table class="nodel-diagnostics-table min-w-full border-collapse text-left text-sm">
-            <tbody class="divide-y divide-[rgb(var(--nodel-border))]">
+            <tbody class="divide-y divide-nodel-border">
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Release</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))]">${buildRelease(this.state.build)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Release</th>
+                <td class="px-4 py-3 text-nodel-fg">${buildRelease(this.state.build)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Serving from</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))]">${safeText(diagnostics.hostname)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Serving from</th>
+                <td class="px-4 py-3 text-nodel-fg">${safeText(diagnostics.hostname)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Advertising</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))]">${joinList(diagnostics.httpAddresses)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Advertising</th>
+                <td class="px-4 py-3 text-nodel-fg">${joinList(diagnostics.httpAddresses)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Uptime</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))]">${escapeHtml(formatDuration(diagnostics.uptime))}, start timestamp ${escapeHtml(formatDateTime(diagnostics.startTime))}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Uptime</th>
+                <td class="px-4 py-3 text-nodel-fg">${escapeHtml(formatDuration(diagnostics.uptime))}, start timestamp ${escapeHtml(formatDateTime(diagnostics.startTime))}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Host path</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))] break-words">${safeText(diagnostics.hostPath)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Host path</th>
+                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.hostPath)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Nodes root</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))] break-words">${safeText(diagnostics.nodesRoot)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Nodes root</th>
+                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.nodesRoot)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Hosting rule</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))] break-words">${safeText(diagnostics.hostingRule)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Hosting rule</th>
+                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.hostingRule)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Announcing agent</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))] break-words">${safeText(diagnostics.agent)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Announcing agent</th>
+                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.agent)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-[rgb(var(--nodel-muted))]">Build details</th>
-                <td class="px-4 py-3 text-[rgb(var(--nodel-fg))] break-words">${buildLinks(this.state.build)}</td>
+                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Build details</th>
+                <td class="px-4 py-3 text-nodel-fg break-words">${buildLinks(this.state.build)}</td>
               </tr>
             </tbody>
           </table>

@@ -44,7 +44,7 @@ const template = `
         <option value="100">100</option>
         <option value="99999">All</option>
       </select>
-      <p class="nodel-node-list-total text-sm text-[rgb(var(--nodel-muted))]">total: {^{:total}}</p>
+      <p class="nodel-node-list-total text-sm text-nodel-muted">total: {^{:total}}</p>
     </form>
 
     {^{if loading}}
@@ -60,7 +60,7 @@ const template = `
             <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
-              <span class="truncate text-xs text-[rgb(var(--nodel-muted))]">{^{:host}}</span>
+              <span class="truncate text-xs text-nodel-muted">{^{:host}}</span>
             </span>
           </a>
         {{/for}}

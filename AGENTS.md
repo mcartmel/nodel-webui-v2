@@ -14,10 +14,12 @@
 
 ## Shared Styling
 
-- Prefer the shared semantic classes in `src/styles.css` before adding repeated inline Tailwind utility strings.
-- Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for common controls and surfaces.
-- Use variant/state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` instead of encoding state as raw utility classes.
-- Keep one-off Tailwind utilities for layout, spacing, sizing, and component-specific structure when a shared class would be less clear.
+- Use Tailwind utilities first for local layout, spacing, sizing, typography, and straightforward color styling.
+- Prefer named Nodel Tailwind tokens such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel` instead of arbitrary utilities such as `text-[rgb(var(--nodel-muted))]`.
+- Add repeated project-wide colors, radii, shadows, or other visual tokens to `tailwind.config.ts` before introducing repeated arbitrary values.
+- Use shared semantic classes from `src/styles.css` for stable reusable controls and public page-authoring primitives: `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert`.
+- Use variant/state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` when state or public component API drives appearance.
+- Keep raw CSS for theme token definitions, custom-element defaults, generated markdown content, CodeMirror/editor styling, CSS-variable-driven layout, third-party widgets, and complex runtime selectors.
 - Use `nodel-collapse` for collapsible sections instead of ad-hoc disclosure markup.
 - Components that summarize state for a parent `nodel-collapse` should emit plain-text `nodel-collapse-preview` events rather than directly depending on the collapse component.
 - CodeMirror editor colour changes should use the shared `--nodel-editor-*` CSS variables instead of hard-coded theme-specific values.

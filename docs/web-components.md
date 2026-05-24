@@ -42,7 +42,9 @@ Examples:
 
 ## Shared Styling Classes
 
-Use the shared semantic classes from `src/styles.css` for common controls and surfaces. These classes are included in the built `v2/nodel-webui.css`, so they are safer for component internals and user-authored pages than relying on arbitrary Tailwind utility classes that may not be present in the production build.
+Tailwind utilities are preferred for local component layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use named Nodel token utilities such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel` instead of repeated arbitrary utilities such as `text-[rgb(var(--nodel-muted))]`.
+
+Use the shared semantic classes from `src/styles.css` for repeated controls, surfaces, state variants, and stable page-authoring primitives. These classes are included in the built `v2/nodel-webui.css`, so they are safer for user-authored pages than relying on arbitrary Tailwind utility classes that may not be present in the production build.
 
 - `.nodel-button` for ordinary buttons and button-like labels or links.
 - `.nodel-button-primary` for primary actions such as save, create, or submit.
@@ -59,9 +61,9 @@ Use the shared semantic classes from `src/styles.css` for common controls and su
 - `.nodel-alert` for neutral loading or status messages.
 - `.nodel-alert-danger` for error messages.
 
-Prefer semantic state classes over raw visual utility classes. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
+Prefer semantic state classes over raw visual utility classes when state or public component API drives appearance. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
 
-One-off Tailwind utilities are still appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, or responsive column classes.
+One-off Tailwind utilities are appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, `text-nodel-muted`, `bg-nodel-surface`, or responsive column classes.
 
 ```html
 <button type="button" class="nodel-button nodel-button-primary">Save</button>
@@ -73,7 +75,7 @@ One-off Tailwind utilities are still appropriate for layout and component-specif
 </div>
 ```
 
-Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`.
+Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
 ## Toolbar Icon
 
@@ -218,7 +220,7 @@ For precise styling overrides, set CSS custom properties on the host:
 </nodel-text>
 ```
 
-Tailwind utilities in user-authored override pages are not guaranteed to exist in the built CSS unless they are part of the build scan or a safelist. Prefer the shared styling classes above for common UI elements.
+Tailwind utilities in user-authored override pages are not guaranteed to exist in the built CSS unless they are part of the build scan or a safelist. Prefer the shared styling classes above for common UI elements in user-authored pages.
 
 ## Description
 

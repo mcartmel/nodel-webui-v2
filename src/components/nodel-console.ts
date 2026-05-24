@@ -20,7 +20,7 @@ interface ConsoleViewModel {
 
 const template = `
   <div class="nodel-console relative space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
-    <div data-console-output class="nodel-console-output nodel-card h-[14.4rem] overflow-auto p-3 font-mono text-xs leading-5 text-[rgb(var(--nodel-fg))]">
+    <div data-console-output class="nodel-console-output nodel-card h-[14.4rem] overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg">
       {^{for entries}}
         <div data-link="class{:lineClass}">
           <span class="nodel-console-timestamp">{^{>displayTime}}</span>

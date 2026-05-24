@@ -11,7 +11,8 @@ Do not modify v1 code for new UI work. Legacy-loader remains the compatibility p
 - Use TypeScript.
 - Use custom elements for UI composition.
 - Use Tailwind CSS for the base styling system.
-- Use shared semantic styling classes from `src/styles.css` for common controls and surfaces before adding repeated inline Tailwind utility strings.
+- Use Tailwind utilities and named Nodel Tailwind tokens for local component styling.
+- Use shared semantic styling classes from `src/styles.css` for repeated controls, surfaces, state variants, and public page-authoring primitives.
 - Keep JsViews for schema-form generation and live data binding.
 - Do not add placeholder code.
 - Do not copy v1 implementation patterns unless a behavior is being intentionally re-created.
@@ -46,9 +47,11 @@ Node editor behavior intentionally preserves the v1 file endpoints while using C
 
 ## Styling Layer
 
-Common UI styling lives in `src/styles.css` as semantic classes backed by theme tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls and surfaces.
+Tailwind is the primary styling layer. Use utilities directly for local layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use the Nodel token utilities from `tailwind.config.ts`, such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel`, instead of repeated arbitrary CSS-variable utilities.
 
-Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` to express behavior-driven appearance. Keep Tailwind utilities for local layout, spacing, sizing, and responsive structure.
+Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls, surfaces, and user-authored page primitives.
+
+Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` when behavior or public API drives appearance. Keep raw CSS for theme variable definitions, custom-element defaults, generated markdown content, CodeMirror/editor styling, CSS-variable-driven layout, third-party widgets, and complex runtime selectors.
 
 ## Stable Head Contract
 

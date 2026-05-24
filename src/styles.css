@@ -212,208 +212,133 @@
   }
 
   .nodel-surface {
-    background: rgb(var(--nodel-surface));
+    @apply bg-nodel-surface;
   }
 
   .nodel-border {
-    border-color: rgb(var(--nodel-border));
+    @apply border-nodel-border;
   }
 
   .nodel-muted {
-    color: rgb(var(--nodel-muted));
+    @apply text-nodel-muted;
   }
 
   .nodel-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-control);
-    background: rgb(var(--nodel-surface));
-    color: rgb(var(--nodel-fg));
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    line-height: 1.25rem;
-    text-decoration: none;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
   }
 
   .nodel-button:hover:not(:disabled):not(.is-disabled) {
-    border-color: rgb(var(--nodel-accent));
-    color: rgb(var(--nodel-accent));
+    @apply border-nodel-accent text-nodel-accent;
   }
 
   .nodel-button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+    @apply outline-none ring-2 ring-nodel-accent/40;
   }
 
   .nodel-button:disabled,
   .nodel-button.is-disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
+    @apply cursor-not-allowed opacity-[0.55];
   }
 
   .nodel-button-primary {
-    background: rgb(var(--nodel-accent));
-    border-color: rgb(var(--nodel-accent));
-    color: white;
+    @apply border-nodel-accent bg-nodel-accent text-white;
   }
 
   .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
-    color: white;
-    opacity: 0.9;
+    @apply text-white opacity-90;
   }
 
   .nodel-button-danger {
-    border-color: rgb(var(--nodel-danger) / 0.55);
-    color: rgb(var(--nodel-danger));
+    @apply border-nodel-danger/55 text-nodel-danger;
   }
 
   .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
-    border-color: rgb(var(--nodel-danger));
-    color: rgb(var(--nodel-danger));
+    @apply border-nodel-danger text-nodel-danger;
   }
 
   .nodel-button-ghost {
-    border-color: transparent;
-    background: transparent;
-    color: rgb(var(--nodel-accent));
+    @apply border-transparent bg-transparent text-nodel-accent;
   }
 
   .nodel-button-ghost:hover:not(:disabled):not(.is-disabled) {
-    border-color: transparent;
-    background: rgb(var(--nodel-border) / 0.3);
-    color: rgb(var(--nodel-accent));
+    @apply border-transparent bg-nodel-border/30 text-nodel-accent;
   }
 
   .nodel-field {
-    display: block;
-    min-width: 0;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-control);
-    background: rgb(var(--nodel-surface));
-    color: rgb(var(--nodel-fg));
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    outline: none;
+    @apply block min-w-0 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm leading-5 text-nodel-fg outline-none;
   }
 
   .nodel-field::placeholder {
-    color: rgb(var(--nodel-muted));
-    font-style: italic;
-    opacity: 0.65;
+    @apply text-nodel-muted opacity-[0.65] italic;
   }
 
   .nodel-field:focus-visible {
-    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.35);
+    @apply ring-2 ring-nodel-accent/35;
   }
 
   .nodel-field:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
+    @apply cursor-not-allowed opacity-[0.55];
   }
 
   .nodel-field-compact {
-    padding: 0.25rem 0.5rem;
+    @apply px-2 py-1;
   }
 
   .nodel-card {
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-card);
-    background: rgb(var(--nodel-surface));
+    @apply rounded-card border border-nodel-border bg-nodel-surface;
   }
 
   .nodel-panel {
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-panel);
-    background: rgb(var(--nodel-surface));
-    box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+    @apply rounded-panel border border-nodel-border bg-nodel-surface shadow-nodel-panel;
   }
 
   .nodel-popover {
-    overflow: hidden;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-popover);
-    background: rgb(var(--nodel-surface));
-    box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1);
+    @apply overflow-hidden rounded-popover border border-nodel-border bg-nodel-surface shadow-nodel-popover;
   }
 
   .nodel-list-item {
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-card);
-    background: rgb(var(--nodel-surface));
-    color: rgb(var(--nodel-fg));
-    text-decoration: none;
+    @apply rounded-card border border-nodel-border bg-nodel-surface text-nodel-fg no-underline;
   }
 
   .nodel-list-item:hover {
-    border-color: rgb(var(--nodel-accent));
-    color: rgb(var(--nodel-accent));
+    @apply border-nodel-accent text-nodel-accent;
   }
 
   .nodel-menu-item {
-    display: block;
-    width: 100%;
-    border-radius: var(--nodel-radius-control);
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    color: rgb(var(--nodel-fg));
+    @apply block w-full rounded-control px-3 py-2 text-left text-sm leading-5 text-nodel-fg;
   }
 
   .nodel-menu-item:hover {
-    background: rgb(var(--nodel-border) / 0.3);
+    @apply bg-nodel-border/30;
   }
 
   .nodel-menu-item:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+    @apply outline-none ring-2 ring-nodel-accent/40;
   }
 
   .nodel-menu-item-active {
-    background: rgb(var(--nodel-accent));
-    color: white;
+    @apply bg-nodel-accent text-white;
   }
 
   .nodel-menu-item-active:hover {
-    background: rgb(var(--nodel-accent));
-    color: white;
+    @apply bg-nodel-accent text-white;
   }
 
   .nodel-alert {
-    border: 1px dashed rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-card);
-    background: rgb(var(--nodel-surface));
-    color: rgb(var(--nodel-muted));
+    @apply rounded-card border border-dashed border-nodel-border bg-nodel-surface text-nodel-muted;
   }
 
   .nodel-alert-danger {
-    border-style: solid;
-    border-color: rgb(var(--nodel-danger-border) / 0.45);
-    background: rgb(var(--nodel-danger-bg) / 0.75);
-    color: rgb(var(--nodel-danger));
+    @apply border-solid border-nodel-dangerBorder/45 bg-nodel-dangerBg/75 text-nodel-danger;
   }
 
   .nodel-collapse {
-    overflow: hidden;
+    @apply overflow-hidden;
   }
 
   .nodel-collapse-summary {
-    display: flex;
-    cursor: pointer;
+    @apply flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold leading-5 text-nodel-fg;
     list-style: none;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    color: rgb(var(--nodel-fg));
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.25rem;
   }
 
   .nodel-collapse-summary::-webkit-details-marker {
@@ -421,28 +346,20 @@
   }
 
   .nodel-collapse-summary:hover {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-collapse-summary:focus-visible {
-    outline: none;
+    @apply outline-none;
     box-shadow: inset 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
   }
 
   .nodel-collapse-label {
-    flex: none;
+    @apply flex-none;
   }
 
   .nodel-collapse-preview {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: rgb(var(--nodel-muted));
-    font-size: 0.8125rem;
-    font-weight: 400;
+    @apply min-w-0 flex-auto overflow-hidden text-ellipsis whitespace-nowrap text-right text-[0.8125rem] font-normal text-nodel-muted;
   }
 
   .nodel-collapse[open] .nodel-collapse-preview {
@@ -451,14 +368,7 @@
 
   .nodel-collapse-icon::before {
     content: '+';
-    display: inline-flex;
-    width: 1.25rem;
-    height: 1.25rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    color: rgb(var(--nodel-muted));
-    font-weight: 600;
+    @apply inline-flex h-5 w-5 items-center justify-center rounded-full font-semibold text-nodel-muted;
   }
 
   .nodel-collapse[open] .nodel-collapse-icon::before {
@@ -466,20 +376,16 @@
   }
 
   .nodel-collapse-content {
-    border-top: 1px solid rgb(var(--nodel-border));
-    padding: 1rem;
+    @apply border-t border-nodel-border p-4;
   }
 
   .nodel-description {
-    position: relative;
-    overflow: hidden;
+    @apply relative overflow-hidden;
   }
 
   .nodel-description-body {
-    position: relative;
+    @apply relative overflow-hidden p-4;
     max-height: var(--nodel-description-collapsed-height, 8rem);
-    overflow: hidden;
-    padding: 1rem;
   }
 
   .nodel-description-body.is-expanded {
@@ -492,9 +398,7 @@
   }
 
   .nodel-description-content {
-    color: rgb(var(--nodel-muted));
-    font-size: 0.9375rem;
-    line-height: 1.625rem;
+    @apply text-[0.9375rem] leading-[1.625rem] text-nodel-muted;
   }
 
   .nodel-description-content > :first-child {
@@ -521,9 +425,7 @@
   .nodel-description-content h5,
   .nodel-description-content h6 {
     margin: 1rem 0 0.5rem;
-    color: rgb(var(--nodel-fg));
-    font-weight: 700;
-    line-height: 1.25;
+    @apply font-bold leading-tight text-nodel-fg;
   }
 
   .nodel-description-content h1 {
@@ -545,50 +447,33 @@
   }
 
   .nodel-description-content a {
-    color: rgb(var(--nodel-accent));
-    text-decoration: underline;
-    text-decoration-color: rgb(var(--nodel-accent) / 0.45);
-    text-underline-offset: 0.1875rem;
+    @apply text-nodel-accent underline decoration-nodel-accent/45 underline-offset-[0.1875rem];
   }
 
   .nodel-description-content a:hover {
-    text-decoration-color: rgb(var(--nodel-accent));
+    @apply decoration-nodel-accent;
   }
 
   .nodel-description-content strong,
   .nodel-description-content b {
-    color: rgb(var(--nodel-fg));
-    font-weight: 700;
+    @apply font-bold text-nodel-fg;
   }
 
   .nodel-description-content code,
   .nodel-description-content kbd {
-    border-radius: 0.375rem;
-    background: rgb(var(--nodel-border) / 0.42);
-    color: rgb(var(--nodel-fg));
-    padding: 0.125rem 0.3125rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    font-size: 0.85em;
+    @apply rounded-md bg-nodel-border/[0.42] px-[0.3125rem] py-0.5 font-mono text-[0.85em] text-nodel-fg;
   }
 
   .nodel-description-content pre {
-    overflow: auto;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-card);
-    background: rgb(var(--nodel-bg) / 0.65);
-    padding: 0.75rem;
+    @apply overflow-auto rounded-card border border-nodel-border bg-nodel-bg/65 p-3;
   }
 
   .nodel-description-content pre code {
-    border-radius: 0;
-    background: transparent;
-    padding: 0;
+    @apply rounded-none bg-transparent p-0;
   }
 
   .nodel-description-content blockquote {
-    border-left: 3px solid rgb(var(--nodel-accent) / 0.5);
-    color: rgb(var(--nodel-fg));
-    padding-left: 0.875rem;
+    @apply border-l-[3px] border-nodel-accent/50 pl-3.5 text-nodel-fg;
   }
 
   .nodel-description-content ul,
@@ -605,13 +490,7 @@
   }
 
   .nodel-description-actions {
-    display: flex;
-    position: absolute;
-    right: 1rem;
-    bottom: 0.75rem;
-    z-index: 1;
-    justify-content: flex-end;
-    padding: 0;
+    @apply absolute bottom-3 right-4 z-[1] flex justify-end p-0;
   }
 
   .nodel-description-actions[hidden] {
@@ -619,23 +498,15 @@
   }
 
   .nodel-description-toggle {
-    display: inline-flex;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 9999px;
-    background: transparent;
-    padding: 0;
+    @apply inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0;
   }
 
   .nodel-description-toggle:hover .nodel-collapse-icon::before {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-description-toggle:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+    @apply outline-none ring-2 ring-nodel-accent/40;
   }
 
   .nodel-description-toggle[aria-expanded='true'] .nodel-collapse-icon::before {
@@ -643,22 +514,19 @@
   }
 
   .nodel-theme-switch {
-    @apply relative inline-flex h-8 w-16 items-center rounded-full border p-1 transition;
-    background: rgb(var(--nodel-border));
-    border-color: rgb(var(--nodel-border));
+    @apply relative inline-flex h-8 w-16 items-center rounded-full border border-nodel-border bg-nodel-border p-1 transition;
   }
 
   .nodel-theme-switch:hover {
-    border-color: rgb(var(--nodel-accent));
+    @apply border-nodel-accent;
   }
 
   .nodel-theme-switch:focus-visible {
-    @apply outline-none ring-2 ring-[rgb(var(--nodel-accent))]/40;
+    @apply outline-none ring-2 ring-nodel-accent/40;
   }
 
   .nodel-theme-switch[data-theme='dark'] {
-    background: rgb(var(--nodel-accent));
-    border-color: rgb(var(--nodel-accent));
+    @apply border-nodel-accent bg-nodel-accent;
   }
 
   .nodel-theme-switch-thumb {
@@ -666,47 +534,37 @@
   }
 
   .nodel-theme-switch[data-theme='dark'] .nodel-theme-switch-thumb {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
     transform: translateX(2rem);
   }
 
   nodel-host-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 0;
-    flex: none;
+    @apply inline-flex flex-none items-center justify-center leading-[0];
   }
 
   .nodel-host-icon-link {
-    display: block;
-    width: 100%;
-    height: 100%;
+    @apply block h-full w-full;
   }
 
   .nodel-host-icon-image {
-    display: block;
-    width: 100%;
-    height: 100%;
+    @apply block h-full w-full;
   }
 
   .nodel-toolbar-host-icon {
-    width: 30px;
-    height: 30px;
+    @apply h-[30px] w-[30px];
   }
 
   .nodel-node-list-item.is-unreachable {
-    opacity: 0.6;
+    @apply opacity-60;
   }
 
   .nodel-node-icon {
-    height: 20px;
-    width: 20px;
+    @apply h-5 w-5;
   }
 
   .nodel-template-autocomplete,
   .nodel-template-selected {
-    z-index: 10;
+    @apply z-10;
   }
 
   .nodel-template-autocomplete ul {
@@ -716,69 +574,47 @@
   }
 
   .nodel-node-list-total {
-    margin: 0;
+    @apply m-0;
   }
 
   nodel-console[data-state='loading'] .nodel-console,
   nodel-console[data-state='paused'] .nodel-console,
   nodel-log[data-state='loading'] .nodel-log,
   nodel-log[data-state='paused'] .nodel-log {
-    opacity: 0.62;
+    @apply opacity-[0.62];
   }
 
   nodel-console[data-state='error'] .nodel-console,
   nodel-log[data-state='error'] .nodel-log {
-    opacity: 0.72;
-    border-color: rgb(var(--nodel-danger) / 0.45);
+    @apply border-nodel-danger/45 opacity-[0.72];
   }
 
   .nodel-console-line {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.75rem;
-    white-space: pre-wrap;
-    word-break: break-word;
+    @apply grid grid-cols-[max-content_minmax(0,1fr)] gap-3 whitespace-pre-wrap break-words;
   }
 
   .nodel-console-timestamp {
-    color: rgb(var(--nodel-muted));
+    @apply text-nodel-muted;
   }
 
   .nodel-console-type-err .nodel-console-comment {
-    color: rgb(var(--nodel-danger));
+    @apply text-nodel-danger;
   }
 
   .nodel-console-type-warn .nodel-console-comment {
-    color: rgb(217 119 6);
+    @apply text-nodel-warning;
   }
 
   .nodel-console-type-info .nodel-console-comment {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-log-row {
-    display: grid;
-    grid-template-columns: 0.875rem minmax(0, 1fr);
-    gap: 0.75rem;
-    align-items: start;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: var(--nodel-radius-card);
-    background: rgb(var(--nodel-surface));
-    padding: 0.625rem 0.75rem;
-    font-size: 0.8125rem;
-    line-height: 1.25rem;
+    @apply grid grid-cols-[0.875rem_minmax(0,1fr)] items-start gap-3 rounded-card border border-nodel-border bg-nodel-surface px-3 py-2.5 text-[0.8125rem] leading-5;
   }
 
   .nodel-log-icon {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.125rem;
-    width: 0.875rem;
-    color: rgb(var(--nodel-muted));
-    opacity: 0.35;
-    padding-top: 0.125rem;
+    @apply inline-flex w-3.5 flex-col items-center justify-center gap-0.5 pt-0.5 text-nodel-muted opacity-[0.35];
   }
 
   .nodel-log-icon svg {
@@ -786,24 +622,24 @@
   }
 
   .nodel-log-type-action.nodel-log-source-local {
-    color: rgb(34 197 94);
+    @apply text-nodel-success;
   }
 
   .nodel-log-type-action.nodel-log-source-remote {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-log-type-event.nodel-log-source-local {
-    color: rgb(var(--nodel-danger));
+    @apply text-nodel-danger;
   }
 
   .nodel-log-type-event.nodel-log-source-remote {
-    color: rgb(217 119 6);
+    @apply text-nodel-warning;
   }
 
   .nodel-log-type-actionBinding,
   .nodel-log-type-eventBinding {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-log-row.is-pulsing .nodel-log-icon {
@@ -812,77 +648,47 @@
   }
 
   .nodel-log-time {
-    color: rgb(var(--nodel-muted));
-    font-size: 0.75rem;
+    @apply text-xs text-nodel-muted;
   }
 
   .nodel-log-main {
-    min-width: 0;
+    @apply min-w-0;
   }
 
   .nodel-log-titleline {
-    display: block;
-    min-width: 0;
+    @apply block min-w-0;
   }
 
   .nodel-log-alias {
-    font-weight: 600;
-    color: rgb(var(--nodel-fg));
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    @apply overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-nodel-fg;
   }
 
   .nodel-log-arg {
-    display: block;
-    margin-top: 0.125rem;
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: rgb(var(--nodel-muted));
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    font-size: 0.75rem;
-    line-height: 1rem;
+    @apply mt-0.5 block whitespace-pre-wrap break-words font-mono text-xs leading-4 text-nodel-muted;
   }
 
   .nodel-log-arg.is-highlighted {
-    color: rgb(var(--nodel-fg));
+    @apply text-nodel-fg;
   }
 
   .nodel-log-arg .jsonnumber,
   .nodel-log-arg .jsonnull,
   .nodel-log-arg .jsonboolean,
   .nodel-log-arg .jsonstring {
-    color: rgb(var(--nodel-accent));
+    @apply text-nodel-accent;
   }
 
   .nodel-log-arg .jsonkey {
-    color: rgb(217 119 6);
+    @apply text-nodel-warning;
   }
 
   .nodel-editor-current {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
   }
 
   .nodel-editor-status {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    z-index: 10;
+    @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surface/[0.94] px-2.5 py-1.5 text-[0.8125rem] leading-4 text-nodel-muted shadow-nodel-editor-status;
     max-width: min(28rem, calc(100% - 1.5rem));
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border: 1px solid rgb(var(--nodel-border));
-    border-radius: 9999px;
-    background: rgb(var(--nodel-surface) / 0.94);
-    color: rgb(var(--nodel-muted));
-    padding: 0.375rem 0.625rem;
-    font-size: 0.8125rem;
-    line-height: 1rem;
-    box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
-    pointer-events: none;
   }
 
   .nodel-editor-status[hidden] {
@@ -891,28 +697,21 @@
 
   .nodel-editor-status.is-error,
   .nodel-editor.is-error .nodel-editor-status {
-    border-color: rgb(var(--nodel-danger-border) / 0.55);
-    background: rgb(var(--nodel-danger-bg) / 0.94);
-    color: rgb(var(--nodel-danger));
+    @apply border-nodel-dangerBorder/55 bg-nodel-dangerBg/[0.94] text-nodel-danger;
   }
 
   .nodel-editor-host {
     --nodel-editor-font-size: 0.8125rem;
     --nodel-editor-line-height: 1.45;
-    height: 28rem;
-    min-height: 16rem;
-    max-height: 80vh;
-    resize: vertical;
-    overflow: auto;
+    @apply h-[28rem] max-h-[80vh] min-h-64 resize-y overflow-auto;
   }
 
   .nodel-editor-host .cm-editor {
-    height: 100%;
-    min-height: 100%;
+    @apply h-full min-h-full;
   }
 
   .nodel-editor-host .cm-scroller {
-    min-height: 100%;
+    @apply min-h-full;
     font-size: var(--nodel-editor-font-size);
     line-height: var(--nodel-editor-line-height);
   }
