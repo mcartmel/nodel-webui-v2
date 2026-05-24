@@ -139,7 +139,7 @@ export class NodelLog extends HTMLElement {
   private state: LogViewModel = {
     filter: '',
     hold: false,
-    limit: '50',
+    limit: '10',
     statusLabel: 'Loading activity',
     statusState: 'loading',
     visibleRows: []

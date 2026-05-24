@@ -100,6 +100,39 @@ describe('nodel-log', () => {
     expect(document.querySelector('[data-log-output]')?.textContent?.trim()).toBe('');
   });
 
+  it('defaults to showing 10 rows', async () => {
+    await mountLog();
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 13,
+        items: Array.from({ length: 12 }, (_, index) => ({
+          entry: {
+            seq: index + 1,
+            timestamp: '2026-01-01T00:00:00Z',
+            source: 'local',
+            type: 'event',
+            alias: `Signal${index + 1}`
+          },
+          changed: false,
+          live: false
+        }))
+      }
+    });
+
+    await waitFor(() => document.querySelectorAll('.nodel-log-row').length === 10);
+
+    expect(document.querySelector<HTMLSelectElement>('[data-log-limit]')?.value).toBe('10');
+    expect(document.querySelectorAll('.nodel-log-row').length).toBe(10);
+    expect(document.body.textContent).toContain('Signal12');
+    expect(document.body.textContent).not.toContain('Signal2');
+  });
+
   it('highlights JSON tokens safely when filter enables highlighted arguments', async () => {
     await mountLog();
 
