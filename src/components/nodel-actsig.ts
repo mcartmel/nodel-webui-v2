@@ -113,47 +113,49 @@ const actSigRowTemplate = `
 `;
 
 const template = `
-  <div class="nodel-actsig space-y-4" data-link="class{:loading ? 'nodel-actsig space-y-4 is-loading' : 'nodel-actsig space-y-4'}">
+  <div class="nodel-actsig" data-link="class{:loading ? 'nodel-actsig is-loading' : 'nodel-actsig'}">
     {^{if loading}}
       <div class="nodel-alert px-4 py-3 text-sm">Loading actions and signals...</div>
     {{else}}
-      {^{if error}}
-        <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{>error}}</div>
-      {{/if}}
-      {^{if hasSignals}}
-        <label class="inline-flex items-center gap-2 text-sm text-nodel-muted">
-          <input type="checkbox" data-actsig-override data-link="overrideSignals" />
-          Override signals
-        </label>
-      {{/if}}
-      {^{if empty}}
-        <div class="nodel-alert px-4 py-3 text-sm">No actions or signals.</div>
-      {{else}}
-        <div class="space-y-4">
-          {^{for sections}}
-            {^{if grouped}}
-              <details class="nodel-actsig-section nodel-collapse nodel-panel" data-link="open{:open} data-actsig-section-id{:id}">
-                <summary class="nodel-collapse-summary">
-                  <span class="nodel-collapse-label">{^{>title}}</span>
-                  <span class="nodel-collapse-preview">{^{:rows.length}} item{^{if rows.length !== 1}}s{{/if}}</span>
-                  <span class="nodel-collapse-icon" aria-hidden="true"></span>
-                </summary>
-                {^{if open}}
-                  <div class="nodel-collapse-content space-y-3">
-                    {^{for rows tmpl="nodelActSigRow"/}}
-                    {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
-                  </div>
-                {{/if}}
-              </details>
-            {{else}}
-              <div class="nodel-actsig-section space-y-3" data-link="data-actsig-section-id{:id}">
-                {^{for rows tmpl="nodelActSigRow"/}}
-                {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
-              </div>
-            {{/if}}
-          {{/for}}
-        </div>
-      {{/if}}
+      <div class="nodel-actsig-panel space-y-3">
+        {^{if error}}
+          <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{>error}}</div>
+        {{/if}}
+        {^{if hasSignals}}
+          <label class="inline-flex items-center gap-2 text-sm text-nodel-muted">
+            <input type="checkbox" data-actsig-override data-link="overrideSignals" />
+            Override signals
+          </label>
+        {{/if}}
+        {^{if empty}}
+          <div class="nodel-alert px-4 py-3 text-sm">No actions or signals.</div>
+        {{else}}
+          <div class="space-y-4">
+            {^{for sections}}
+              {^{if grouped}}
+                <details class="nodel-actsig-section nodel-collapse nodel-panel" data-link="open{:open} data-actsig-section-id{:id}">
+                  <summary class="nodel-collapse-summary">
+                    <span class="nodel-collapse-label">{^{>title}}</span>
+                    <span class="nodel-collapse-preview">{^{:rows.length}} item{^{if rows.length !== 1}}s{{/if}}</span>
+                    <span class="nodel-collapse-icon" aria-hidden="true"></span>
+                  </summary>
+                  {^{if open}}
+                    <div class="nodel-collapse-content space-y-3">
+                      {^{for rows tmpl="nodelActSigRow"/}}
+                      {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
+                    </div>
+                  {{/if}}
+                </details>
+              {{else}}
+                <div class="nodel-actsig-section space-y-3" data-link="data-actsig-section-id{:id}">
+                  {^{for rows tmpl="nodelActSigRow"/}}
+                  {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
+                </div>
+              {{/if}}
+            {{/for}}
+          </div>
+        {{/if}}
+      </div>
     {{/if}}
   </div>
 `;

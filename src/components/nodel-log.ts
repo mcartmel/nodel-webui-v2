@@ -31,42 +31,44 @@ interface LogViewModel {
 }
 
 const template = `
-  <div class="nodel-log relative min-w-0 space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
-    <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-      <label class="block min-w-0 text-sm font-medium text-nodel-fg">
-        <input data-log-filter class="nodel-field mt-1 w-full" type="search" placeholder="Alias" data-link="filter trigger=true" />
-      </label>
-      <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-nodel-muted md:justify-end">
-        <label class="inline-flex shrink-0 items-center gap-2">
-          <input data-log-hold type="checkbox" data-link="hold" />
-          Hold
+  <div class="nodel-log relative min-w-0" data-link="title{:statusLabel} aria-label{:statusLabel}">
+    <div class="nodel-log-panel">
+      <div class="nodel-log-toolbar">
+        <label class="block min-w-0 text-sm font-medium text-nodel-fg">
+          <input data-log-filter class="nodel-field w-full" type="search" placeholder="Alias" data-link="filter trigger=true" />
         </label>
-        <label class="inline-flex shrink-0 items-center gap-2">
-          Rows
-          <select data-log-limit class="nodel-field nodel-field-compact" data-link="limit">
-            <option value="10">10</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-      </div>
-    </div>
-    <div data-log-output class="nodel-log-output space-y-1">
-      {^{for visibleRows}}
-        <div data-link="class{:rowClass}">
-          <span data-link="class{:iconClass}" aria-hidden="true">{^{:iconMarkup}}</span>
-          <span class="nodel-log-main">
-            <span class="nodel-log-titleline">
-              <span class="nodel-log-alias">{^{>alias}}</span>
-              <span class="nodel-log-time"> - {^{>displayTime}}</span>
-            </span>
-            {^{if showArg}}
-              <span data-link="class{:highlightArg ? 'nodel-log-arg is-highlighted' : 'nodel-log-arg'}">{^{:argMarkup}}</span>
-            {{/if}}
-          </span>
+        <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-nodel-muted md:justify-end">
+          <label class="inline-flex shrink-0 items-center gap-2">
+            <input data-log-hold type="checkbox" data-link="hold" />
+            Hold
+          </label>
+          <label class="inline-flex shrink-0 items-center gap-2">
+            Rows
+            <select data-log-limit class="nodel-field nodel-field-compact" data-link="limit">
+              <option value="10">10</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="all">All</option>
+            </select>
+          </label>
         </div>
-      {{/for}}
+      </div>
+      <div data-log-output class="nodel-log-output space-y-1">
+        {^{for visibleRows}}
+          <div data-link="class{:rowClass}">
+            <span data-link="class{:iconClass}" aria-hidden="true">{^{:iconMarkup}}</span>
+            <span class="nodel-log-main">
+              <span class="nodel-log-titleline">
+                <span class="nodel-log-alias">{^{>alias}}</span>
+                <span class="nodel-log-time"> - {^{>displayTime}}</span>
+              </span>
+              {^{if showArg}}
+                <span data-link="class{:highlightArg ? 'nodel-log-arg is-highlighted' : 'nodel-log-arg'}">{^{:argMarkup}}</span>
+              {{/if}}
+            </span>
+          </div>
+        {{/for}}
+      </div>
     </div>
   </div>
 `;

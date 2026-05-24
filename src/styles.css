@@ -591,6 +591,11 @@
     @apply border-nodel-danger/45 opacity-[0.72];
   }
 
+  nodel-text + nodel-log,
+  nodel-text + nodel-actsig {
+    @apply mt-1;
+  }
+
   .nodel-console-line {
     @apply grid grid-cols-[max-content_minmax(0,1fr)] gap-3 whitespace-pre-wrap break-words;
   }
@@ -609,6 +614,16 @@
 
   .nodel-console-type-info .nodel-console-comment {
     @apply text-nodel-accent;
+  }
+
+  .nodel-log-panel,
+  .nodel-actsig-panel {
+    @apply min-w-0 rounded-card bg-nodel-border/20 p-2.5;
+    box-shadow: inset 0 0 0 1px rgb(var(--nodel-border) / 0.35);
+  }
+
+  .nodel-log-toolbar {
+    @apply mb-2 grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center;
   }
 
   .nodel-log-row {
