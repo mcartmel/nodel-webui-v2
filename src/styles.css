@@ -5,11 +5,11 @@
 @layer base {
   :root {
     color-scheme: light;
-    --nodel-bg: 248 250 252;
+    --nodel-bg: 241 245 249;
     --nodel-fg: 15 23 42;
     --nodel-surface: 255 255 255;
-    --nodel-muted: 71 85 105;
-    --nodel-border: 226 232 240;
+    --nodel-muted: 51 65 85;
+    --nodel-border: 203 213 225;
     --nodel-accent: 14 165 233;
     --nodel-danger: 220 38 38;
     --nodel-danger-strong: 239 68 68;
