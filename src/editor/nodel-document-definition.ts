@@ -150,6 +150,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-actsig></nodel-actsig>'
   },
   {
+    name: 'nodel-params',
+    description: 'Schema-driven current-node parameters form.',
+    attributes: [],
+    snippet: '<nodel-params></nodel-params>'
+  },
+  {
     name: 'nodel-editor',
     description: 'Node file editor using CodeMirror.',
     attributes: [

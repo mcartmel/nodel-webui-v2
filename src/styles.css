@@ -114,6 +114,7 @@
   nodel-console,
   nodel-log,
   nodel-actsig,
+  nodel-params,
   nodel-editor,
   nodel-theme-toggle {
     @apply block;
@@ -129,6 +130,7 @@
   nodel-console:not(:defined),
   nodel-log:not(:defined),
   nodel-actsig:not(:defined),
+  nodel-params:not(:defined),
   nodel-editor:not(:defined) {
     visibility: hidden;
   }
@@ -592,7 +594,8 @@
   }
 
   nodel-text + nodel-log,
-  nodel-text + nodel-actsig {
+  nodel-text + nodel-actsig,
+  nodel-text + nodel-params {
     @apply mt-1;
   }
 
@@ -617,7 +620,8 @@
   }
 
   .nodel-log-panel,
-  .nodel-actsig-panel {
+  .nodel-actsig-panel,
+  .nodel-params-panel {
     @apply min-w-0 rounded-card bg-nodel-border/20 p-2.5;
     box-shadow: inset 0 0 0 1px rgb(var(--nodel-border) / 0.35);
   }

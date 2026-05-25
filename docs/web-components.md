@@ -38,6 +38,7 @@ Examples:
 - `nodel-console`
 - `nodel-log`
 - `nodel-actsig`
+- `nodel-params`
 - `nodel-editor`
 - `nodel-theme-toggle`
 
@@ -362,6 +363,13 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Posts action payloads to relative `REST/actions/<name>/call` and signal override payloads to relative `REST/events/<name>/emit`.
 - Keeps signals read-only by default; enable `Override signals` in the component to emit signal values manually.
 - Lazily materializes grouped schema forms when a section is expanded and caches hidden activity updates until forms are visible.
+
+`nodel-params` behavior:
+
+- Reads current-node parameter schema from relative `REST/params/schema` and values from relative `REST/params`.
+- Builds form controls from the parameter JSON schema using the shared schema form helpers.
+- Posts raw parameter payloads to relative `REST/params/save`, matching v1 parameter save behavior.
+- Supports nested objects and array add/remove/reorder controls through the shared schema form runtime.
 
 `nodel-editor` behavior:
 

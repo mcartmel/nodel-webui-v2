@@ -11,6 +11,7 @@ import type {
   NodelNodeRestResponse,
   NodelNodeUrlEntry,
   NodelRecipeEntry,
+  NodelJsonSchema,
   NodelSignalDefinition
 } from './nodel-types';
 
@@ -117,6 +118,26 @@ export async function callNodeAction(name: string, payload: unknown, init?: Requ
 
 export async function emitNodeSignal(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
   return postJson<unknown>(`REST/events/${encodeURIComponent(name)}/emit`, payload, init);
+}
+
+export async function getNodeParamsSchema(init?: RequestInit): Promise<NodelJsonSchema> {
+  return fetchJson<NodelJsonSchema>('REST/params/schema', init);
+}
+
+export async function getNodeParams(init?: RequestInit): Promise<Record<string, unknown>> {
+  return fetchJson<Record<string, unknown>>('REST/params', init);
+}
+
+export async function saveNodeParams(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
+  return fetchOk('REST/params/save', {
+    ...init,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    },
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {
