@@ -140,6 +140,38 @@ export async function saveNodeParams(payload: Record<string, unknown>, init?: Re
   });
 }
 
+export async function getNodeRemoteSchema(init?: RequestInit): Promise<NodelJsonSchema> {
+  return fetchJson<NodelJsonSchema>('REST/remote/schema', init);
+}
+
+export async function getNodeRemoteBindings(init?: RequestInit): Promise<Record<string, unknown>> {
+  return fetchJson<Record<string, unknown>>('REST/remote', init);
+}
+
+export async function saveNodeRemoteBindings(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
+  return fetchOk('REST/remote/save', {
+    ...init,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+function restUrlForNode(nodeUrl: string, endpoint: string) {
+  return `${nodeUrl.replace(/\/?$/, '/')}${endpoint}`;
+}
+
+export async function getRemoteNodeActions(nodeUrl: string, init?: RequestInit): Promise<Record<string, NodelActionDefinition>> {
+  return fetchJson<Record<string, NodelActionDefinition>>(restUrlForNode(nodeUrl, 'REST/actions'), init);
+}
+
+export async function getRemoteNodeSignals(nodeUrl: string, init?: RequestInit): Promise<Record<string, NodelSignalDefinition>> {
+  return fetchJson<Record<string, NodelSignalDefinition>>(restUrlForNode(nodeUrl, 'REST/events'), init);
+}
+
 export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {
   return fetchJson<NodelFileEntry[]>('REST/files', init);
 }

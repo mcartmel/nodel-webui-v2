@@ -14,6 +14,7 @@ import './components/nodel-console';
 import './components/nodel-log';
 import './components/nodel-actsig';
 import './components/nodel-params';
+import './components/nodel-bindings';
 import './components/nodel-editor';
 import './components/nodel-theme-toggle';
 

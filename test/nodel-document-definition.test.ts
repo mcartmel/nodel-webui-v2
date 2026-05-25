@@ -24,7 +24,7 @@ function fakeCompletionContext(text: string, explicit = true) {
 describe('nodel document definition', () => {
   it('includes custom layout elements and completions', () => {
     const names = nodelDocumentElements.map((element) => element.name);
-    expect(names).toEqual(expect.arrayContaining(['nodel-app', 'nodel-page', 'nodel-row', 'nodel-column', 'nodel-console', 'nodel-log', 'nodel-params', 'nodel-editor']));
+    expect(names).toEqual(expect.arrayContaining(['nodel-app', 'nodel-page', 'nodel-row', 'nodel-column', 'nodel-console', 'nodel-log', 'nodel-params', 'nodel-bindings', 'nodel-editor']));
 
     const nodeList = nodelDocumentElements.find((element) => element.name === 'nodel-node-list');
     expect(nodeList?.attributes.find((attribute) => attribute.name === 'scope')?.values).toEqual(['local', 'network']);

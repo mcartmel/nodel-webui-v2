@@ -39,6 +39,7 @@ Examples:
 - `nodel-log`
 - `nodel-actsig`
 - `nodel-params`
+- `nodel-bindings`
 - `nodel-editor`
 - `nodel-theme-toggle`
 
@@ -370,6 +371,14 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Builds form controls from the parameter JSON schema using the shared schema form helpers.
 - Posts raw parameter payloads to relative `REST/params/save`, matching v1 parameter save behavior.
 - Supports nested objects and array add/remove/reorder controls through the shared schema form runtime.
+
+`nodel-bindings` behavior:
+
+- Reads current-node remote binding schema from relative `REST/remote/schema` and values from relative `REST/remote`.
+- Renders action and event bindings as grouped rows with status, target node, target action/event, and suggestion state.
+- Uses `/REST/nodeURLs` for node lookup and target-node `REST/actions` or `REST/events` for action/event lookup.
+- Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
+- Posts raw remote binding payloads to relative `REST/remote/save`, matching the v1 backend shape.
 
 `nodel-editor` behavior:
 

@@ -156,6 +156,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-params></nodel-params>'
   },
   {
+    name: 'nodel-bindings',
+    description: 'Current-node remote binding workbench.',
+    attributes: [],
+    snippet: '<nodel-bindings></nodel-bindings>'
+  },
+  {
     name: 'nodel-editor',
     description: 'Node file editor using CodeMirror.',
     attributes: [

@@ -115,6 +115,7 @@
   nodel-log,
   nodel-actsig,
   nodel-params,
+  nodel-bindings,
   nodel-editor,
   nodel-theme-toggle {
     @apply block;
@@ -131,6 +132,7 @@
   nodel-log:not(:defined),
   nodel-actsig:not(:defined),
   nodel-params:not(:defined),
+  nodel-bindings:not(:defined),
   nodel-editor:not(:defined) {
     visibility: hidden;
   }
@@ -595,7 +597,8 @@
 
   nodel-text + nodel-log,
   nodel-text + nodel-actsig,
-  nodel-text + nodel-params {
+  nodel-text + nodel-params,
+  nodel-text + nodel-bindings {
     @apply mt-1;
   }
 
@@ -621,9 +624,89 @@
 
   .nodel-log-panel,
   .nodel-actsig-panel,
-  .nodel-params-panel {
+  .nodel-params-panel,
+  .nodel-bindings-panel {
     @apply min-w-0 rounded-card bg-nodel-border/20 p-2.5;
     box-shadow: inset 0 0 0 1px rgb(var(--nodel-border) / 0.35);
+  }
+
+  .nodel-bindings-toolbar {
+    @apply grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center;
+  }
+
+  .nodel-bindings-toolbar-panel {
+    @apply relative z-10 space-y-2.5 rounded-card border border-nodel-border bg-nodel-surface p-2.5;
+  }
+
+  .nodel-bindings-section.nodel-collapse {
+    overflow: visible;
+  }
+
+  .nodel-bindings-table {
+    @apply min-w-0 space-y-1.5;
+  }
+
+  .nodel-bindings-header,
+  .nodel-bindings-row {
+    @apply grid min-w-0 gap-2;
+    grid-template-columns: 1.75rem 5rem minmax(8rem, 1.25fr) minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(7rem, 0.8fr);
+  }
+
+  .nodel-bindings-header {
+    @apply px-2 text-xs font-semibold uppercase text-nodel-muted;
+  }
+
+  .nodel-bindings-row {
+    @apply items-start rounded-card border border-nodel-border bg-nodel-surface px-2 py-2 text-[0.8125rem] leading-5;
+  }
+
+  .nodel-bindings-combobox {
+    @apply relative min-w-0;
+  }
+
+  .nodel-bindings-popover {
+    @apply absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto p-1;
+  }
+
+  .nodel-bindings-popover .nodel-menu-item {
+    @apply flex w-full flex-col items-start gap-0.5 text-left;
+  }
+
+  .nodel-bindings-status,
+  .nodel-bindings-suggestion {
+    @apply inline-flex min-h-8 min-w-0 items-center truncate rounded-control px-2 text-xs font-medium;
+  }
+
+  .nodel-bindings-status.is-wired,
+  .nodel-bindings-suggestion.is-high {
+    @apply bg-nodel-success/10 text-nodel-success;
+  }
+
+  .nodel-bindings-status.is-unwired,
+  .nodel-bindings-suggestion.is-none {
+    @apply bg-nodel-warning/10 text-nodel-warning;
+  }
+
+  .nodel-bindings-suggestion.is-medium {
+    @apply bg-nodel-accent/10 text-nodel-accent;
+  }
+
+  .nodel-bindings-suggestion.is-ambiguous {
+    @apply bg-nodel-danger/10 text-nodel-danger;
+  }
+
+  @media (max-width: 900px) {
+    .nodel-bindings-header {
+      @apply hidden;
+    }
+
+    .nodel-bindings-row {
+      grid-template-columns: 1.75rem minmax(0, 1fr);
+    }
+
+    .nodel-bindings-row > span:nth-child(n + 2) {
+      grid-column: 2;
+    }
   }
 
   .nodel-log-toolbar {
