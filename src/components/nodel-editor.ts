@@ -139,6 +139,10 @@ export class NodelEditor extends HTMLElement {
     this.linked = false;
   }
 
+  refreshAfterRestart() {
+    return this.refreshFilesPreservingEditor();
+  }
+
   attributeChangedCallback() {
     if (this.linked && !this.state.selectedPath) {
       void this.loadFiles();
@@ -220,6 +224,30 @@ export class NodelEditor extends HTMLElement {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : 'Failed to load files', loading: false });
+    } finally {
+      this.updateAvailability();
+    }
+  }
+
+  private async refreshFilesPreservingEditor() {
+    this.abortController?.abort();
+    this.abortController = new AbortController();
+    this.setState({ error: '', loading: true, status: 'Refreshing files...' });
+    this.updateAvailability();
+
+    try {
+      const files = sortFiles((await listNodeFiles({ signal: this.abortController.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      this.refreshFileViews(files);
+      this.setState({
+        loading: false,
+        pickerPath: this.state.selectedPath,
+        status: files.length ? 'Files refreshed.' : 'No editable node files found.'
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      this.setState({ error: error instanceof Error ? error.message : 'Failed to refresh files', loading: false });
     } finally {
       this.updateAvailability();
     }

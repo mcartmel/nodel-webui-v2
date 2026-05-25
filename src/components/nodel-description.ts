@@ -36,6 +36,10 @@ export class NodelDescription extends HTMLElement {
     this.removeEventListener('click', this.handleClick);
   }
 
+  refreshAfterRestart() {
+    return this.loadDescription();
+  }
+
   attributeChangedCallback() {
     if (!this.isConnected) {
       return;

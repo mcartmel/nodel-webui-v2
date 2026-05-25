@@ -166,4 +166,24 @@ describe('nodel-editor', () => {
 
     expect(codeEditorMock.instance.destroy).toHaveBeenCalledTimes(1);
   });
+
+  it('refreshes the file list after restart without clobbering dirty editor content', async () => {
+    const element = await mountEditor();
+    codeEditorMock.currentDoc = 'print("dirty")';
+    codeEditorMock.options?.onChange?.('print("dirty")');
+    await flush();
+
+    editorApiMock.files = [
+      { path: 'content/index.html' },
+      { path: 'content/new.html' },
+      { path: 'script.py' }
+    ];
+
+    await (element as any).refreshAfterRestart();
+    await waitFor(() => document.body.textContent?.includes('content/new.html'));
+
+    expect(codeEditorMock.currentDoc).toBe('print("dirty")');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+    expect(editorApiMock.getNodeFileContents).toHaveBeenCalledTimes(1);
+  });
 });

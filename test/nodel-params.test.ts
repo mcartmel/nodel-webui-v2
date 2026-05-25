@@ -226,4 +226,33 @@ describe('nodel-params', () => {
       servers: ['gamma', 'beta']
     });
   });
+
+  it('refreshes schema and values after a node restart', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValueOnce({
+      type: 'object',
+      properties: {
+        first: { type: 'string', title: 'First' }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValueOnce({ first: 'ready' });
+
+    const element = await mountParams();
+    expect(document.querySelector<HTMLInputElement>('input[type="text"]')?.value).toBe('ready');
+
+    paramsMock.getNodeParamsSchema.mockResolvedValueOnce({
+      type: 'object',
+      properties: {
+        second: { type: 'string', title: 'Second' }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValueOnce({ second: 'fresh' });
+
+    await (element as any).refreshAfterRestart();
+    await waitFor(() => document.querySelector<HTMLInputElement>('input[type="text"]')?.value === 'fresh');
+
+    expect(document.body.textContent).toContain('Second');
+    expect(document.body.textContent).not.toContain('First');
+    expect(paramsMock.getNodeParamsSchema).toHaveBeenCalledTimes(2);
+    expect(paramsMock.getNodeParams).toHaveBeenCalledTimes(2);
+  });
 });

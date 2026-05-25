@@ -668,6 +668,10 @@
     @apply absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto p-1;
   }
 
+  .nodel-bindings-popover:not(:has(.nodel-menu-item)) {
+    display: none;
+  }
+
   .nodel-bindings-popover .nodel-menu-item {
     @apply flex w-full flex-col items-start gap-0.5 text-left;
   }

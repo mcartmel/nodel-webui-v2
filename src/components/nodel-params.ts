@@ -99,6 +99,10 @@ export class NodelParams extends HTMLElement {
     this.linked = false;
   }
 
+  refreshAfterRestart() {
+    return this.loadParams();
+  }
+
   private async initialize() {
     if (!this.linked) {
       await bootstrapJsViews();

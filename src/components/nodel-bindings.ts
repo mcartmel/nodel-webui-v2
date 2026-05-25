@@ -503,6 +503,10 @@ export class NodelBindings extends HTMLElement {
     this.subscribeActivity();
   }
 
+  refreshAfterRestart() {
+    return this.loadBindings();
+  }
+
   private async loadBindings() {
     this.abortController?.abort();
     this.abortController = new AbortController();
@@ -706,6 +710,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (combobox.querySelector('[data-bindings-bulk-node]')) {
+      this.nodeSearchToken += 1;
       this.setState({
         bulkNodeOptions: [],
         showBulkNodeOptions: false
@@ -715,6 +720,8 @@ export class NodelBindings extends HTMLElement {
 
     const row = this.rowForElement(combobox);
     if (row) {
+      this.nodeSearchToken += 1;
+      this.targetSearchToken += 1;
       getJQuery().observable(row).setProperty({
         nodeOptions: [],
         showNodeOptions: false,
@@ -775,6 +782,7 @@ export class NodelBindings extends HTMLElement {
 
     const $ = getJQuery();
     if (optionType === 'bulk-node') {
+      this.nodeSearchToken += 1;
       const selected = this.state.bulkNodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -798,6 +806,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (optionType === 'node') {
+      this.nodeSearchToken += 1;
       const selected = row.nodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -816,6 +825,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (optionType === 'target') {
+      this.targetSearchToken += 1;
       const selected = row.targetOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -837,10 +847,11 @@ export class NodelBindings extends HTMLElement {
 
   private async searchBulkNodes(query: string) {
     const token = ++this.nodeSearchToken;
+    const originalQuery = query;
     this.setState({ searchingBulkNode: true });
     try {
       const options = query.trim() ? (await searchNodeUrls(query)).slice(0, 20).map(optionFromNode) : [];
-      if (token === this.nodeSearchToken) {
+      if (token === this.nodeSearchToken && this.state.bulkNode === originalQuery) {
         this.setState({
           bulkNodeOptions: options,
           showBulkNodeOptions: options.length > 0
@@ -862,10 +873,11 @@ export class NodelBindings extends HTMLElement {
 
   private async searchRowNodes(row: BindingRow, query: string) {
     const token = ++this.nodeSearchToken;
+    const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingNode: true });
     try {
       const options = query.trim() ? (await searchNodeUrls(query)).slice(0, 20).map(optionFromNode) : [];
-      if (token === this.nodeSearchToken) {
+      if (token === this.nodeSearchToken && row.node === originalQuery) {
         getJQuery().observable(row).setProperty({
           nodeOptions: options,
           showNodeOptions: options.length > 0
@@ -887,11 +899,12 @@ export class NodelBindings extends HTMLElement {
 
   private async searchTargets(row: BindingRow, query: string) {
     const token = ++this.targetSearchToken;
+    const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingTarget: true });
     try {
       const definitions = row.node ? await this.getTargetDefinitions(row) : [];
       const options = definitionsToOptions(definitions, query);
-      if (token === this.targetSearchToken) {
+      if (token === this.targetSearchToken && row.target === originalQuery) {
         getJQuery().observable(row).setProperty({
           targetOptions: options,
           showTargetOptions: options.length > 0

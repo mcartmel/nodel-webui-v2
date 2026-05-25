@@ -1,4 +1,7 @@
 import { resolveTheme } from '../theme/theme';
+import { refreshNodeActivity } from '../data/node-activity-source';
+import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
+import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartWatcher } from '../data/node-restart-source';
 import {
   NODEL_NAVIGATION_CHANGE,
   NODEL_NAV_SELECT,
@@ -18,6 +21,10 @@ interface NavigationDiscovery {
   groupPages: Set<HTMLElement>;
   items: NodelNavItem[];
   pageById: Map<string, HTMLElement>;
+}
+
+interface RestartRefreshElement extends Element {
+  refreshAfterRestart?: () => void | Promise<void>;
 }
 
 function isNodelPage(element: Element): element is HTMLElement {
@@ -56,6 +63,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navItems: NodelNavItem[] = [];
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
+  private restartWatcher: NodeRestartWatcher | null = null;
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
@@ -66,6 +74,9 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.mutationObserver = new MutationObserver(() => this.queueNavigationSync());
     this.mutationObserver.observe(this, { childList: true });
     this.queueNavigationSync();
+    if (isNodePage()) {
+      this.restartWatcher = watchNodeRestart(this.handleNodeRestart);
+    }
   }
 
   disconnectedCallback() {
@@ -73,6 +84,8 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     window.removeEventListener('hashchange', this.handleHashChange);
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
+    this.restartWatcher?.dispose();
+    this.restartWatcher = null;
   }
 
   attributeChangedCallback() {
@@ -105,6 +118,29 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       this.setActivePage(pageId, false);
     }
   };
+
+  private handleNodeRestart = (detail: NodeRestartDetail) => {
+    this.dispatchEvent(new CustomEvent('nodel-node-restarted', {
+      bubbles: true,
+      detail
+    }));
+    void this.refreshAfterNodeRestart();
+  };
+
+  private async refreshAfterNodeRestart() {
+    const refreshes = Array.from(this.querySelectorAll<RestartRefreshElement>(
+      'nodel-description,nodel-actsig,nodel-params,nodel-bindings,nodel-editor'
+    ))
+      .map((element) => element.refreshAfterRestart?.())
+      .filter((result): result is void | Promise<void> => result !== undefined);
+
+    await Promise.allSettled(refreshes);
+    resetNodeConsoleCursor();
+    await Promise.allSettled([
+      refreshNodeConsole(),
+      Promise.resolve(refreshNodeActivity())
+    ]);
+  }
 
   private queueNavigationSync() {
     if (this.navigationQueued) {

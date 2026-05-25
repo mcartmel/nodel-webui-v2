@@ -218,4 +218,32 @@ describe('nodel-actsig', () => {
     expect(document.body.textContent).not.toContain('No actions or signals.');
     expect(document.querySelector('[data-actsig-override]')).toBeNull();
   });
+
+  it('refreshes definitions after a node restart while preserving signal override mode', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({
+      Power: { name: 'Power', title: 'Power', schema: { type: 'boolean' } }
+    });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({
+      State: { name: 'State', title: 'State', schema: { type: 'string' } }
+    });
+
+    const element = await mountActSig();
+    await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
+
+    actsigMock.getNodeActions.mockResolvedValueOnce({
+      Level: { name: 'Level', title: 'Level', schema: { type: 'integer' } }
+    });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({
+      State: { name: 'State', title: 'Updated State', schema: { type: 'string' } }
+    });
+
+    await (element as any).refreshAfterRestart();
+    await waitFor(() => Boolean(formByTitle('Level')));
+
+    expect(formByTitle('Power')).toBeNull();
+    expect(formByTitle('Updated State')).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>('[data-actsig-override]')?.checked).toBe(true);
+    expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+    expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(2);
+  });
 });

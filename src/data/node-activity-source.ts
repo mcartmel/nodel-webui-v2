@@ -100,6 +100,17 @@ function resetConnection() {
   connected = false;
 }
 
+function resetActivitySource() {
+  liveAccumulator.clear();
+  lastSeq = null;
+  currentBatch = null;
+  loading = true;
+  error = '';
+  resetConnection();
+  emit(null, '');
+  evaluate();
+}
+
 function emit(batch: NodeActivityBatch | null, nextError = error) {
   if (batch) {
     currentBatch = batch;
@@ -351,11 +362,11 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
       }
     },
     refresh() {
-      lastSeq = null;
-      currentBatch = null;
-      error = '';
-      resetConnection();
-      evaluate();
+      resetActivitySource();
     }
   };
+}
+
+export function refreshNodeActivity() {
+  resetActivitySource();
 }

@@ -269,6 +269,19 @@ export class NodelActSig extends HTMLElement {
     this.linked = false;
   }
 
+  refreshAfterRestart() {
+    this.latestArgs.clear();
+    for (const timer of this.materializeTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    for (const timer of this.pulseTimers.values()) {
+      window.clearTimeout(timer);
+    }
+    this.materializeTimers.clear();
+    this.pulseTimers.clear();
+    return this.loadDefinitions();
+  }
+
   private async initialize() {
     if (!this.linked) {
       await bootstrapJsViews();

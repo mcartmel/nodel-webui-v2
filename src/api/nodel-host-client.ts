@@ -10,6 +10,7 @@ import type {
   NodelLocalRestResponse,
   NodelNodeRestResponse,
   NodelNodeUrlEntry,
+  NodelRestartStatus,
   NodelRecipeEntry,
   NodelJsonSchema,
   NodelSignalDefinition
@@ -89,6 +90,19 @@ export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> 
 
 export async function getNodeDetails(init?: RequestInit): Promise<NodelNodeRestResponse> {
   return fetchJson<NodelNodeRestResponse>('REST/', init);
+}
+
+export async function getNodeRestartStatus(options: { timestamp?: string | null; timeout?: number } = {}, init?: RequestInit): Promise<NodelRestartStatus> {
+  const params = new URLSearchParams();
+  if (options.timestamp) {
+    params.set('timestamp', options.timestamp);
+  }
+  if (options.timeout && options.timeout > 0) {
+    params.set('timeout', String(options.timeout));
+  }
+
+  const query = params.toString();
+  return fetchJson<NodelRestartStatus>(`REST/hasRestarted${query ? `?${query}` : ''}`, init);
 }
 
 export async function getNodeConsoleLogs(options: { from: number; max: number; timeout?: number }, init?: RequestInit): Promise<NodelConsoleLogEntry[]> {

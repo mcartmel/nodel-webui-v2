@@ -25,6 +25,11 @@ export interface NodelNodeRestResponse {
   [key: string]: unknown;
 }
 
+export interface NodelRestartStatus {
+  timestamp: string | null;
+  [key: string]: unknown;
+}
+
 export interface NodelConsoleLogEntry {
   seq: number;
   timestamp: string;

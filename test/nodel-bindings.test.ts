@@ -74,6 +74,14 @@ async function setInputValue(input: HTMLInputElement, value: string) {
   await flush();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 function submitForm() {
   document.querySelector<HTMLFormElement>('[data-bindings-form]')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 }
@@ -168,6 +176,46 @@ describe('nodel-bindings', () => {
     expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
   });
 
+  it('refreshes remote schema and binding values after a node restart', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValueOnce(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({
+      actions: {
+        setLevel: { node: 'Lighting', action: 'Dim' },
+        powerOn: { node: 'Lighting', action: 'On' }
+      },
+      events: {
+        statusChanged: { node: 'Sensor', event: 'Status' }
+      }
+    });
+
+    const element = await mountBindings();
+    expect(document.body.textContent).toContain('Set Level');
+
+    bindingsMock.getNodeRemoteSchema.mockResolvedValueOnce({
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            newAction: { type: 'object', title: 'New Action' }
+          }
+        }
+      }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({
+      actions: {
+        newAction: { node: 'Projector', action: 'Start' }
+      }
+    });
+
+    await (element as any).refreshAfterRestart();
+    await waitFor(() => document.body.textContent?.includes('New Action'));
+
+    expect(document.body.textContent).not.toContain('Set Level');
+    expect(bindingsMock.getNodeRemoteSchema).toHaveBeenCalledTimes(2);
+    expect(bindingsMock.getNodeRemoteBindings).toHaveBeenCalledTimes(2);
+  });
+
   it('renders load and save errors', async () => {
     bindingsMock.getNodeRemoteSchema.mockRejectedValueOnce(new Error('Remote schema unavailable'));
     bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({});
@@ -209,6 +257,32 @@ describe('nodel-bindings', () => {
     await flush();
 
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
+  });
+
+  it('does not reopen the node dropdown from stale autocomplete responses after selection', async () => {
+    const pendingSearch = deferred<any[]>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls
+      .mockResolvedValueOnce([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }])
+      .mockReturnValueOnce(pendingSearch.promise);
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    const nodeInput = rowInputs(firstAction).node;
+    await setInputValue(nodeInput, 'Light');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+
+    await setInputValue(nodeInput, 'Lighti');
+    firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
+    await flush();
+    pendingSearch.resolve([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }]);
+    await flush();
+
+    expect(rowInputs(firstAction).node.value).toBe('Lighting');
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
   it('uses action/event autocomplete from the selected target node', async () => {
@@ -237,6 +311,7 @@ describe('nodel-bindings', () => {
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://host/nodes/Lighting/');
     expect(rowInputs(rows('actions')[0]).target.value).toBe('dim');
+    expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
   it('bulk sets node only for selected rows', async () => {
