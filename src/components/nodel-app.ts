@@ -1,3 +1,4 @@
+import { getNodeDetails } from '../api/nodel-host-client';
 import { resolveTheme } from '../theme/theme';
 import { refreshNodeActivity } from '../data/node-activity-source';
 import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
@@ -12,6 +13,7 @@ import {
   type NodelNavSelectDetail,
   slugPageTitle
 } from '../navigation/navigation';
+import { getNodePathName, getSimpleName } from '../utils/node-name';
 
 function setRootTheme(theme: string) {
   document.documentElement.dataset.theme = theme;
@@ -76,6 +78,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
+  private titleLoadToken = 0;
   private toastHost: NodelToastHost | null = null;
 
   connectedCallback() {
@@ -101,6 +104,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   }
 
   disconnectedCallback() {
+    this.titleLoadToken += 1;
     this.removeEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
     this.removeEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
     this.removeEventListener('nodel-params-saved', this.handleParamsSaved);
@@ -390,9 +394,33 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   }
 
   private syncTitle() {
+    const token = ++this.titleLoadToken;
     const title = this.getAttribute('title');
     if (title) {
       document.title = title;
+      return;
+    }
+
+    if (!getNodePathName()) {
+      return;
+    }
+
+    void this.loadNodeTitle(token);
+  }
+
+  private async loadNodeTitle(token: number) {
+    try {
+      const data = await getNodeDetails();
+      if (token !== this.titleLoadToken || this.hasAttribute('title')) {
+        return;
+      }
+
+      const name = typeof data.name === 'string' ? getSimpleName(data.name).trim() : '';
+      if (name) {
+        document.title = name;
+      }
+    } catch {
+      // Node title lookup is best-effort; leave the static page title in place if it fails.
     }
   }
 }

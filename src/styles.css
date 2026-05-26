@@ -130,6 +130,7 @@
     .nodel-description-toggle,
     .nodel-theme-switch,
     .nodel-theme-switch-thumb,
+    .nodel-console-frame,
     .nodel-node-menu-backdrop,
     .nodel-node-menu-drawer,
     .nodel-bindings-row,
@@ -870,8 +871,13 @@
     @apply text-nodel-accent;
   }
 
-  .nodel-console-output {
+  .nodel-console-frame {
     height: var(--nodel-console-height, 14rem);
+    @apply overflow-hidden;
+  }
+
+  .nodel-console-output {
+    scrollbar-gutter: stable;
   }
 
   .nodel-log-panel,
@@ -970,7 +976,7 @@
   }
 
   .nodel-log-row {
-    @apply grid grid-cols-[0.875rem_minmax(0,1fr)] items-start gap-3 rounded-card border border-l-2 border-nodel-border bg-nodel-surface px-3 py-2.5 text-13 leading-5;
+    @apply grid grid-cols-[0.875rem_minmax(0,1fr)] items-start gap-3 rounded-control bg-transparent px-2 py-2 text-13 leading-5;
   }
 
   .nodel-log-icon {
@@ -1000,27 +1006,6 @@
   .nodel-log-type-actionBinding,
   .nodel-log-type-eventBinding {
     @apply text-nodel-accent;
-  }
-
-  .nodel-log-row-type-action.nodel-log-row-source-local {
-    @apply border-l-nodel-success;
-  }
-
-  .nodel-log-row-type-action.nodel-log-row-source-remote {
-    @apply border-l-nodel-accent;
-  }
-
-  .nodel-log-row-type-event.nodel-log-row-source-local {
-    @apply border-l-nodel-danger;
-  }
-
-  .nodel-log-row-type-event.nodel-log-row-source-remote {
-    @apply border-l-nodel-warning;
-  }
-
-  .nodel-log-row-type-actionBinding,
-  .nodel-log-row-type-eventBinding {
-    @apply border-l-nodel-accent;
   }
 
   .nodel-log-row.is-pulsing .nodel-log-icon {

@@ -1,3 +1,4 @@
+import { waitFor } from './helpers';
 import '../src/components/nodel-app';
 import '../src/components/nodel-toolbar';
 import '../src/components/nodel-page';
@@ -9,6 +10,7 @@ import '../src/components/nodel-theme-toggle';
 describe('nodel app base layer', () => {
   beforeEach(() => {
     document.documentElement.dataset.theme = 'light';
+    window.history.replaceState(undefined, '', '/');
     document.body.innerHTML = `
       <nodel-app theme="default" title="Nodel">
         <nodel-toolbar icon-src="./v2/img/logo.png">
@@ -23,6 +25,11 @@ describe('nodel app base layer', () => {
         </nodel-page>
       </nodel-app>
     `;
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
   });
 
   it('renders the base toolbar and page structure', async () => {
@@ -69,5 +76,24 @@ describe('nodel app base layer', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     expect(toggle.querySelector('svg')?.dataset.icon).toBe('moon');
+  });
+
+  it('uses the current node name as the document title on node pages', async () => {
+    window.history.replaceState(undefined, '', '/nodes/ExampleNode/nodel.html');
+    document.title = 'Nodel';
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('REST/');
+      return new Response(JSON.stringify({ name: 'Example Node' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }) as never;
+    }) as unknown as typeof fetch);
+
+    document.body.innerHTML = '<nodel-app><nodel-page title="Activity"></nodel-page></nodel-app>';
+    await customElements.whenDefined('nodel-app');
+
+    await waitFor(() => document.title === 'Example Node');
+
+    expect(document.title).toBe('Example Node');
   });
 });

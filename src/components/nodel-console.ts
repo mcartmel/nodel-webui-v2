@@ -20,13 +20,15 @@ interface ConsoleViewModel {
 
 const template = `
   <div class="nodel-console relative space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
-    <div data-console-output class="nodel-console-output nodel-card overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg">
-      {^{for entries}}
-        <div data-link="class{:lineClass}">
-          <span class="nodel-console-timestamp">{^{>displayTime}}</span>
-          <span class="nodel-console-comment">{^{>comment}}</span>
-        </div>
-      {{/for}}
+    <div class="nodel-console-frame nodel-card">
+      <div data-console-output class="nodel-console-output h-full overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg">
+        {^{for entries}}
+          <div data-link="class{:lineClass}">
+            <span class="nodel-console-timestamp">{^{>displayTime}}</span>
+            <span class="nodel-console-comment">{^{>comment}}</span>
+          </div>
+        {{/for}}
+      </div>
     </div>
     <div class="space-y-2">
       <input id="nodel-console-input" data-console-input class="nodel-console-input nodel-field min-h-10 w-full font-mono" type="text" spellcheck="false" aria-label="Console input" data-link="commandText trigger=true" />
