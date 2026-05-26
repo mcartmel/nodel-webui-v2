@@ -44,8 +44,11 @@ describe('nodel-description', () => {
 
   it('renders the REST description as markdown', async () => {
     const element = await mount();
+    const panel = element.querySelector('section');
 
     expect(element.hidden).toBe(false);
+    expect(panel?.className).toContain('nodel-description-panel');
+    expect(panel?.className).not.toContain('nodel-panel');
     expect(element.querySelector('strong')?.textContent).toBe('Hello');
     expect(element.querySelector('a')?.getAttribute('href')).toBe('docs.html');
     expect(descriptionApiMock.getNodeDetails).toHaveBeenCalledWith(expect.objectContaining({ signal: expect.any(AbortSignal) }));
@@ -89,6 +92,7 @@ describe('nodel-description', () => {
     expect(button.getAttribute('aria-label')).toBe('Show more');
     expect(button.getAttribute('title')).toBe('Show more');
     expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.className).toContain('nodel-description-toggle');
     expect(button.querySelector('.nodel-collapse-icon')).not.toBeNull();
 
     button.click();

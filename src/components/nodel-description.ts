@@ -53,7 +53,7 @@ export class NodelDescription extends HTMLElement {
   private renderShell() {
     if (!this.shellReady) {
       this.innerHTML = `
-        <section class="nodel-description nodel-panel" aria-label="Description">
+        <section class="nodel-description nodel-description-panel" aria-label="Description">
           <div data-description-body class="nodel-description-body">
             <div data-description-content class="nodel-description-content"></div>
           </div>

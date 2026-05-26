@@ -447,6 +447,11 @@
     @apply relative overflow-hidden;
   }
 
+  .nodel-description-panel {
+    @apply min-w-0 rounded-card bg-nodel-border/20;
+    box-shadow: inset 0 0 0 1px rgb(var(--nodel-border) / 0.35);
+  }
+
   .nodel-description-body {
     @apply relative overflow-hidden p-4;
     max-height: var(--nodel-description-collapsed-height, 8rem);
@@ -554,7 +559,7 @@
   }
 
   .nodel-description-actions {
-    @apply absolute bottom-3 right-4 z-[1] flex justify-end p-0;
+    @apply absolute bottom-3 right-2.5 z-[1] flex justify-end p-0;
   }
 
   .nodel-description-actions[hidden] {
@@ -562,11 +567,15 @@
   }
 
   .nodel-description-toggle {
-    @apply inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0;
+    @apply inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-nodel-border bg-nodel-surface p-0 text-nodel-muted shadow-nodel-panel;
   }
 
-  .nodel-description-toggle:hover .nodel-collapse-icon::before {
-    @apply text-nodel-accent;
+  .nodel-description-toggle .nodel-collapse-icon::before {
+    @apply h-6 w-6 text-base text-current;
+  }
+
+  .nodel-description-toggle:hover {
+    @apply border-nodel-accent text-nodel-accent;
   }
 
   .nodel-description-toggle:focus-visible {
