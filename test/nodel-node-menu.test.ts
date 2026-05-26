@@ -58,6 +58,9 @@ describe('nodel-node-menu', () => {
     openMenu();
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(false);
     expect(document.querySelector('[data-node-menu-open]')?.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector('.nodel-node-menu-drawer')?.getAttribute('aria-label')).toBe('Node menu');
+    expect(document.querySelector('.nodel-node-menu-header')?.textContent?.trim()).toBe('');
+    expect(document.querySelector('[data-node-menu-close] [data-icon="xmark"]')).not.toBeNull();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);
@@ -84,6 +87,7 @@ describe('nodel-node-menu', () => {
       '/toolkit.xml',
       '/diagnostics.xml'
     ]);
+    expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
   });
 
   it('shows an empty custom UI state', async () => {

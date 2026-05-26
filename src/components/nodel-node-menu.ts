@@ -7,6 +7,7 @@ import {
   waitForNodeReady,
   type NodelCustomUiEntry
 } from '../api/nodel-host-client';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { getNodePathName, getVerySimpleName } from '../utils/node-name';
 
@@ -24,6 +25,7 @@ interface NodeMenuState {
 }
 
 const deleteRedirectDelayMs = 2500;
+const closeIconMarkup = renderFontAwesomeIcon(uiIcons.xmark, 'h-3.5 w-3.5');
 
 function escapeHtml(value: string) {
   return value
@@ -277,13 +279,9 @@ export class NodelNodeMenu extends HTMLElement {
       </button>
       <div class="nodel-node-menu-layer"${dialogHidden}>
         <button type="button" class="nodel-node-menu-backdrop" data-node-menu-backdrop aria-label="Close node menu"></button>
-        <aside class="nodel-node-menu-drawer" role="dialog" aria-modal="true" aria-labelledby="nodel-node-menu-title">
+        <aside class="nodel-node-menu-drawer" role="dialog" aria-modal="true" aria-label="Node menu">
           <header class="nodel-node-menu-header">
-            <div class="min-w-0">
-              <h2 id="nodel-node-menu-title" class="truncate text-base font-semibold text-nodel-fg">Node menu</h2>
-              <p class="truncate text-xs text-nodel-muted">${escapeHtml(this.state.nodeName || getNodePathName() || 'Current node')}</p>
-            </div>
-            <button type="button" class="nodel-button nodel-button-compact" data-node-menu-close aria-label="Close node menu">Close</button>
+            <button type="button" class="nodel-button nodel-button-ghost nodel-node-menu-close" data-node-menu-close aria-label="Close node menu">${closeIconMarkup}</button>
           </header>
           <div class="nodel-node-menu-content">
             ${error}
@@ -299,7 +297,7 @@ export class NodelNodeMenu extends HTMLElement {
               <button type="button" class="nodel-button w-full" data-node-menu-restart ${busy ? 'disabled' : ''}>${this.state.restarting ? 'Restarting...' : 'Restart node'}</button>
               ${this.renderDeleteControl(busy)}
             </section>
-            <section class="nodel-node-menu-section">
+            <section class="nodel-node-menu-section nodel-node-menu-section-open">
               <h3 class="nodel-section-heading">Open</h3>
               <div class="nodel-node-menu-link-list">
                 ${customUiContent}

@@ -783,7 +783,11 @@
   }
 
   .nodel-node-menu-header {
-    @apply flex min-w-0 items-center justify-between gap-3 border-b border-nodel-border px-4 py-3;
+    @apply absolute right-4 top-4 z-10 flex min-w-0 items-center justify-end;
+  }
+
+  .nodel-node-menu-close {
+    @apply h-8 w-8 p-0 text-nodel-muted;
   }
 
   .nodel-node-menu-content {
@@ -796,6 +800,10 @@
 
   .nodel-node-menu-section h3 {
     @apply m-0;
+  }
+
+  .nodel-node-menu-section-open {
+    @apply border-t border-nodel-border pt-4;
   }
 
   .nodel-node-menu-link-list {
