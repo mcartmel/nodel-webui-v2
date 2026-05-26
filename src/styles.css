@@ -8,7 +8,6 @@
     --nodel-bg: 241 245 249;
     --nodel-fg: 15 23 42;
     --nodel-surface: 255 255 255;
-    --nodel-panel-bg: 248 250 252;
     --nodel-muted: 51 65 85;
     --nodel-border: 203 213 225;
     --nodel-accent: 14 165 233;
@@ -51,7 +50,6 @@
     --nodel-bg: 2 6 23;
     --nodel-fg: 226 232 240;
     --nodel-surface: 22 32 53;
-    --nodel-panel-bg: 15 23 42;
     --nodel-muted: 148 163 184;
     --nodel-border: 51 65 85;
     --nodel-accent: 56 189 248;
@@ -566,11 +564,11 @@
   }
 
   .nodel-description-panel {
-    @apply min-w-0 rounded-card bg-nodel-panelBg;
+    @apply min-w-0 bg-transparent;
   }
 
   .nodel-description-body {
-    @apply relative overflow-hidden p-4;
+    @apply relative overflow-hidden p-0;
     max-height: var(--nodel-description-collapsed-height, 8rem);
   }
 
@@ -889,7 +887,7 @@
   .nodel-actsig-panel,
   .nodel-params-panel,
   .nodel-bindings-panel {
-    @apply min-w-0 rounded-card bg-nodel-panelBg p-2.5;
+    @apply min-w-0 bg-transparent p-0;
   }
 
   .nodel-bindings-toolbar {
