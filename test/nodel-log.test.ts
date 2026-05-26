@@ -62,7 +62,11 @@ describe('nodel-log', () => {
     expect(document.body.textContent).not.toContain('empty');
     expect(rows[0].querySelector('[data-icon="traffic-light"]')).toBeTruthy();
     expect(rows[0].querySelector('[data-icon="arrow-right"]')).toBeTruthy();
+    expect(rows[0].className).toContain('nodel-log-row-source-remote');
+    expect(rows[0].className).toContain('nodel-log-row-type-event');
     expect(rows[1].querySelector('[data-icon="person-running"]')).toBeTruthy();
+    expect(rows[1].className).toContain('nodel-log-row-source-local');
+    expect(rows[1].className).toContain('nodel-log-row-type-action');
     expect(rows[0].textContent).not.toContain('remote');
     expect(rows[0].textContent).not.toContain('event');
     expect(document.body.textContent).not.toContain('Live activity stream');

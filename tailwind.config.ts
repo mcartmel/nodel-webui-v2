@@ -18,13 +18,23 @@ export default {
           muted: 'rgb(var(--nodel-muted) / <alpha-value>)',
           border: 'rgb(var(--nodel-border) / <alpha-value>)',
           accent: 'rgb(var(--nodel-accent) / <alpha-value>)',
+          backdrop: 'rgb(var(--nodel-backdrop) / <alpha-value>)',
           danger: 'rgb(var(--nodel-danger) / <alpha-value>)',
-          dangerStrong: 'rgb(var(--nodel-danger-strong) / <alpha-value>)',
           dangerBg: 'rgb(var(--nodel-danger-bg) / <alpha-value>)',
           dangerBorder: 'rgb(var(--nodel-danger-border) / <alpha-value>)',
-          success: 'rgb(34 197 94 / <alpha-value>)',
-          warning: 'rgb(217 119 6 / <alpha-value>)'
+          success: 'rgb(var(--nodel-success) / <alpha-value>)',
+          warning: 'rgb(var(--nodel-warning) / <alpha-value>)'
         }
+      },
+      fontSize: {
+        13: ['0.8125rem', { lineHeight: '1.25rem' }],
+        15: ['0.9375rem', { lineHeight: '1.625rem' }]
+      },
+      opacity: {
+        disabled: '0.55',
+        faint: '0.6',
+        muted: '0.65',
+        attention: '0.72'
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

@@ -161,7 +161,7 @@ export class NodelDiagnostics extends HTMLElement {
   private render() {
     if (this.state.loading) {
       this.innerHTML = `
-        <div class="nodel-alert px-4 py-3 text-sm">
+        <div class="nodel-alert nodel-alert-md">
           Loading diagnostics...
         </div>
       `;
@@ -170,7 +170,7 @@ export class NodelDiagnostics extends HTMLElement {
 
     if (this.state.error) {
       this.innerHTML = `
-        <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md">
           ${escapeHtml(this.state.error)}
         </div>
       `;

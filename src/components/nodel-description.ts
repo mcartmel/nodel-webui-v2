@@ -1,7 +1,9 @@
 import { getNodeDetails } from '../api/nodel-host-client';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { renderMarkdown } from '../utils/markdown';
 
 const defaultCollapsedHeight = '8rem';
+const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 
 export class NodelDescription extends HTMLElement {
   static observedAttributes = ['collapsed-height', 'open'];
@@ -59,7 +61,7 @@ export class NodelDescription extends HTMLElement {
           </div>
           <div data-description-actions class="nodel-description-actions" hidden>
             <button data-description-toggle type="button" class="nodel-description-toggle">
-              <span class="nodel-collapse-icon" aria-hidden="true"></span>
+              <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
             </button>
           </div>
         </section>

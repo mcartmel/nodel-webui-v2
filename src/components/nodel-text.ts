@@ -7,13 +7,13 @@ const toneValues: Record<NodelTextTone, string> = {
   default: 'rgb(var(--nodel-fg))',
   accent: 'rgb(var(--nodel-accent))',
   danger: 'rgb(var(--nodel-danger))',
-  success: 'rgb(34 197 94)'
+  success: 'rgb(var(--nodel-success))'
 };
 
 const sizeValues: Record<NodelTextSize, [string, string]> = {
   xs: ['0.75rem', '1rem'],
-  sm: ['0.875rem', '1.5rem'],
-  md: ['1rem', '1.625rem'],
+  sm: ['0.875rem', '1.25rem'],
+  md: ['1rem', '1.5rem'],
   lg: ['1.125rem', '1.75rem']
 };
 

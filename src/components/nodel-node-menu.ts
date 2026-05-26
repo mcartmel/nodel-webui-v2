@@ -268,7 +268,7 @@ export class NodelNodeMenu extends HTMLElement {
     const dialogHidden = this.state.open ? '' : ' hidden';
     const customUiContent = this.renderCustomUiContent();
     const error = this.state.error
-      ? `<div class="nodel-alert nodel-alert-danger px-3 py-2 text-xs">${escapeHtml(this.state.error)}</div>`
+      ? `<div class="nodel-alert nodel-alert-danger nodel-alert-sm">${escapeHtml(this.state.error)}</div>`
       : '';
 
     this.innerHTML = `
@@ -283,12 +283,12 @@ export class NodelNodeMenu extends HTMLElement {
               <h2 id="nodel-node-menu-title" class="truncate text-base font-semibold text-nodel-fg">Node menu</h2>
               <p class="truncate text-xs text-nodel-muted">${escapeHtml(this.state.nodeName || getNodePathName() || 'Current node')}</p>
             </div>
-            <button type="button" class="nodel-button nodel-field-compact" data-node-menu-close aria-label="Close node menu">Close</button>
+            <button type="button" class="nodel-button nodel-button-compact" data-node-menu-close aria-label="Close node menu">Close</button>
           </header>
           <div class="nodel-node-menu-content">
             ${error}
             <section class="nodel-node-menu-section">
-              <h3>Node</h3>
+              <h3 class="nodel-section-heading">Node</h3>
               <form class="space-y-2" data-node-menu-rename-form>
                 <label class="block text-sm text-nodel-fg">
                   <span class="mb-1 block font-medium">Rename</span>
@@ -300,7 +300,7 @@ export class NodelNodeMenu extends HTMLElement {
               ${this.renderDeleteControl(busy)}
             </section>
             <section class="nodel-node-menu-section">
-              <h3>Open</h3>
+              <h3 class="nodel-section-heading">Open</h3>
               <div class="nodel-node-menu-link-list">
                 ${customUiContent}
                 <a class="nodel-list-item px-3 py-2 text-sm" href="/toolkit.xml">Toolkit</a>
@@ -315,15 +315,15 @@ export class NodelNodeMenu extends HTMLElement {
 
   private renderCustomUiContent() {
     if (this.state.loading) {
-      return '<div class="nodel-alert px-3 py-2 text-xs">Loading custom UIs...</div>';
+      return '<div class="nodel-alert nodel-alert-sm">Loading custom UIs...</div>';
     }
 
     if (this.state.uiError) {
-      return `<div class="nodel-alert nodel-alert-danger px-3 py-2 text-xs">${escapeHtml(this.state.uiError)}</div>`;
+      return `<div class="nodel-alert nodel-alert-danger nodel-alert-sm">${escapeHtml(this.state.uiError)}</div>`;
     }
 
     if (this.state.customUis.length === 0) {
-      return '<div class="nodel-alert px-3 py-2 text-xs">No custom UIs.</div>';
+      return '<div class="nodel-alert nodel-alert-sm">No custom UIs.</div>';
     }
 
     return this.state.customUis.map((entry) => `
@@ -337,8 +337,8 @@ export class NodelNodeMenu extends HTMLElement {
         <div class="nodel-node-menu-confirm">
           <p class="m-0 text-xs leading-5 text-nodel-muted">Delete this node permanently?</p>
           <div class="grid grid-cols-2 gap-2">
-            <button type="button" class="nodel-button" data-node-menu-delete-cancel ${busy ? 'disabled' : ''}>Cancel</button>
-            <button type="button" class="nodel-button nodel-button-danger" data-node-menu-delete-confirm ${busy ? 'disabled' : ''}>${this.state.deleting ? 'Deleting...' : 'Confirm delete'}</button>
+            <button type="button" class="nodel-button nodel-button-compact" data-node-menu-delete-cancel ${busy ? 'disabled' : ''}>Cancel</button>
+            <button type="button" class="nodel-button nodel-button-danger nodel-button-compact" data-node-menu-delete-confirm ${busy ? 'disabled' : ''}>${this.state.deleting ? 'Deleting...' : 'Confirm delete'}</button>
           </div>
         </div>
       `;

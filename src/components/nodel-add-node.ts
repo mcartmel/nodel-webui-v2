@@ -311,7 +311,7 @@ export class NodelAddNode extends HTMLElement {
 
     if (recipes.length > 0) {
       const header = document.createElement('li');
-      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted';
+      header.className = 'nodel-section-heading px-3 py-2';
       header.textContent = 'Recipes';
       list.appendChild(header);
 
@@ -329,7 +329,7 @@ export class NodelAddNode extends HTMLElement {
 
     if (nodes.length > 0) {
       const header = document.createElement('li');
-      header.className = 'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted';
+      header.className = 'nodel-section-heading px-3 py-2';
       header.textContent = 'Existing Nodes';
       list.appendChild(header);
 

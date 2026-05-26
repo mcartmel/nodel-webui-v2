@@ -6,6 +6,7 @@ import {
   type NodelNavItem,
   type NodelNavSelectDetail
 } from '../navigation/navigation';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
 import './nodel-host-icon';
 
@@ -273,7 +274,17 @@ export class NodelToolbar extends HTMLElement {
     button.setAttribute('aria-haspopup', 'menu');
     button.setAttribute('aria-expanded', String(open));
     button.setAttribute('aria-controls', menuId);
-    button.textContent = `${item.title} ▾`;
+
+    const label = document.createElement('span');
+    label.className = 'truncate';
+    label.textContent = item.title;
+
+    const icon = document.createElement('span');
+    icon.className = 'nodel-toolbar-group-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
+
+    button.append(label, icon);
 
     const menu = document.createElement('div');
     menu.id = menuId;

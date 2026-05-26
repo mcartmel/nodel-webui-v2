@@ -279,7 +279,7 @@ export class NodelLog extends HTMLElement {
       iconMarkup: logIcon(entry),
       key,
       pulse,
-      rowClass: `nodel-log-row ${pulse ? 'is-pulsing' : ''}`,
+      rowClass: `nodel-log-row nodel-log-row-source-${escapeHtml(entry.source)} nodel-log-row-type-${escapeHtml(entry.type)} ${pulse ? 'is-pulsing' : ''}`,
       showArg: entry.arg !== undefined
     };
   }

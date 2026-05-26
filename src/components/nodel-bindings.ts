@@ -8,12 +8,14 @@ import {
 } from '../api/nodel-host-client';
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { getSimpleName, getVerySimpleName } from '../utils/node-name';
 
 type BindingKind = 'actions' | 'events';
 type BindingTargetKey = 'action' | 'event';
 type SuggestionConfidence = '' | 'high' | 'medium' | 'ambiguous' | 'none';
+const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 
 interface BindingOption {
   label: string;
@@ -97,25 +99,25 @@ interface TargetDefinition {
 const template = `
   <div class="nodel-bindings" data-link="class{:loading ? 'nodel-bindings is-loading' : 'nodel-bindings'}">
     {^{if loading}}
-      <div class="nodel-alert px-4 py-3 text-sm">Loading bindings...</div>
+      <div class="nodel-alert nodel-alert-md">Loading bindings...</div>
     {{else}}
       <form class="nodel-bindings-panel space-y-3" data-bindings-form autocomplete="off">
         {^{if error}}
-          <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{>error}}</div>
+          <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
         {{else empty}}
-          <div class="nodel-alert px-4 py-3 text-sm">No bindings.</div>
+          <div class="nodel-alert nodel-alert-md">No bindings.</div>
         {{else}}
           <fieldset data-link="disabled{:saving}">
             <div class="nodel-bindings-toolbar-panel">
               <div class="nodel-bindings-toolbar">
                 <div class="flex min-w-0 items-center gap-2">
                   <input class="nodel-field nodel-field-compact min-w-0 flex-1" type="search" placeholder="Filter bindings" data-bindings-filter data-link="filter trigger=true" />
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-clear-filter data-link="disabled{:!filter}">Clear</button>
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-clear-filter data-link="disabled{:!filter}">Clear</button>
                 </div>
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-select="visible">Select visible</button>
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-select="unbound">Select unwired</button>
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-select="clear">Clear selection</button>
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="visible">Select visible</button>
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="unbound">Select unwired</button>
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="clear">Clear selection</button>
                 </div>
               </div>
               <div class="nodel-bindings-toolbar">
@@ -133,15 +135,15 @@ const template = `
                   {{/if}}
                 </div>
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-apply-node data-link="disabled{:selectedCount === 0 || !bulkNode}">Set node</button>
-                  <button type="button" class="nodel-button nodel-field-compact" data-bindings-suggest data-link="disabled{:selectedCount === 0 || busy}">
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-apply-node data-link="disabled{:selectedCount === 0 || !bulkNode}">Set node</button>
+                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-suggest data-link="disabled{:selectedCount === 0 || busy}">
                     {^{if busy}}Suggesting...{{else}}Suggest matches{{/if}}
                   </button>
-                  <button type="button" class="nodel-button nodel-button-primary nodel-field-compact" data-bindings-apply-suggestions data-link="disabled{:selectedCount === 0}">Apply suggestions</button>
+                  <button type="button" class="nodel-button nodel-button-primary nodel-button-compact" data-bindings-apply-suggestions data-link="disabled{:selectedCount === 0}">Apply suggestions</button>
                 </div>
               </div>
-              {^{if toolbarError}}<div class="nodel-alert nodel-alert-danger px-3 py-2 text-xs">{^{>toolbarError}}</div>{{/if}}
-              {^{if message}}<div class="nodel-alert px-3 py-2 text-xs">{^{>message}}</div>{{/if}}
+              {^{if toolbarError}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>toolbarError}}</div>{{/if}}
+              {^{if message}}<div class="nodel-alert nodel-alert-sm">{^{>message}}</div>{{/if}}
             </div>
             <div class="space-y-3">
               {^{for sections}}
@@ -149,11 +151,11 @@ const template = `
                   <summary class="nodel-collapse-summary">
                     <span class="nodel-collapse-label">{^{>title}}</span>
                     <span class="nodel-collapse-preview">{^{:selectedCount}} selected, {^{:unboundCount}} unwired</span>
-                    <span class="nodel-collapse-icon" aria-hidden="true"></span>
+                    <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
                   </summary>
                   <div class="nodel-collapse-content space-y-2.5">
                     <div class="nodel-bindings-table" role="table">
-                      <div class="nodel-bindings-header" role="row">
+                      <div class="nodel-bindings-header nodel-section-heading" role="row">
                         <span></span>
                         <span>Status</span>
                         <span>Name</span>
@@ -205,7 +207,7 @@ const template = `
                           </div>
                         {{/for}}
                       {{else}}
-                        <div class="nodel-alert px-3 py-2 text-xs">No bindings match the filter.</div>
+                        <div class="nodel-alert nodel-alert-sm">No bindings match the filter.</div>
                       {{/if}}
                     </div>
                   </div>
@@ -220,7 +222,7 @@ const template = `
             {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
           </div>
           {^{if saveError}}
-            <div class="nodel-alert nodel-alert-danger px-3 py-2 text-xs">{^{>saveError}}</div>
+            <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
           {{/if}}
         {{/if}}
       </form>

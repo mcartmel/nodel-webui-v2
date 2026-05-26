@@ -36,11 +36,11 @@ describe('nodel-node-list', () => {
     await customElements.whenDefined('nodel-node-list');
 
     await waitFor(
-      () => document.querySelectorAll('nodel-node-list a.list-group-item').length === 2,
+      () => document.querySelectorAll('nodel-node-list a.nodel-list-item').length === 2,
       { attempts: 20, intervalMs: 25 }
     );
 
-    const links = document.querySelectorAll('nodel-node-list a.list-group-item');
+    const links = document.querySelectorAll('nodel-node-list a.nodel-list-item');
     expect(links.length).toBe(2);
     expect(links[0].getAttribute('href')).toBe('/nodes/AlphaNode');
     expect(links[0].textContent).toContain('localhost');
@@ -52,12 +52,12 @@ describe('nodel-node-list', () => {
     filter.value = 'beta';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     expect(document.body.textContent).not.toContain('Loading...');
-    expect(document.querySelectorAll('nodel-node-list a.list-group-item').length).toBe(2);
+    expect(document.querySelectorAll('nodel-node-list a.nodel-list-item').length).toBe(2);
     await delay(250);
     await flush();
     await flush();
 
-    expect(document.querySelectorAll('nodel-node-list a.list-group-item').length).toBe(1);
+    expect(document.querySelectorAll('nodel-node-list a.nodel-list-item').length).toBe(1);
     expect(document.body.textContent).not.toContain('Loading...');
     expect(document.body.textContent).toContain('Beta Node');
 
@@ -95,7 +95,7 @@ describe('nodel-node-list', () => {
     await flush();
     await flush();
 
-    const items = document.querySelectorAll('nodel-node-list a.list-group-item');
+    const items = document.querySelectorAll('nodel-node-list a.nodel-list-item');
     expect(items.length).toBe(2);
     expect(items[0].getAttribute('href')).toBe('http://alpha:8085/nodes/Alpha/');
     expect(items[0].className).not.toContain('is-unreachable');
@@ -168,7 +168,7 @@ describe('nodel-node-list', () => {
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
     await waitFor(
-      () => document.querySelectorAll('nodel-node-list a.list-group-item').length === 1,
+      () => document.querySelectorAll('nodel-node-list a.nodel-list-item').length === 1,
       { attempts: 20, intervalMs: 25 }
     );
 

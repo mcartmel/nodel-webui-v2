@@ -1,4 +1,18 @@
-import { faArrowRight, faLink, faMoon, faPersonRunning, faSun, faTrafficLight } from '@fortawesome/free-solid-svg-icons';
+import {
+  faArrowRight,
+  faChevronDown,
+  faChevronUp,
+  faCircleCheck,
+  faCircleInfo,
+  faCircleXmark,
+  faLink,
+  faMoon,
+  faPersonRunning,
+  faSun,
+  faTrafficLight,
+  faTriangleExclamation,
+  faXmark
+} from '@fortawesome/free-solid-svg-icons';
 
 type FontAwesomeIcon = typeof faSun;
 
@@ -13,6 +27,19 @@ export const logIcons = {
   actionBinding: faLink,
   eventBinding: faLink,
   remote: faArrowRight
+};
+
+export const uiIcons = {
+  chevronDown: faChevronDown,
+  chevronUp: faChevronUp,
+  xmark: faXmark
+};
+
+export const toastIcons = {
+  danger: faCircleXmark,
+  info: faCircleInfo,
+  success: faCircleCheck,
+  warning: faTriangleExclamation
 };
 
 export function renderFontAwesomeIcon(icon: FontAwesomeIcon, className = 'h-3.5 w-3.5') {

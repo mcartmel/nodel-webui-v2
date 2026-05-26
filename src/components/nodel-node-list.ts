@@ -48,15 +48,15 @@ const template = `
     </form>
 
     {^{if loading}}
-      <div class="nodel-alert px-4 py-3 text-sm">Loading...</div>
+      <div class="nodel-alert nodel-alert-md">Loading...</div>
     {{else}}
       {^{if error}}
-        <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{:error}}</div>
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{:error}}</div>
       {{/if}}
 
-      <div class="nodel-node-list-items list-group list-group-basic space-y-1">
+      <div class="nodel-node-list-items space-y-1">
         {^{for lst}}
-          <a class="nodel-node-list-item list-group-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item list-group-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item list-group-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
+          <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
             <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
             <span class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>

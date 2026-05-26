@@ -6,7 +6,7 @@ import {
 } from '../api/nodel-host-client';
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
-import { logIcons, renderFontAwesomeIcon } from '../icons/fontawesome';
+import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import {
   addArrayEntry,
@@ -68,6 +68,7 @@ interface ActSigViewModel {
 
 const ungroupedSectionTitle = '';
 const materializeChunkSize = 8;
+const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 let registered = false;
 let nextId = 0;
 
@@ -82,7 +83,7 @@ const actSigFormTemplate = `
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <span class="nodel-actsig-form-icon" aria-hidden="true">{^{:iconMarkup}}</span>
-          <button type="submit" class="nodel-button nodel-field-compact" data-link="disabled{:busy || !materialized} title{:name}">
+          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized} title{:name}">
             {^{if busy}}Sending...{{else}}{^{>pointType === 'action' ? 'Call' : 'Emit'}}{{/if}}
           </button>
         </div>
@@ -90,10 +91,10 @@ const actSigFormTemplate = `
       {^{if materialized && schemaForm}}
         {{include schemaForm tmpl="nodelSchemaForm"/}}
       {{else}}
-        <div class="nodel-alert px-3 py-2 text-xs">Preparing form...</div>
+        <div class="nodel-alert nodel-alert-sm">Preparing form...</div>
       {{/if}}
       {^{if error}}
-        <div class="nodel-alert nodel-alert-danger mt-3 px-3 py-2 text-xs">{^{>error}}</div>
+        <div class="nodel-alert nodel-alert-danger nodel-alert-sm mt-3">{^{>error}}</div>
       {{/if}}
     </fieldset>
   </form>
@@ -115,11 +116,11 @@ const actSigRowTemplate = `
 const template = `
   <div class="nodel-actsig" data-link="class{:loading ? 'nodel-actsig is-loading' : 'nodel-actsig'}">
     {^{if loading}}
-      <div class="nodel-alert px-4 py-3 text-sm">Loading actions and signals...</div>
+      <div class="nodel-alert nodel-alert-md">Loading actions and signals...</div>
     {{else}}
       <div class="nodel-actsig-panel space-y-3">
         {^{if error}}
-          <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{>error}}</div>
+          <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
         {{/if}}
         {^{if hasSignals}}
           <label class="inline-flex items-center gap-2 text-sm text-nodel-muted">
@@ -128,7 +129,7 @@ const template = `
           </label>
         {{/if}}
         {^{if empty}}
-          <div class="nodel-alert px-4 py-3 text-sm">No actions or signals.</div>
+          <div class="nodel-alert nodel-alert-md">No actions or signals.</div>
         {{else}}
           <div class="space-y-4">
             {^{for sections}}
@@ -137,19 +138,19 @@ const template = `
                   <summary class="nodel-collapse-summary">
                     <span class="nodel-collapse-label">{^{>title}}</span>
                     <span class="nodel-collapse-preview">{^{:rows.length}} item{^{if rows.length !== 1}}s{{/if}}</span>
-                    <span class="nodel-collapse-icon" aria-hidden="true"></span>
+                    <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
                   </summary>
                   {^{if open}}
                     <div class="nodel-collapse-content space-y-3">
                       {^{for rows tmpl="nodelActSigRow"/}}
-                      {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
+                      {^{if materializing}}<div class="nodel-alert nodel-alert-sm">Preparing forms...</div>{{/if}}
                     </div>
                   {{/if}}
                 </details>
               {{else}}
                 <div class="nodel-actsig-section space-y-3" data-link="data-actsig-section-id{:id}">
                   {^{for rows tmpl="nodelActSigRow"/}}
-                  {^{if materializing}}<div class="nodel-alert px-3 py-2 text-xs">Preparing forms...</div>{{/if}}
+                  {^{if materializing}}<div class="nodel-alert nodel-alert-sm">Preparing forms...</div>{{/if}}
                 </div>
               {{/if}}
             {{/for}}

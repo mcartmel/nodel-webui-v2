@@ -31,13 +31,13 @@ interface ParamsViewModel {
 const template = `
   <div class="nodel-params" data-link="class{:loading ? 'nodel-params is-loading' : 'nodel-params'}">
     {^{if loading}}
-      <div class="nodel-alert px-4 py-3 text-sm">Loading parameters...</div>
+      <div class="nodel-alert nodel-alert-md">Loading parameters...</div>
     {{else}}
       <form class="nodel-params-panel space-y-3" data-params-form autocomplete="off">
         {^{if error}}
-          <div class="nodel-alert nodel-alert-danger px-4 py-3 text-sm">{^{>error}}</div>
+          <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
         {{else empty}}
-          <div class="nodel-alert px-4 py-3 text-sm">No parameters.</div>
+          <div class="nodel-alert nodel-alert-md">No parameters.</div>
         {{else}}
           <fieldset data-link="disabled{:saving}">
             {^{if schemaForm}}
@@ -51,7 +51,7 @@ const template = `
             {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
           </div>
           {^{if saveError}}
-            <div class="nodel-alert nodel-alert-danger px-3 py-2 text-xs">{^{>saveError}}</div>
+            <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
           {{/if}}
         {{/if}}
       </form>

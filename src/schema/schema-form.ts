@@ -1,4 +1,5 @@
 import type { NodelJsonSchema } from '../api/nodel-types';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 
 export type SchemaFieldKind = 'null' | 'string' | 'number' | 'boolean' | 'object' | 'array';
@@ -55,6 +56,9 @@ interface FieldBuildOptions {
 const emptySchema: NodelJsonSchema = { type: 'null' };
 let registered = false;
 let nextId = 0;
+const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
+const chevronUpIconMarkup = renderFontAwesomeIcon(uiIcons.chevronUp, 'h-3 w-3');
+const chevronDownIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 
 const schemaFieldTemplate = `
   <div class="nodel-schema-field" data-link="data-schema-field-id{:id} data-schema-kind{:kind}">
@@ -65,7 +69,7 @@ const schemaFieldTemplate = `
         <summary class="nodel-schema-nested-summary">
           <span>{^{>label || 'Details'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
-          <span class="nodel-collapse-icon" aria-hidden="true"></span>
+          <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
         </summary>
         {^{if open}}
           <div class="nodel-schema-nested-content">
@@ -78,18 +82,18 @@ const schemaFieldTemplate = `
         <summary class="nodel-schema-nested-summary">
           <span>{^{>label || 'Items'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
-          <span class="nodel-collapse-icon" aria-hidden="true"></span>
+          <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
         </summary>
         {^{if open}}
           <div class="nodel-schema-nested-content space-y-3">
             {^{for entries}}
               <div class="nodel-schema-array-entry nodel-card p-3" data-link="data-schema-array-entry{:id}">
                 <div class="mb-3 flex items-center justify-between gap-2">
-                  <span class="text-xs font-medium uppercase tracking-wide text-nodel-muted">Item {^{:index + 1}}</span>
+                  <span class="nodel-section-heading">Item {^{:index + 1}}</span>
                   <span class="inline-flex gap-1">
-                    <button type="button" class="nodel-button nodel-field-compact" data-schema-array-move="up" title="Move up">Up</button>
-                    <button type="button" class="nodel-button nodel-field-compact nodel-button-danger" data-schema-array-remove title="Remove">Remove</button>
-                    <button type="button" class="nodel-button nodel-field-compact" data-schema-array-move="down" title="Move down">Down</button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="up" title="Move up">${chevronUpIconMarkup}<span class="sr-only">Move up</span></button>
+                    <button type="button" class="nodel-button nodel-button-compact nodel-button-danger" data-schema-array-remove title="Remove">Remove</button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="down" title="Move down">${chevronDownIconMarkup}<span class="sr-only">Move down</span></button>
                   </span>
                 </div>
                 {^{if valueField}}

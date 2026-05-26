@@ -32,6 +32,7 @@ describe('nodel-toast-host', () => {
     expect(toast.textContent).toContain('script.py');
     expect(toast.className).toContain('nodel-toast-success');
     expect(toast.getAttribute('role')).toBe('status');
+    expect(toast.querySelector('[data-icon="circle-check"]')).not.toBeNull();
   });
 
   it('auto-dismisses timed toasts', async () => {
@@ -83,5 +84,6 @@ describe('nodel-toast-host', () => {
     const toast = document.querySelector<HTMLElement>('.nodel-toast')!;
     expect(toast.getAttribute('role')).toBe('alert');
     expect(toast.getAttribute('aria-live')).toBe('assertive');
+    expect(toast.querySelector('[data-icon="circle-xmark"]')).not.toBeNull();
   });
 });

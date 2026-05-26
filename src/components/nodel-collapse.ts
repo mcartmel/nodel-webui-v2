@@ -1,7 +1,11 @@
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
+
 interface NodelCollapsePreviewDetail {
   text: string;
   source?: string;
 }
+
+const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 
 export class NodelCollapse extends HTMLElement {
   static observedAttributes = ['label', 'open', 'preview'];
@@ -44,7 +48,7 @@ export class NodelCollapse extends HTMLElement {
           <summary class="nodel-collapse-summary">
             <span data-collapse-label class="nodel-collapse-label"></span>
             <span data-collapse-preview class="nodel-collapse-preview" hidden></span>
-            <span class="nodel-collapse-icon" aria-hidden="true"></span>
+            <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
           </summary>
           <div data-collapse-content class="nodel-collapse-content"></div>
         </details>

@@ -1,3 +1,5 @@
+import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
+
 export const NODEL_TOAST = 'nodel-toast';
 
 export type NodelToastTone = 'success' | 'info' | 'warning' | 'danger';
@@ -22,6 +24,13 @@ interface ToastItem {
 
 const defaultToastDurationMs = 3500;
 const updateToastDurationMs = 3200;
+const closeIconMarkup = renderFontAwesomeIcon(uiIcons.xmark, 'h-3.5 w-3.5');
+const toneIconMarkup: Record<NodelToastTone, string> = {
+  danger: renderFontAwesomeIcon(toastIcons.danger, 'h-4 w-4'),
+  info: renderFontAwesomeIcon(toastIcons.info, 'h-4 w-4'),
+  success: renderFontAwesomeIcon(toastIcons.success, 'h-4 w-4'),
+  warning: renderFontAwesomeIcon(toastIcons.warning, 'h-4 w-4')
+};
 
 function escapeHtml(value: string) {
   return value
@@ -138,11 +147,12 @@ export class NodelToastHost extends HTMLElement {
 
       return `
         <section class="nodel-toast nodel-toast-${toast.tone}" data-toast-id="${escapeHtml(toast.id)}" role="${role}" aria-live="${ariaLive}">
+          <span class="nodel-toast-icon" aria-hidden="true">${toneIconMarkup[toast.tone]}</span>
           <div class="nodel-toast-body">
             <div class="nodel-toast-message">${escapeHtml(toast.message)}</div>
             ${detail}
           </div>
-          <button class="nodel-toast-close" type="button" data-toast-dismiss="${escapeHtml(toast.id)}" aria-label="Dismiss notification">&times;</button>
+          <button class="nodel-toast-close" type="button" data-toast-dismiss="${escapeHtml(toast.id)}" aria-label="Dismiss notification">${closeIconMarkup}</button>
         </section>
       `;
     }).join('');

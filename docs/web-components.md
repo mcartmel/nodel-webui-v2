@@ -55,6 +55,7 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-button-primary` for primary actions such as save, create, or submit.
 - `.nodel-button-danger` for destructive actions such as delete.
 - `.nodel-button-ghost` for low-emphasis actions such as “more” or inactive navigation.
+- `.nodel-button-compact` for smaller buttons inside dense toolbars.
 - `.nodel-field` for text inputs, search inputs, and selects.
 - `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
 - `.nodel-card` for simple bordered surfaces and list rows.
@@ -63,7 +64,9 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-list-item` for linked rows or selectable rows.
 - `.nodel-menu-item` for menu and autocomplete result buttons.
 - `.nodel-menu-item-active` for the active menu item.
+- `.nodel-section-heading` for small uppercase section/table headings.
 - `.nodel-alert` for neutral loading or status messages.
+- `.nodel-alert-sm` and `.nodel-alert-md` for compact and standard alert spacing.
 - `.nodel-alert-danger` for error messages.
 - `.nodel-toast-host` and `.nodel-toast` for app-level notifications.
 
