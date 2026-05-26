@@ -127,6 +127,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-add-node redirect="false"></nodel-add-node>'
   },
   {
+    name: 'nodel-node-menu',
+    description: 'Current-node drawer menu for rename, restart, delete, custom UIs, and reference links.',
+    attributes: [],
+    snippet: '<nodel-node-menu></nodel-node-menu>'
+  },
+  {
     name: 'nodel-diagnostics',
     description: 'Host diagnostics table.',
     attributes: []
@@ -168,6 +174,11 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'default-file', description: 'File path to open by default.' }
     ],
     snippet: '<nodel-editor default-file="script.py"></nodel-editor>'
+  },
+  {
+    name: 'nodel-toast-host',
+    description: 'App-level toast notification host.',
+    attributes: []
   }
 ];
 

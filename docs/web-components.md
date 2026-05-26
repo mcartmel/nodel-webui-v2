@@ -34,6 +34,7 @@ Examples:
 - `nodel-host-icon`
 - `nodel-node-list`
 - `nodel-add-node`
+- `nodel-node-menu`
 - `nodel-diagnostics`
 - `nodel-console`
 - `nodel-log`
@@ -42,6 +43,7 @@ Examples:
 - `nodel-bindings`
 - `nodel-editor`
 - `nodel-theme-toggle`
+- `nodel-toast-host`
 
 ## Shared Styling Classes
 
@@ -63,6 +65,7 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-menu-item-active` for the active menu item.
 - `.nodel-alert` for neutral loading or status messages.
 - `.nodel-alert-danger` for error messages.
+- `.nodel-toast-host` and `.nodel-toast` for app-level notifications.
 
 Prefer semantic state classes over raw visual utility classes when state or public component API drives appearance. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
 
@@ -80,6 +83,12 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 
 Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
+## Toast Notifications
+
+`nodel-app` creates a `nodel-toast-host` automatically. Components can request app-level notifications by dispatching a bubbled `nodel-toast` event with `{ message, detail?, tone?, durationMs?, persistent?, id? }`.
+
+Use `tone="success"` for completed saves, `tone="info"` for progress, `tone="warning"` for partial completion, and `tone="danger"` for failures. Reuse `id` to update an existing toast, such as replacing a persistent restart progress toast with the final refresh result.
+
 ## Toolbar Icon
 
 `nodel-toolbar` accepts:
@@ -94,6 +103,8 @@ Use the stable v2 asset path when authoring pages:
 ```
 
 The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
+
+`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with node rename, restart, delete, custom UI links, Toolkit, and Diagnostics.
 
 ## Page Navigation
 

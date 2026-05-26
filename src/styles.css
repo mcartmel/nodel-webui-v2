@@ -110,6 +110,7 @@
   nodel-host-icon,
   nodel-node-list,
   nodel-add-node,
+  nodel-node-menu,
   nodel-diagnostics,
   nodel-console,
   nodel-log,
@@ -117,7 +118,8 @@
   nodel-params,
   nodel-bindings,
   nodel-editor,
-  nodel-theme-toggle {
+  nodel-theme-toggle,
+  nodel-toast-host {
     @apply block;
   }
 
@@ -128,12 +130,14 @@
   nodel-column:not(:defined),
   nodel-collapse:not(:defined),
   nodel-description:not(:defined),
+  nodel-node-menu:not(:defined),
   nodel-console:not(:defined),
   nodel-log:not(:defined),
   nodel-actsig:not(:defined),
   nodel-params:not(:defined),
   nodel-bindings:not(:defined),
-  nodel-editor:not(:defined) {
+  nodel-editor:not(:defined),
+  nodel-toast-host:not(:defined) {
     visibility: hidden;
   }
 
@@ -336,6 +340,60 @@
 
   .nodel-alert-danger {
     @apply border-solid border-nodel-dangerBorder/45 bg-nodel-dangerBg/75 text-nodel-danger;
+  }
+
+  .nodel-toast-host {
+    @apply pointer-events-none fixed z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2;
+    inset: 1rem 1rem auto auto;
+  }
+
+  .nodel-toast {
+    @apply pointer-events-auto flex min-w-0 items-start gap-3 rounded-card border bg-nodel-surface px-4 py-3 text-sm leading-5 shadow-nodel-popover;
+  }
+
+  .nodel-toast-body {
+    @apply min-w-0 flex-1;
+  }
+
+  .nodel-toast-message {
+    @apply font-medium text-nodel-fg;
+  }
+
+  .nodel-toast-detail {
+    @apply mt-1 break-words text-xs leading-5 text-nodel-muted;
+  }
+
+  .nodel-toast-close {
+    @apply -mr-1 -mt-1 inline-flex h-7 w-7 flex-none items-center justify-center rounded-control border border-transparent bg-transparent text-base leading-none text-nodel-muted;
+  }
+
+  .nodel-toast-close:hover {
+    @apply bg-nodel-border/35 text-nodel-fg;
+  }
+
+  .nodel-toast-close:focus-visible {
+    @apply outline-none ring-2 ring-nodel-accent/40;
+  }
+
+  .nodel-toast-info {
+    @apply border-nodel-accent/45;
+  }
+
+  .nodel-toast-success {
+    @apply border-nodel-success/45;
+  }
+
+  .nodel-toast-warning {
+    @apply border-nodel-warning/55;
+  }
+
+  .nodel-toast-danger {
+    @apply border-nodel-dangerBorder/55 bg-nodel-dangerBg text-nodel-danger;
+  }
+
+  .nodel-toast-danger .nodel-toast-message,
+  .nodel-toast-danger .nodel-toast-close {
+    @apply text-nodel-danger;
   }
 
   .nodel-collapse {
@@ -562,6 +620,68 @@
 
   .nodel-node-list-item.is-unreachable {
     @apply opacity-60;
+  }
+
+  .nodel-node-menu {
+    @apply inline-flex;
+  }
+
+  .nodel-node-menu-trigger {
+    @apply h-9 w-9 p-0;
+  }
+
+  .nodel-node-menu-trigger-icon {
+    @apply flex flex-col gap-1;
+  }
+
+  .nodel-node-menu-trigger-icon span {
+    @apply block h-0.5 w-4 rounded-full bg-current;
+  }
+
+  .nodel-node-menu-layer {
+    @apply fixed inset-0 z-40;
+  }
+
+  .nodel-node-menu-backdrop {
+    @apply fixed inset-0 cursor-default border-0 bg-slate-950/45 p-0;
+  }
+
+  .nodel-node-menu-drawer {
+    @apply fixed inset-0 flex min-w-0 flex-col bg-nodel-surface text-nodel-fg shadow-nodel-popover;
+  }
+
+  .nodel-node-menu-header {
+    @apply flex min-w-0 items-center justify-between gap-3 border-b border-nodel-border px-4 py-3;
+  }
+
+  .nodel-node-menu-content {
+    @apply min-h-0 flex-1 space-y-4 overflow-auto p-4;
+  }
+
+  .nodel-node-menu-section {
+    @apply space-y-2.5;
+  }
+
+  .nodel-node-menu-section h3 {
+    @apply m-0 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-node-menu-link-list {
+    @apply space-y-2;
+  }
+
+  .nodel-node-menu-link-list .nodel-list-item {
+    @apply block;
+  }
+
+  .nodel-node-menu-confirm {
+    @apply space-y-2 rounded-card border border-nodel-danger/35 bg-nodel-dangerBg/45 p-3;
+  }
+
+  @media (min-width: 640px) {
+    .nodel-node-menu-drawer {
+      @apply inset-y-0 right-0 left-auto w-96 max-w-[calc(100vw-2rem)];
+    }
   }
 
   .nodel-node-icon {
@@ -800,6 +920,10 @@
 
   .nodel-actsig-form-icon {
     @apply inline-flex shrink-0 text-nodel-muted opacity-60;
+  }
+
+  .nodel-actsig-form fieldset {
+    min-inline-size: 0;
   }
 
   .nodel-actsig-form fieldset:disabled {

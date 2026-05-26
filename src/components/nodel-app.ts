@@ -2,6 +2,7 @@ import { resolveTheme } from '../theme/theme';
 import { refreshNodeActivity } from '../data/node-activity-source';
 import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
 import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartWatcher } from '../data/node-restart-source';
+import { NODEL_TOAST, type NodelToastDetail, type NodelToastHost } from './nodel-toast-host';
 import {
   NODEL_NAVIGATION_CHANGE,
   NODEL_NAV_SELECT,
@@ -26,6 +27,8 @@ interface NavigationDiscovery {
 interface RestartRefreshElement extends Element {
   refreshAfterRestart?: () => void | Promise<void>;
 }
+
+type ToastCustomEvent = CustomEvent<NodelToastDetail>;
 
 function isNodelPage(element: Element): element is HTMLElement {
   return element.localName === 'nodel-page';
@@ -53,6 +56,15 @@ function uniquePageId(page: HTMLElement, seen: Map<string, number>) {
   return count === 0 ? baseId : `${baseId}${count + 1}`;
 }
 
+function eventDetailValue(event: Event, key: string) {
+  if (!('detail' in event) || typeof event.detail !== 'object' || event.detail === null) {
+    return '';
+  }
+
+  const value = (event.detail as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : '';
+}
+
 export class NodelApp extends HTMLElement implements NodelNavigationHost {
   static observedAttributes = ['theme', 'title'];
 
@@ -64,12 +76,21 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
+  private toastHost: NodelToastHost | null = null;
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
+    this.ensureToastHost();
     this.syncTheme();
     this.syncTitle();
     this.addEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
+    this.addEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
+    this.addEventListener('nodel-params-saved', this.handleParamsSaved);
+    this.addEventListener('nodel-bindings-saved', this.handleBindingsSaved);
+    this.addEventListener('nodel-editor-file-saved', this.handleEditorFileSaved);
+    this.addEventListener('nodel-params-error', this.handleParamsError);
+    this.addEventListener('nodel-bindings-error', this.handleBindingsError);
+    this.addEventListener('nodel-editor-error', this.handleEditorError);
     window.addEventListener('hashchange', this.handleHashChange);
     this.mutationObserver = new MutationObserver(() => this.queueNavigationSync());
     this.mutationObserver.observe(this, { childList: true });
@@ -81,11 +102,19 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   disconnectedCallback() {
     this.removeEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
+    this.removeEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
+    this.removeEventListener('nodel-params-saved', this.handleParamsSaved);
+    this.removeEventListener('nodel-bindings-saved', this.handleBindingsSaved);
+    this.removeEventListener('nodel-editor-file-saved', this.handleEditorFileSaved);
+    this.removeEventListener('nodel-params-error', this.handleParamsError);
+    this.removeEventListener('nodel-bindings-error', this.handleBindingsError);
+    this.removeEventListener('nodel-editor-error', this.handleEditorError);
     window.removeEventListener('hashchange', this.handleHashChange);
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
     this.restartWatcher?.dispose();
     this.restartWatcher = null;
+    this.toastHost = null;
   }
 
   attributeChangedCallback() {
@@ -119,7 +148,60 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     }
   };
 
+  private handleToastRequest = (event: ToastCustomEvent) => {
+    this.showToast(event.detail);
+  };
+
+  private handleParamsSaved = () => {
+    this.showToast({ message: 'Parameters saved', tone: 'success' });
+  };
+
+  private handleBindingsSaved = () => {
+    this.showToast({ message: 'Bindings saved', tone: 'success' });
+  };
+
+  private handleEditorFileSaved = (event: Event) => {
+    this.showToast({
+      message: 'File saved',
+      detail: eventDetailValue(event, 'path'),
+      tone: 'success'
+    });
+  };
+
+  private handleParamsError = (event: Event) => {
+    this.showToast({
+      message: 'Failed to save parameters',
+      detail: eventDetailValue(event, 'error'),
+      tone: 'danger',
+      durationMs: 7000
+    });
+  };
+
+  private handleBindingsError = (event: Event) => {
+    this.showToast({
+      message: 'Failed to save bindings',
+      detail: eventDetailValue(event, 'error'),
+      tone: 'danger',
+      durationMs: 7000
+    });
+  };
+
+  private handleEditorError = (event: Event) => {
+    this.showToast({
+      message: 'Editor action failed',
+      detail: eventDetailValue(event, 'message'),
+      tone: 'danger',
+      durationMs: 7000
+    });
+  };
+
   private handleNodeRestart = (detail: NodeRestartDetail) => {
+    this.showToast({
+      id: 'node-restart-refresh',
+      message: 'Node restarted. Refreshing view...',
+      tone: 'info',
+      persistent: true
+    });
     this.dispatchEvent(new CustomEvent('nodel-node-restarted', {
       bubbles: true,
       detail
@@ -131,15 +213,47 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     const refreshes = Array.from(this.querySelectorAll<RestartRefreshElement>(
       'nodel-description,nodel-actsig,nodel-params,nodel-bindings,nodel-editor'
     ))
-      .map((element) => element.refreshAfterRestart?.())
+      .map((element) => {
+        try {
+          return element.refreshAfterRestart?.();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      })
       .filter((result): result is void | Promise<void> => result !== undefined);
 
-    await Promise.allSettled(refreshes);
+    const refreshResults = await Promise.allSettled(refreshes);
     resetNodeConsoleCursor();
-    await Promise.allSettled([
+    const sourceRefreshes = [
       refreshNodeConsole(),
-      Promise.resolve(refreshNodeActivity())
-    ]);
+      Promise.resolve().then(() => refreshNodeActivity())
+    ];
+    const sourceResults = await Promise.allSettled(sourceRefreshes);
+    const failed = [...refreshResults, ...sourceResults].some((result) => result.status === 'rejected');
+
+    this.showToast({
+      id: 'node-restart-refresh',
+      message: failed ? 'Node reloaded, but some sections failed to refresh.' : 'Node reloaded. View is up to date.',
+      tone: failed ? 'warning' : 'success',
+      durationMs: failed ? 7000 : 3500
+    });
+  }
+
+  private ensureToastHost() {
+    const existing = Array.from(this.children).find((child): child is NodelToastHost => child.localName === 'nodel-toast-host');
+    if (existing) {
+      this.toastHost = existing;
+      return existing;
+    }
+
+    const host = document.createElement('nodel-toast-host') as NodelToastHost;
+    this.appendChild(host);
+    this.toastHost = host;
+    return host;
+  }
+
+  private showToast(detail: NodelToastDetail) {
+    this.ensureToastHost().show(detail);
   }
 
   private queueNavigationSync() {

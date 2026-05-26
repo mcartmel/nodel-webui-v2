@@ -21,6 +21,12 @@ export interface NodelReachabilityResult {
   reachable: boolean;
 }
 
+export interface NodelCustomUiEntry {
+  href: string;
+  path: string;
+  title: string;
+}
+
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
   if (!response.ok) {
@@ -59,7 +65,7 @@ async function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000): Promise<void> {
+export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(`${nodeUrl}REST/`);
@@ -90,6 +96,26 @@ export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> 
 
 export async function getNodeDetails(init?: RequestInit): Promise<NodelNodeRestResponse> {
   return fetchJson<NodelNodeRestResponse>('REST/', init);
+}
+
+export async function renameCurrentNode(value: string, init?: RequestInit): Promise<unknown> {
+  return fetchOk('REST/rename', {
+    ...init,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {})
+    },
+    body: JSON.stringify({ value })
+  });
+}
+
+export async function restartCurrentNode(init?: RequestInit): Promise<unknown> {
+  return fetchOk('REST/restart', init);
+}
+
+export async function removeCurrentNode(init?: RequestInit): Promise<unknown> {
+  return fetchOk('REST/remove?confirm=true', init);
 }
 
 export async function getNodeRestartStatus(options: { timestamp?: string | null; timeout?: number } = {}, init?: RequestInit): Promise<NodelRestartStatus> {
@@ -188,6 +214,31 @@ export async function getRemoteNodeSignals(nodeUrl: string, init?: RequestInit):
 
 export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {
   return fetchJson<NodelFileEntry[]>('REST/files', init);
+}
+
+export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUiEntry[] {
+  const excluded = new Set([
+    'content/index.htm',
+    'content/nodes.xml',
+    'content/index-sample.xml',
+    'content/index-sample.xml.htm'
+  ]);
+
+  return files
+    .filter((file) => /^content\/\w+\.(xml|html|htm)$/i.test(file.path) && !excluded.has(file.path))
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((file) => {
+      const title = file.path.replace(/^content\//, '');
+      return {
+        href: title,
+        path: file.path,
+        title
+      };
+    });
+}
+
+export async function listCustomUiEntries(init?: RequestInit): Promise<NodelCustomUiEntry[]> {
+  return customUiEntriesFromFiles(await listNodeFiles(init));
 }
 
 export async function getNodeFileContents(path: string, init?: RequestInit): Promise<string> {

@@ -73,7 +73,7 @@ let nextId = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
-    <fieldset data-link="disabled{:busy || (pointType === 'event' && !~root.overrideSignals)}">
+    <fieldset class="min-w-0" data-link="disabled{:busy || (pointType === 'event' && !~root.overrideSignals)}">
       <div class="mb-2.5 flex min-w-0 items-start justify-between gap-2">
         <div class="min-w-0">
           <h3 class="truncate text-sm font-semibold text-nodel-fg" data-link="title{:name}">{^{>title}}</h3>

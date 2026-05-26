@@ -1,8 +1,12 @@
 import {
+  customUiEntriesFromFiles,
   deleteNodeFile,
   getNodeDetails,
   getNodeFileContents,
   listNodeFiles,
+  removeCurrentNode,
+  renameCurrentNode,
+  restartCurrentNode,
   saveNodeFile
 } from '../src/api/nodel-host-client';
 import { isBinaryFile, isEditableFile, languageKindForPath, validateNodeFilePath } from '../src/editor/file-types';
@@ -46,6 +50,21 @@ describe('node file api and utilities', () => {
         return new Response('', { status: 200 });
       }
 
+      if (url === 'REST/rename') {
+        expect(init?.method).toBe('POST');
+        expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' });
+        expect(init?.body).toBe(JSON.stringify({ value: 'Renamed Node' }));
+        return new Response('', { status: 200 });
+      }
+
+      if (url === 'REST/restart') {
+        return new Response('', { status: 200 });
+      }
+
+      if (url === 'REST/remove?confirm=true') {
+        return new Response('', { status: 200 });
+      }
+
       throw new Error(`Unexpected URL ${url}`);
     }));
   });
@@ -61,6 +80,9 @@ describe('node file api and utilities', () => {
     await expect(saveNodeFile('script.py', 'print("updated")')).resolves.toEqual({});
     await expect(saveNodeFile('content/index.html', '<nodel-app></nodel-app>')).resolves.toBe('');
     await expect(deleteNodeFile('content/index.html')).resolves.toBe('');
+    await expect(renameCurrentNode('Renamed Node')).resolves.toBe('');
+    await expect(restartCurrentNode()).resolves.toBe('');
+    await expect(removeCurrentNode()).resolves.toBe('');
 
     expect(fetch).toHaveBeenCalledWith('REST/files', undefined);
     expect(fetch).toHaveBeenCalledWith('REST/', undefined);
@@ -96,5 +118,22 @@ describe('node file api and utilities', () => {
     expect(isEditableFile('data/table.csv')).toBe(true);
     expect(isBinaryFile('docs/manual.pdf')).toBe(true);
     expect(isBinaryFile('content/hero.webp')).toBe(true);
+  });
+
+  it('filters custom UI files using the v1 picker rules', () => {
+    expect(customUiEntriesFromFiles([
+      { path: 'content/panel.xml' },
+      { path: 'content/custom.html' },
+      { path: 'content/index.htm' },
+      { path: 'content/nodes.xml' },
+      { path: 'content/index-sample.xml' },
+      { path: 'content/index-sample.xml.htm' },
+      { path: 'content/my-ui.html' },
+      { path: 'content/deep/panel.html' },
+      { path: 'script.py' }
+    ])).toEqual([
+      { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
+      { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' }
+    ]);
   });
 });

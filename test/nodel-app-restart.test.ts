@@ -71,6 +71,8 @@ describe('nodel-app restart coordination', () => {
 
     restartMock.listener?.(detail);
 
+    expect(document.body.textContent).toContain('Node restarted. Refreshing view...');
+
     await waitFor(() => sourceMock.refreshNodeConsole.mock.calls.length === 1);
 
     expect(restarted).toHaveBeenCalledWith(expect.objectContaining({ detail }));
@@ -80,6 +82,60 @@ describe('nodel-app restart coordination', () => {
     expect(sourceMock.resetNodeConsoleCursor).toHaveBeenCalledTimes(1);
     expect(sourceMock.refreshNodeConsole).toHaveBeenCalledTimes(1);
     expect(sourceMock.refreshNodeActivity).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain('Node reloaded. View is up to date.');
+  });
+
+  it('shows a warning toast when a restart refresh partly fails', async () => {
+    document.body.innerHTML = `
+      <nodel-app>
+        <nodel-page title="Activity">
+          <nodel-description></nodel-description>
+        </nodel-page>
+      </nodel-app>
+    `;
+    await customElements.whenDefined('nodel-app');
+    const app = document.querySelector('nodel-app')!;
+    const description = app.querySelector<HTMLElement>('nodel-description')!;
+    Object.assign(description, { refreshAfterRestart: vi.fn(async () => Promise.reject(new Error('Refresh failed'))) });
+
+    restartMock.listener?.({ previousTimestamp: 'start-1', timestamp: 'start-2' });
+
+    await waitFor(() => document.body.textContent?.includes('Node reloaded, but some sections failed to refresh.'));
+
+    const toast = document.querySelector<HTMLElement>('.nodel-toast')!;
+    expect(toast.className).toContain('nodel-toast-warning');
+  });
+
+  it('shows app-level toasts for save and error events', async () => {
+    document.body.innerHTML = `
+      <nodel-app>
+        <nodel-page title="Config">
+          <div data-event-source></div>
+        </nodel-page>
+      </nodel-app>
+    `;
+    await customElements.whenDefined('nodel-app');
+    const source = document.querySelector<HTMLElement>('[data-event-source]')!;
+
+    source.dispatchEvent(new CustomEvent('nodel-params-saved', { bubbles: true }));
+    expect(document.body.textContent).toContain('Parameters saved');
+
+    source.dispatchEvent(new CustomEvent('nodel-bindings-saved', { bubbles: true }));
+    expect(document.body.textContent).toContain('Bindings saved');
+
+    source.dispatchEvent(new CustomEvent('nodel-editor-file-saved', {
+      bubbles: true,
+      detail: { path: 'script.py' }
+    }));
+    expect(document.body.textContent).toContain('File saved');
+    expect(document.body.textContent).toContain('script.py');
+
+    source.dispatchEvent(new CustomEvent('nodel-params-error', {
+      bubbles: true,
+      detail: { error: 'Save failed' }
+    }));
+    expect(document.body.textContent).toContain('Failed to save parameters');
+    expect(document.body.textContent).toContain('Save failed');
   });
 
   it('does not start the restart watcher outside node pages', async () => {

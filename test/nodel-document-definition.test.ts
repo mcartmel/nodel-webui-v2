@@ -41,4 +41,12 @@ describe('nodel document definition', () => {
     expect(importedComponents.length).toBeGreaterThan(0);
     expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
   });
+
+  it('includes the node menu in the default node UI only', async () => {
+    const nodeUi = await readFile(resolve(process.cwd(), 'nodel.html'), 'utf8');
+    const elementsUi = await readFile(resolve(process.cwd(), 'elements.html'), 'utf8');
+
+    expect(nodeUi).toContain('<nodel-node-menu></nodel-node-menu>');
+    expect(elementsUi).not.toContain('<nodel-node-menu');
+  });
 });
