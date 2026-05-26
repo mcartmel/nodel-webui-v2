@@ -15,6 +15,7 @@ export default {
           bg: 'rgb(var(--nodel-bg) / <alpha-value>)',
           fg: 'rgb(var(--nodel-fg) / <alpha-value>)',
           surface: 'rgb(var(--nodel-surface) / <alpha-value>)',
+          panelBg: 'rgb(var(--nodel-panel-bg) / <alpha-value>)',
           muted: 'rgb(var(--nodel-muted) / <alpha-value>)',
           border: 'rgb(var(--nodel-border) / <alpha-value>)',
           accent: 'rgb(var(--nodel-accent) / <alpha-value>)',
