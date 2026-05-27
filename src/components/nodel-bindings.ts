@@ -98,135 +98,133 @@ interface TargetDefinition {
 
 const template = `
   <div class="nodel-bindings" data-link="class{:loading ? 'nodel-bindings is-loading' : 'nodel-bindings'}">
-    {^{if loading}}
-      <div class="nodel-alert nodel-alert-md">Loading bindings...</div>
-    {{else}}
-      <form class="nodel-bindings-panel space-y-3" data-bindings-form autocomplete="off">
-        {^{if error}}
-          <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
-        {{else empty}}
-          <div class="nodel-alert nodel-alert-md">No bindings.</div>
-        {{else}}
-          <fieldset data-link="disabled{:saving}">
-            <div class="nodel-bindings-toolbar-panel">
-              <div class="nodel-bindings-toolbar">
-                <div class="flex min-w-0 items-center gap-2">
-                  <input class="nodel-field nodel-field-compact min-w-0 flex-1" type="search" placeholder="Filter bindings" data-bindings-filter data-link="filter trigger=true" />
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-clear-filter data-link="disabled{:!filter}">Clear</button>
-                </div>
-                <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="visible">Select visible</button>
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="unbound">Select unwired</button>
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="clear">Clear selection</button>
-                </div>
+    <form class="nodel-bindings-panel space-y-3" data-bindings-form autocomplete="off">
+      {^{if loading}}
+        <div class="nodel-alert nodel-alert-md">Loading bindings...</div>
+      {{else error}}
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
+      {{else empty}}
+        <div class="nodel-alert nodel-alert-md">No bindings.</div>
+      {{else}}
+        <fieldset data-link="disabled{:saving}">
+          <div class="nodel-bindings-toolbar-panel">
+            <div class="nodel-bindings-toolbar">
+              <div class="flex min-w-0 items-center gap-2">
+                <input class="nodel-field nodel-field-compact min-w-0 flex-1" type="search" placeholder="Filter bindings" data-bindings-filter data-link="filter trigger=true" />
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-clear-filter data-link="disabled{:!filter}">Clear</button>
               </div>
-              <div class="nodel-bindings-toolbar">
-                <div class="nodel-bindings-combobox">
-                  <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="Search node" data-bindings-bulk-node data-link="bulkNode" />
-                  {^{if showBulkNodeOptions}}
-                    <div class="nodel-bindings-popover nodel-popover">
-                      {^{for bulkNodeOptions}}
-                        <button type="button" class="nodel-menu-item" data-bindings-option="bulk-node" data-link="data-option-index{:#index} data-option-value{:value} data-option-address{:address}">
-                          <span class="truncate">{^{>label}}</span>
-                          {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
-                        </button>
-                      {{/for}}
-                    </div>
-                  {{/if}}
-                </div>
-                <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-apply-node data-link="disabled{:selectedCount === 0 || !bulkNode}">Set node</button>
-                  <button type="button" class="nodel-button nodel-button-compact" data-bindings-suggest data-link="disabled{:selectedCount === 0 || busy}">
-                    {^{if busy}}Suggesting...{{else}}Suggest matches{{/if}}
-                  </button>
-                  <button type="button" class="nodel-button nodel-button-primary nodel-button-compact" data-bindings-apply-suggestions data-link="disabled{:selectedCount === 0}">Apply suggestions</button>
-                </div>
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="visible">Select visible</button>
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="unbound">Select unwired</button>
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-select="clear">Clear selection</button>
               </div>
-              {^{if toolbarError}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>toolbarError}}</div>{{/if}}
-              {^{if message}}<div class="nodel-alert nodel-alert-sm">{^{>message}}</div>{{/if}}
             </div>
-            <div class="space-y-3">
-              {^{for sections}}
-                <details class="nodel-bindings-section nodel-collapse nodel-panel" open data-link="data-bindings-section{:kind}">
-                  <summary class="nodel-collapse-summary">
-                    <span class="nodel-collapse-label">{^{>title}}</span>
-                    <span class="nodel-collapse-preview">{^{:selectedCount}} selected, {^{:unboundCount}} unwired</span>
-                    <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
-                  </summary>
-                  <div class="nodel-collapse-content space-y-2.5">
-                    <div class="nodel-bindings-table" role="table">
-                      <div class="nodel-bindings-header nodel-section-heading" role="row">
-                        <span></span>
-                        <span>Status</span>
-                        <span>Name</span>
-                        <span>Node</span>
-                        <span>{^{>targetLabel}}</span>
-                        <span>Suggestion</span>
-                      </div>
-                      {^{if visibleRows.length}}
-                        {^{for visibleRows}}
-                          <div class="nodel-bindings-row" role="row" data-link="data-bindings-row-id{:id}">
-                            <label class="inline-flex h-8 items-center justify-center">
-                              <input type="checkbox" data-bindings-row-select data-link="selected" aria-label="Select binding" />
-                            </label>
-                            <span class="nodel-bindings-status" data-link="class{:statusClass}">{^{>status}}</span>
-                            <span class="min-w-0">
-                              <span class="block truncate font-semibold text-nodel-fg" data-link="title{:alias}">{^{>title}}</span>
-                              <span class="block truncate text-xs text-nodel-muted">{^{>alias}}</span>
-                              {^{if description}}<span class="block truncate text-xs text-nodel-muted">{^{>description}}</span>{{/if}}
-                            </span>
-                            <span class="nodel-bindings-combobox">
-                              <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="node" />
-                              {^{if showNodeOptions}}
-                                <div class="nodel-bindings-popover nodel-popover">
-                                  {^{for nodeOptions}}
-                                    <button type="button" class="nodel-menu-item" data-bindings-option="node" data-link="data-option-index{:#index} data-option-value{:value} data-option-address{:address}">
-                                      <span class="truncate">{^{>label}}</span>
-                                      {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
-                                    </button>
-                                  {{/for}}
-                                </div>
-                              {{/if}}
-                            </span>
-                            <span class="nodel-bindings-combobox">
-                              <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} placeholder{:targetLabel}" />
-                              {^{if showTargetOptions}}
-                                <div class="nodel-bindings-popover nodel-popover">
-                                  {^{for targetOptions}}
-                                    <button type="button" class="nodel-menu-item" data-bindings-option="target" data-link="data-option-index{:#index} data-option-value{:value}">
-                                      <span class="truncate">{^{>label}}</span>
-                                      {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
-                                    </button>
-                                  {{/for}}
-                                </div>
-                              {{/if}}
-                            </span>
-                            <span class="nodel-bindings-suggestion" data-link="class{:suggestionClass}">
-                              {^{if suggestionLabel}}{^{>suggestionLabel}}{{else}}-{{/if}}
-                            </span>
-                          </div>
-                        {{/for}}
-                      {{else}}
-                        <div class="nodel-alert nodel-alert-sm">No bindings match the filter.</div>
-                      {{/if}}
-                    </div>
+            <div class="nodel-bindings-toolbar">
+              <div class="nodel-bindings-combobox">
+                <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="Search node" data-bindings-bulk-node data-link="bulkNode" />
+                {^{if showBulkNodeOptions}}
+                  <div class="nodel-bindings-popover nodel-popover">
+                    {^{for bulkNodeOptions}}
+                      <button type="button" class="nodel-menu-item" data-bindings-option="bulk-node" data-link="data-option-index{:#index} data-option-value{:value} data-option-address{:address}">
+                        <span class="truncate">{^{>label}}</span>
+                        {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
+                      </button>
+                    {{/for}}
                   </div>
-                </details>
-              {{/for}}
+                {{/if}}
+              </div>
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-apply-node data-link="disabled{:selectedCount === 0 || !bulkNode}">Set node</button>
+                <button type="button" class="nodel-button nodel-button-compact" data-bindings-suggest data-link="disabled{:selectedCount === 0 || busy}">
+                  {^{if busy}}Suggesting...{{else}}Suggest matches{{/if}}
+                </button>
+                <button type="button" class="nodel-button nodel-button-primary nodel-button-compact" data-bindings-apply-suggestions data-link="disabled{:selectedCount === 0}">Apply suggestions</button>
+              </div>
             </div>
-          </fieldset>
-          <div class="flex min-w-0 flex-wrap items-center gap-3">
-            <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving}">
-              {^{if saving}}Saving...{{else}}Save{{/if}}
-            </button>
-            {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
+            {^{if toolbarError}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>toolbarError}}</div>{{/if}}
+            {^{if message}}<div class="nodel-alert nodel-alert-sm">{^{>message}}</div>{{/if}}
           </div>
-          {^{if saveError}}
-            <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
-          {{/if}}
+          <div class="space-y-3">
+            {^{for sections}}
+              <details class="nodel-bindings-section nodel-collapse nodel-panel" open data-link="data-bindings-section{:kind}">
+                <summary class="nodel-collapse-summary">
+                  <span class="nodel-collapse-label">{^{>title}}</span>
+                  <span class="nodel-collapse-preview">{^{:selectedCount}} selected, {^{:unboundCount}} unwired</span>
+                  <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
+                </summary>
+                <div class="nodel-collapse-content space-y-2.5">
+                  <div class="nodel-bindings-table" role="table">
+                    <div class="nodel-bindings-header nodel-section-heading" role="row">
+                      <span></span>
+                      <span>Status</span>
+                      <span>Name</span>
+                      <span>Node</span>
+                      <span>{^{>targetLabel}}</span>
+                      <span>Suggestion</span>
+                    </div>
+                    {^{if visibleRows.length}}
+                      {^{for visibleRows}}
+                        <div class="nodel-bindings-row" role="row" data-link="data-bindings-row-id{:id}">
+                          <label class="inline-flex h-8 items-center justify-center">
+                            <input type="checkbox" data-bindings-row-select data-link="selected" aria-label="Select binding" />
+                          </label>
+                          <span class="nodel-bindings-status" data-link="class{:statusClass}">{^{>status}}</span>
+                          <span class="min-w-0">
+                            <span class="block truncate font-semibold text-nodel-fg" data-link="title{:alias}">{^{>title}}</span>
+                            <span class="block truncate text-xs text-nodel-muted">{^{>alias}}</span>
+                            {^{if description}}<span class="block truncate text-xs text-nodel-muted">{^{>description}}</span>{{/if}}
+                          </span>
+                          <span class="nodel-bindings-combobox">
+                            <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="node" />
+                            {^{if showNodeOptions}}
+                              <div class="nodel-bindings-popover nodel-popover">
+                                {^{for nodeOptions}}
+                                  <button type="button" class="nodel-menu-item" data-bindings-option="node" data-link="data-option-index{:#index} data-option-value{:value} data-option-address{:address}">
+                                    <span class="truncate">{^{>label}}</span>
+                                    {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
+                                  </button>
+                                {{/for}}
+                              </div>
+                            {{/if}}
+                          </span>
+                          <span class="nodel-bindings-combobox">
+                            <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} placeholder{:targetLabel}" />
+                            {^{if showTargetOptions}}
+                              <div class="nodel-bindings-popover nodel-popover">
+                                {^{for targetOptions}}
+                                  <button type="button" class="nodel-menu-item" data-bindings-option="target" data-link="data-option-index{:#index} data-option-value{:value}">
+                                    <span class="truncate">{^{>label}}</span>
+                                    {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
+                                  </button>
+                                {{/for}}
+                              </div>
+                            {{/if}}
+                          </span>
+                          <span class="nodel-bindings-suggestion" data-link="class{:suggestionClass}">
+                            {^{if suggestionLabel}}{^{>suggestionLabel}}{{else}}-{{/if}}
+                          </span>
+                        </div>
+                      {{/for}}
+                    {{else}}
+                      <div class="nodel-alert nodel-alert-sm">No bindings match the filter.</div>
+                    {{/if}}
+                  </div>
+                </div>
+              </details>
+            {{/for}}
+          </div>
+        </fieldset>
+        <div class="flex min-w-0 flex-wrap items-center gap-3">
+          <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving}">
+            {^{if saving}}Saving...{{else}}Save{{/if}}
+          </button>
+          {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
+        </div>
+        {^{if saveError}}
+          <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
         {{/if}}
-      </form>
-    {{/if}}
+      {{/if}}
+    </form>
   </div>
 `;
 

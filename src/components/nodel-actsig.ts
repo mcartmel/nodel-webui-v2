@@ -115,10 +115,10 @@ const actSigRowTemplate = `
 
 const template = `
   <div class="nodel-actsig" data-link="class{:loading ? 'nodel-actsig is-loading' : 'nodel-actsig'}">
-    {^{if loading}}
-      <div class="nodel-alert nodel-alert-md">Loading actions and signals...</div>
-    {{else}}
-      <div class="nodel-actsig-panel space-y-3">
+    <div class="nodel-actsig-panel space-y-3">
+      {^{if loading}}
+        <div class="nodel-alert nodel-alert-md">Loading actions and signals...</div>
+      {{else}}
         {^{if error}}
           <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
         {{/if}}
@@ -156,8 +156,8 @@ const template = `
             {{/for}}
           </div>
         {{/if}}
-      </div>
-    {{/if}}
+      {{/if}}
+    </div>
   </div>
 `;
 

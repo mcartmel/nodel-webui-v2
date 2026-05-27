@@ -30,32 +30,30 @@ interface ParamsViewModel {
 
 const template = `
   <div class="nodel-params" data-link="class{:loading ? 'nodel-params is-loading' : 'nodel-params'}">
-    {^{if loading}}
-      <div class="nodel-alert nodel-alert-md">Loading parameters...</div>
-    {{else}}
-      <form class="nodel-params-panel space-y-3" data-params-form autocomplete="off">
-        {^{if error}}
-          <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
-        {{else empty}}
-          <div class="nodel-alert nodel-alert-md">No parameters.</div>
-        {{else}}
-          <fieldset data-link="disabled{:saving}">
-            {^{if schemaForm}}
-              {{include schemaForm tmpl="nodelSchemaForm"/}}
-            {{/if}}
-          </fieldset>
-          <div class="flex min-w-0 flex-wrap items-center gap-3">
-            <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving || !schemaForm}">
-              {^{if saving}}Saving...{{else}}Save{{/if}}
-            </button>
-            {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
-          </div>
-          {^{if saveError}}
-            <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
+    <form class="nodel-params-panel space-y-3" data-params-form autocomplete="off">
+      {^{if loading}}
+        <div class="nodel-alert nodel-alert-md">Loading parameters...</div>
+      {{else error}}
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
+      {{else empty}}
+        <div class="nodel-alert nodel-alert-md">No parameters.</div>
+      {{else}}
+        <fieldset data-link="disabled{:saving}">
+          {^{if schemaForm}}
+            {{include schemaForm tmpl="nodelSchemaForm"/}}
           {{/if}}
+        </fieldset>
+        <div class="flex min-w-0 flex-wrap items-center gap-3">
+          <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving || !schemaForm}">
+            {^{if saving}}Saving...{{else}}Save{{/if}}
+          </button>
+          {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
+        </div>
+        {^{if saveError}}
+          <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>saveError}}</div>
         {{/if}}
-      </form>
-    {{/if}}
+      {{/if}}
+    </form>
   </div>
 `;
 
