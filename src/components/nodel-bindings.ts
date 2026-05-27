@@ -1,4 +1,5 @@
 import {
+  getLocalRest,
   getNodeRemoteBindings,
   getNodeRemoteSchema,
   getRemoteNodeActions,
@@ -6,11 +7,12 @@ import {
   saveNodeRemoteBindings,
   searchNodeUrls
 } from '../api/nodel-host-client';
-import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
+import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelLocalNodeEntry, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { getSimpleName, getVerySimpleName } from '../utils/node-name';
+import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 
 type BindingKind = 'actions' | 'events';
 type BindingTargetKey = 'action' | 'event';
@@ -95,6 +97,25 @@ interface TargetDefinition {
   title: string;
   group: string;
 }
+
+interface TargetCacheEntry {
+  expiresAt: number;
+  promise: Promise<TargetDefinition[]>;
+}
+
+interface TargetFetchResult {
+  definitions: TargetDefinition[];
+  url: string;
+}
+
+interface LocalNodeCandidate {
+  key: string;
+  entry: NodelLocalNodeEntry;
+  name: string;
+}
+
+const targetCacheTtlMs = 30 * 1000;
+const targetLookupTimeoutMs = 3000;
 
 const template = `
   <div class="nodel-bindings" data-link="class{:loading ? 'nodel-bindings is-loading' : 'nodel-bindings'}">
@@ -295,6 +316,74 @@ function normalizeText(value: string) {
   return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+function normalizeNodeIdentity(value: string) {
+  return normalizeText(getVerySimpleName(getSimpleName(value)));
+}
+
+function nodeNameMatches(left: string, right: string) {
+  const normalizedLeft = normalizeNodeIdentity(left);
+  const normalizedRight = normalizeNodeIdentity(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+}
+
+function nodeUrlMatches(entry: NodelNodeUrlEntry, node: string) {
+  return nodeNameMatches(entry.node || entry.name || getSimpleName(entry.address), node);
+}
+
+function localNodeName(key: string, entry: NodelLocalNodeEntry) {
+  return entry.name || entry.node || key;
+}
+
+function nodeBaseUrl(nodeUrl: string) {
+  return nodeUrl.replace(/\/?$/, '/');
+}
+
+function localNodeUrl(name: string) {
+  return `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
+}
+
+function uniqueUrls(urls: string[]) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const url of urls) {
+    const normalized = new URL(nodeBaseUrl(url), window.location.origin).href;
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    unique.push(nodeBaseUrl(url));
+  }
+  return unique;
+}
+
+function mergeDefinitions(results: TargetFetchResult[]) {
+  const byName = new Map<string, TargetDefinition>();
+  for (const result of results) {
+    for (const definition of result.definitions) {
+      if (!byName.has(definition.name)) {
+        byName.set(definition.name, definition);
+      }
+    }
+  }
+  return Array.from(byName.values());
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('Target lookup timed out')), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 function levenshtein(a: string, b: string) {
   if (a === b) {
     return 0;
@@ -437,7 +526,8 @@ export class NodelBindings extends HTMLElement {
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private filterInput: HTMLInputElement | null = null;
   private observingControls = false;
-  private targetCache = new Map<string, Promise<TargetDefinition[]>>();
+  private targetCache = new Map<string, TargetCacheEntry>();
+  private localNodesPromise: Promise<LocalNodeCandidate[]> | null = null;
   private nodeSearchToken = 0;
   private targetSearchToken = 0;
   private state: BindingsViewModel = {
@@ -477,6 +567,7 @@ export class NodelBindings extends HTMLElement {
     this.removeEventListener('input', this.handleInput);
     this.removeEventListener('change', this.handleChange);
     this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('keydown', this.handleKeydown);
     this.removeEventListener('focusout', this.handleFocusOut);
     if (this.saveMessageTimer !== null) {
       window.clearTimeout(this.saveMessageTimer);
@@ -495,6 +586,7 @@ export class NodelBindings extends HTMLElement {
       this.addEventListener('input', this.handleInput);
       this.addEventListener('change', this.handleChange);
       this.addEventListener('click', this.handleClick);
+      this.addEventListener('keydown', this.handleKeydown);
       this.addEventListener('focusout', this.handleFocusOut);
       this.observeControls();
     }
@@ -510,7 +602,7 @@ export class NodelBindings extends HTMLElement {
   private async loadBindings() {
     this.abortController?.abort();
     this.abortController = new AbortController();
-    this.targetCache.clear();
+    this.clearLookupCaches();
     this.setState({
       loading: true,
       error: '',
@@ -659,6 +751,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (target.hasAttribute('data-bindings-node')) {
+      this.clearLookupCaches();
       getJQuery().observable(row).setProperty({
         node: target.value,
         nodeAddress: ''
@@ -731,6 +824,38 @@ export class NodelBindings extends HTMLElement {
     }
   };
 
+  private handleKeydown = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !this.isAutocompleteInput(target)) {
+      return;
+    }
+
+    const combobox = target.closest<HTMLElement>('.nodel-bindings-combobox');
+    if (!combobox) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      if (moveActivePopoverOption(combobox, '[data-bindings-option]', direction)) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (activateActivePopoverOption(combobox, '[data-bindings-option]')) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (event.key === 'Escape' && getPopoverOptions(combobox, '[data-bindings-option]').length > 0) {
+      event.preventDefault();
+      this.closeAutocompleteForInput(target);
+    }
+  };
+
   private handleClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) {
@@ -782,6 +907,7 @@ export class NodelBindings extends HTMLElement {
 
     const $ = getJQuery();
     if (optionType === 'bulk-node') {
+      this.clearLookupCaches();
       this.nodeSearchToken += 1;
       const selected = this.state.bulkNodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
@@ -806,6 +932,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (optionType === 'node') {
+      this.clearLookupCaches();
       this.nodeSearchToken += 1;
       const selected = row.nodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
@@ -842,6 +969,45 @@ export class NodelBindings extends HTMLElement {
           suggestionClass: suggestionClass('')
         });
       }
+    }
+  }
+
+  private isAutocompleteInput(input: HTMLInputElement) {
+    return input.hasAttribute('data-bindings-bulk-node')
+      || input.hasAttribute('data-bindings-node')
+      || input.hasAttribute('data-bindings-target');
+  }
+
+  private closeAutocompleteForInput(input: HTMLInputElement) {
+    if (input.hasAttribute('data-bindings-bulk-node')) {
+      this.nodeSearchToken += 1;
+      this.setState({
+        bulkNodeOptions: [],
+        showBulkNodeOptions: false
+      });
+      return;
+    }
+
+    const row = this.rowForElement(input);
+    if (!row) {
+      return;
+    }
+
+    if (input.hasAttribute('data-bindings-node')) {
+      this.nodeSearchToken += 1;
+      getJQuery().observable(row).setProperty({
+        nodeOptions: [],
+        showNodeOptions: false
+      });
+      return;
+    }
+
+    if (input.hasAttribute('data-bindings-target')) {
+      this.targetSearchToken += 1;
+      getJQuery().observable(row).setProperty({
+        targetOptions: [],
+        showTargetOptions: false
+      });
     }
   }
 
@@ -942,6 +1108,7 @@ export class NodelBindings extends HTMLElement {
       return;
     }
 
+    this.clearLookupCaches();
     for (const row of this.allRows()) {
       if (row.selected) {
         getJQuery().observable(row).setProperty({
@@ -1011,28 +1178,96 @@ export class NodelBindings extends HTMLElement {
   }
 
   private async getTargetDefinitions(row: BindingRow) {
-    const nodeUrl = await this.resolveNodeUrl(row);
-    const key = `${row.kind}:${nodeUrl}`;
-    if (!this.targetCache.has(key)) {
-      this.targetCache.set(key, (row.kind === 'actions' ? getRemoteNodeActions(nodeUrl) : getRemoteNodeSignals(nodeUrl)).then(normalizeDefinitions));
+    const key = this.targetCacheKey(row);
+    const cached = this.targetCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.promise;
     }
-    return this.targetCache.get(key)!;
+
+    const promise = this.loadTargetDefinitions(row);
+    this.targetCache.set(key, {
+      expiresAt: Date.now() + targetCacheTtlMs,
+      promise
+    });
+
+    promise.catch(() => {
+      if (this.targetCache.get(key)?.promise === promise) {
+        this.targetCache.delete(key);
+      }
+    });
+
+    return promise;
   }
 
-  private async resolveNodeUrl(row: BindingRow) {
-    if (row.nodeAddress) {
-      return row.nodeAddress;
+  private targetCacheKey(row: BindingRow) {
+    return `${row.kind}:${normalizeNodeIdentity(row.node)}:${row.nodeAddress}`;
+  }
+
+  private async loadTargetDefinitions(row: BindingRow) {
+    const localNode = await this.findLocalNode(row.node);
+    if (localNode) {
+      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name));
+      return result.definitions;
     }
 
     const entries = await searchNodeUrls(row.node);
-    const options = entries.map(optionFromNode);
-    const match = options.find((option) => option.value === row.node || option.label === row.node) ?? options[0];
-    if (match) {
-      getJQuery().observable(row).setProperty('nodeAddress', match.address);
-      return match.address;
+    const discoveredUrls = entries
+      .filter((entry) => nodeUrlMatches(entry, row.node))
+      .map((entry) => entry.address);
+    const candidateUrls = uniqueUrls([
+      row.nodeAddress,
+      ...discoveredUrls,
+      discoveredUrls.length === 0 && entries[0] ? entries[0].address : '',
+      discoveredUrls.length === 0 && entries.length === 0 ? localNodeUrl(row.node) : ''
+    ].filter((url): url is string => Boolean(url)));
+
+    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url).then(
+      (result) => result,
+      () => null
+    )));
+    const successful = results.filter((result): result is TargetFetchResult => Boolean(result));
+    if (successful.length === 0) {
+      throw new Error('Failed to load target definitions');
     }
 
-    return `/nodes/${encodeURIComponent(getVerySimpleName(row.node))}/`;
+    return mergeDefinitions(successful);
+  }
+
+  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string): Promise<TargetFetchResult> {
+    const definitions = await withTimeout(
+      kind === 'actions' ? getRemoteNodeActions(nodeUrl) : getRemoteNodeSignals(nodeUrl),
+      targetLookupTimeoutMs
+    );
+    return {
+      definitions: normalizeDefinitions(definitions),
+      url: nodeBaseUrl(nodeUrl)
+    };
+  }
+
+  private async findLocalNode(node: string) {
+    const localNodes = await this.getLocalNodes().catch(() => []);
+    return localNodes.find((item) => nodeNameMatches(item.name, node)) ?? null;
+  }
+
+  private getLocalNodes() {
+    if (!this.localNodesPromise) {
+      this.localNodesPromise = getLocalRest().then((rest) => {
+        return Object.entries(rest.nodes ?? {}).map(([key, entry]) => ({
+          key,
+          entry,
+          name: localNodeName(key, entry)
+        }));
+      }).catch((error) => {
+        this.localNodesPromise = null;
+        throw error;
+      });
+    }
+    return this.localNodesPromise;
+  }
+
+  private clearLookupCaches() {
+    this.targetCache.clear();
+    this.localNodesPromise = null;
   }
 
   private async saveBindings() {

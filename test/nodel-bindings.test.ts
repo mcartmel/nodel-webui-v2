@@ -1,6 +1,7 @@
 import { flush, waitFor } from './helpers';
 
 const bindingsMock = vi.hoisted(() => ({
+  getLocalRest: vi.fn(),
   getNodeRemoteBindings: vi.fn(),
   getNodeRemoteSchema: vi.fn(),
   getRemoteNodeActions: vi.fn(),
@@ -19,6 +20,7 @@ const activityMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/api/nodel-host-client', () => ({
+  getLocalRest: bindingsMock.getLocalRest,
   getNodeRemoteBindings: bindingsMock.getNodeRemoteBindings,
   getNodeRemoteSchema: bindingsMock.getNodeRemoteSchema,
   getRemoteNodeActions: bindingsMock.getRemoteNodeActions,
@@ -74,6 +76,11 @@ async function setInputValue(input: HTMLInputElement, value: string) {
   await flush();
 }
 
+async function pressKey(input: HTMLInputElement, key: string) {
+  input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  await flush();
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -116,6 +123,7 @@ describe('nodel-bindings', () => {
     activityMock.subscribeNodeActivity.mockClear();
     bindingsMock.getNodeRemoteSchema.mockReset().mockResolvedValue({ type: 'object', properties: {} });
     bindingsMock.getNodeRemoteBindings.mockReset().mockResolvedValue({});
+    bindingsMock.getLocalRest.mockReset().mockResolvedValue({ nodes: {} });
     bindingsMock.getRemoteNodeActions.mockReset().mockResolvedValue({});
     bindingsMock.getRemoteNodeSignals.mockReset().mockResolvedValue({});
     bindingsMock.saveNodeRemoteBindings.mockReset().mockResolvedValue({});
@@ -260,6 +268,28 @@ describe('nodel-bindings', () => {
     expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
+  it('selects a row node autocomplete option with the keyboard', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    const nodeInput = rowInputs(firstAction).node;
+    await setInputValue(nodeInput, 'Light');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+
+    await pressKey(nodeInput, 'ArrowDown');
+    expect(firstAction.querySelector('[data-bindings-option="node"]')?.classList.contains('nodel-menu-item-active')).toBe(true);
+    await pressKey(nodeInput, 'Enter');
+
+    expect(rowInputs(firstAction).node.value).toBe('Lighting');
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
+  });
+
   it('does not reopen the node dropdown from stale autocomplete responses after selection', async () => {
     const pendingSearch = deferred<any[]>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
@@ -314,6 +344,208 @@ describe('nodel-bindings', () => {
     expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
+  it('selects a row target autocomplete option with the keyboard', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockResolvedValue({
+      dim: { name: 'dim', title: 'Dim Level', group: 'Lighting' }
+    });
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    const targetInput = rowInputs(firstAction).target;
+    await setInputValue(targetInput, 'Dim');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+
+    await pressKey(rowInputs(rows('actions')[0]).target, 'ArrowDown');
+    await pressKey(rowInputs(rows('actions')[0]).target, 'Enter');
+
+    expect(rowInputs(rows('actions')[0]).target.value).toBe('dim');
+    expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
+  });
+
+  it('uses same-origin local node URLs for target lookup before advertised URLs', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.getLocalRest.mockResolvedValue({ nodes: { Lighting: { name: 'Lighting' } } });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://lan-host/nodes/Lighting/', host: 'lan-host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
+      if (url === '/nodes/Lighting/') {
+        return { dim: { name: 'dim', title: 'Dim Level', group: 'Lighting' } };
+      }
+      throw new Error('Advertised URL should not be used for local lookup');
+    });
+
+    await mountBindings();
+
+    const targetInput = rowInputs(rows('actions')[0]).target;
+    await setInputValue(targetInput, 'Dim');
+    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('/nodes/Lighting/');
+    expect(bindingsMock.searchNodeUrls).not.toHaveBeenCalled();
+    expect(rows('actions')[0].textContent).toContain('Dim Level');
+  });
+
+  it('prefers same-origin local lookup even after a selected advertised node URL', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.getLocalRest.mockResolvedValue({ nodes: { Lighting: { name: 'Lighting' } } });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://lan-host/nodes/Lighting/', host: 'lan-host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
+      if (url === '/nodes/Lighting/') {
+        return { dim: { name: 'dim', title: 'Dim Level' } };
+      }
+      throw new Error('LAN address is unreachable from this browser');
+    });
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    await setInputValue(rowInputs(firstAction).node, 'Light');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+    firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
+    await flush();
+
+    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('/nodes/Lighting/');
+    expect(bindingsMock.getRemoteNodeActions).not.toHaveBeenCalledWith('http://lan-host/nodes/Lighting/');
+  });
+
+  it('tries multiple discovered URLs and uses the reachable one for non-local target lookup', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://bad-host/nodes/Lighting/', host: 'bad-host' },
+      { node: 'Lighting', address: 'http://good-host/nodes/Lighting/', host: 'good-host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
+      if (url === 'http://good-host/nodes/Lighting/') {
+        return { dim: { name: 'dim', title: 'Dim Level' } };
+      }
+      throw new Error('unreachable');
+    });
+
+    await mountBindings();
+
+    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://bad-host/nodes/Lighting/');
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://good-host/nodes/Lighting/');
+    expect(rowInputs(rows('actions')[0]).target.value).toBe('Dim');
+    expect(rows('actions')[0].textContent).toContain('Dim Level');
+  });
+
+  it('merges definitions from multiple successful discovered URLs without duplicate names', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://first-host/nodes/Lighting/', host: 'first-host' },
+      { node: 'Lighting', address: 'http://second-host/nodes/Lighting/', host: 'second-host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
+      if (url === 'http://first-host/nodes/Lighting/') {
+        return {
+          dim: { name: 'dim', title: 'Dim Level' },
+          on: { name: 'on', title: 'Power On' }
+        };
+      }
+      return {
+        dim: { name: 'dim', title: 'Duplicate Dim' },
+        off: { name: 'off', title: 'Power Off' }
+      };
+    });
+
+    await mountBindings();
+
+    await setInputValue(rowInputs(rows('actions')[0]).target, '');
+    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 3);
+
+    const options = Array.from(rows('actions')[0].querySelectorAll('[data-bindings-option="target"]')).map((option) => option.textContent ?? '');
+    expect(options.join(' ')).toContain('Dim Level');
+    expect(options.join(' ')).not.toContain('Duplicate Dim');
+    expect(options.join(' ')).toContain('Power On');
+    expect(options.join(' ')).toContain('Power Off');
+  });
+
+  it('reuses target lookup results within the TTL and refreshes after expiry', async () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1000);
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+    bindingsMock.getRemoteNodeActions.mockResolvedValue({
+      dim: { name: 'dim', title: 'Dim Level' }
+    });
+
+    await mountBindings();
+
+    const targetInput = rowInputs(rows('actions')[0]).target;
+    await setInputValue(targetInput, 'Dim');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+
+    nowSpy.mockReturnValue(1000 + 10_000);
+    await setInputValue(targetInput, 'Di');
+    await flush();
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledTimes(1);
+
+    nowSpy.mockReturnValue(1000 + 31_000);
+    await setInputValue(targetInput, 'Dim');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 2);
+  });
+
+  it('does not include selected node URLs in the saved binding payload', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    await setInputValue(rowInputs(firstAction).node, 'Light');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+    firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
+    await flush();
+
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+
+    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0].actions.setLevel).toEqual({
+      node: 'Lighting',
+      action: ''
+    });
+  });
+
   it('bulk sets node only for selected rows', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
@@ -326,6 +558,31 @@ describe('nodel-bindings', () => {
     document.querySelector<HTMLButtonElement>('[data-bindings-apply-node]')?.click();
     await flush();
 
+    expect(rowInputs(firstAction).node.value).toBe('Lighting');
+    expect(rowInputs(secondAction).node.value).toBe('');
+  });
+
+  it('selects a bulk node autocomplete option with the keyboard before applying it', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+
+    await mountBindings();
+
+    const [firstAction, secondAction] = rows('actions');
+    await selectRow(firstAction);
+    const bulkNode = document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!;
+    await setInputValue(bulkNode, 'Light');
+    await waitFor(() => document.querySelectorAll('[data-bindings-option="bulk-node"]').length === 1);
+
+    await pressKey(bulkNode, 'ArrowDown');
+    await pressKey(bulkNode, 'Enter');
+    document.querySelector<HTMLButtonElement>('[data-bindings-apply-node]')?.click();
+    await flush();
+
+    expect(bulkNode.value).toBe('Lighting');
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
     expect(rowInputs(secondAction).node.value).toBe('');
   });
@@ -350,6 +607,30 @@ describe('nodel-bindings', () => {
     await flush();
 
     expect(document.querySelectorAll('[data-bindings-option="bulk-node"]').length).toBe(0);
+  });
+
+  it('closes an open node dropdown with Escape and ignores stale responses', async () => {
+    const pendingSearch = deferred<any[]>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls
+      .mockResolvedValueOnce([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }])
+      .mockReturnValueOnce(pendingSearch.promise);
+
+    await mountBindings();
+
+    const firstAction = rows('actions')[0];
+    const nodeInput = rowInputs(firstAction).node;
+    await setInputValue(nodeInput, 'Light');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+
+    await setInputValue(nodeInput, 'Lighti');
+    await pressKey(nodeInput, 'Escape');
+    pendingSearch.resolve([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }]);
+    await flush();
+
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
+    expect(rowInputs(firstAction).node.value).toBe('Lighti');
   });
 
   it('clears the shared filter from the search control and clear button', async () => {

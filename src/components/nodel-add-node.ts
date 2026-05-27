@@ -2,6 +2,7 @@ import { createNode, duplicateNode, listRecipes, searchNodeUrls } from '../api/n
 import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
 import { getVerySimpleName } from '../utils/node-name';
 import { escapeHtml } from '../utils/html';
+import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 
 type Selection =
   | { type: 'recipe'; path: string }
@@ -224,7 +225,32 @@ export class NodelAddNode extends HTMLElement {
   }
 
   private handleTemplateKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      const autocomplete = this.showTemplateAutocompleteIfOptions();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      if (moveActivePopoverOption(autocomplete, '.nodel-menu-item', direction)) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
+      if (activateActivePopoverOption(autocomplete, '.nodel-menu-item')) {
+        event.preventDefault();
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
+      const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
+      if (autocomplete && !autocomplete.classList.contains('hidden') && getPopoverOptions(autocomplete, '.nodel-menu-item').length > 0) {
+        event.preventDefault();
+        clearActivePopoverOption(autocomplete, '.nodel-menu-item');
+        autocomplete.classList.add('hidden');
+        return;
+      }
+
       this.closePanel();
     }
   };
@@ -347,6 +373,16 @@ export class NodelAddNode extends HTMLElement {
 
     autocomplete.classList.remove('hidden');
     selection?.classList.add('hidden');
+  }
+
+  private showTemplateAutocompleteIfOptions() {
+    const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
+    if (!autocomplete || autocomplete.querySelectorAll('.nodel-menu-item').length === 0) {
+      return null;
+    }
+
+    autocomplete.classList.remove('hidden');
+    return autocomplete;
   }
 
   private renderSelection(selection: Selection) {
