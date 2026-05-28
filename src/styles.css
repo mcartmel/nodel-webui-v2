@@ -113,6 +113,8 @@
     nodel-add-node,
     nodel-node-menu,
     nodel-diagnostics,
+    nodel-host-log,
+    nodel-diagnostic-charts,
     nodel-toolkit,
     nodel-console,
     nodel-log,
@@ -180,6 +182,8 @@
   nodel-add-node,
   nodel-node-menu,
   nodel-diagnostics,
+  nodel-host-log,
+  nodel-diagnostic-charts,
   nodel-toolkit,
   nodel-console,
   nodel-log,
@@ -200,6 +204,8 @@
   nodel-collapse:not(:defined),
   nodel-description:not(:defined),
   nodel-node-menu:not(:defined),
+  nodel-host-log:not(:defined),
+  nodel-diagnostic-charts:not(:defined),
   nodel-console:not(:defined),
   nodel-log:not(:defined),
   nodel-actsig:not(:defined),
@@ -765,6 +771,87 @@
     @apply opacity-faint;
   }
 
+  .nodel-host-log-frame {
+    @apply overflow-hidden;
+  }
+
+  .nodel-host-log-output {
+    @apply h-72 overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg;
+  }
+
+  .nodel-host-log-line {
+    @apply border-b border-nodel-border/45 py-1 last:border-b-0;
+  }
+
+  .nodel-host-log-timestamp {
+    @apply mr-2 inline-block text-nodel-muted;
+  }
+
+  .nodel-host-log-level {
+    @apply mr-2 inline-block min-w-12 font-semibold;
+  }
+
+  .nodel-host-log-level-trace,
+  .nodel-host-log-level-debug {
+    @apply text-nodel-muted;
+  }
+
+  .nodel-host-log-level-info {
+    @apply text-nodel-accent;
+  }
+
+  .nodel-host-log-level-warn {
+    @apply text-nodel-warning;
+  }
+
+  .nodel-host-log-level-error {
+    @apply text-nodel-danger;
+  }
+
+  .nodel-host-log-meta {
+    @apply ml-2 text-nodel-muted;
+  }
+
+  .nodel-host-log-error {
+    @apply mt-1 whitespace-pre-wrap break-words rounded-card border border-nodel-dangerBorder/45 bg-nodel-dangerBg/45 p-2 text-nodel-danger;
+  }
+
+  .nodel-host-log-empty {
+    @apply text-nodel-muted;
+  }
+
+  .nodel-diagnostic-chart-grid {
+    @apply grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .nodel-diagnostic-category-picker {
+    @apply grid max-h-48 grid-cols-1 gap-1 overflow-auto rounded-card border border-nodel-border bg-nodel-bg p-2 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .nodel-diagnostic-category-picker:disabled {
+    @apply opacity-disabled;
+  }
+
+  .nodel-diagnostic-category-option {
+    @apply flex min-w-0 cursor-pointer items-center gap-2 rounded-card px-2 py-1.5 text-sm text-nodel-fg hover:bg-nodel-surface;
+  }
+
+  .nodel-diagnostic-category-option input {
+    @apply h-4 w-4 shrink-0 accent-nodel-accent;
+  }
+
+  .nodel-diagnostic-chart-card {
+    @apply min-w-0 rounded-card border border-nodel-border bg-nodel-surface p-3 shadow-nodel-panel;
+  }
+
+  .nodel-diagnostic-chart-title {
+    @apply m-0 mb-2 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-nodel-fg;
+  }
+
+  .nodel-diagnostic-chart-canvas-wrap {
+    @apply h-40 min-w-0;
+  }
+
   .nodel-node-menu {
     @apply inline-flex;
   }
@@ -856,12 +943,15 @@
 
   nodel-console[data-state='loading'] .nodel-console,
   nodel-console[data-state='paused'] .nodel-console,
+  nodel-host-log[data-state='loading'] .nodel-host-log,
+  nodel-host-log[data-state='paused'] .nodel-host-log,
   nodel-log[data-state='loading'] .nodel-log,
   nodel-log[data-state='paused'] .nodel-log {
     @apply opacity-muted;
   }
 
   nodel-console[data-state='error'] .nodel-console,
+  nodel-host-log[data-state='error'] .nodel-host-log,
   nodel-log[data-state='error'] .nodel-log {
     @apply border-nodel-danger/45 opacity-attention;
   }

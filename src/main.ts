@@ -11,6 +11,8 @@ import './components/nodel-node-list';
 import './components/nodel-add-node';
 import './components/nodel-node-menu';
 import './components/nodel-diagnostics';
+import './components/nodel-host-log';
+import './components/nodel-diagnostic-charts';
 import './components/nodel-toolkit';
 import './components/nodel-console';
 import './components/nodel-log';

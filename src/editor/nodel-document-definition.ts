@@ -138,6 +138,18 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: []
   },
   {
+    name: 'nodel-host-log',
+    description: 'Host/server log viewer.',
+    attributes: [],
+    snippet: '<nodel-host-log></nodel-host-log>'
+  },
+  {
+    name: 'nodel-diagnostic-charts',
+    description: 'Host diagnostics measurement charts.',
+    attributes: [],
+    snippet: '<nodel-diagnostic-charts></nodel-diagnostic-charts>'
+  },
+  {
     name: 'nodel-toolkit',
     description: 'Host scripting toolkit reference.',
     attributes: [],

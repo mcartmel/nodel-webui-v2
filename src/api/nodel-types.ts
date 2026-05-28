@@ -38,6 +38,17 @@ export interface NodelConsoleLogEntry {
   [key: string]: unknown;
 }
 
+export interface NodelHostLogEntry {
+  seq: number;
+  timestamp: string;
+  level?: string;
+  thread?: string;
+  tag?: string;
+  message?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
 export interface NodelActivityLogEntry {
   seq: number;
   timestamp: string;
@@ -112,6 +123,14 @@ export interface NodelDiagnosticsResponse {
   totalMemory?: number;
   systemProperties?: Record<string, unknown>;
   vmArgs?: string[];
+  [key: string]: unknown;
+}
+
+export interface NodelDiagnosticMeasurement {
+  name: string;
+  isRate: boolean;
+  capacity?: number;
+  values: number[];
   [key: string]: unknown;
 }
 

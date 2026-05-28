@@ -4,8 +4,10 @@ import type {
   NodelActionDefinition,
   NodelConsoleLogEntry,
   NodelBuildInfo,
+  NodelDiagnosticMeasurement,
   NodelDiagnosticsResponse,
   NodelFileEntry,
+  NodelHostLogEntry,
   NodelLocalNodeEntry,
   NodelLocalRestResponse,
   NodelNodeRestResponse,
@@ -91,8 +93,16 @@ export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosti
   return fetchJson<NodelDiagnosticsResponse>('/REST/diagnostics', init);
 }
 
+export async function getDiagnosticMeasurements(init?: RequestInit): Promise<NodelDiagnosticMeasurement[]> {
+  return fetchJson<NodelDiagnosticMeasurement[]>('/REST/diagnostics/measurements', init);
+}
+
 export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> {
   return fetchJson<NodelBuildInfo>('/build.json', init);
+}
+
+export async function getHostLogs(options: { from: number; max: number }, init?: RequestInit): Promise<NodelHostLogEntry[]> {
+  return fetchJson<NodelHostLogEntry[]>(`/REST/logs?from=${options.from}&max=${options.max}`, init);
 }
 
 export async function getToolkit(init?: RequestInit): Promise<NodelToolkitResponse> {

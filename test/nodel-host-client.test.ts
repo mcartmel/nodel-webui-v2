@@ -1,4 +1,4 @@
-import { getNodeRestartStatus } from '../src/api/nodel-host-client';
+import { getDiagnosticMeasurements, getHostLogs, getNodeRestartStatus } from '../src/api/nodel-host-client';
 
 describe('nodel host client', () => {
   beforeEach(() => {
@@ -21,5 +21,15 @@ describe('nodel host client', () => {
       'REST/hasRestarted?timestamp=2026-01-01T00%3A00%3A00.000Z&timeout=5000',
       undefined
     );
+  });
+
+  it('reads host diagnostics logs and measurements', async () => {
+    const init = { signal: new AbortController().signal };
+
+    await getHostLogs({ from: -1, max: 200 }, init);
+    await getDiagnosticMeasurements(init);
+
+    expect(fetch).toHaveBeenCalledWith('/REST/logs?from=-1&max=200', init);
+    expect(fetch).toHaveBeenCalledWith('/REST/diagnostics/measurements', init);
   });
 });

@@ -24,7 +24,7 @@ function fakeCompletionContext(text: string, explicit = true) {
 describe('nodel document definition', () => {
   it('includes custom layout elements and completions', () => {
     const names = nodelDocumentElements.map((element) => element.name);
-    expect(names).toEqual(expect.arrayContaining(['nodel-app', 'nodel-page', 'nodel-row', 'nodel-column', 'nodel-console', 'nodel-log', 'nodel-params', 'nodel-bindings', 'nodel-editor']));
+    expect(names).toEqual(expect.arrayContaining(['nodel-app', 'nodel-page', 'nodel-row', 'nodel-column', 'nodel-console', 'nodel-log', 'nodel-params', 'nodel-bindings', 'nodel-editor', 'nodel-host-log', 'nodel-diagnostic-charts']));
 
     const nodeList = nodelDocumentElements.find((element) => element.name === 'nodel-node-list');
     expect(nodeList?.attributes.find((attribute) => attribute.name === 'scope')?.values).toEqual(['local', 'network']);
@@ -56,5 +56,13 @@ describe('nodel document definition', () => {
 
     expect(nodeUi).not.toContain('<nodel-toolkit>');
     expect(toolkitUi).toContain('<nodel-toolkit></nodel-toolkit>');
+  });
+
+  it('includes host log and charts on the diagnostics document', async () => {
+    const nodesUi = await readFile(resolve(process.cwd(), 'nodes.html'), 'utf8');
+
+    expect(nodesUi).toContain('<nodel-diagnostics></nodel-diagnostics>');
+    expect(nodesUi).toContain('<nodel-host-log></nodel-host-log>');
+    expect(nodesUi).toContain('<nodel-diagnostic-charts></nodel-diagnostic-charts>');
   });
 });
