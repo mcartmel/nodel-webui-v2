@@ -318,7 +318,7 @@ export class NodelNodeMenu extends HTMLElement {
               <h3 class="nodel-section-heading">Open</h3>
               <div class="nodel-node-menu-link-list">
                 ${customUiContent}
-                <a class="nodel-list-item px-3 py-2 text-sm" href="/toolkit.xml">Toolkit</a>
+                <a class="nodel-list-item px-3 py-2 text-sm" href="/toolkit.html">Toolkit</a>
                 <a class="nodel-list-item px-3 py-2 text-sm" href="/diagnostics.xml">Diagnostics</a>
               </div>
             </section>

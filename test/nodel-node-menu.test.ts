@@ -111,7 +111,7 @@ describe('nodel-node-menu', () => {
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       'custom.html',
       'panel.xml',
-      '/toolkit.xml',
+      '/toolkit.html',
       '/diagnostics.xml'
     ]);
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();

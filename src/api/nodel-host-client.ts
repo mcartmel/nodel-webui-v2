@@ -13,7 +13,8 @@ import type {
   NodelRestartStatus,
   NodelRecipeEntry,
   NodelJsonSchema,
-  NodelSignalDefinition
+  NodelSignalDefinition,
+  NodelToolkitResponse
 } from './nodel-types';
 
 export interface NodelReachabilityResult {
@@ -92,6 +93,10 @@ export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosti
 
 export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> {
   return fetchJson<NodelBuildInfo>('/build.json', init);
+}
+
+export async function getToolkit(init?: RequestInit): Promise<NodelToolkitResponse> {
+  return fetchJson<NodelToolkitResponse>('/REST/toolkit', init);
 }
 
 export async function getNodeDetails(init?: RequestInit): Promise<NodelNodeRestResponse> {

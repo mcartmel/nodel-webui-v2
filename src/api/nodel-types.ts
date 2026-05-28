@@ -127,6 +127,11 @@ export interface NodelBuildInfo {
   [key: string]: unknown;
 }
 
+export interface NodelToolkitResponse {
+  script?: string;
+  [key: string]: unknown;
+}
+
 export interface NodelRecipeEntry {
   path: string;
   [key: string]: unknown;

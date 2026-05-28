@@ -113,6 +113,7 @@
     nodel-add-node,
     nodel-node-menu,
     nodel-diagnostics,
+    nodel-toolkit,
     nodel-console,
     nodel-log,
     nodel-actsig,
@@ -179,6 +180,7 @@
   nodel-add-node,
   nodel-node-menu,
   nodel-diagnostics,
+  nodel-toolkit,
   nodel-console,
   nodel-log,
   nodel-actsig,
@@ -1158,5 +1160,9 @@
     @apply min-h-full;
     font-size: var(--nodel-editor-font-size);
     line-height: var(--nodel-editor-line-height);
+  }
+
+  .nodel-toolkit-editor {
+    --nodel-editor-height: min(72vh, 44rem);
   }
 }

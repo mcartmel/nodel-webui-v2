@@ -33,6 +33,7 @@ The first UI layer is intentionally small:
 - `nodel-node-list` encapsulates the v1-style locals/network node lists with JsViews-backed data binding.
 - `nodel-add-node` encapsulates the add-node UI and recipe/node lookup flow.
 - `nodel-diagnostics` renders the host diagnostics table.
+- `nodel-toolkit` renders the host scripting toolkit reference on the standalone Toolkit page.
 - `nodel-console` renders the node console history and command prompt.
 - `nodel-log` renders the node activity stream with hold, filter, and row-limit controls.
 - `nodel-actsig` renders current-node actions and signals from their JSON schemas with lazy JsViews form materialization.

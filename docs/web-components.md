@@ -36,6 +36,7 @@ Examples:
 - `nodel-add-node`
 - `nodel-node-menu`
 - `nodel-diagnostics`
+- `nodel-toolkit`
 - `nodel-console`
 - `nodel-log`
 - `nodel-actsig`
@@ -107,7 +108,7 @@ Use the stable v2 asset path when authoring pages:
 
 The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
 
-`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, custom UI links, Toolkit, and Diagnostics.
+`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, custom UI links, and host reference links.
 
 ## Page Navigation
 
@@ -208,6 +209,10 @@ Behavior:
 - Shows static `preview` text while collapsed when provided.
 - Updates its preview from descendant `nodel-collapse-preview` events with `{ text: string }` detail.
 - Keeps child content connected while collapsed so nested components retain their normal lifecycle.
+
+## Toolkit
+
+`nodel-toolkit` fetches the host `/REST/toolkit` endpoint and renders the scripting toolkit reference in a read-only CodeMirror view. The default UI exposes it on the standalone `toolkit.html` page rather than inside each node page.
 
 Components that support collapse previews should emit plain-text `nodel-collapse-preview` events for meaningful state changes. Keep preview text short and never depend on a direct import or reference to `nodel-collapse`.
 

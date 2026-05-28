@@ -34,7 +34,8 @@ export default defineConfig({
       input: {
         elements: resolve(projectRoot, 'elements.html'),
         nodes: resolve(projectRoot, 'nodes.html'),
-        nodel: resolve(projectRoot, 'nodel.html')
+        nodel: resolve(projectRoot, 'nodel.html'),
+        toolkit: resolve(projectRoot, 'toolkit.html')
       },
       output: {
         entryFileNames: 'v2/entries/[name].js',

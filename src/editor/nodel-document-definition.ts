@@ -138,6 +138,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: []
   },
   {
+    name: 'nodel-toolkit',
+    description: 'Host scripting toolkit reference.',
+    attributes: [],
+    snippet: '<nodel-toolkit></nodel-toolkit>'
+  },
+  {
     name: 'nodel-console',
     description: 'Node console history and command prompt.',
     attributes: [

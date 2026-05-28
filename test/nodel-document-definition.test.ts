@@ -49,4 +49,12 @@ describe('nodel document definition', () => {
     expect(nodeUi).toContain('<nodel-node-menu></nodel-node-menu>');
     expect(elementsUi).not.toContain('<nodel-node-menu');
   });
+
+  it('keeps the toolkit reference on a standalone page', async () => {
+    const nodeUi = await readFile(resolve(process.cwd(), 'nodel.html'), 'utf8');
+    const toolkitUi = await readFile(resolve(process.cwd(), 'toolkit.html'), 'utf8');
+
+    expect(nodeUi).not.toContain('<nodel-toolkit>');
+    expect(toolkitUi).toContain('<nodel-toolkit></nodel-toolkit>');
+  });
 });
