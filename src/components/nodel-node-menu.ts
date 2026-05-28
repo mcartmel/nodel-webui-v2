@@ -26,7 +26,9 @@ interface NodeMenuState {
 }
 
 const deleteRedirectDelayMs = 2500;
+const menuIconMarkup = renderFontAwesomeIcon(uiIcons.bars, 'h-4 w-4');
 const closeIconMarkup = renderFontAwesomeIcon(uiIcons.xmark, 'h-3.5 w-3.5');
+const scrollLockClass = 'nodel-node-menu-scroll-lock';
 
 function escapeHtml(value: string) {
   return value
@@ -72,6 +74,7 @@ export class NodelNodeMenu extends HTMLElement {
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('submit', this.handleSubmit);
     document.removeEventListener('keydown', this.handleDocumentKeydown);
+    this.setPageScrollLocked(false);
   }
 
   private async loadMenuData() {
@@ -161,6 +164,7 @@ export class NodelNodeMenu extends HTMLElement {
 
   private open() {
     this.lastFocused = document.activeElement;
+    this.setPageScrollLocked(true);
     this.setState({ open: true, deleteConfirming: false });
     window.setTimeout(() => {
       this.querySelector<HTMLElement>('[data-node-menu-close]')?.focus();
@@ -168,12 +172,17 @@ export class NodelNodeMenu extends HTMLElement {
   }
 
   private close() {
+    this.setPageScrollLocked(false);
     this.setState({ open: false, deleteConfirming: false });
     if (this.lastFocused instanceof HTMLElement && this.contains(this.lastFocused)) {
       this.lastFocused.focus();
     } else {
       this.querySelector<HTMLElement>('[data-node-menu-open]')?.focus();
     }
+  }
+
+  private setPageScrollLocked(locked: boolean) {
+    document.documentElement.classList.toggle(scrollLockClass, locked);
   }
 
   private async renameNode(form: HTMLFormElement) {
@@ -276,7 +285,7 @@ export class NodelNodeMenu extends HTMLElement {
 
     this.innerHTML = `
       <button type="button" class="nodel-button nodel-button-ghost nodel-node-menu-trigger" data-node-menu-open aria-haspopup="dialog" aria-expanded="${openAttr}" aria-label="Open node menu">
-        <span class="nodel-node-menu-trigger-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+        ${menuIconMarkup}
       </button>
       <div class="nodel-node-menu-layer"${dialogHidden}>
         <button type="button" class="nodel-node-menu-backdrop" data-node-menu-backdrop aria-label="Close node menu"></button>

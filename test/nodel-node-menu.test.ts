@@ -58,6 +58,7 @@ describe('nodel-node-menu', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    document.documentElement.classList.remove('nodel-node-menu-scroll-lock');
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -78,7 +79,9 @@ describe('nodel-node-menu', () => {
 
     openMenu();
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(false);
+    expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(true);
     expect(document.querySelector('[data-node-menu-open]')?.getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector('[data-node-menu-open] [data-icon="bars"]')).not.toBeNull();
     expect(document.querySelector('.nodel-node-menu-drawer')?.getAttribute('aria-label')).toBe('Node menu');
     expect(document.querySelector('.nodel-node-menu-header')?.textContent?.trim()).toBe('');
     expect(document.querySelector('[data-node-menu-close] [data-icon="xmark"]')).not.toBeNull();
@@ -86,10 +89,12 @@ describe('nodel-node-menu', () => {
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);
+    expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(false);
 
     openMenu();
     document.querySelector<HTMLButtonElement>('[data-node-menu-backdrop]')?.click();
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);
+    expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(false);
   });
 
   it('renders custom UI links and reference links', async () => {

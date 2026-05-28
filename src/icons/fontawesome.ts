@@ -1,5 +1,6 @@
 import {
   faArrowRight,
+  faBars,
   faChevronDown,
   faChevronUp,
   faCircleCheck,
@@ -30,6 +31,7 @@ export const logIcons = {
 };
 
 export const uiIcons = {
+  bars: faBars,
   chevronDown: faChevronDown,
   chevronUp: faChevronUp,
   xmark: faXmark

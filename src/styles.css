@@ -83,10 +83,19 @@
     text-rendering: optimizeLegibility;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply m-0 font-sans;
     background: var(--nodel-body-background, rgb(var(--nodel-bg)));
     color: var(--nodel-body-color, rgb(var(--nodel-fg)));
+  }
+
+  html.nodel-node-menu-scroll-lock,
+  html.nodel-node-menu-scroll-lock body {
+    overflow: hidden;
   }
 
   :where(
@@ -760,14 +769,6 @@
 
   .nodel-node-menu-trigger {
     @apply h-9 w-9 p-0;
-  }
-
-  .nodel-node-menu-trigger-icon {
-    @apply flex flex-col gap-1;
-  }
-
-  .nodel-node-menu-trigger-icon span {
-    @apply block h-0.5 w-4 rounded-full bg-current;
   }
 
   .nodel-node-menu-layer {
