@@ -1,5 +1,5 @@
 import { renderFontAwesomeIcon, themeIcons } from '../icons/fontawesome';
-import { resolveTheme } from '../theme/theme';
+import { resolveTheme, storeTheme } from '../theme/theme';
 
 export class NodelThemeToggle extends HTMLElement {
   private buttonNode: HTMLButtonElement | null = null;
@@ -26,7 +26,9 @@ export class NodelThemeToggle extends HTMLElement {
     }
 
     const current = resolveTheme(app.getAttribute('theme'));
-    app.setAttribute('theme', current === 'dark' ? 'light' : 'dark');
+    const next = current === 'dark' ? 'light' : 'dark';
+    storeTheme(next);
+    app.setAttribute('theme', next);
   };
 
   private handleThemeChange = (event: Event) => {

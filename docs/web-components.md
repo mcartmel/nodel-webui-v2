@@ -107,7 +107,7 @@ Use the stable v2 asset path when authoring pages:
 
 The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
 
-`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with node rename, restart, delete, custom UI links, Toolkit, and Diagnostics.
+`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, custom UI links, Toolkit, and Diagnostics.
 
 ## Page Navigation
 
@@ -142,9 +142,9 @@ Prefer omitting `nav-id` on core pages unless the generated title-based ID is no
 
 `nodel-app` owns theme resolution. The theme is controlled with the `theme` attribute and mirrored to `document.documentElement.dataset.theme`.
 
-Omit `theme` when the default light theme is acceptable.
+Omit `theme` to use the stored preference, then the system color scheme. Explicit `theme="light"` or `theme="dark"` overrides both.
 
-`nodel-theme-toggle` renders an accessible slider switch. It uses Font Awesome's free solid `sun` and `moon` icons by default. The icon imports are isolated in `src/icons/fontawesome.ts` so a licensed Font Awesome Pro package can be enabled later by changing that wrapper rather than the component API.
+`nodel-theme-toggle` renders an accessible slider switch and persists the selected light/dark preference. It is included in `nodel-node-menu` by default on node pages. It uses Font Awesome's free solid `sun` and `moon` icons by default. The icon imports are isolated in `src/icons/fontawesome.ts` so a licensed Font Awesome Pro package can be enabled later by changing that wrapper rather than the component API.
 
 ## Layout
 

@@ -18,11 +18,32 @@ vi.mock('../src/api/nodel-host-client', () => ({
   waitForNodeReady: nodeMenuMock.waitForNodeReady
 }));
 
+import '../src/components/nodel-app';
 import '../src/components/nodel-node-menu';
+import { THEME_STORAGE_KEY } from '../src/theme/theme';
+
+function mockSystemTheme(theme: 'light' | 'dark') {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)' && theme === 'dark',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+}
 
 describe('nodel-node-menu', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    window.localStorage.clear();
+    mockSystemTheme('light');
     window.history.replaceState(undefined, '', '/nodes/OldNode/nodel.html');
     nodeMenuMock.getNodeDetails.mockReset().mockResolvedValue({ name: 'Old Node' });
     nodeMenuMock.listCustomUiEntries.mockReset().mockResolvedValue([
@@ -61,6 +82,7 @@ describe('nodel-node-menu', () => {
     expect(document.querySelector('.nodel-node-menu-drawer')?.getAttribute('aria-label')).toBe('Node menu');
     expect(document.querySelector('.nodel-node-menu-header')?.textContent?.trim()).toBe('');
     expect(document.querySelector('[data-node-menu-close] [data-icon="xmark"]')).not.toBeNull();
+    expect(document.querySelector('.nodel-node-menu-section-appearance nodel-theme-toggle')).not.toBeNull();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);
@@ -88,6 +110,24 @@ describe('nodel-node-menu', () => {
       '/diagnostics.xml'
     ]);
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
+  });
+
+  it('switches the app theme from the drawer', async () => {
+    document.body.innerHTML = '<nodel-app><nodel-node-menu></nodel-node-menu></nodel-app>';
+    await customElements.whenDefined('nodel-node-menu');
+    await waitFor(() => document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Old Node');
+    openMenu();
+
+    const toggle = document.querySelector<HTMLButtonElement>('.nodel-node-menu-section-appearance nodel-theme-toggle button')!;
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    toggle.click();
+    await Promise.resolve();
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
   });
 
   it('shows an empty custom UI state', async () => {

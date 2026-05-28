@@ -31,7 +31,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'icon-src', description: 'Static toolbar icon URL.' },
       { name: 'icon-alt', description: 'Static toolbar icon alt text.' }
     ],
-    snippet: '<nodel-toolbar icon-src="./v2/img/logo.png">\n  <nodel-theme-toggle></nodel-theme-toggle>\n</nodel-toolbar>'
+    snippet: '<nodel-toolbar icon-src="./v2/img/logo.png">\n  ${}\n</nodel-toolbar>'
   },
   {
     name: 'nodel-page',
@@ -128,7 +128,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
   },
   {
     name: 'nodel-node-menu',
-    description: 'Current-node drawer menu for rename, restart, delete, custom UIs, and reference links.',
+    description: 'Current-node drawer menu for theme, rename, restart, delete, custom UIs, and reference links.',
     attributes: [],
     snippet: '<nodel-node-menu></nodel-node-menu>'
   },

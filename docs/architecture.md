@@ -28,7 +28,7 @@ The first UI layer is intentionally small:
 - `nodel-row` and `nodel-column` provide simple layout primitives.
 - `nodel-collapse` renders reusable collapsible panels.
 - `nodel-description` renders the current node description from `REST/` as markdown with a collapsed preview.
-- `nodel-theme-toggle` switches between light and dark themes using the `theme` attribute.
+- `nodel-theme-toggle` switches between light and dark themes and is shown inside the node menu on node pages.
 - `nodel-text` provides default body text styling.
 - `nodel-node-list` encapsulates the v1-style locals/network node lists with JsViews-backed data binding.
 - `nodel-add-node` encapsulates the add-node UI and recipe/node lookup flow.

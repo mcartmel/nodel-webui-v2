@@ -10,6 +10,7 @@ import {
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { getNodePathName, getVerySimpleName } from '../utils/node-name';
+import './nodel-theme-toggle';
 
 interface NodeMenuState {
   customUis: NodelCustomUiEntry[];
@@ -296,6 +297,13 @@ export class NodelNodeMenu extends HTMLElement {
               </form>
               <button type="button" class="nodel-button w-full" data-node-menu-restart ${busy ? 'disabled' : ''}>${this.state.restarting ? 'Restarting...' : 'Restart node'}</button>
               ${this.renderDeleteControl(busy)}
+            </section>
+            <section class="nodel-node-menu-section nodel-node-menu-section-appearance">
+              <h3 class="nodel-section-heading">Appearance</h3>
+              <div class="nodel-node-menu-theme-row">
+                <span class="text-sm font-medium text-nodel-fg">Theme</span>
+                <nodel-theme-toggle></nodel-theme-toggle>
+              </div>
             </section>
             <section class="nodel-node-menu-section nodel-node-menu-section-open">
               <h3 class="nodel-section-heading">Open</h3>

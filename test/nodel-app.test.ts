@@ -6,9 +6,29 @@ import '../src/components/nodel-row';
 import '../src/components/nodel-column';
 import '../src/components/nodel-text';
 import '../src/components/nodel-theme-toggle';
+import { THEME_STORAGE_KEY } from '../src/theme/theme';
+
+function mockSystemTheme(theme: 'light' | 'dark') {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)' && theme === 'dark',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+}
 
 describe('nodel app base layer', () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    mockSystemTheme('light');
     document.documentElement.dataset.theme = 'light';
     window.history.replaceState(undefined, '', '/');
     document.body.innerHTML = `
@@ -74,6 +94,7 @@ describe('nodel app base layer', () => {
 
     expect(app?.getAttribute('theme')).toBe('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     expect(toggle.querySelector('svg')?.dataset.icon).toBe('moon');
   });
