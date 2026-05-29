@@ -319,7 +319,7 @@ export class NodelNodeMenu extends HTMLElement {
               <div class="nodel-node-menu-link-list">
                 ${customUiContent}
                 <a class="nodel-list-item px-3 py-2 text-sm" href="/toolkit.html">Toolkit</a>
-                <a class="nodel-list-item px-3 py-2 text-sm" href="/diagnostics.xml">Diagnostics</a>
+                <a class="nodel-list-item px-3 py-2 text-sm" href="/nodes.html#Diagnostics">Diagnostics</a>
               </div>
             </section>
           </div>

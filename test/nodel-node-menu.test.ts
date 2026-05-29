@@ -112,7 +112,7 @@ describe('nodel-node-menu', () => {
       'custom.html',
       'panel.xml',
       '/toolkit.html',
-      '/diagnostics.xml'
+      '/nodes.html#Diagnostics'
     ]);
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
   });
