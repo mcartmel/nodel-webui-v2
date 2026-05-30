@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nodel Component Examples</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <nodel-app title="Nodel Examples">
+      <nodel-toolbar icon-src="./v2/img/logo.png">
+        <nodel-theme-toggle></nodel-theme-toggle>
+      </nodel-toolbar>
+
+      <nodel-page title="Layout">
+        <nodel-page title="Columns">
+          <nodel-row>
+            <nodel-column span="12">
+              <nodel-text surface="card" tone="default" size="lg">12 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="10">
+              <nodel-text surface="card" tone="default">10 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="8">
+              <nodel-text surface="card" tone="default">8 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="6">
+              <nodel-text surface="card" tone="default">6 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="4">
+              <nodel-text surface="card" tone="default">4 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="3">
+              <nodel-text surface="card" tone="default">3 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column span="2">
+              <nodel-text surface="card" tone="default">2 column</nodel-text>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+
+        <nodel-page title="Responsive">
+          <nodel-row>
+            <nodel-column md="8">
+              <nodel-text surface="card" tone="default">md=&quot;8&quot;</nodel-text>
+            </nodel-column>
+            <nodel-column md="4">
+              <nodel-text surface="card" tone="default">md=&quot;4&quot;</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column sm="6" lg="3">
+              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
+            </nodel-column>
+            <nodel-column sm="6" lg="3">
+              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
+            </nodel-column>
+            <nodel-column sm="6" lg="3">
+              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
+            </nodel-column>
+            <nodel-column sm="6" lg="3">
+              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+
+        <nodel-page title="Collapse">
+          <nodel-row>
+            <nodel-column md="4">
+              <nodel-collapse label="Default">
+                <nodel-text>Default collapsed section content.</nodel-text>
+              </nodel-collapse>
+            </nodel-column>
+            <nodel-column md="4">
+              <nodel-collapse label="With preview" preview="Preview shown while collapsed">
+                <nodel-text>Section content shown after opening.</nodel-text>
+              </nodel-collapse>
+            </nodel-column>
+            <nodel-column md="4">
+              <nodel-collapse label="Open" preview="Starts open" open>
+                <nodel-text>Open section content.</nodel-text>
+              </nodel-collapse>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+
+        <nodel-page title="Text">
+          <nodel-row>
+            <nodel-column md="3">
+              <nodel-text tone="default">Default text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text tone="muted">Muted text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text tone="accent">Accent text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text tone="success">Success text</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column md="3">
+              <nodel-text size="xs">Extra small text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text size="sm">Small text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text size="md">Medium text</nodel-text>
+            </nodel-column>
+            <nodel-column md="3">
+              <nodel-text size="lg">Large text</nodel-text>
+            </nodel-column>
+          </nodel-row>
+          <nodel-row>
+            <nodel-column md="6">
+              <nodel-text surface="card" tone="default">Card text surface</nodel-text>
+            </nodel-column>
+            <nodel-column md="6">
+              <nodel-host-icon host="Example Host" icon-host="example-host" title="Example host"></nodel-host-icon>
+            </nodel-column>
+          </nodel-row>
+        </nodel-page>
+      </nodel-page>
+
+    </nodel-app>
+  </body>
+</html>

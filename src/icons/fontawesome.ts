@@ -6,12 +6,21 @@ import {
   faCircleCheck,
   faCircleInfo,
   faCircleXmark,
+  faImage,
   faLink,
   faMoon,
+  faPause,
   faPersonRunning,
+  faPlay,
+  faPowerOff,
+  faSliders,
+  faStop,
   faSun,
   faTrafficLight,
   faTriangleExclamation,
+  faVolumeHigh,
+  faVolumeLow,
+  faVolumeXmark,
   faXmark
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -34,6 +43,15 @@ export const uiIcons = {
   bars: faBars,
   chevronDown: faChevronDown,
   chevronUp: faChevronUp,
+  image: faImage,
+  pause: faPause,
+  play: faPlay,
+  power: faPowerOff,
+  sliders: faSliders,
+  stop: faStop,
+  volume: faVolumeHigh,
+  volumeLow: faVolumeLow,
+  volumeMute: faVolumeXmark,
   xmark: faXmark
 };
 

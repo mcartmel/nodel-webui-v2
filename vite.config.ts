@@ -33,6 +33,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         elements: resolve(projectRoot, 'elements.html'),
+        example: resolve(projectRoot, 'example.html'),
         nodes: resolve(projectRoot, 'nodes.html'),
         nodel: resolve(projectRoot, 'nodel.html'),
         toolkit: resolve(projectRoot, 'toolkit.html')
