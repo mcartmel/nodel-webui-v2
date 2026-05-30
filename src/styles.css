@@ -108,6 +108,7 @@
     nodel-collapse,
     nodel-description,
     nodel-text,
+    nodel-title,
     nodel-host-icon,
     nodel-node-list,
     nodel-add-node,
@@ -177,6 +178,7 @@
   nodel-collapse,
   nodel-description,
   nodel-text,
+  nodel-title,
   nodel-host-icon,
   nodel-node-list,
   nodel-add-node,
@@ -203,6 +205,7 @@
   nodel-column:not(:defined),
   nodel-collapse:not(:defined),
   nodel-description:not(:defined),
+  nodel-title:not(:defined),
   nodel-node-menu:not(:defined),
   nodel-host-log:not(:defined),
   nodel-diagnostic-charts:not(:defined),
@@ -260,6 +263,26 @@
     line-height: 1.75rem;
   }
 
+  nodel-title {
+    @apply font-semibold;
+    color: var(--nodel-title-color, rgb(var(--nodel-fg)));
+  }
+
+  nodel-title[data-level='1'] {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  nodel-title[data-level='2'] {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  nodel-title[data-level='3'] {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
   @media (min-width: 640px) {
     nodel-column {
       grid-column: span var(--nodel-column-sm, var(--nodel-column-span, 12)) / span var(--nodel-column-sm, var(--nodel-column-span, 12));
@@ -310,6 +333,38 @@
 
   .nodel-section-heading {
     @apply text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-catalogue-header {
+    @apply max-w-3xl space-y-2;
+  }
+
+  .nodel-catalogue-title {
+    @apply m-0 text-2xl font-semibold leading-8 text-nodel-fg;
+  }
+
+  .nodel-catalogue-subtitle {
+    @apply m-0 text-lg font-semibold leading-7 text-nodel-fg;
+  }
+
+  .nodel-catalogue-description {
+    @apply m-0 text-15 text-nodel-muted;
+  }
+
+  .nodel-catalogue-description code {
+    @apply rounded-control bg-nodel-border/[0.42] px-[0.3125rem] py-0.5 font-mono text-[0.85em] text-nodel-fg;
+  }
+
+  .nodel-catalogue-examples {
+    @apply space-y-4;
+  }
+
+  .nodel-catalogue-section {
+    @apply space-y-4;
+  }
+
+  .nodel-catalogue-code {
+    @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-panel;
   }
 
   .nodel-button {

@@ -88,6 +88,7 @@ describe('nodel document definition', () => {
       'nodel-column',
       'nodel-collapse',
       'nodel-text',
+      'nodel-title',
       'nodel-theme-toggle',
       'nodel-host-icon'
     ];

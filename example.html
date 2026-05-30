@@ -15,125 +15,436 @@
 
       <nodel-page title="Layout">
         <nodel-page title="Columns">
-          <nodel-row>
-            <nodel-column span="12">
-              <nodel-text surface="card" tone="default" size="lg">12 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="10">
-              <nodel-text surface="card" tone="default">10 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="8">
-              <nodel-text surface="card" tone="default">8 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="6">
-              <nodel-text surface="card" tone="default">6 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="4">
-              <nodel-text surface="card" tone="default">4 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="3">
-              <nodel-text surface="card" tone="default">3 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column span="2">
-              <nodel-text surface="card" tone="default">2 column</nodel-text>
-            </nodel-column>
-          </nodel-row>
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Columns</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-column</code> inside <code>nodel-row</code> to place content on a 12-column responsive grid.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column span="12">
+                <nodel-text surface="card" tone="default" size="lg">12 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="10">
+                <nodel-text surface="card" tone="default">10 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="8">
+                <nodel-text surface="card" tone="default">8 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="6">
+                <nodel-text surface="card" tone="default">6 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="4">
+                <nodel-text surface="card" tone="default">4 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="3">
+                <nodel-text surface="card" tone="default">3 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="2">
+                <nodel-text surface="card" tone="default">2 column</nodel-text>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;12&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot; size=&quot;lg&quot;&gt;12 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;10&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;10 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;8&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;8 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;6&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;6 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;4&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;4 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;3&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;3 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;2&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;2 column&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
         </nodel-page>
 
         <nodel-page title="Responsive">
-          <nodel-row>
-            <nodel-column md="8">
-              <nodel-text surface="card" tone="default">md=&quot;8&quot;</nodel-text>
-            </nodel-column>
-            <nodel-column md="4">
-              <nodel-text surface="card" tone="default">md=&quot;4&quot;</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column sm="6" lg="3">
-              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
-            </nodel-column>
-            <nodel-column sm="6" lg="3">
-              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
-            </nodel-column>
-            <nodel-column sm="6" lg="3">
-              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
-            </nodel-column>
-            <nodel-column sm="6" lg="3">
-              <nodel-text surface="card" tone="default">sm=&quot;6&quot; lg=&quot;3&quot;</nodel-text>
-            </nodel-column>
-          </nodel-row>
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Responsive</h1>
+            <p class="nodel-catalogue-description">
+              Add breakpoint spans to <code>nodel-column</code> to change layout as the viewport widens.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column md="8">
+                <nodel-text surface="card" tone="default">Primary content</nodel-text>
+              </nodel-column>
+              <nodel-column md="4">
+                <nodel-text surface="card" tone="default">Supporting content</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column sm="6" lg="3">
+                <nodel-text surface="card" tone="default">Responsive item</nodel-text>
+              </nodel-column>
+              <nodel-column sm="6" lg="3">
+                <nodel-text surface="card" tone="default">Responsive item</nodel-text>
+              </nodel-column>
+              <nodel-column sm="6" lg="3">
+                <nodel-text surface="card" tone="default">Responsive item</nodel-text>
+              </nodel-column>
+              <nodel-column sm="6" lg="3">
+                <nodel-text surface="card" tone="default">Responsive item</nodel-text>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;8&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Primary content&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;4&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Supporting content&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column sm=&quot;6&quot; lg=&quot;3&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Responsive item&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; lg=&quot;3&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Responsive item&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; lg=&quot;3&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Responsive item&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; lg=&quot;3&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Responsive item&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
         </nodel-page>
 
         <nodel-page title="Collapse">
-          <nodel-row>
-            <nodel-column md="4">
-              <nodel-collapse label="Default">
-                <nodel-text>Default collapsed section content.</nodel-text>
-              </nodel-collapse>
-            </nodel-column>
-            <nodel-column md="4">
-              <nodel-collapse label="With preview" preview="Preview shown while collapsed">
-                <nodel-text>Section content shown after opening.</nodel-text>
-              </nodel-collapse>
-            </nodel-column>
-            <nodel-column md="4">
-              <nodel-collapse label="Open" preview="Starts open" open>
-                <nodel-text>Open section content.</nodel-text>
-              </nodel-collapse>
-            </nodel-column>
-          </nodel-row>
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Collapse</h1>
+            <p class="nodel-catalogue-description">
+              Wrap content in <code>nodel-collapse</code> to create expandable sections with optional preview text and initial open state.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column md="4">
+                <nodel-collapse label="Default">
+                  <nodel-text>Default collapsed section content.</nodel-text>
+                </nodel-collapse>
+              </nodel-column>
+              <nodel-column md="4">
+                <nodel-collapse label="With preview" preview="Preview shown while collapsed">
+                  <nodel-text>Section content shown after opening.</nodel-text>
+                </nodel-collapse>
+              </nodel-column>
+              <nodel-column md="4">
+                <nodel-collapse label="Open" preview="Starts open" open>
+                  <nodel-text>Open section content.</nodel-text>
+                </nodel-collapse>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;4&quot;&gt;
+    &lt;nodel-collapse label=&quot;Default&quot;&gt;
+      &lt;nodel-text&gt;Default collapsed section content.&lt;/nodel-text&gt;
+    &lt;/nodel-collapse&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;4&quot;&gt;
+    &lt;nodel-collapse label=&quot;With preview&quot; preview=&quot;Preview shown while collapsed&quot;&gt;
+      &lt;nodel-text&gt;Section content shown after opening.&lt;/nodel-text&gt;
+    &lt;/nodel-collapse&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;4&quot;&gt;
+    &lt;nodel-collapse label=&quot;Open&quot; preview=&quot;Starts open&quot; open&gt;
+      &lt;nodel-text&gt;Open section content.&lt;/nodel-text&gt;
+    &lt;/nodel-collapse&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+        </nodel-page>
+      </nodel-page>
+
+      <nodel-page title="Content">
+        <nodel-page title="Titles">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Titles</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-title</code> for visible page titles and section headings. The <code>title</code> attribute on <code>nodel-page</code> controls navigation labels.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column span="12">
+                <nodel-title level="1">Node Overview</nodel-title>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column md="6">
+                <nodel-title level="2">System Status</nodel-title>
+              </nodel-column>
+              <nodel-column md="6">
+                <nodel-title level="3" tone="muted">Supporting Details</nodel-title>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column span="12">
+                <nodel-title level="1" signals="PageTitle:value">Waiting for PageTitle signal</nodel-title>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;12&quot;&gt;
+    &lt;nodel-title level=&quot;1&quot;&gt;Node Overview&lt;/nodel-title&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-title level=&quot;2&quot;&gt;System Status&lt;/nodel-title&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-title level=&quot;3&quot; tone=&quot;muted&quot;&gt;Supporting Details&lt;/nodel-title&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;12&quot;&gt;
+    &lt;nodel-title level=&quot;1&quot; signals=&quot;PageTitle:value&quot;&gt;Waiting for PageTitle signal&lt;/nodel-title&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
         </nodel-page>
 
         <nodel-page title="Text">
-          <nodel-row>
-            <nodel-column md="3">
-              <nodel-text tone="default">Default text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text tone="muted">Muted text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text tone="accent">Accent text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text tone="success">Success text</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column md="3">
-              <nodel-text size="xs">Extra small text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text size="sm">Small text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text size="md">Medium text</nodel-text>
-            </nodel-column>
-            <nodel-column md="3">
-              <nodel-text size="lg">Large text</nodel-text>
-            </nodel-column>
-          </nodel-row>
-          <nodel-row>
-            <nodel-column md="6">
-              <nodel-text surface="card" tone="default">Card text surface</nodel-text>
-            </nodel-column>
-            <nodel-column md="6">
-              <nodel-host-icon host="Example Host" icon-host="example-host" title="Example host"></nodel-host-icon>
-            </nodel-column>
-          </nodel-row>
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Text</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-text</code> for themed text tones, sizes, and optional card surfaces.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Tone</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>tone</code> to align text with default, muted, accent, or status messaging.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="3">
+                  <nodel-text tone="default">Default text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text tone="muted">Muted text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text tone="accent">Accent text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text tone="success">Success text</nodel-text>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;default&quot;&gt;Default text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;muted&quot;&gt;Muted text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;accent&quot;&gt;Accent text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;success&quot;&gt;Success text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Size</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>size</code> to tune the visual weight of supporting text without custom CSS.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="3">
+                  <nodel-text size="xs">Extra small text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text size="sm">Small text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text size="md">Medium text</nodel-text>
+                </nodel-column>
+                <nodel-column md="3">
+                  <nodel-text size="lg">Large text</nodel-text>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text size=&quot;xs&quot;&gt;Extra small text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text size=&quot;sm&quot;&gt;Small text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text size=&quot;md&quot;&gt;Medium text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;3&quot;&gt;
+    &lt;nodel-text size=&quot;lg&quot;&gt;Large text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Surface</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>surface</code> to <code>card</code> when the text should sit in a bordered panel.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="6">
+                  <nodel-text tone="default">Plain text surface</nodel-text>
+                </nodel-column>
+                <nodel-column md="6">
+                  <nodel-text surface="card" tone="default">Card text surface</nodel-text>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text tone=&quot;default&quot;&gt;Plain text surface&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Card text surface&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Signal</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>signal</code> to a local signal name to update the default target. For text, the default target is <code>value</code>; use <code>signals</code> for explicit bindings such as <code>Status:value</code>.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="6">
+                  <nodel-text signal="Status" surface="card" tone="default">Waiting for Status signal</nodel-text>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text signal=&quot;Status&quot; surface=&quot;card&quot; tone=&quot;default&quot;&gt;Waiting for Status signal&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
+        </nodel-page>
+
+        <nodel-page title="Visibility">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Visibility</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>visibility</code> on any component to show or hide it from a local signal. Values <code>visible</code>, <code>true</code>, and <code>1</code> show the component; <code>hidden</code>, <code>false</code>, and <code>0</code> hide it.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row visibility="PanelVisible">
+              <nodel-column md="6">
+                <nodel-text surface="card" tone="default">Signal-controlled panel</nodel-text>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row visibility=&quot;PanelVisible&quot;&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Signal-controlled panel&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+        </nodel-page>
+
+        <nodel-page title="Host Icon">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Host Icon</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-host-icon</code> to render a generated identicon. Its default signal target is <code>host</code>, with explicit bindings available for link and label attributes.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column md="6">
+                <nodel-host-icon host="Example Host" icon-host="example-host" title="Example host"></nodel-host-icon>
+              </nodel-column>
+              <nodel-column md="6">
+                <nodel-host-icon signal="HostName" signals="HostAddress:icon-host; HostUrl:href; HostTitle:title" host="Waiting for host signal"></nodel-host-icon>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-host-icon host=&quot;Example Host&quot; icon-host=&quot;example-host&quot; title=&quot;Example host&quot;&gt;&lt;/nodel-host-icon&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-host-icon signal=&quot;HostName&quot; signals=&quot;HostAddress:icon-host; HostUrl:href; HostTitle:title&quot; host=&quot;Waiting for host signal&quot;&gt;&lt;/nodel-host-icon&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
         </nodel-page>
       </nodel-page>
 

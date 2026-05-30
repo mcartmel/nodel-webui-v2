@@ -1,3 +1,5 @@
+import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+
 type NodelTextTone = 'muted' | 'default' | 'accent' | 'danger' | 'success';
 type NodelTextSize = 'xs' | 'sm' | 'md' | 'lg';
 type NodelTextSurface = 'none' | 'card';
@@ -30,15 +32,24 @@ function normalizeSurface(value: string | null): NodelTextSurface {
 }
 
 export class NodelText extends HTMLElement {
-  static observedAttributes = ['tone', 'size', 'surface'];
+  static observedAttributes = ['tone', 'size', 'surface', 'signal', 'signals'];
+
+  private signalBindingsKey = '';
+  private signalSubscription: { dispose(): void } | null = null;
 
   connectedCallback() {
     this.render();
+    this.syncSignalSubscription();
+  }
+
+  disconnectedCallback() {
+    this.disposeSignalSubscription();
   }
 
   attributeChangedCallback() {
     if (this.isConnected) {
       this.render();
+      this.syncSignalSubscription();
     }
   }
 
@@ -66,6 +77,34 @@ export class NodelText extends HTMLElement {
       this.style.removeProperty('--nodel-text-padding');
       this.style.removeProperty('--nodel-text-radius');
     }
+  }
+
+  private syncSignalSubscription() {
+    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'value');
+    const bindingsKey = signalBindingKey(bindings);
+
+    if (bindingsKey === this.signalBindingsKey) {
+      return;
+    }
+
+    this.disposeSignalSubscription();
+    this.signalBindingsKey = bindingsKey;
+
+    if (bindings.length === 0) {
+      return;
+    }
+
+    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+      value: (value) => {
+        this.textContent = value;
+      }
+    });
+  }
+
+  private disposeSignalSubscription() {
+    this.signalSubscription?.dispose();
+    this.signalSubscription = null;
+    this.signalBindingsKey = '';
   }
 }
 

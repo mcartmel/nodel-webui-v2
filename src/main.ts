@@ -6,6 +6,7 @@ import './components/nodel-column';
 import './components/nodel-collapse';
 import './components/nodel-description';
 import './components/nodel-text';
+import './components/nodel-title';
 import './components/nodel-host-icon';
 import './components/nodel-node-list';
 import './components/nodel-add-node';
@@ -24,9 +25,11 @@ import './components/nodel-theme-toggle';
 import './components/nodel-toast-host';
 
 import { updateHostFavicon } from './icons/favicon';
+import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';
 import { bootstrapJsViews } from './jsviews/jsviews-runtime';
 
 updateHostFavicon();
+bootstrapSignalVisibilityBindings();
 
 void bootstrapJsViews().catch((error) => {
   console.error('JsViews bootstrap failed', error);

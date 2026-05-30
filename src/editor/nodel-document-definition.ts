@@ -13,6 +13,13 @@ export interface NodelElementDefinition {
   snippet?: string;
 }
 
+const commonNodelAttributes: NodelAttributeDefinition[] = [
+  {
+    name: 'visibility',
+    description: 'Local signal controlling component visibility. visible/true/1 shows; hidden/false/0 hides.'
+  }
+];
+
 export const nodelDocumentElements: NodelElementDefinition[] = [
   {
     name: 'nodel-app',
@@ -84,9 +91,22 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'tone', description: 'Text tone.', values: ['muted', 'default', 'accent', 'danger', 'success'] },
       { name: 'size', description: 'Text size.', values: ['xs', 'sm', 'md', 'lg'] },
-      { name: 'surface', description: 'Optional surface style.', values: ['none', 'card'] }
+      { name: 'surface', description: 'Optional surface style.', values: ['none', 'card'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Use target value for text content.' }
     ],
     snippet: '<nodel-text surface="card">${}</nodel-text>'
+  },
+  {
+    name: 'nodel-title',
+    description: 'Theme-aware visible title or section heading.',
+    attributes: [
+      { name: 'level', description: 'Heading level.', values: ['1', '2', '3'] },
+      { name: 'tone', description: 'Title tone.', values: ['default', 'muted', 'accent'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Use target value for title content.' }
+    ],
+    snippet: '<nodel-title level="1">${}</nodel-title>'
   },
   {
     name: 'nodel-theme-toggle',
@@ -101,7 +121,9 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'icon-host', description: 'Host used to generate the identicon.' },
       { name: 'href', description: 'Optional link target.' },
       { name: 'title', description: 'Title text.' },
-      { name: 'alt', description: 'Image alt text.' }
+      { name: 'alt', description: 'Image alt text.' },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for host.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: host, icon-host, href, title, alt.' }
     ]
   },
   {
@@ -230,7 +252,11 @@ function elementCompletions(): Completion[] {
 
 function attributeCompletions(tagName: string): Completion[] {
   const element = findNodelElement(tagName);
-  return (element?.attributes ?? []).map((attribute) => ({
+  const attributes = tagName.startsWith('nodel-')
+    ? [...(element?.attributes ?? []), ...commonNodelAttributes.filter((common) => !element?.attributes.some((attribute) => attribute.name === common.name))]
+    : (element?.attributes ?? []);
+
+  return attributes.map((attribute) => ({
     label: attribute.name,
     type: 'property',
     detail: attribute.description,
@@ -239,7 +265,10 @@ function attributeCompletions(tagName: string): Completion[] {
 }
 
 function valueCompletions(tagName: string, attributeName: string): Completion[] {
-  const attribute = findNodelElement(tagName)?.attributes.find((item) => item.name === attributeName);
+  const element = findNodelElement(tagName);
+  const attribute = element?.attributes.find((item) => item.name === attributeName)
+    ?? (tagName.startsWith('nodel-') ? commonNodelAttributes.find((item) => item.name === attributeName) : undefined);
+
   return (attribute?.values ?? []).map((value) => ({
     label: value,
     type: 'constant',
