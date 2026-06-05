@@ -32,7 +32,7 @@ export interface SchemaField {
   children: SchemaField[];
   entries: SchemaArrayEntry[];
   itemSchema: NodelJsonSchema;
-  inlineObject: boolean;
+  rootObjectGroup: boolean;
   open: boolean;
   min: number | string;
   max: number | string;
@@ -66,10 +66,21 @@ const schemaFieldTemplate = `
     {^{if kind === 'null'}}
       <div class="nodel-schema-empty" hidden></div>
     {{else kind === 'object'}}
-      {^{if inlineObject}}
-        <div class="nodel-schema-stack">
-          {^{for children tmpl="nodelSchemaField"/}}
-        </div>
+      {^{if rootObjectGroup}}
+        <details class="nodel-schema-root-object nodel-collapse nodel-card" data-link="open{:open}">
+          <summary class="nodel-collapse-summary nodel-schema-root-object-summary" aria-label="Arguments">
+            <span class="nodel-schema-root-object-summary-text">
+              {^{if label}}<span class="nodel-schema-root-object-title">{^{>label}}</span>{{/if}}
+              {^{if description}}<small>{^{>description}}</small>{{/if}}
+            </span>
+            <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
+          </summary>
+          {^{if open}}
+            <div class="nodel-collapse-content nodel-schema-root-object-content nodel-schema-stack">
+              {^{for children tmpl="nodelSchemaField"/}}
+            </div>
+          {{/if}}
+        </details>
       {{else}}
       <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}">
         <summary class="nodel-collapse-summary nodel-schema-nested-summary">
@@ -405,7 +416,7 @@ function buildField(key: string, schema: NodelJsonSchema | null | undefined, opt
     children: [],
     entries: [],
     itemSchema: normalizeSchema(isRecord(normalizedSchema.items) ? normalizedSchema.items as NodelJsonSchema : emptySchema),
-    inlineObject: kind === 'object' && Boolean(options.hideKeyLabel) && !options.inObject && !options.arrayItem,
+    rootObjectGroup: kind === 'object' && Boolean(options.hideKeyLabel) && !options.inObject && !options.arrayItem,
     open: false,
     min: numericConstraint(normalizedSchema.min),
     max: numericConstraint(normalizedSchema.max),

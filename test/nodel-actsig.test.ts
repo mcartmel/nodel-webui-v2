@@ -130,6 +130,7 @@ describe('nodel-actsig', () => {
     await waitFor(() => Boolean(formByTitle('Configure')));
 
     const form = formByTitle('Configure')!;
+    await openDetails(form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!);
     await waitFor(() => form.querySelectorAll('input, select').length >= 4);
 
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, '192.168.1.10');
@@ -150,7 +151,7 @@ describe('nodel-actsig', () => {
     });
   });
 
-  it('renders root object action fields inline while keeping nested arrays collapsible', async () => {
+  it('renders root object action args as a collapsible group while keeping nested arrays collapsible', async () => {
     actsigMock.getNodeActions.mockResolvedValue({
       WledSetState: {
         name: 'WledSetState',
@@ -183,9 +184,22 @@ describe('nodel-actsig', () => {
     await waitFor(() => Boolean(formByTitle('WLED Set State')));
 
     const form = formByTitle('WLED Set State')!;
-    const details = Array.from(form.querySelectorAll<HTMLDetailsElement>('details'));
+    const rootGroup = form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!;
+    expect(rootGroup).not.toBeNull();
+    expect(rootGroup.open).toBe(false);
+    expect(rootGroup.querySelector('summary')?.textContent?.trim()).toBe('');
+    expect(form.textContent).not.toContain('Details');
+    expect(form.textContent).not.toContain('arg');
+
+    await openDetails(rootGroup);
+    await waitFor(() => Boolean(form.querySelector<HTMLInputElement>('input[type="checkbox"]')));
+    expect(rootGroup.querySelector('.nodel-schema-root-object-content')).not.toBeNull();
+    expect(rootGroup.querySelectorAll('.nodel-schema-field').length).toBeGreaterThan(1);
+
+    const details = Array.from(form.querySelectorAll<HTMLDetailsElement>('details.nodel-schema-nested'));
     expect(details.map((detail) => detail.querySelector('summary')?.textContent?.trim())).toEqual(['Segments']);
     expect(form.textContent).not.toContain('Details');
+    expect(form.textContent).not.toContain('arg');
     expect(form.querySelector<HTMLInputElement>('input[type="checkbox"]')).not.toBeNull();
     expect(form.querySelectorAll<HTMLInputElement>('input[type="number"]')).toHaveLength(2);
     expect(form.querySelector<HTMLInputElement>('input[type="text"]')).not.toBeNull();

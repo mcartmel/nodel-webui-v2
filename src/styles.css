@@ -1246,6 +1246,30 @@
     @apply block min-w-0 space-y-1;
   }
 
+  .nodel-schema-root-object {
+    @apply min-w-0 overflow-hidden rounded-control bg-nodel-bg/25;
+  }
+
+  .nodel-schema-root-object-summary {
+    @apply px-3 py-2;
+  }
+
+  .nodel-schema-root-object-summary-text {
+    @apply min-w-0 flex-auto;
+  }
+
+  .nodel-schema-root-object-title {
+    @apply block text-sm font-medium text-nodel-fg;
+  }
+
+  .nodel-schema-root-object-summary small {
+    @apply block text-xs leading-5 text-nodel-muted;
+  }
+
+  .nodel-schema-root-object-content {
+    @apply p-3;
+  }
+
   .nodel-schema-nested {
     @apply overflow-hidden rounded-control;
   }
