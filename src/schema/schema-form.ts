@@ -32,6 +32,7 @@ export interface SchemaField {
   children: SchemaField[];
   entries: SchemaArrayEntry[];
   itemSchema: NodelJsonSchema;
+  inlineObject: boolean;
   open: boolean;
   min: number | string;
   max: number | string;
@@ -65,27 +66,33 @@ const schemaFieldTemplate = `
     {^{if kind === 'null'}}
       <div class="nodel-schema-empty" hidden></div>
     {{else kind === 'object'}}
+      {^{if inlineObject}}
+        <div class="nodel-schema-stack">
+          {^{for children tmpl="nodelSchemaField"/}}
+        </div>
+      {{else}}
       <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}">
-        <summary class="nodel-schema-nested-summary">
-          <span>{^{>label || 'Details'}}</span>
+        <summary class="nodel-collapse-summary nodel-schema-nested-summary">
+          <span class="nodel-collapse-label">{^{>label || 'Details'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
           <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
         </summary>
         {^{if open}}
-          <div class="nodel-schema-nested-content">
+          <div class="nodel-collapse-content nodel-schema-nested-content nodel-schema-stack">
             {^{for children tmpl="nodelSchemaField"/}}
           </div>
         {{/if}}
       </details>
+      {{/if}}
     {{else kind === 'array'}}
       <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}">
-        <summary class="nodel-schema-nested-summary">
-          <span>{^{>label || 'Items'}}</span>
+        <summary class="nodel-collapse-summary nodel-schema-nested-summary">
+          <span class="nodel-collapse-label">{^{>label || 'Items'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
           <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
         </summary>
         {^{if open}}
-          <div class="nodel-schema-nested-content space-y-3">
+          <div class="nodel-collapse-content nodel-schema-nested-content nodel-schema-stack">
             {^{for entries}}
               <div class="nodel-schema-array-entry nodel-card p-3" data-link="data-schema-array-entry{:id}">
                 <div class="mb-3 flex items-center justify-between gap-2">
@@ -99,7 +106,9 @@ const schemaFieldTemplate = `
                 {^{if valueField}}
                   {{include valueField tmpl="nodelSchemaField"/}}
                 {{else}}
-                  {^{for fields tmpl="nodelSchemaField"/}}
+                  <div class="nodel-schema-stack">
+                    {^{for fields tmpl="nodelSchemaField"/}}
+                  </div>
                 {{/if}}
               </div>
             {{/for}}
@@ -110,15 +119,16 @@ const schemaFieldTemplate = `
     {{else kind === 'boolean'}}
       <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg">
         <input type="checkbox" data-link="value" />
-        <span class="min-w-0">
+        <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
         </span>
       </label>
     {{else}}
       <label class="block min-w-0 text-sm text-nodel-fg">
-        {^{if label}}<span class="mb-1 block font-medium">{^{>label}}</span>{{/if}}
-        {^{if description}}<small class="mb-1 block text-nodel-muted">{^{>description}}</small>{{/if}}
+        <span class="nodel-schema-control-stack">
+          {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
+          {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
         {^{if enumOptions.length}}
           <select class="nodel-field w-full" data-link="{:value:} trigger=true; title{:description}">
             <option value=""></option>
@@ -130,17 +140,18 @@ const schemaFieldTemplate = `
           <textarea class="nodel-field min-h-24 w-full" data-link="{:value:} trigger=true; placeholder{:hint}; title{:description}"></textarea>
         {{else kind === 'number'}}
           <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; min{:min}; max{:max}; step{:step}" />
-          {^{if inputType === 'range'}}<output class="mt-1 block text-xs text-nodel-muted">{^{>value}}</output>{{/if}}
+          {^{if inputType === 'range'}}<output class="block text-xs text-nodel-muted">{^{>value}}</output>{{/if}}
         {{else}}
           <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}" />
         {{/if}}
+        </span>
       </label>
     {{/if}}
   </div>
 `;
 
 export const schemaFormTemplate = `
-  <div class="nodel-schema-form space-y-3">
+  <div class="nodel-schema-form nodel-schema-stack">
     {^{for fields tmpl="nodelSchemaField"/}}
   </div>
 `;
@@ -394,6 +405,7 @@ function buildField(key: string, schema: NodelJsonSchema | null | undefined, opt
     children: [],
     entries: [],
     itemSchema: normalizeSchema(isRecord(normalizedSchema.items) ? normalizedSchema.items as NodelJsonSchema : emptySchema),
+    inlineObject: kind === 'object' && Boolean(options.hideKeyLabel) && !options.inObject && !options.arrayItem,
     open: false,
     min: numericConstraint(normalizedSchema.min),
     max: numericConstraint(normalizedSchema.max),

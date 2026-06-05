@@ -52,6 +52,15 @@ async function openDetails(details: HTMLDetailsElement) {
   await flush();
 }
 
+function schemaDetailsByLabel(label: string) {
+  return Array.from(document.querySelectorAll<HTMLDetailsElement>('details.nodel-schema-nested'))
+    .find((details) => details.querySelector('.nodel-collapse-label')?.textContent?.trim() === label) ?? null;
+}
+
+function directChildrenWithClass(element: Element, className: string) {
+  return Array.from(element.children).filter((child) => child.classList.contains(className));
+}
+
 describe('nodel-params', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -225,6 +234,86 @@ describe('nodel-params', () => {
     expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({
       servers: ['gamma', 'beta']
     });
+  });
+
+  it('uses shared schema stacks for nested object arrays and array entries', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        lighting: {
+          type: 'object',
+          title: 'Lighting',
+          properties: {
+            mode: { type: 'string', title: 'Mode', order: 1 },
+            segments: {
+              type: 'array',
+              title: 'Segments',
+              order: 2,
+              items: {
+                type: 'object',
+                properties: {
+                  segmentId: { type: 'integer', title: 'Segment ID', order: 1 },
+                  startLed: { type: 'integer', title: 'Start LED', order: 2 },
+                  colours: {
+                    type: 'array',
+                    title: 'Colours',
+                    order: 3,
+                    items: {
+                      type: 'object',
+                      properties: {
+                        red: { type: 'integer', title: 'Red', order: 1 },
+                        green: { type: 'integer', title: 'Green', order: 2 }
+                      }
+                    }
+                  },
+                  effect: { type: 'string', title: 'Effect', order: 4 }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({
+      lighting: {
+        mode: 'solid',
+        segments: [
+          {
+            segmentId: 1,
+            startLed: 0,
+            colours: [{ red: 255, green: 0 }],
+            effect: 'blink'
+          }
+        ]
+      }
+    });
+
+    await mountParams();
+
+    expect(document.querySelector('.nodel-schema-form')?.classList.contains('nodel-schema-stack')).toBe(true);
+
+    const lighting = schemaDetailsByLabel('Lighting')!;
+    await openDetails(lighting);
+    expect(lighting.querySelector('.nodel-schema-nested-content')?.classList.contains('nodel-schema-stack')).toBe(true);
+
+    const segments = schemaDetailsByLabel('Segments')!;
+    await openDetails(segments);
+
+    const segmentEntry = segments.querySelector('.nodel-schema-array-entry')!;
+    expect(directChildrenWithClass(segmentEntry, 'nodel-schema-field')).toHaveLength(0);
+    const segmentEntryStacks = directChildrenWithClass(segmentEntry, 'nodel-schema-stack');
+    expect(segmentEntryStacks).toHaveLength(1);
+    expect(directChildrenWithClass(segmentEntryStacks[0], 'nodel-schema-field').length).toBeGreaterThan(1);
+
+    const colours = schemaDetailsByLabel('Colours')!;
+    await openDetails(colours);
+    expect(colours.querySelector('.nodel-schema-nested-content')?.classList.contains('nodel-schema-stack')).toBe(true);
+
+    const colourEntry = colours.querySelector('.nodel-schema-array-entry')!;
+    expect(directChildrenWithClass(colourEntry, 'nodel-schema-field')).toHaveLength(0);
+    const colourEntryStacks = directChildrenWithClass(colourEntry, 'nodel-schema-stack');
+    expect(colourEntryStacks).toHaveLength(1);
+    expect(directChildrenWithClass(colourEntryStacks[0], 'nodel-schema-field').length).toBeGreaterThan(1);
   });
 
   it('refreshes schema and values after a node restart', async () => {

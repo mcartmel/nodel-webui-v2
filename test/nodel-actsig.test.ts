@@ -130,7 +130,6 @@ describe('nodel-actsig', () => {
     await waitFor(() => Boolean(formByTitle('Configure')));
 
     const form = formByTitle('Configure')!;
-    await openDetails(form.querySelector<HTMLDetailsElement>('details')!);
     await waitFor(() => form.querySelectorAll('input, select').length >= 4);
 
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, '192.168.1.10');
@@ -147,6 +146,65 @@ describe('nodel-actsig', () => {
         count: 5,
         enabled: true,
         mode: 'On'
+      }
+    });
+  });
+
+  it('renders root object action fields inline while keeping nested arrays collapsible', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      WledSetState: {
+        name: 'WledSetState',
+        title: 'WLED Set State',
+        schema: {
+          type: 'object',
+          properties: {
+            on: { type: 'boolean', title: 'On', order: 1 },
+            brightness: { type: 'integer', title: 'Brightness', order: 2 },
+            transition: { type: 'integer', title: 'Transition', order: 3 },
+            segments: {
+              type: 'array',
+              title: 'Segments',
+              order: 4,
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'integer', title: 'ID', order: 1 },
+                  colour: { type: 'string', title: 'Colour', order: 2 }
+                }
+              }
+            },
+            playlist: { type: 'string', title: 'Playlist', order: 5 }
+          }
+        }
+      }
+    });
+
+    await mountActSig();
+    await waitFor(() => Boolean(formByTitle('WLED Set State')));
+
+    const form = formByTitle('WLED Set State')!;
+    const details = Array.from(form.querySelectorAll<HTMLDetailsElement>('details'));
+    expect(details.map((detail) => detail.querySelector('summary')?.textContent?.trim())).toEqual(['Segments']);
+    expect(form.textContent).not.toContain('Details');
+    expect(form.querySelector<HTMLInputElement>('input[type="checkbox"]')).not.toBeNull();
+    expect(form.querySelectorAll<HTMLInputElement>('input[type="number"]')).toHaveLength(2);
+    expect(form.querySelector<HTMLInputElement>('input[type="text"]')).not.toBeNull();
+
+    await setCheckboxValue(form.querySelector<HTMLInputElement>('input[type="checkbox"]')!, true);
+    const numberInputs = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="number"]'));
+    await setInputValue(numberInputs[0], '128');
+    await setInputValue(numberInputs[1], '7');
+    await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, 'party');
+
+    submitForm(form);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+
+    expect(actsigMock.callNodeAction).toHaveBeenCalledWith('WledSetState', {
+      arg: {
+        on: true,
+        brightness: 128,
+        transition: 7,
+        playlist: 'party'
       }
     });
   });
