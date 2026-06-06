@@ -1230,7 +1230,8 @@
     min-inline-size: 0;
   }
 
-  .nodel-actsig-form fieldset:disabled {
+  .nodel-actsig-form fieldset:disabled,
+  .nodel-actsig-form fieldset[aria-disabled='true'] {
     @apply opacity-muted;
   }
 

@@ -45,6 +45,7 @@ export interface SchemaFormModel {
   id: string;
   fields: SchemaField[];
   hasFields: boolean;
+  controlsDisabled: boolean;
 }
 
 interface FieldBuildOptions {
@@ -77,7 +78,7 @@ const schemaFieldTemplate = `
           </summary>
           {^{if open}}
             <div class="nodel-collapse-content nodel-schema-root-object-content nodel-schema-stack">
-              {^{for children tmpl="nodelSchemaField"/}}
+              {^{for children tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
             </div>
           {{/if}}
         </details>
@@ -90,7 +91,7 @@ const schemaFieldTemplate = `
         </summary>
         {^{if open}}
           <div class="nodel-collapse-content nodel-schema-nested-content nodel-schema-stack">
-            {^{for children tmpl="nodelSchemaField"/}}
+            {^{for children tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
           </div>
         {{/if}}
       </details>
@@ -109,27 +110,31 @@ const schemaFieldTemplate = `
                 <div class="mb-3 flex items-center justify-between gap-2">
                   <span class="nodel-section-heading">Item {^{:index + 1}}</span>
                   <span class="inline-flex gap-1">
-                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="up" title="Move up">${chevronUpIconMarkup}<span class="sr-only">Move up</span></button>
-                    <button type="button" class="nodel-button nodel-button-compact nodel-button-danger" data-schema-array-remove title="Remove">Remove</button>
-                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="down" title="Move down">${chevronDownIconMarkup}<span class="sr-only">Move down</span></button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="up" title="Move up" data-link="disabled{:~controlsDisabled}">${chevronUpIconMarkup}<span class="sr-only">Move up</span></button>
+                    <button type="button" class="nodel-button nodel-button-compact nodel-button-danger" data-schema-array-remove title="Remove" data-link="disabled{:~controlsDisabled}">Remove</button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="down" title="Move down" data-link="disabled{:~controlsDisabled}">${chevronDownIconMarkup}<span class="sr-only">Move down</span></button>
                   </span>
                 </div>
                 {^{if valueField}}
-                  {{include valueField tmpl="nodelSchemaField"/}}
+                  {{include valueField tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
                 {{else}}
                   <div class="nodel-schema-stack">
-                    {^{for fields tmpl="nodelSchemaField"/}}
+                    {^{for fields tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
                   </div>
                 {{/if}}
               </div>
             {{/for}}
-            <button type="button" class="nodel-button" data-schema-array-add data-link="disabled{:maxItems >= 0 && entries.length >= maxItems}">Add</button>
+            <button type="button" class="nodel-button" data-schema-array-add data-link="disabled{:~controlsDisabled || (maxItems >= 0 && entries.length >= maxItems)}">Add</button>
           </div>
         {{/if}}
       </details>
     {{else kind === 'boolean'}}
       <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg">
-        <input type="checkbox" data-link="value" />
+        {^{if ~controlsDisabled}}
+          <input type="checkbox" data-link="value" disabled />
+        {{else}}
+          <input type="checkbox" data-link="value" />
+        {{/if}}
         <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
@@ -141,19 +146,19 @@ const schemaFieldTemplate = `
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
         {^{if enumOptions.length}}
-          <select class="nodel-field w-full" data-link="{:value:} trigger=true; title{:description}">
+          <select class="nodel-field w-full" data-link="{:value:} trigger=true; title{:description}; disabled{:~controlsDisabled}">
             <option value=""></option>
             {^{for enumOptions}}
               <option value="{{:value}}">{^{>label}}</option>
             {{/for}}
           </select>
         {{else format === 'long'}}
-          <textarea class="nodel-field min-h-24 w-full" data-link="{:value:} trigger=true; placeholder{:hint}; title{:description}"></textarea>
+          <textarea class="nodel-field min-h-24 w-full" data-link="{:value:} trigger=true; placeholder{:hint}; title{:description}; disabled{:~controlsDisabled}"></textarea>
         {{else kind === 'number'}}
-          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; min{:min}; max{:max}; step{:step}" />
+          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; min{:min}; max{:max}; step{:step}; disabled{:~controlsDisabled}" />
           {^{if inputType === 'range'}}<output class="block text-xs text-nodel-muted">{^{>value}}</output>{{/if}}
         {{else}}
-          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}" />
+          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; disabled{:~controlsDisabled}" />
         {{/if}}
         </span>
       </label>
@@ -163,7 +168,7 @@ const schemaFieldTemplate = `
 
 export const schemaFormTemplate = `
   <div class="nodel-schema-form nodel-schema-stack">
-    {^{for fields tmpl="nodelSchemaField"/}}
+    {^{for fields tmpl="nodelSchemaField" ~controlsDisabled=controlsDisabled/}}
   </div>
 `;
 
@@ -177,13 +182,14 @@ export function registerSchemaFormTemplates() {
   registered = true;
 }
 
-export function createSchemaForm(schema: NodelJsonSchema | null | undefined, options: { idPrefix?: string; hideRootKeyLabels?: boolean } = {}): SchemaFormModel {
+export function createSchemaForm(schema: NodelJsonSchema | null | undefined, options: { idPrefix?: string; hideRootKeyLabels?: boolean; controlsDisabled?: boolean } = {}): SchemaFormModel {
   const normalizedSchema = normalizeSchema(schema);
   const idPrefix = options.idPrefix ?? 'schema';
   const form: SchemaFormModel = {
     id: nextFieldId(idPrefix),
     fields: [],
-    hasFields: false
+    hasFields: false,
+    controlsDisabled: Boolean(options.controlsDisabled)
   };
 
   if (schemaType(normalizedSchema) === 'object' && normalizedSchema.properties) {
@@ -220,6 +226,10 @@ export function serializeSchemaForm(form: SchemaFormModel) {
   }
 
   return cleanPayload(payload) ?? {};
+}
+
+export function setSchemaFormControlsDisabled(form: SchemaFormModel, controlsDisabled: boolean) {
+  getJQuery().observable(form).setProperty('controlsDisabled', controlsDisabled);
 }
 
 export function hydrateSchemaField(field: SchemaField, value: unknown) {

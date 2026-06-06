@@ -232,20 +232,140 @@ describe('nodel-actsig', () => {
     await waitFor(() => Boolean(formByTitle('Power State')));
 
     const form = formByTitle('Power State')!;
-    expect(form.querySelector<HTMLFieldSetElement>('fieldset')?.disabled).toBe(true);
+    expect(form.querySelector<HTMLFieldSetElement>('fieldset')?.disabled).toBe(false);
+    expect(form.querySelector<HTMLFieldSetElement>('fieldset')?.getAttribute('aria-disabled')).toBe('true');
+    expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(true);
 
     submitForm(form);
     await flush();
     expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
 
     await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
-    await waitFor(() => form.querySelector<HTMLFieldSetElement>('fieldset')?.disabled === false);
+    await waitFor(() => form.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled === false);
+    expect(form.querySelector<HTMLFieldSetElement>('fieldset')?.getAttribute('aria-disabled')).toBe('false');
+    expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
 
     await setCheckboxValue(form.querySelector<HTMLInputElement>('input[type="checkbox"]')!, true);
     submitForm(form);
     await waitFor(() => actsigMock.emitNodeSignal.mock.calls.length === 1);
 
     expect(actsigMock.emitNodeSignal).toHaveBeenCalledWith('Power', { arg: true });
+  });
+
+  it('allows read-only object signals to expand while keeping controls disabled', async () => {
+    actsigMock.getNodeSignals.mockResolvedValue({
+      WledCurrentState: {
+        name: 'WledCurrentState',
+        title: 'WLED Current State',
+        schema: {
+          type: 'object',
+          properties: {
+            on: { type: 'boolean', title: 'On', order: 1 },
+            brightness: { type: 'integer', title: 'Brightness', order: 2 },
+            effect: { type: 'string', title: 'Effect', order: 3 }
+          }
+        }
+      }
+    });
+
+    await mountActSig();
+    await waitFor(() => Boolean(formByTitle('WLED Current State')));
+    await waitFor(() => actsigMock.activityListeners.length === 1);
+
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [
+          {
+            entry: {
+              seq: 1,
+              timestamp: '2026-01-01T00:00:00Z',
+              source: 'local',
+              type: 'event',
+              alias: 'WledCurrentState',
+              arg: { on: true, brightness: 52, effect: 'Rainbow' }
+            },
+            changed: true,
+            live: true
+          }
+        ]
+      }
+    });
+
+    await flush();
+    const form = formByTitle('WLED Current State')!;
+    const fieldset = form.querySelector<HTMLFieldSetElement>('fieldset')!;
+    expect(fieldset.disabled).toBe(false);
+    expect(fieldset.getAttribute('aria-disabled')).toBe('true');
+
+    const rootGroup = form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!;
+    expect(rootGroup.open).toBe(false);
+
+    await openDetails(rootGroup);
+    await waitFor(() => Boolean(form.querySelector<HTMLInputElement>('input[type="number"]')));
+
+    expect(rootGroup.open).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="checkbox"]')?.disabled).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="number"]')?.value).toBe('52');
+    expect(form.querySelector<HTMLInputElement>('input[type="number"]')?.disabled).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="text"]')?.value).toBe('Rainbow');
+    expect(form.querySelector<HTMLInputElement>('input[type="text"]')?.disabled).toBe(true);
+
+    submitForm(form);
+    await flush();
+    expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
+  });
+
+  it('keeps read-only signals shaped by their declared schema when values mismatch', async () => {
+    actsigMock.getNodeSignals.mockResolvedValue({
+      WledCurrentState: {
+        name: 'WledCurrentState',
+        title: 'WLED Current State',
+        schema: { type: 'string' }
+      }
+    });
+
+    await mountActSig();
+    await waitFor(() => Boolean(formByTitle('WLED Current State')));
+    await waitFor(() => actsigMock.activityListeners.length === 1);
+
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [
+          {
+            entry: {
+              seq: 1,
+              timestamp: '2026-01-01T00:00:00Z',
+              source: 'local',
+              type: 'event',
+              alias: 'WledCurrentState',
+              arg: { on: true, brightness: 52, effect: 'Rainbow' }
+            },
+            changed: true,
+            live: true
+          }
+        ]
+      }
+    });
+
+    await flush();
+    const form = formByTitle('WLED Current State')!;
+    expect(form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')).toBeNull();
+    expect(form.querySelector<HTMLInputElement>('input[type="text"]')?.disabled).toBe(true);
+    expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
   });
 
   it('caches grouped activity updates and hydrates when expanded', async () => {

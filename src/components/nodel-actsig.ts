@@ -17,6 +17,7 @@ import {
   registerSchemaFormTemplates,
   removeArrayEntry,
   serializeSchemaForm,
+  setSchemaFormControlsDisabled,
   type SchemaField,
   type SchemaFormModel
 } from '../schema/schema-form';
@@ -74,7 +75,7 @@ let nextId = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
-    <fieldset class="min-w-0" data-link="disabled{:busy || (pointType === 'event' && !~root.overrideSignals)}">
+    <fieldset class="min-w-0" data-link="disabled{:busy} aria-disabled{:pointType === 'event' && !~root.overrideSignals}">
       <div class="mb-2.5 flex min-w-0 items-start justify-between gap-2">
         <div class="min-w-0">
           <h3 class="truncate text-sm font-semibold text-nodel-fg" data-link="title{:name}">{^{>title}}</h3>
@@ -83,7 +84,7 @@ const actSigFormTemplate = `
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <span class="nodel-actsig-form-icon" aria-hidden="true">{^{:iconMarkup}}</span>
-          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized} title{:name}">
+          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} title{:name}">
             {^{if busy}}Sending...{{else}}{^{>pointType === 'action' ? 'Call' : 'Emit'}}{{/if}}
           </button>
         </div>
@@ -255,6 +256,7 @@ export class NodelActSig extends HTMLElement {
     this.source?.dispose();
     this.source = null;
     this.removeEventListener('submit', this.handleSubmit);
+    this.removeEventListener('change', this.handleChange);
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('toggle', this.handleToggle, true);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
@@ -291,6 +293,7 @@ export class NodelActSig extends HTMLElement {
       await linkTemplate(this, template, this.state);
       this.linked = true;
       this.addEventListener('submit', this.handleSubmit);
+      this.addEventListener('change', this.handleChange);
       this.addEventListener('click', this.handleClick);
       this.addEventListener('toggle', this.handleToggle, true);
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
@@ -450,13 +453,30 @@ export class NodelActSig extends HTMLElement {
 
     const schemaForm = createSchemaForm(form.schema, {
       idPrefix: form.id,
-      hideRootKeyLabels: true
+      hideRootKeyLabels: true,
+      controlsDisabled: this.isReadOnlySignalForm(form)
     });
     getJQuery().observable(form).setProperty({
       schemaForm,
       materialized: true
     });
     this.applyCachedArgToForm(form);
+  }
+
+  private syncSignalFormReadOnlyState(overrideSignals = this.state.overrideSignals) {
+    for (const section of this.state.sections) {
+      for (const row of section.rows) {
+        for (const form of [row.action, row.event]) {
+          if (form?.schemaForm) {
+            setSchemaFormControlsDisabled(form.schemaForm, this.isReadOnlySignalForm(form, overrideSignals));
+          }
+        }
+      }
+    }
+  }
+
+  private isReadOnlySignalForm(form: ActSigFormModel, overrideSignals = this.state.overrideSignals) {
+    return form.pointType === 'event' && !overrideSignals;
   }
 
   private subscribeActivity() {
@@ -596,6 +616,15 @@ export class NodelActSig extends HTMLElement {
     }
 
     void this.submitForm(form);
+  };
+
+  private handleChange = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.hasAttribute('data-actsig-override')) {
+      return;
+    }
+
+    window.setTimeout(() => this.syncSignalFormReadOnlyState(), 0);
   };
 
   private handleClick = (event: MouseEvent) => {
