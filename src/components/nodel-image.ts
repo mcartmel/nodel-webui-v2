@@ -1,0 +1,108 @@
+import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { escapeHtml } from '../utils/html';
+
+type NodelImageFit = 'contain' | 'cover';
+type NodelImageShape = 'none' | 'rounded' | 'circle';
+type NodelImageSize = 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+type NodelImageVariant = 'plain' | 'soft' | 'bordered';
+
+function normalizeFit(value: string | null): NodelImageFit {
+  return value === 'cover' ? 'cover' : 'contain';
+}
+
+function normalizeShape(value: string | null): NodelImageShape {
+  return value === 'none' || value === 'circle' ? value : 'rounded';
+}
+
+function normalizeSize(value: string | null): NodelImageSize {
+  return value === 'sm' || value === 'md' || value === 'lg' || value === 'xl' ? value : 'auto';
+}
+
+function normalizeVariant(value: string | null): NodelImageVariant {
+  return value === 'soft' || value === 'bordered' ? value : 'plain';
+}
+
+export class NodelImage extends HTMLElement {
+  static observedAttributes = ['src', 'alt', 'label', 'fit', 'shape', 'size', 'variant', 'signal', 'signals'];
+
+  private signalBindingsKey = '';
+  private signalSubscription: { dispose(): void } | null = null;
+
+  connectedCallback() {
+    this.render();
+    this.syncSignalSubscription();
+  }
+
+  disconnectedCallback() {
+    this.disposeSignalSubscription();
+  }
+
+  attributeChangedCallback() {
+    if (this.isConnected) {
+      this.render();
+      this.syncSignalSubscription();
+    }
+  }
+
+  private render() {
+    const src = this.getAttribute('src') ?? '';
+    const alt = this.getAttribute('alt') ?? '';
+    const label = this.getAttribute('label') ?? '';
+    const fit = normalizeFit(this.getAttribute('fit'));
+    const shape = normalizeShape(this.getAttribute('shape'));
+    const size = normalizeSize(this.getAttribute('size'));
+    const variant = normalizeVariant(this.getAttribute('variant'));
+
+    this.dataset.fit = fit;
+    this.dataset.shape = shape;
+    this.dataset.size = size;
+    this.dataset.variant = variant;
+
+    this.innerHTML = `
+      <span class="nodel-image-frame">
+        ${src ? `<img class="nodel-image-media" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" />` : '<span class="nodel-image-placeholder" aria-hidden="true"></span>'}
+      </span>
+      ${label ? `<span class="nodel-image-label">${escapeHtml(label)}</span>` : ''}
+    `;
+  }
+
+  private syncSignalSubscription() {
+    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'src');
+    const bindingsKey = signalBindingKey(bindings);
+
+    if (bindingsKey === this.signalBindingsKey) {
+      return;
+    }
+
+    this.disposeSignalSubscription();
+    this.signalBindingsKey = bindingsKey;
+
+    if (bindings.length === 0) {
+      return;
+    }
+
+    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+      alt: (value) => this.setSignalAttribute('alt', value),
+      label: (value) => this.setSignalAttribute('label', value),
+      src: (value) => this.setSignalAttribute('src', value)
+    });
+  }
+
+  private setSignalAttribute(name: string, value: string) {
+    if (value) {
+      this.setAttribute(name, value);
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  private disposeSignalSubscription() {
+    this.signalSubscription?.dispose();
+    this.signalSubscription = null;
+    this.signalBindingsKey = '';
+  }
+}
+
+if (!customElements.get('nodel-image')) {
+  customElements.define('nodel-image', NodelImage);
+}

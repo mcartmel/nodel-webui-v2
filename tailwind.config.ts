@@ -18,6 +18,7 @@ export default {
           muted: 'rgb(var(--nodel-muted) / <alpha-value>)',
           border: 'rgb(var(--nodel-border) / <alpha-value>)',
           accent: 'rgb(var(--nodel-accent) / <alpha-value>)',
+          info: 'rgb(var(--nodel-info) / <alpha-value>)',
           backdrop: 'rgb(var(--nodel-backdrop) / <alpha-value>)',
           danger: 'rgb(var(--nodel-danger) / <alpha-value>)',
           dangerBg: 'rgb(var(--nodel-danger-bg) / <alpha-value>)',

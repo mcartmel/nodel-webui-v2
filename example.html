@@ -202,6 +202,302 @@
         </nodel-page>
       </nodel-page>
 
+      <nodel-page title="Controls">
+        <nodel-page title="Control Grid">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Control Grid</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-control-grid</code> to divide a page column into equal-width touch control cells.
+              Use <code>nodel-control-space</code> for deliberate blank cells.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Fixed Columns</h2>
+              <p class="nodel-catalogue-description">
+                A grid with <code>columns=&quot;3&quot;</code> keeps each child to one third of the parent width. A single child occupies only the first cell.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="3">
+                    <nodel-button>One third</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+  &lt;nodel-button&gt;One third&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Wrap</h2>
+              <p class="nodel-catalogue-description">
+                Additional controls wrap naturally into later rows while keeping equal cell widths.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="3">
+                    <nodel-button>One</nodel-button>
+                    <nodel-button>Two</nodel-button>
+                    <nodel-button>Three</nodel-button>
+                    <nodel-button>Four</nodel-button>
+                    <nodel-button>Five</nodel-button>
+                    <nodel-button>Six</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+  &lt;nodel-button&gt;One&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Two&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Three&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Four&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Five&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Six&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Nested And Empty Cells</h2>
+              <p class="nodel-catalogue-description">
+                Nest grids to divide a cell further. Add <code>nodel-control-space</code> when a blank control slot is intentional.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-text surface="card" tone="default">Future tall control area</nodel-text>
+                    <nodel-control-grid columns="1">
+                      <nodel-button>Mute</nodel-button>
+                      <nodel-button>Speech</nodel-button>
+                      <nodel-button>Music</nodel-button>
+                      <nodel-control-space></nodel-control-space>
+                    </nodel-control-grid>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Volume&quot;&gt;&lt;/nodel-fader&gt;
+  &lt;nodel-control-grid columns=&quot;1&quot;&gt;
+    &lt;nodel-button&gt;Mute&lt;/nodel-button&gt;
+    &lt;nodel-button&gt;Speech&lt;/nodel-button&gt;
+    &lt;nodel-button&gt;Music&lt;/nodel-button&gt;
+    &lt;nodel-control-space&gt;&lt;/nodel-control-space&gt;
+  &lt;/nodel-control-grid&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+
+        <nodel-page title="Media">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Media</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-image</code> and <code>nodel-icon</code> as standalone control-grid items or as inline button children.
+              Use <code>nodel-status-indicator</code> inside buttons for compact signal state.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Standalone Media</h2>
+              <p class="nodel-catalogue-description">
+                Direct children of <code>nodel-control-grid</code> occupy their own control cell. Visible labels are optional; use <code>alt</code> for accessible names without visible text.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-image src="./v2/img/logo.png" alt="Nodel logo" size="lg"></nodel-image>
+                    <nodel-icon name="power" alt="Power" tone="accent" variant="soft"></nodel-icon>
+                    <nodel-icon name="volume" label="Volume" tone="success" size="lg" variant="bordered"></nodel-icon>
+                    <nodel-icon name="warning" label="Warning" tone="warning" size="xl"></nodel-icon>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel logo&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;nodel-icon name=&quot;power&quot; alt=&quot;Power&quot; tone=&quot;accent&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-icon name=&quot;volume&quot; label=&quot;Volume&quot; tone=&quot;success&quot; size=&quot;lg&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-icon name=&quot;warning&quot; label=&quot;Warning&quot; tone=&quot;warning&quot; size=&quot;xl&quot;&gt;&lt;/nodel-icon&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+
+        <nodel-page title="Buttons">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Buttons</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-button</code> for touch-sized buttons. Buttons without <code>action</code> are inert; action buttons are intended for node pages with relative REST action endpoints.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Variants</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>variant</code> for Bootstrap-like emphasis: primary, success, info, warning, danger, and link-style options.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-button>Default</nodel-button>
+                    <nodel-button variant="primary">Primary</nodel-button>
+                    <nodel-button variant="success">Success</nodel-button>
+                    <nodel-button variant="info">Info</nodel-button>
+                    <nodel-button variant="warning">Warning</nodel-button>
+                    <nodel-button variant="danger">Danger</nodel-button>
+                    <nodel-button variant="ghost">Ghost</nodel-button>
+                    <nodel-button variant="link">Link</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-button&gt;Default&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;primary&quot;&gt;Primary&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;success&quot;&gt;Success&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;info&quot;&gt;Info&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;warning&quot;&gt;Warning&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;danger&quot;&gt;Danger&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;ghost&quot;&gt;Ghost&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;link&quot;&gt;Link&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Signal State</h2>
+              <p class="nodel-catalogue-description">
+                Button state usually follows Nodel signals. The shorthand <code>signal</code> target controls <code>active</code>; explicit <code>signals</code> targets can control <code>active</code>, <code>disabled</code>, or <code>label</code>.
+              </p>
+            </header>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;StartShow&quot; signals=&quot;ShowRunning:active; ControlsLocked:disabled&quot;&gt;Start Show&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Media And Indicators</h2>
+              <p class="nodel-catalogue-description">
+                Media components render inline when placed inside <code>nodel-button</code>. The same <code>size</code> values apply inline. Indicators keep their own signal binding.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="3">
+                    <nodel-button aria-label="Power">
+                      <nodel-icon name="power" size="md"></nodel-icon>
+                    </nodel-button>
+                    <nodel-button>
+                      <nodel-image src="./v2/img/logo.png" alt="Nodel" size="lg"></nodel-image>
+                    </nodel-button>
+                    <nodel-button>
+                      HDMI 1
+                      <nodel-status-indicator value="present" label="HDMI 1 signal present"></nodel-status-indicator>
+                    </nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;3&quot;&gt;
+  &lt;nodel-button aria-label=&quot;Power&quot;&gt;
+    &lt;nodel-icon name=&quot;power&quot; size=&quot;md&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;/nodel-button&gt;
+  &lt;nodel-button&gt;
+    &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;HDMI1&quot; signal=&quot;Source&quot;&gt;
+    HDMI 1
+    &lt;nodel-status-indicator signal=&quot;HDMI1Present&quot; label=&quot;HDMI 1 signal present&quot;&gt;&lt;/nodel-status-indicator&gt;
+  &lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Text Components</h2>
+              <p class="nodel-catalogue-description">
+                Use <code>nodel-text</code> inside buttons when text fragments need their own tone or size.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-button layout="stack">
+                      <nodel-icon name="volume" size="lg"></nodel-icon>
+                      <nodel-text tone="default" size="lg">Volume</nodel-text>
+                      <nodel-text tone="muted" size="xs">Program</nodel-text>
+                    </nodel-button>
+                    <nodel-button variant="warning">
+                      <nodel-text tone="default" size="lg">Warning</nodel-text>
+                    </nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-button layout=&quot;stack&quot;&gt;
+    &lt;nodel-icon name=&quot;volume&quot; size=&quot;lg&quot;&gt;&lt;/nodel-icon&gt;
+    &lt;nodel-text tone=&quot;default&quot; size=&quot;lg&quot;&gt;Volume&lt;/nodel-text&gt;
+    &lt;nodel-text tone=&quot;muted&quot; size=&quot;xs&quot;&gt;Program&lt;/nodel-text&gt;
+  &lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;warning&quot;&gt;
+    &lt;nodel-text tone=&quot;default&quot; size=&quot;lg&quot;&gt;Warning&lt;/nodel-text&gt;
+  &lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Actions And Signals</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>action</code> and optional <code>arg</code> to call a current-node action. A shorthand <code>signal</code> marks the button active when the signal value matches <code>arg</code>.
+              </p>
+            </header>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Signage&quot; signal=&quot;Source&quot;&gt;Signage&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+      </nodel-page>
+
       <nodel-page title="Content">
         <nodel-page title="Titles">
           <header class="nodel-catalogue-header">
@@ -270,33 +566,51 @@
 
             <div class="nodel-catalogue-examples">
               <nodel-row>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text tone="default">Default text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text tone="muted">Muted text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text tone="accent">Accent text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text tone="success">Success text</nodel-text>
+                </nodel-column>
+                <nodel-column sm="6" md="3">
+                  <nodel-text tone="info">Info text</nodel-text>
+                </nodel-column>
+                <nodel-column sm="6" md="3">
+                  <nodel-text tone="warning">Warning text</nodel-text>
+                </nodel-column>
+                <nodel-column sm="6" md="3">
+                  <nodel-text tone="danger">Danger text</nodel-text>
                 </nodel-column>
               </nodel-row>
             </div>
 
             <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text tone=&quot;default&quot;&gt;Default text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text tone=&quot;muted&quot;&gt;Muted text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text tone=&quot;accent&quot;&gt;Accent text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text tone=&quot;success&quot;&gt;Success text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;info&quot;&gt;Info text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;warning&quot;&gt;Warning text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
+    &lt;nodel-text tone=&quot;danger&quot;&gt;Danger text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
           </section>
@@ -311,33 +625,39 @@
 
             <div class="nodel-catalogue-examples">
               <nodel-row>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text size="xs">Extra small text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text size="sm">Small text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text size="md">Medium text</nodel-text>
                 </nodel-column>
-                <nodel-column md="3">
+                <nodel-column sm="6" md="3">
                   <nodel-text size="lg">Large text</nodel-text>
+                </nodel-column>
+                <nodel-column sm="6" md="3">
+                  <nodel-text size="xl">Extra large text</nodel-text>
                 </nodel-column>
               </nodel-row>
             </div>
 
             <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text size=&quot;xs&quot;&gt;Extra small text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text size=&quot;sm&quot;&gt;Small text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text size=&quot;md&quot;&gt;Medium text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;3&quot;&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text size=&quot;lg&quot;&gt;Large text&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
+    &lt;nodel-text size=&quot;xl&quot;&gt;Extra large text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
           </section>

@@ -34,16 +34,25 @@ describe('nodel-text', () => {
   });
 
   it('applies card surface and custom tone/size', async () => {
-    document.body.innerHTML = '<nodel-text tone="accent" size="lg" surface="card">Card text</nodel-text>';
+    document.body.innerHTML = '<nodel-text tone="info" size="xl" surface="card">Card text</nodel-text>';
     await customElements.whenDefined('nodel-text');
     await Promise.resolve();
 
     const text = document.querySelector('nodel-text') as HTMLElement;
-    expect(text.dataset.tone).toBe('accent');
-    expect(text.dataset.size).toBe('lg');
+    expect(text.dataset.tone).toBe('info');
+    expect(text.dataset.size).toBe('xl');
     expect(text.dataset.surface).toBe('card');
     expect(text.style.getPropertyValue('--nodel-text-padding')).toBe('1rem');
     expect(text.style.getPropertyValue('--nodel-text-background')).toContain('rgb(var(--nodel-surface))');
+  });
+
+  it('supports warning and danger tones', async () => {
+    document.body.innerHTML = '<nodel-text tone="warning">Warning</nodel-text><nodel-text tone="danger">Danger</nodel-text>';
+    await customElements.whenDefined('nodel-text');
+    await Promise.resolve();
+
+    const texts = Array.from(document.querySelectorAll('nodel-text')) as HTMLElement[];
+    expect(texts.map((text) => text.dataset.tone)).toEqual(['warning', 'danger']);
   });
 
   it('updates text from matching local signal activity', async () => {

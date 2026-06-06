@@ -29,6 +29,12 @@ describe('nodel document definition', () => {
       'nodel-page',
       'nodel-row',
       'nodel-column',
+      'nodel-control-grid',
+      'nodel-control-space',
+      'nodel-button',
+      'nodel-image',
+      'nodel-icon',
+      'nodel-status-indicator',
       'nodel-console',
       'nodel-log',
       'nodel-params',
@@ -40,6 +46,20 @@ describe('nodel document definition', () => {
 
     const nodeList = nodelDocumentElements.find((element) => element.name === 'nodel-node-list');
     expect(nodeList?.attributes.find((attribute) => attribute.name === 'scope')?.values).toEqual(['local', 'network']);
+
+    const button = nodelDocumentElements.find((element) => element.name === 'nodel-button');
+    expect(button?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link']);
+    expect(button?.attributes.find((attribute) => attribute.name === 'layout')?.values).toEqual(['inline', 'stack']);
+
+    const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
+    expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);
+    expect(text?.attributes.find((attribute) => attribute.name === 'size')?.values).toEqual(['xs', 'sm', 'md', 'lg', 'xl']);
+
+    const image = nodelDocumentElements.find((element) => element.name === 'nodel-image');
+    expect(image?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['plain', 'soft', 'bordered']);
+
+    const icon = nodelDocumentElements.find((element) => element.name === 'nodel-icon');
+    expect(icon?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['plain', 'soft', 'bordered']);
 
     const completions = completeNodelDocument(fakeCompletionContext('<nodel-node-list scope="') as never);
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
@@ -86,6 +106,12 @@ describe('nodel document definition', () => {
       'nodel-page',
       'nodel-row',
       'nodel-column',
+      'nodel-control-grid',
+      'nodel-control-space',
+      'nodel-button',
+      'nodel-image',
+      'nodel-icon',
+      'nodel-status-indicator',
       'nodel-collapse',
       'nodel-text',
       'nodel-title',

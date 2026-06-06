@@ -28,6 +28,12 @@ Examples:
 - `nodel-page`
 - `nodel-row`
 - `nodel-column`
+- `nodel-control-grid`
+- `nodel-control-space`
+- `nodel-button`
+- `nodel-image`
+- `nodel-icon`
+- `nodel-status-indicator`
 - `nodel-collapse`
 - `nodel-description`
 - `nodel-text`
@@ -54,8 +60,12 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 
 - `.nodel-button` for ordinary buttons and button-like labels or links.
 - `.nodel-button-primary` for primary actions such as save, create, or submit.
+- `.nodel-button-success` for positive or completed actions.
+- `.nodel-button-info` for informational actions.
+- `.nodel-button-warning` for cautionary actions.
 - `.nodel-button-danger` for destructive actions such as delete.
 - `.nodel-button-ghost` for low-emphasis actions such as “more” or inactive navigation.
+- `.nodel-button-link` for link-styled button actions.
 - `.nodel-button-compact` for smaller buttons inside dense toolbars.
 - `.nodel-field` for text inputs, search inputs, and selects.
 - `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
@@ -181,6 +191,145 @@ Use `md="6"` for full width on small screens and half width from medium screens 
 
 `nodel-page title="..."` is used for generated navigation labels. It does not render a visible page heading. Add explicit heading/content components inside the page when a visible title is needed.
 
+## Touch Controls
+
+Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls.
+
+```html
+<nodel-row>
+  <nodel-column md="6">
+    <nodel-control-grid columns="4">
+      <nodel-button>Power</nodel-button>
+      <nodel-button variant="primary">Arm</nodel-button>
+      <nodel-button variant="success">Start</nodel-button>
+      <nodel-button variant="danger">Stop</nodel-button>
+    </nodel-control-grid>
+  </nodel-column>
+</nodel-row>
+```
+
+Supported `nodel-control-grid` attributes:
+
+- `columns`
+- `sm`
+- `md`
+- `lg`
+- `xl`
+- `2xl`
+
+Column counts are mobile-first and normalized to 1-12. A grid fills its parent width. Children naturally take the width of one grid cell; if there are more children than columns, they wrap to later rows.
+
+Nested grids are supported for mixed layouts. For example, a future tall fader can sit beside a stack of buttons:
+
+```html
+<nodel-control-grid columns="2">
+  <nodel-fader label="Volume"></nodel-fader>
+  <nodel-control-grid columns="1">
+    <nodel-button>Mute</nodel-button>
+    <nodel-button>Speech</nodel-button>
+    <nodel-button>Music</nodel-button>
+  </nodel-control-grid>
+</nodel-control-grid>
+```
+
+Use `nodel-control-space` for deliberate empty cells. It is scoped to control-grid layout rather than general page spacing.
+
+```html
+<nodel-control-grid columns="1">
+  <nodel-button>One</nodel-button>
+  <nodel-button>Two</nodel-button>
+  <nodel-button>Three</nodel-button>
+  <nodel-control-space></nodel-control-space>
+</nodel-control-grid>
+```
+
+`nodel-button` renders a touch-sized native button. Without an `action`, it is inert and can be used for examples or custom scripting. With an `action`, it posts to the current node's relative `REST/actions/<name>/call` endpoint, so action-enabled buttons should be used from a node page.
+
+Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a full control-grid cell when they are direct grid children, and render inline when placed inside `nodel-button`. `nodel-status-indicator` is intended for button content for now; inside a button it is overlaid in the top-right corner and stays out of inline or stacked content flow. Components keep their own signal behavior; the button only arranges them.
+
+Supported `nodel-button` attributes:
+
+- `variant="default|primary|success|info|warning|danger|ghost|link"`
+- `layout="inline|stack"`
+- `action="ActionName"`
+- `arg="value"`
+- `arg-type="string|number|boolean|json"`
+- `disabled`
+- `active`
+- `active-value="value"`
+- `signal="SignalName"`
+- `signals="SignalName:target"`
+
+`disabled` and `active` are state attributes. They can be set statically, but custom node pages usually let local Nodel signals drive them so the UI follows runtime state.
+
+Signal targets:
+
+- `active` is the shorthand `signal` target. It normally compares the signal value with `arg`. Use `active-value` only when the signal value that means active differs from the action argument. Without either value, truthy active text such as `on`, `true`, or `1` marks the button active.
+- `label` updates the button label.
+- `disabled` toggles disabled state from truthy/falsey text.
+
+```html
+<nodel-button action="SetSource" arg="Chromecast" signal="Source">
+  Chromecast
+</nodel-button>
+
+<nodel-button action="StartShow" signals="ShowRunning:active; ControlsLocked:disabled">
+  Start Show
+</nodel-button>
+
+<nodel-button action="SetSource" arg="HDMI1" signal="Source">
+  <nodel-icon name="image"></nodel-icon>
+  HDMI 1
+  <nodel-status-indicator signal="HDMI1Present" label="HDMI 1 signal present"></nodel-status-indicator>
+</nodel-button>
+
+<nodel-button action="SetSource" arg="HDMI1" signal="Source" layout="stack">
+  <nodel-icon name="image" size="lg"></nodel-icon>
+  <nodel-text tone="default" size="lg">HDMI 1</nodel-text>
+  <nodel-text tone="muted" size="xs">Projector</nodel-text>
+</nodel-button>
+```
+
+`nodel-image` supports:
+
+- `src`
+- `alt`
+- `label`
+- `fit="contain|cover"`
+- `shape="none|rounded|circle"`
+- `size="auto|sm|md|lg|xl"`
+- `variant="plain|soft|bordered"`
+- `signal="SignalName"` as shorthand for `src`
+- `signals="SignalName:target"` with targets `src`, `alt`, and `label`
+
+`size="auto"` is the default. Standalone images use the available tile space naturally; explicit sizes constrain the media. Inline button images default compact and use the same explicit size values when set. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
+
+`nodel-icon` supports:
+
+- `name`
+- `label`
+- `alt`
+- `tone="default|muted|accent|success|info|warning|danger"`
+- `size="auto|sm|md|lg|xl"`
+- `variant="plain|soft|bordered"`
+- `signal="SignalName"` as shorthand for `name`
+- `signals="SignalName:target"` with targets `name`, `alt`, `label`, and `tone`
+
+Use `label` when visible text should appear with a standalone icon. Use `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
+
+`nodel-status-indicator` supports:
+
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with targets `value` and `label`
+- `value`
+- `on-value`
+- `off-value`
+- `tone="success|info|warning|danger"`
+- `off-tone="off|muted"`
+- `label`
+
+Status indicators default to off/dark. Truthy values such as `true`, `1`, `on`, `active`, `present`, `available`, or `signal` turn them on. Falsey values such as `false`, `0`, `off`, `inactive`, `absent`, or an empty value turn them off.
+
 ## Collapsible Sections
 
 Use `nodel-collapse` for reusable collapsible panels. It is closed by default, matching the v1 editor section behavior. Add `open` when a section should start expanded. Add `preview` for fallback summary text while collapsed.
@@ -228,8 +377,8 @@ Use `nodel-text` for ordinary body text. It applies the default muted body styli
 
 Supported attributes:
 
-- `tone="muted|default|accent|danger|success"`
-- `size="xs|sm|md|lg"`
+- `tone="muted|default|accent|success|info|warning|danger"`
+- `size="xs|sm|md|lg|xl"`
 - `surface="none|card"`
 
 Use `surface="card"` for bordered/padded callouts.

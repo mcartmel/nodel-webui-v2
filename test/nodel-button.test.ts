@@ -1,0 +1,276 @@
+import { flush } from './helpers';
+
+const actionMock = vi.hoisted(() => ({
+  callNodeAction: vi.fn()
+}));
+
+const activityMock = vi.hoisted(() => ({
+  listeners: [] as Array<(state: any) => void>,
+  dispose: vi.fn()
+}));
+
+vi.mock('../src/api/nodel-host-client', () => ({
+  callNodeAction: actionMock.callNodeAction
+}));
+
+vi.mock('../src/data/node-activity-source', () => ({
+  subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
+    activityMock.listeners.push(listener);
+    return { dispose: activityMock.dispose };
+  })
+}));
+
+import '../src/components/nodel-button';
+import '../src/components/nodel-icon';
+import '../src/components/nodel-image';
+import '../src/components/nodel-status-indicator';
+import '../src/components/nodel-text';
+
+function emitSignal(alias: string, arg: unknown) {
+  for (const listener of activityMock.listeners) {
+    listener({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        items: [
+          {
+            entry: {
+              seq: 1,
+              timestamp: '2026-06-06T00:00:00Z',
+              source: 'local',
+              type: 'event',
+              alias,
+              arg
+            },
+            changed: true,
+            live: true
+          }
+        ],
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 2
+      }
+    });
+  }
+}
+
+describe('nodel-button', () => {
+  beforeEach(() => {
+    actionMock.callNodeAction.mockReset();
+    actionMock.callNodeAction.mockResolvedValue({});
+    activityMock.listeners = [];
+    activityMock.dispose.mockClear();
+    document.body.innerHTML = '<nodel-button variant="primary">Start</nodel-button>';
+  });
+
+  it('renders a native touch button with variant and label', async () => {
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const button = host.querySelector('button') as HTMLButtonElement;
+
+    expect(host.dataset.variant).toBe('primary');
+    expect(button.className).toContain('nodel-button-touch');
+    expect(button.className).toContain('nodel-button-primary');
+    expect(button.textContent?.trim()).toBe('Start');
+  });
+
+  it('supports Bootstrap-like button variants', async () => {
+    document.body.innerHTML = `
+      <nodel-button variant="success">Success</nodel-button>
+      <nodel-button variant="info">Info</nodel-button>
+      <nodel-button variant="warning">Warning</nodel-button>
+      <nodel-button variant="link">Link</nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const buttons = Array.from(document.querySelectorAll('nodel-button'));
+    expect(buttons.map((button) => button.getAttribute('data-variant'))).toEqual(['success', 'info', 'warning', 'link']);
+    expect(buttons[0].querySelector('button')?.className).toContain('nodel-button-success');
+    expect(buttons[1].querySelector('button')?.className).toContain('nodel-button-info');
+    expect(buttons[2].querySelector('button')?.className).toContain('nodel-button-warning');
+    expect(buttons[3].querySelector('button')?.className).toContain('nodel-button-link');
+  });
+
+  it('supports stacked child layout', async () => {
+    document.body.innerHTML = `
+      <nodel-button layout="stack">
+        <nodel-icon name="volume"></nodel-icon>
+        <nodel-text size="lg">Volume</nodel-text>
+      </nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    expect(host.dataset.layout).toBe('stack');
+    expect(host.querySelector('.nodel-button-content')).not.toBeNull();
+  });
+
+  it('maps disabled and active attributes to native state', async () => {
+    document.body.innerHTML = '<nodel-button active disabled>Selected</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const button = host.querySelector('button') as HTMLButtonElement;
+
+    expect(host.dataset.active).toBe('true');
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.className).toContain('is-active');
+  });
+
+  it('calls an action with an empty payload when no arg is set', async () => {
+    document.body.innerHTML = '<nodel-button action="Power">Power</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const submitted = vi.fn();
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    host.addEventListener('nodel-button-submitted', submitted);
+    host.querySelector('button')?.click();
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('Power', {});
+    expect(submitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('parses arg payloads before calling an action', async () => {
+    document.body.innerHTML = '<nodel-button action="SetLevel" arg="42" arg-type="number">Set</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    document.querySelector('nodel-button button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetLevel', { arg: 42 });
+  });
+
+  it('blocks duplicate clicks while busy', async () => {
+    let resolveAction: () => void = () => undefined;
+    actionMock.callNodeAction.mockReturnValue(new Promise<void>((resolve) => {
+      resolveAction = resolve;
+    }));
+    document.body.innerHTML = '<nodel-button action="Slow">Slow</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const button = document.querySelector('nodel-button button') as HTMLButtonElement;
+    button.click();
+    button.click();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
+    resolveAction();
+    await flush();
+  });
+
+  it('dispatches error events and toast details when action calls fail', async () => {
+    actionMock.callNodeAction.mockRejectedValue(new Error('No route'));
+    document.body.innerHTML = '<nodel-button action="Missing">Missing</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const error = vi.fn();
+    const toast = vi.fn();
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    host.addEventListener('nodel-button-error', error);
+    host.addEventListener('nodel-toast', toast);
+    host.querySelector('button')?.click();
+    await flush();
+
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast.mock.calls[0][0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
+  });
+
+  it('updates active, label, and disabled state from signal bindings', async () => {
+    document.body.innerHTML = '<nodel-button signal="Source" arg="TV" signals="ButtonLabel:label; Locked:disabled">Waiting</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    expect(activityMock.listeners).toHaveLength(1);
+
+    emitSignal('Source', 'TV');
+    expect(host.hasAttribute('active')).toBe(true);
+
+    emitSignal('ButtonLabel', 'Television');
+    expect(host.querySelector('button')?.textContent?.trim()).toBe('Television');
+
+    emitSignal('Locked', 'true');
+    expect(host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(true);
+
+    emitSignal('Locked', 'false');
+    expect(host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(false);
+  });
+
+  it('preserves media and indicator children across state renders', async () => {
+    document.body.innerHTML = `
+      <nodel-button signal="Source" arg="HDMI1" signals="ButtonLabel:label">
+        <nodel-icon name="image"></nodel-icon>
+        HDMI 1
+        <nodel-status-indicator value="present"></nodel-status-indicator>
+      </nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await customElements.whenDefined('nodel-icon');
+    await customElements.whenDefined('nodel-status-indicator');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const icon = host.querySelector('nodel-icon');
+    const indicator = host.querySelector('nodel-status-indicator');
+
+    emitSignal('Source', 'HDMI1');
+    expect(host.hasAttribute('active')).toBe(true);
+    expect(host.querySelector('nodel-icon')).toBe(icon);
+    expect(host.querySelector('nodel-status-indicator')).toBe(indicator);
+
+    emitSignal('ButtonLabel', 'Input 1');
+    expect(host.querySelector('[data-button-label]')?.textContent).toBe('Input 1');
+    expect(host.querySelector('nodel-icon')).toBe(icon);
+    expect(host.querySelector('nodel-status-indicator')).toBe(indicator);
+  });
+
+  it('supports accessible icon-only and image-only buttons', async () => {
+    document.body.innerHTML = `
+      <nodel-button aria-label="Power"><nodel-icon name="power"></nodel-icon></nodel-button>
+      <nodel-button><nodel-image src="logo.png" alt="Nodel"></nodel-image></nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await customElements.whenDefined('nodel-icon');
+    await customElements.whenDefined('nodel-image');
+    await flush();
+
+    const buttons = Array.from(document.querySelectorAll('nodel-button'));
+    expect(buttons[0].querySelector('button')?.getAttribute('aria-label')).toBe('Power');
+    expect(buttons[0].querySelector('[data-button-label]')).toBeNull();
+    expect(buttons[1].querySelector('nodel-image img')?.getAttribute('alt')).toBe('Nodel');
+    expect(buttons[1].querySelector('[data-button-label]')).toBeNull();
+  });
+
+  it('preserves nodel-text children inside buttons', async () => {
+    document.body.innerHTML = `
+      <nodel-button action="Volume">
+        <nodel-icon name="volume"></nodel-icon>
+        <nodel-text tone="info" size="xl">Volume</nodel-text>
+      </nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await customElements.whenDefined('nodel-icon');
+    await customElements.whenDefined('nodel-text');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const text = host.querySelector('nodel-text');
+    host.setAttribute('active', '');
+
+    expect(host.querySelector('nodel-text')).toBe(text);
+    expect(text?.getAttribute('data-tone')).toBe('info');
+    expect(text?.getAttribute('data-size')).toBe('xl');
+  });
+});

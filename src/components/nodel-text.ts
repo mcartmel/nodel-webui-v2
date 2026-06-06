@@ -1,22 +1,25 @@
 import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
 
-type NodelTextTone = 'muted' | 'default' | 'accent' | 'danger' | 'success';
-type NodelTextSize = 'xs' | 'sm' | 'md' | 'lg';
+type NodelTextTone = 'muted' | 'default' | 'accent' | 'success' | 'info' | 'warning' | 'danger';
+type NodelTextSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 type NodelTextSurface = 'none' | 'card';
 
 const toneValues: Record<NodelTextTone, string> = {
   muted: 'rgb(var(--nodel-muted))',
   default: 'rgb(var(--nodel-fg))',
   accent: 'rgb(var(--nodel-accent))',
+  success: 'rgb(var(--nodel-success))',
+  info: 'rgb(var(--nodel-info))',
+  warning: 'rgb(var(--nodel-warning))',
   danger: 'rgb(var(--nodel-danger))',
-  success: 'rgb(var(--nodel-success))'
 };
 
 const sizeValues: Record<NodelTextSize, [string, string]> = {
   xs: ['0.75rem', '1rem'],
   sm: ['0.875rem', '1.25rem'],
   md: ['1rem', '1.5rem'],
-  lg: ['1.125rem', '1.75rem']
+  lg: ['1.125rem', '1.75rem'],
+  xl: ['1.25rem', '1.875rem']
 };
 
 function normalizeTone(value: string | null): NodelTextTone {

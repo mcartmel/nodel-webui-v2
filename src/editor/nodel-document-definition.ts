@@ -67,6 +67,88 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-column md="6">\n  ${}\n</nodel-column>'
   },
   {
+    name: 'nodel-control-grid',
+    description: 'Equal-cell grid for touch controls.',
+    attributes: [
+      { name: 'columns', description: 'Base control column count.' },
+      { name: 'sm', description: 'Small breakpoint control column count.' },
+      { name: 'md', description: 'Medium breakpoint control column count.' },
+      { name: 'lg', description: 'Large breakpoint control column count.' }
+    ],
+    snippet: '<nodel-control-grid columns="3">\n  ${}\n</nodel-control-grid>'
+  },
+  {
+    name: 'nodel-control-space',
+    description: 'Empty placeholder cell inside a nodel-control-grid.',
+    attributes: [],
+    snippet: '<nodel-control-space></nodel-control-space>'
+  },
+  {
+    name: 'nodel-button',
+    description: 'Touch-sized action or state button.',
+    attributes: [
+      { name: 'variant', description: 'Button visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'] },
+      { name: 'layout', description: 'Button child layout.', values: ['inline', 'stack'] },
+      { name: 'action', description: 'Current-node action name to call on click.' },
+      { name: 'arg', description: 'Optional action argument value.' },
+      { name: 'arg-type', description: 'Parser for arg.', values: ['string', 'number', 'boolean', 'json'] },
+      { name: 'disabled', description: 'Disable the button.' },
+      { name: 'active', description: 'Mark the button active/pressed.' },
+      { name: 'active-value', description: 'Optional active-state signal value when it differs from arg.' },
+      { name: 'aria-label', description: 'Accessible label for icon-only or image-only buttons.' },
+      { name: 'title', description: 'Native button title text.' },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for active.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: active, label, disabled.' }
+    ],
+    snippet: '<nodel-button action="ActionName">${}</nodel-button>'
+  },
+  {
+    name: 'nodel-image',
+    description: 'Standalone or inline control image.',
+    attributes: [
+      { name: 'src', description: 'Image URL.' },
+      { name: 'alt', description: 'Alternative text.' },
+      { name: 'label', description: 'Optional visible label.' },
+      { name: 'fit', description: 'Image fit mode.', values: ['contain', 'cover'] },
+      { name: 'shape', description: 'Image shape.', values: ['none', 'rounded', 'circle'] },
+      { name: 'size', description: 'Image size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
+      { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for src.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: src, alt, label.' }
+    ],
+    snippet: '<nodel-image src="${}" alt=""></nodel-image>'
+  },
+  {
+    name: 'nodel-icon',
+    description: 'Standalone or inline control icon.',
+    attributes: [
+      { name: 'name', description: 'Built-in icon name.' },
+      { name: 'label', description: 'Optional visible/accessible label.' },
+      { name: 'alt', description: 'Accessible label without visible text.' },
+      { name: 'tone', description: 'Icon tone.', values: ['default', 'muted', 'accent', 'success', 'info', 'warning', 'danger'] },
+      { name: 'size', description: 'Icon size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
+      { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for name.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: name, alt, label, tone.' }
+    ],
+    snippet: '<nodel-icon name="power"></nodel-icon>'
+  },
+  {
+    name: 'nodel-status-indicator',
+    description: 'Small signal-driven status indicator for control children.',
+    attributes: [
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label.' },
+      { name: 'value', description: 'Current indicator value.' },
+      { name: 'on-value', description: 'Exact value that means on.' },
+      { name: 'off-value', description: 'Exact value that means off.' },
+      { name: 'tone', description: 'On-state tone.', values: ['success', 'info', 'warning', 'danger'] },
+      { name: 'off-tone', description: 'Off-state tone.', values: ['off', 'muted'] },
+      { name: 'label', description: 'Accessible status label.' }
+    ],
+    snippet: '<nodel-status-indicator signal="${}" label="Status"></nodel-status-indicator>'
+  },
+  {
     name: 'nodel-collapse',
     description: 'Collapsible section, closed by default.',
     attributes: [
@@ -89,8 +171,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     name: 'nodel-text',
     description: 'Theme-aware text block.',
     attributes: [
-      { name: 'tone', description: 'Text tone.', values: ['muted', 'default', 'accent', 'danger', 'success'] },
-      { name: 'size', description: 'Text size.', values: ['xs', 'sm', 'md', 'lg'] },
+      { name: 'tone', description: 'Text tone.', values: ['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger'] },
+      { name: 'size', description: 'Text size.', values: ['xs', 'sm', 'md', 'lg', 'xl'] },
       { name: 'surface', description: 'Optional surface style.', values: ['none', 'card'] },
       { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
       { name: 'signals', description: 'Signal bindings in SignalName:target format. Use target value for text content.' }

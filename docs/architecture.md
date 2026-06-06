@@ -26,6 +26,8 @@ The first UI layer is intentionally small:
 - `nodel-toolbar` renders the top bar.
 - `nodel-page` renders page sections.
 - `nodel-row` and `nodel-column` provide simple layout primitives.
+- `nodel-control-grid`, `nodel-control-space`, and `nodel-button` provide touch-focused control layout and button primitives for custom node pages.
+- `nodel-image`, `nodel-icon`, and `nodel-status-indicator` provide child-aware media and status primitives for touch controls.
 - `nodel-collapse` renders reusable collapsible panels.
 - `nodel-description` renders the current node description from `REST/` as markdown with a collapsed preview.
 - `nodel-theme-toggle` switches between light and dark themes and is shown inside the node menu on node pages.
