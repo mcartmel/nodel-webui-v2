@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 
@@ -17,6 +17,28 @@ const forbiddenCalls = new Set(['insertAdjacentHTML', 'replaceChildren', 'create
 function lineAndColumn(sourceFile, node) {
   const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
   return `${position.line + 1}:${position.character + 1}`;
+}
+
+function textLineAndColumn(text, index) {
+  const prefix = text.slice(0, index);
+  const lines = prefix.split('\n');
+  return `${lines.length}:${lines[lines.length - 1].length + 1}`;
+}
+
+async function collectTypeScriptFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await collectTypeScriptFiles(path));
+    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+      files.push(path);
+    }
+  }
+
+  return files;
 }
 
 function propertyName(node) {
@@ -76,8 +98,33 @@ function validateForbiddenPatterns(filePath, text, issues) {
   visit(sourceFile);
 }
 
+function validateDataLinkSyntax(filePath, text, issues) {
+  const dataLinkPattern = /data-link\s*=\s*(["'])([\s\S]*?)\1/g;
+  let match;
+
+  while ((match = dataLinkPattern.exec(text)) !== null) {
+    const value = match[2].trim();
+    const location = textLineAndColumn(text, match.index);
+
+    if (/^\{:[^}]+:\}\s+trigger\s*=\s*true\s*$/.test(value)) {
+      issues.push(`${filePath}:${location} use JsViews default two-way input binding shorthand, e.g. data-link="field trigger=true", instead of an unterminated tag expression like data-link="{:field:} trigger=true".`);
+    }
+
+    if (/^\{:[^}]+:\}\s+trigger\s*=\s*true\s+[^;]/.test(value)) {
+      issues.push(`${filePath}:${location} tag-expression two-way bindings with trigger=true must be terminated with ';' before additional bindings, or rewritten as default shorthand plus separate attribute bindings.`);
+    }
+  }
+}
+
 async function main() {
   const issues = [];
+
+  const sourceFiles = await collectTypeScriptFiles(resolve(projectRoot, 'src'));
+  for (const absolutePath of sourceFiles) {
+    const relativePath = absolutePath.slice(projectRoot.length + 1);
+    const text = await readFile(absolutePath, 'utf8');
+    validateDataLinkSyntax(relativePath, text, issues);
+  }
 
   for (const filePath of requiredComponents) {
     const absolutePath = resolve(projectRoot, filePath);

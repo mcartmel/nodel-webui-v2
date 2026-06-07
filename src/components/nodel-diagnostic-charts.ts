@@ -6,6 +6,7 @@ import type { Chart as ChartInstance, ChartConfiguration } from 'chart.js';
 
 type LineChart = ChartInstance<'line', number[], string>;
 type ChartConstructor = new (item: HTMLCanvasElement, config: ChartConfiguration<'line', number[], string>) => LineChart;
+type UpdatableLineChart = LineChart & { config?: ChartConfiguration<'line', number[], string>; update?: (mode?: string) => void };
 
 interface ChartCategoryView {
   name: string;
@@ -59,10 +60,10 @@ const template = `
     {{/if}}
     <div class="nodel-diagnostic-chart-grid">
       {^{for visibleMeasurements}}
-        <article class="nodel-diagnostic-chart-card">
+        <article class="nodel-diagnostic-chart-card" title="">
           <h4 class="nodel-diagnostic-chart-title">{^{>subcategory}}</h4>
           <div class="nodel-diagnostic-chart-canvas-wrap">
-            <canvas data-diagnostic-chart="{{:name}}" aria-label="{{:name}}"></canvas>
+            <canvas data-diagnostic-chart="{{:name}}" aria-label="{{:name}}" title=""></canvas>
           </div>
         </article>
       {{/for}}
@@ -112,6 +113,12 @@ function toChartValues(measurement: NodelDiagnosticMeasurement) {
   return (measurement.values ?? []).map((value) => Number(value) / scale);
 }
 
+const chartInteraction = {
+  axis: 'x' as const,
+  intersect: false,
+  mode: 'index' as const
+};
+
 export class NodelDiagnosticCharts extends HTMLElement {
   private charts = new Map<string, LineChart>();
   private chartConstructor: ChartConstructor | null = null;
@@ -140,6 +147,8 @@ export class NodelDiagnosticCharts extends HTMLElement {
     visibleMeasurements: []
   };
   private drawToken = 0;
+  private lastAppliedUpdatedAt: number | null = null;
+  private visibleMeasurementKey = '';
 
   connectedCallback() {
     if (!this.sourceKey) {
@@ -150,7 +159,6 @@ export class NodelDiagnosticCharts extends HTMLElement {
     this.addEventListener('change', this.handleChange);
     this.addEventListener('click', this.handleClick);
     this.mutationObserver = new MutationObserver(() => {
-      this.destroyCharts();
       void this.drawCharts();
     });
     this.mutationObserver.observe(document.documentElement, {
@@ -195,7 +203,8 @@ export class NodelDiagnosticCharts extends HTMLElement {
 
     this.source = source.subscribe(this, (state) => {
       this.state = state;
-      if (state.data) {
+      if (state.data && state.updatedAt !== this.lastAppliedUpdatedAt) {
+        this.lastAppliedUpdatedAt = state.updatedAt;
         this.measurements = sortedMeasurements(state.data);
       }
       this.updateView();
@@ -250,6 +259,15 @@ export class NodelDiagnosticCharts extends HTMLElement {
     this.charts.clear();
   }
 
+  private destroyChartsExcept(visibleNames: Set<string>) {
+    for (const [name, chart] of this.charts) {
+      if (!visibleNames.has(name)) {
+        chart.destroy();
+        this.charts.delete(name);
+      }
+    }
+  }
+
   private selectedMeasurements() {
     return this.measurements.filter((measurement) => this.selectedCategories.has(measurement.category));
   }
@@ -285,14 +303,20 @@ export class NodelDiagnosticCharts extends HTMLElement {
       }
     }
 
-    this.destroyCharts();
-    $.observable(this.view.visibleMeasurements).refresh(visibleMeasurements);
+    const nextVisibleMeasurementKey = visibleMeasurements.map((measurement) => measurement.name).join('\n');
+    if (nextVisibleMeasurementKey !== this.visibleMeasurementKey) {
+      this.visibleMeasurementKey = nextVisibleMeasurementKey;
+      $.observable(this.view.visibleMeasurements).refresh(visibleMeasurements);
+    }
     void this.drawCharts();
   }
 
   private async drawCharts() {
     const token = ++this.drawToken;
     const visibleMeasurements = this.selectedMeasurements();
+    const visibleNames = new Set(visibleMeasurements.map((measurement) => measurement.name));
+    this.destroyChartsExcept(visibleNames);
+
     if (visibleMeasurements.length === 0) {
       return;
     }
@@ -308,15 +332,59 @@ export class NodelDiagnosticCharts extends HTMLElement {
     const accent = cssColor('--nodel-accent');
     const accentFill = cssColor('--nodel-accent', 0.14);
 
+    const canvases = new Map(
+      Array.from(this.querySelectorAll<HTMLCanvasElement>('canvas[data-diagnostic-chart]'))
+        .map((canvas) => [canvas.dataset.diagnosticChart ?? '', canvas] as const)
+        .filter(([name]) => name)
+    );
+
     for (const measurement of visibleMeasurements) {
-      const canvas = Array.from(this.querySelectorAll<HTMLCanvasElement>('canvas[data-diagnostic-chart]'))
-        .find((candidate) => candidate.dataset.diagnosticChart === measurement.name);
+      const canvas = canvases.get(measurement.name);
       if (!canvas) {
         continue;
       }
 
       const values = toChartValues(measurement);
       const labels = values.map((_, index) => String(index + 1));
+      const existing = this.charts.get(measurement.name) as UpdatableLineChart | undefined;
+      if (existing) {
+        if (existing.canvas && existing.canvas !== canvas) {
+          existing.destroy();
+          this.charts.delete(measurement.name);
+        } else {
+          const data = existing.data ?? existing.config?.data;
+          const options = existing.options ?? existing.config?.options;
+          if (!data || !options) {
+            existing.destroy();
+            this.charts.delete(measurement.name);
+          } else {
+            data.labels = labels;
+            data.datasets[0].data = values;
+            data.datasets[0].borderColor = accent;
+            data.datasets[0].backgroundColor = accentFill;
+          if (options.plugins?.title) {
+            options.plugins.title.color = fg;
+          }
+          options.interaction = chartInteraction;
+          options.hover = {
+            ...(options.hover ?? {}),
+            intersect: false,
+            mode: 'index'
+          };
+          if (options.scales?.x) {
+              options.scales.x.grid = { ...(options.scales.x.grid ?? {}), color: border };
+              options.scales.x.ticks = { ...(options.scales.x.ticks ?? {}), color: muted };
+            }
+            if (options.scales?.y) {
+              options.scales.y.grid = { ...(options.scales.y.grid ?? {}), color: border };
+              options.scales.y.ticks = { ...(options.scales.y.ticks ?? {}), color: muted };
+            }
+            existing.update?.('none');
+            continue;
+          }
+        }
+      }
+
       this.charts.set(measurement.name, new Chart(canvas, {
         type: 'line',
         data: {
@@ -335,6 +403,11 @@ export class NodelDiagnosticCharts extends HTMLElement {
         },
         options: {
           animation: false,
+          interaction: chartInteraction,
+          hover: {
+            intersect: false,
+            mode: 'index'
+          },
           maintainAspectRatio: false,
           responsive: true,
           plugins: {

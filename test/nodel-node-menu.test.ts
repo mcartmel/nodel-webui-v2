@@ -154,6 +154,7 @@ describe('nodel-node-menu', () => {
 
     const input = document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')!;
     input.value = 'New Node';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
     document.querySelector<HTMLFormElement>('[data-node-menu-rename-form]')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
     await waitFor(() => nodeMenuMock.renameCurrentNode.mock.calls.length === 1);

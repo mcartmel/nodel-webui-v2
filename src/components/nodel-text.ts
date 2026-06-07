@@ -1,4 +1,4 @@
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 
 type NodelTextTone = 'muted' | 'default' | 'accent' | 'success' | 'info' | 'warning' | 'danger';
 type NodelTextSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -37,8 +37,7 @@ function normalizeSurface(value: string | null): NodelTextSurface {
 export class NodelText extends HTMLElement {
   static observedAttributes = ['tone', 'size', 'surface', 'signal', 'signals'];
 
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.render();
@@ -46,7 +45,7 @@ export class NodelText extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -83,31 +82,11 @@ export class NodelText extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'value');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'value', {
       value: (value) => {
         this.textContent = value;
       }
     });
-  }
-
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
   }
 }
 

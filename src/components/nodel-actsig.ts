@@ -9,13 +9,12 @@ import { subscribeNodeActivity } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import {
-  addArrayEntry,
   createSchemaForm,
   findSchemaField,
+  handleSchemaFormClick,
+  handleSchemaFormToggle,
   hydrateSchemaForm,
-  moveArrayEntry,
   registerSchemaFormTemplates,
-  removeArrayEntry,
   serializeSchemaForm,
   setSchemaFormControlsDisabled,
   type SchemaField,
@@ -628,39 +627,7 @@ export class NodelActSig extends HTMLElement {
   };
 
   private handleClick = (event: MouseEvent) => {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    const addButton = target.closest<HTMLElement>('[data-schema-array-add]');
-    if (addButton && this.contains(addButton)) {
-      const field = this.arrayFieldFor(addButton);
-      if (field) {
-        addArrayEntry(field);
-      }
-      return;
-    }
-
-    const removeButton = target.closest<HTMLElement>('[data-schema-array-remove]');
-    if (removeButton && this.contains(removeButton)) {
-      const field = this.arrayFieldFor(removeButton);
-      const entryId = removeButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
-      if (field && entryId) {
-        removeArrayEntry(field, entryId);
-      }
-      return;
-    }
-
-    const moveButton = target.closest<HTMLElement>('[data-schema-array-move]');
-    if (moveButton && this.contains(moveButton)) {
-      const field = this.arrayFieldFor(moveButton);
-      const entryId = moveButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
-      const direction = moveButton.dataset.schemaArrayMove === 'up' ? 'up' : 'down';
-      if (field && entryId) {
-        moveArrayEntry(field, entryId, direction);
-      }
-    }
+    handleSchemaFormClick(event, this, (fieldId) => this.findField(fieldId));
   };
 
   private handleToggle = (event: Event) => {
@@ -682,13 +649,7 @@ export class NodelActSig extends HTMLElement {
       return;
     }
 
-    const fieldId = target.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
-    if (fieldId) {
-      const field = this.findField(fieldId);
-      if (field) {
-        getJQuery().observable(field).setProperty('open', target.open);
-      }
-    }
+    handleSchemaFormToggle(event, this, (fieldId) => this.findField(fieldId));
   };
 
   private handleVisibilityChange = () => {
@@ -700,16 +661,6 @@ export class NodelActSig extends HTMLElement {
       this.applyCachedArgsToSection(section);
     }
   };
-
-  private arrayFieldFor(element: Element) {
-    const fieldId = element.closest<HTMLElement>('[data-schema-kind="array"]')?.dataset.schemaFieldId;
-    if (!fieldId) {
-      return null;
-    }
-
-    const field = this.findField(fieldId);
-    return field?.kind === 'array' ? field : null;
-  }
 
   private async submitForm(form: ActSigFormModel) {
     getJQuery().observable(form).setProperty({ busy: true, error: '' });

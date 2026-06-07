@@ -1,4 +1,4 @@
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 import { escapeHtml } from '../utils/html';
 
 type NodelImageFit = 'contain' | 'cover';
@@ -25,8 +25,7 @@ function normalizeVariant(value: string | null): NodelImageVariant {
 export class NodelImage extends HTMLElement {
   static observedAttributes = ['src', 'alt', 'label', 'fit', 'shape', 'size', 'variant', 'signal', 'signals'];
 
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.render();
@@ -34,7 +33,7 @@ export class NodelImage extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -67,21 +66,7 @@ export class NodelImage extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'src');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'src', {
       alt: (value) => this.setSignalAttribute('alt', value),
       label: (value) => this.setSignalAttribute('label', value),
       src: (value) => this.setSignalAttribute('src', value)
@@ -96,11 +81,6 @@ export class NodelImage extends HTMLElement {
     }
   }
 
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
-  }
 }
 
 if (!customElements.get('nodel-image')) {

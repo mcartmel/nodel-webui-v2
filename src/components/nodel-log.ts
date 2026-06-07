@@ -128,6 +128,10 @@ function logIcon(entry: NodelActivityLogEntry) {
   return `${baseIcon}${remoteIcon}`;
 }
 
+function rowClass(entry: NodelActivityLogEntry, pulse: boolean) {
+  return `nodel-log-row nodel-log-row-source-${escapeHtml(entry.source)} nodel-log-row-type-${escapeHtml(entry.type)} ${pulse ? 'is-pulsing' : ''}`;
+}
+
 function rowLimitCount(limit: RowLimit) {
   return limit === 'all' ? Number.POSITIVE_INFINITY : Number(limit);
 }
@@ -279,7 +283,7 @@ export class NodelLog extends HTMLElement {
       iconMarkup: logIcon(entry),
       key,
       pulse,
-      rowClass: `nodel-log-row nodel-log-row-source-${escapeHtml(entry.source)} nodel-log-row-type-${escapeHtml(entry.type)} ${pulse ? 'is-pulsing' : ''}`,
+      rowClass: rowClass(entry, pulse),
       showArg: entry.arg !== undefined
     };
   }
@@ -313,7 +317,7 @@ export class NodelLog extends HTMLElement {
       if (row) {
         getJQuery().observable(row).setProperty({
           pulse: false,
-          rowClass: 'nodel-log-row'
+          rowClass: rowClass(row.entry, false)
         });
       }
     }, 700);

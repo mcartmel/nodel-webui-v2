@@ -8,6 +8,8 @@ export class NodelToolkit extends HTMLElement {
   private editorHost: HTMLElement | null = null;
   private source: NodelSourceSubscription<NodelToolkitResponse> | null = null;
   private statusNode: HTMLElement | null = null;
+  private lastRenderedScript = '';
+  private lastRenderedError = '';
   private static nextSourceId = 0;
   private sourceKey = '';
   private state: NodelSourceState<NodelToolkitResponse> = {
@@ -101,10 +103,14 @@ export class NodelToolkit extends HTMLElement {
       }
     }
 
-    if (this.editor && loaded) {
+    if (this.editor && loaded && script !== this.lastRenderedScript) {
       this.editor.setDocument(script, 'nodetoolkit.py');
-    } else if (this.editor && this.state.error) {
+      this.lastRenderedScript = script;
+      this.lastRenderedError = '';
+    } else if (this.editor && this.state.error && this.state.error !== this.lastRenderedError) {
       this.editor.setDocument(`# ${this.state.error}`, 'nodetoolkit.py');
+      this.lastRenderedError = this.state.error;
+      this.lastRenderedScript = '';
     }
   }
 }

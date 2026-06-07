@@ -92,6 +92,7 @@ export class NodelNodeList extends HTMLElement {
   private connected = false;
   private debounceTimer: number | null = null;
   private linked = false;
+  private lastAppliedUpdatedAt: number | null = null;
   private source: NodelSourceSubscription<NodeListStateItem[]> | null = null;
   private state: NodeListState = {
     scope: 'local',
@@ -235,13 +236,17 @@ export class NodelNodeList extends HTMLElement {
 
       this.setError('');
       this.setLoading(state.loading);
-      this.applyRows(state.data ?? []);
+      if (state.updatedAt !== this.lastAppliedUpdatedAt) {
+        this.lastAppliedUpdatedAt = state.updatedAt;
+        this.applyRows(state.data ?? []);
+      }
     });
   }
 
   private disposeSource() {
     this.source?.dispose();
     this.source = null;
+    this.lastAppliedUpdatedAt = null;
   }
 
   private setLoading(loading: boolean) {

@@ -6,13 +6,12 @@ import {
 import type { NodelJsonSchema } from '../api/nodel-types';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import {
-  addArrayEntry,
   createSchemaForm,
   findSchemaField,
+  handleSchemaFormClick,
+  handleSchemaFormToggle,
   hydrateSchemaForm,
-  moveArrayEntry,
   registerSchemaFormTemplates,
-  removeArrayEntry,
   serializeSchemaForm,
   type SchemaField,
   type SchemaFormModel
@@ -177,64 +176,11 @@ export class NodelParams extends HTMLElement {
   };
 
   private handleClick = (event: MouseEvent) => {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    const addButton = target.closest<HTMLElement>('[data-schema-array-add]');
-    if (addButton && this.contains(addButton)) {
-      const field = this.arrayFieldFor(addButton);
-      if (field) {
-        addArrayEntry(field);
-      }
-      return;
-    }
-
-    const removeButton = target.closest<HTMLElement>('[data-schema-array-remove]');
-    if (removeButton && this.contains(removeButton)) {
-      const field = this.arrayFieldFor(removeButton);
-      const entryId = removeButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
-      if (field && entryId) {
-        removeArrayEntry(field, entryId);
-      }
-      return;
-    }
-
-    const moveButton = target.closest<HTMLElement>('[data-schema-array-move]');
-    if (moveButton && this.contains(moveButton)) {
-      const field = this.arrayFieldFor(moveButton);
-      const entryId = moveButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
-      const direction = moveButton.dataset.schemaArrayMove === 'up' ? 'up' : 'down';
-      if (field && entryId) {
-        moveArrayEntry(field, entryId, direction);
-      }
-    }
+    handleSchemaFormClick(event, this, (fieldId) => this.findField(fieldId));
   };
 
   private handleToggle = (event: Event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLDetailsElement) || !this.contains(target)) {
-      return;
-    }
-
-    const fieldId = target.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
-    if (fieldId) {
-      const field = this.findField(fieldId);
-      if (field) {
-        getJQuery().observable(field).setProperty('open', target.open);
-      }
-    }
-  };
-
-  private arrayFieldFor(element: Element) {
-    const fieldId = element.closest<HTMLElement>('[data-schema-kind="array"]')?.dataset.schemaFieldId;
-    if (!fieldId) {
-      return null;
-    }
-
-    const field = this.findField(fieldId);
-    return field?.kind === 'array' ? field : null;
+    handleSchemaFormToggle(event, this, (fieldId) => this.findField(fieldId));
   }
 
   private findField(fieldId: string): SchemaField | null {

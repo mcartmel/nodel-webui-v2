@@ -581,6 +581,76 @@ function stepFor(type: string, step: unknown) {
   return type === 'integer' ? 1 : 'any';
 }
 
+export type SchemaFieldFinder = (fieldId: string) => SchemaField | null;
+
+export function handleSchemaFormClick(event: MouseEvent, root: HTMLElement, findField: SchemaFieldFinder) {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  const addButton = target.closest<HTMLElement>('[data-schema-array-add]');
+  if (addButton && root.contains(addButton)) {
+    const field = arrayFieldFor(addButton, findField);
+    if (field) {
+      addArrayEntry(field);
+    }
+    return true;
+  }
+
+  const removeButton = target.closest<HTMLElement>('[data-schema-array-remove]');
+  if (removeButton && root.contains(removeButton)) {
+    const field = arrayFieldFor(removeButton, findField);
+    const entryId = removeButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
+    if (field && entryId) {
+      removeArrayEntry(field, entryId);
+    }
+    return true;
+  }
+
+  const moveButton = target.closest<HTMLElement>('[data-schema-array-move]');
+  if (moveButton && root.contains(moveButton)) {
+    const field = arrayFieldFor(moveButton, findField);
+    const entryId = moveButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
+    const direction = moveButton.dataset.schemaArrayMove === 'up' ? 'up' : 'down';
+    if (field && entryId) {
+      moveArrayEntry(field, entryId, direction);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+export function handleSchemaFormToggle(event: Event, root: HTMLElement, findField: SchemaFieldFinder) {
+  const target = event.target;
+  if (!(target instanceof HTMLDetailsElement) || !root.contains(target)) {
+    return false;
+  }
+
+  const fieldId = target.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
+  if (!fieldId) {
+    return false;
+  }
+
+  const field = findField(fieldId);
+  if (field) {
+    getJQuery().observable(field).setProperty('open', target.open);
+  }
+
+  return true;
+}
+
+function arrayFieldFor(element: Element, findField: SchemaFieldFinder) {
+  const fieldId = element.closest<HTMLElement>('[data-schema-kind="array"]')?.dataset.schemaFieldId;
+  if (!fieldId) {
+    return null;
+  }
+
+  const field = findField(fieldId);
+  return field?.kind === 'array' ? field : null;
+}
+
 function nextFieldId(prefix: string) {
   nextId += 1;
   return `nodel-schema-${prefix.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${nextId}`;

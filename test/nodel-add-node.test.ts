@@ -4,7 +4,7 @@ import '../src/components/nodel-add-node';
 async function openAddNodePanel(markup = '<nodel-add-node redirect="false"></nodel-add-node>') {
   document.body.innerHTML = markup;
   await customElements.whenDefined('nodel-add-node');
-  await flush();
+  await waitFor(() => Boolean(document.querySelector('.nodel-add-node-toggle')));
 
   const toggle = document.querySelector('.nodel-add-node-toggle') as HTMLButtonElement;
   toggle.click();
@@ -61,8 +61,8 @@ describe('nodel-add-node', () => {
 
     const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
     const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
-    nameInput.value = 'My Test Node';
-    templateInput.value = 'Recipes/Starter';
+    await setInputValue(nameInput, 'My Test Node');
+    await setInputValue(templateInput, 'Recipes/Starter');
 
     const form = document.querySelector('form') as HTMLFormElement;
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -146,7 +146,7 @@ describe('nodel-add-node', () => {
 
     const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
     const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
-    nameInput.value = 'My Copy';
+    await setInputValue(nameInput, 'My Copy');
     await setInputValue(templateInput, 'Existing');
     await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, {
       attempts: 80,

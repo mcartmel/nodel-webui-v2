@@ -1,5 +1,5 @@
 import { callNodeAction } from '../api/nodel-host-client';
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 
 type NodelButtonVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost' | 'link';
@@ -81,8 +81,7 @@ export class NodelButton extends HTMLElement {
   private defaultLabel = 'Button';
   private busy = false;
   private connected = false;
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.connected = true;
@@ -95,7 +94,7 @@ export class NodelButton extends HTMLElement {
   disconnectedCallback() {
     this.connected = false;
     this.removeEventListener('click', this.handleClick);
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -268,31 +267,11 @@ export class NodelButton extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'active');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'active', {
       active: (value) => this.setActiveFromValue(value),
       disabled: (value) => this.setDisabledFromValue(value),
       label: (value) => this.setLabel(value)
     });
-  }
-
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
   }
 
   private showToast(detail: NodelToastDetail) {

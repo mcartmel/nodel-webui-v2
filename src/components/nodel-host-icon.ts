@@ -1,12 +1,11 @@
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 import { generateHostIconDataUri } from '../icons/host-identicon';
 import { escapeHtml } from '../utils/html';
 
 export class NodelHostIcon extends HTMLElement {
   static observedAttributes = ['host', 'icon-host', 'href', 'title', 'alt', 'signal', 'signals'];
 
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.render();
@@ -14,7 +13,7 @@ export class NodelHostIcon extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -39,21 +38,7 @@ export class NodelHostIcon extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'host');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'host', {
       alt: (value) => this.setSignalAttribute('alt', value),
       host: (value) => this.setSignalAttribute('host', value),
       href: (value) => this.setSignalAttribute('href', value),
@@ -70,11 +55,6 @@ export class NodelHostIcon extends HTMLElement {
     }
   }
 
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
-  }
 }
 
 if (!customElements.get('nodel-host-icon')) {

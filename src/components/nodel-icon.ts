@@ -1,4 +1,4 @@
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 import { logIcons, renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
 import { escapeHtml } from '../utils/html';
 
@@ -45,8 +45,7 @@ function iconForName(value: string | null) {
 export class NodelIcon extends HTMLElement {
   static observedAttributes = ['name', 'label', 'alt', 'tone', 'size', 'variant', 'signal', 'signals'];
 
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.render();
@@ -54,7 +53,7 @@ export class NodelIcon extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -93,21 +92,7 @@ export class NodelIcon extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'name');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'name', {
       alt: (value) => this.setSignalAttribute('alt', value),
       label: (value) => this.setSignalAttribute('label', value),
       name: (value) => this.setSignalAttribute('name', value),
@@ -123,11 +108,6 @@ export class NodelIcon extends HTMLElement {
     }
   }
 
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
-  }
 }
 
 if (!customElements.get('nodel-icon')) {

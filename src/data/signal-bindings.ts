@@ -8,6 +8,11 @@ export interface SignalBinding {
 
 export type SignalTargetHandlers = Record<string, (value: string) => void>;
 
+export interface SignalBindingController {
+  sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers): void;
+  dispose(): void;
+}
+
 function formatSignalValue(value: unknown) {
   if (value === undefined || value === null) {
     return '';
@@ -87,6 +92,36 @@ export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBi
       }
     }
   });
+}
+
+export function createSignalBindingController(element: HTMLElement): SignalBindingController {
+  let bindingsKey = '';
+  let subscription: { dispose(): void } | null = null;
+
+  return {
+    sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers) {
+      const supportedTargets = new Set(Object.keys(handlers));
+      const bindings = parseSignalBindings(signal, signals, defaultTarget).filter((binding) => supportedTargets.has(binding.target));
+      const nextKey = signalBindingKey(bindings);
+
+      if (nextKey === bindingsKey) {
+        return;
+      }
+
+      subscription?.dispose();
+      subscription = null;
+      bindingsKey = nextKey;
+
+      if (bindings.length > 0) {
+        subscription = subscribeSignalBindings(element, bindings, handlers);
+      }
+    },
+    dispose() {
+      subscription?.dispose();
+      subscription = null;
+      bindingsKey = '';
+    }
+  };
 }
 
 interface VisibilityBindingState {

@@ -1,7 +1,7 @@
 import { getHostLogs } from '../api/nodel-host-client';
 import type { NodelHostLogEntry } from '../api/nodel-types';
 import { registerNodelPollSource, type NodelSourceSubscription } from '../data/nodel-data-runtime';
-import { escapeHtml } from '../utils/html';
+import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 
 interface HostLogBatch {
   entries: NodelHostLogEntry[];
@@ -18,6 +18,39 @@ interface HostLogEntryView {
   meta: string;
   seq: number;
 }
+
+interface HostLogViewModel {
+  entries: HostLogEntryView[];
+  empty: boolean;
+  showStatus: boolean;
+  statusLabel: string;
+  statusState: 'loading' | 'active' | 'paused' | 'error';
+}
+
+const template = `
+  <div class="nodel-host-log relative space-y-3">
+    {^{if showStatus}}
+      <div class="nodel-host-log-status nodel-alert nodel-alert-sm" role="status" data-link="class{:statusState === 'error' ? 'nodel-host-log-status nodel-alert nodel-alert-danger nodel-alert-sm' : 'nodel-host-log-status nodel-alert nodel-alert-sm'}">{^{>statusLabel}}</div>
+    {{/if}}
+    <div class="nodel-host-log-frame nodel-card">
+      <div data-host-log-output class="nodel-host-log-output">
+        {^{if empty}}
+          <div class="nodel-host-log-empty">No host log entries.</div>
+        {{else}}
+          {^{for entries}}
+            <div data-link="class{:lineClass}">
+              <span class="nodel-host-log-timestamp">{^{>displayTime}}</span>
+              <span class="nodel-host-log-level">{^{>level}}</span>
+              <span class="nodel-host-log-message">{^{>message}}</span>
+              {^{if meta}}<span class="nodel-host-log-meta">{^{>meta}}</span>{{/if}}
+              {^{if error}}<pre class="nodel-host-log-error">{^{>error}}</pre>{{/if}}
+            </div>
+          {{/for}}
+        {{/if}}
+      </div>
+    </div>
+  </div>
+`;
 
 function formatTimestamp(timestamp: unknown) {
   const value = String(timestamp ?? '');
@@ -48,12 +81,18 @@ function toEntryView(entry: NodelHostLogEntry): HostLogEntryView {
 export class NodelHostLog extends HTMLElement {
   private entries: HostLogEntryView[] = [];
   private lastAppliedNextSeq: number | null = null;
+  private linked = false;
   private seq: number | null = null;
   private source: NodelSourceSubscription<HostLogBatch> | null = null;
   private static nextSourceId = 0;
   private sourceKey = '';
-  private statusLabel = 'Loading host log';
-  private statusState: 'loading' | 'active' | 'paused' | 'error' = 'loading';
+  private view: HostLogViewModel = {
+    entries: [],
+    empty: false,
+    showStatus: true,
+    statusLabel: 'Loading host log',
+    statusState: 'loading'
+  };
 
   connectedCallback() {
     if (!this.sourceKey) {
@@ -61,7 +100,26 @@ export class NodelHostLog extends HTMLElement {
       this.sourceKey = `nodel-host-log-${NodelHostLog.nextSourceId}`;
     }
 
-    this.render();
+    void this.initialize();
+  }
+
+  disconnectedCallback() {
+    this.source?.dispose();
+    this.source = null;
+    void unlinkTemplate(this);
+    this.linked = false;
+  }
+
+  private async initialize() {
+    if (!this.linked) {
+      await linkTemplate(this, template, this.view);
+      this.linked = true;
+    }
+
+    if (this.source) {
+      return;
+    }
+
     const source = registerNodelPollSource<HostLogBatch>({
       key: this.sourceKey,
       intervalMs: 1000,
@@ -96,52 +154,26 @@ export class NodelHostLog extends HTMLElement {
     });
   }
 
-  disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
-  }
-
   private updateStatus(loading: boolean, error: string, active: boolean) {
-    this.statusLabel = error || (loading ? 'Loading host log' : active ? 'Host log' : 'Host log polling paused');
-    this.statusState = error ? 'error' : loading ? 'loading' : active ? 'active' : 'paused';
-    this.dataset.state = this.statusState;
-    this.setAttribute('aria-label', this.statusLabel);
-    this.title = this.statusLabel;
-    this.render();
+    const statusLabel = error || (loading ? 'Loading host log' : active ? 'Host log' : 'Host log polling paused');
+    const statusState = error ? 'error' : loading ? 'loading' : active ? 'active' : 'paused';
+    this.dataset.state = statusState;
+    this.setAttribute('aria-label', statusLabel);
+    this.title = statusLabel;
+    getJQuery().observable(this.view).setProperty({
+      showStatus: statusState !== 'active',
+      statusLabel,
+      statusState
+    });
   }
 
   private applyBatch(entries: NodelHostLogEntry[], replace: boolean) {
-    const current = replace ? [] : this.entries;
-    this.entries = [...current, ...entries.map(toEntryView)].slice(-200);
-    this.render();
-  }
-
-  private render() {
     const output = this.querySelector<HTMLElement>('[data-host-log-output]');
     const shouldScroll = output ? output.scrollTop + output.clientHeight >= output.scrollHeight - 4 : true;
-    const status = this.statusState === 'active'
-      ? ''
-      : `<div class="nodel-host-log-status nodel-alert ${this.statusState === 'error' ? 'nodel-alert-danger ' : ''}nodel-alert-sm" role="status">${escapeHtml(this.statusLabel)}</div>`;
-    const rows = this.entries.map((entry) => `
-      <div class="${entry.lineClass}">
-        <span class="nodel-host-log-timestamp">${escapeHtml(entry.displayTime)}</span>
-        <span class="nodel-host-log-level">${escapeHtml(entry.level)}</span>
-        <span class="nodel-host-log-message">${escapeHtml(entry.message)}</span>
-        ${entry.meta ? `<span class="nodel-host-log-meta">${escapeHtml(entry.meta)}</span>` : ''}
-        ${entry.error ? `<pre class="nodel-host-log-error">${escapeHtml(entry.error)}</pre>` : ''}
-      </div>
-    `).join('');
-
-    this.innerHTML = `
-      <div class="nodel-host-log relative space-y-3">
-        ${status}
-        <div class="nodel-host-log-frame nodel-card">
-          <div data-host-log-output class="nodel-host-log-output">
-            ${rows || '<div class="nodel-host-log-empty">No host log entries.</div>'}
-          </div>
-        </div>
-      </div>
-    `;
+    const current = replace ? [] : this.entries;
+    this.entries = [...current, ...entries.map(toEntryView)].slice(-200);
+    getJQuery().observable(this.view.entries).refresh(this.entries);
+    getJQuery().observable(this.view).setProperty('empty', this.entries.length === 0);
 
     const nextOutput = this.querySelector<HTMLElement>('[data-host-log-output]');
     if (shouldScroll && nextOutput) {

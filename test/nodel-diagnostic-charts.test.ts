@@ -6,12 +6,14 @@ const chartMock = vi.hoisted(() => {
     canvas: HTMLCanvasElement;
     config: any;
     destroy: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   }> = [];
 
   const Chart = vi.fn(function ChartMock(this: any, canvas: HTMLCanvasElement, config: any) {
     this.canvas = canvas;
     this.config = config;
     this.destroy = vi.fn();
+    this.update = vi.fn();
     instances.push(this);
   });
 
@@ -99,6 +101,10 @@ describe('nodel-diagnostic-charts', () => {
     expect(document.body.textContent).toContain('Receive.rate');
     expect(chartConfig.data.datasets[0].data).toEqual([1, 2, 3]);
     expect(chartConfig.options.animation).toBe(false);
+    expect(chartConfig.options.interaction).toEqual({ axis: 'x', intersect: false, mode: 'index' });
+    expect(chartConfig.options.hover).toMatchObject({ intersect: false, mode: 'index' });
+    expect(document.querySelector('.nodel-diagnostic-chart-card')?.getAttribute('title')).toBe('');
+    expect(document.querySelector('canvas[data-diagnostic-chart]')?.getAttribute('title')).toBe('');
   });
 
   it('adds and removes charts when selected categories change', async () => {
@@ -117,11 +123,38 @@ describe('nodel-diagnostic-charts', () => {
 
     setCategoryChecked('HTTP client', false);
 
-    await waitFor(() => chartMock.instances.length === 3);
-    expect(firstCharts.every((chart) => chart.destroy.mock.calls.length === 1)).toBe(true);
+    await waitFor(() => firstCharts.some((chart) => chart.destroy.mock.calls.length === 1));
+    expect(chartMock.instances).toHaveLength(2);
+    expect(firstCharts.filter((chart) => chart.destroy.mock.calls.length === 1)).toHaveLength(1);
     expect(checkedValues()).toEqual(['Java runtime']);
     expect(document.body.textContent).toContain('Free bytes');
     expect(document.body.textContent).not.toContain('Receive rate');
+  });
+
+  it('recreates charts after a category is deselected and selected again', async () => {
+    mockMeasurements([
+      { name: 'Java runtime.Free bytes', isRate: false, values: [100] }
+    ]);
+
+    document.body.innerHTML = '<nodel-diagnostic-charts></nodel-diagnostic-charts>';
+    await waitFor(() => categoryInputs().length === 1);
+
+    setCategoryChecked('Java runtime', true);
+    await waitFor(() => chartMock.instances.length === 1);
+    const firstChart = chartMock.instances[0];
+    const firstCanvas = firstChart.canvas;
+
+    setCategoryChecked('Java runtime', false);
+    await waitFor(() => firstChart.destroy.mock.calls.length === 1);
+    expect(document.querySelector('canvas[data-diagnostic-chart]')).toBeNull();
+
+    setCategoryChecked('Java runtime', true);
+    await waitFor(() => chartMock.instances.length === 2);
+    const secondChart = chartMock.instances[1];
+
+    expect(secondChart.canvas).not.toBe(firstCanvas);
+    expect(secondChart.canvas).toBe(document.querySelector('canvas[data-diagnostic-chart]'));
+    expect(secondChart.config.data.datasets[0].data).toEqual([100]);
   });
 
   it('redraws chart colours on theme change without losing selected categories', async () => {
@@ -137,9 +170,9 @@ describe('nodel-diagnostic-charts', () => {
 
     const firstChart = chartMock.instances[0];
     document.documentElement.setAttribute('data-theme', 'dark');
-    await waitFor(() => chartMock.instances.length === 2);
+    await waitFor(() => firstChart.update.mock.calls.length > 0);
 
-    expect(firstChart.destroy).toHaveBeenCalledTimes(1);
+    expect(firstChart.destroy).not.toHaveBeenCalled();
     expect(checkedValues()).toEqual(['HTTP client']);
   });
 
@@ -169,12 +202,13 @@ describe('nodel-diagnostic-charts', () => {
     await waitFor(() => chartMock.instances.length === 1);
 
     await ((document.querySelector('nodel-diagnostic-charts') as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
-    await waitFor(() => chartMock.instances.length >= 2);
+    await waitFor(() => chartMock.instances[0].config.data.datasets[0].data[0] === 2);
 
     const nextCheckbox = categoryInputs()[0];
     expect(nextCheckbox).toBe(checkbox);
     expect(checkedValues()).toEqual(['HTTP client']);
-    expect(chartMock.instances[chartMock.instances.length - 1].config.data.datasets[0].data).toEqual([2]);
+    expect(chartMock.instances).toHaveLength(1);
+    expect(chartMock.instances[0].config.data.datasets[0].data).toEqual([2]);
   });
 
   it('renders empty and error states', async () => {

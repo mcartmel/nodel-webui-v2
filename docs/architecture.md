@@ -92,6 +92,8 @@ This lets the custom content root override the built-in default document and vis
 
 JsViews stays in the stack for schema-driven forms.
 
+Use JsViews for components with async state, polling/live data, interactive lists, popovers, autocomplete results, drawers, and schema-driven controls where incremental DOM updates preserve focus and avoid unnecessary redraws. Keep shell-once imperative DOM for stable editor/markdown hosts and tiny static components. Avoid whole-component `innerHTML` replacement for interactive or frequently-updated components unless the DOM is intentionally disposable.
+
 Future form code should use:
 
 - `{^{}}` for live bindings.

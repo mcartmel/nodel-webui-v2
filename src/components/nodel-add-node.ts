@@ -1,7 +1,7 @@
 import { createNode, duplicateNode, listRecipes, searchNodeUrls } from '../api/nodel-host-client';
 import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
+import { linkTemplate, unlinkTemplate, getJQuery } from '../jsviews/jsviews-runtime';
 import { getVerySimpleName } from '../utils/node-name';
-import { escapeHtml } from '../utils/html';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 
 type Selection =
@@ -19,6 +19,28 @@ type TemplateResult =
   | { type: 'recipe'; path: string }
   | { type: 'node'; address: string; name: string; host: string };
 
+type TemplateResultView = TemplateResult & {
+  index: number;
+  primary: string;
+  secondary: string;
+};
+
+interface AddNodeViewModel {
+  duplicateEnabled: boolean;
+  hasNodeResults: boolean;
+  hasRecipeResults: boolean;
+  nodeName: string;
+  open: boolean;
+  recipeResults: TemplateResultView[];
+  nodeResults: TemplateResultView[];
+  selectionText: string;
+  showAutocomplete: boolean;
+  showSelection: boolean;
+  status: string;
+  submitting: boolean;
+  templateQuery: string;
+}
+
 const recipeCache: RecipeCache = {
   data: null,
   fetchedAt: 0,
@@ -28,9 +50,59 @@ const recipeCache: RecipeCache = {
 const recipeCacheTtlMs = 60 * 1000;
 const debounceMs = 200;
 
-function buildResultLabel(primary: string, secondary?: string) {
-  return `${escapeHtml(primary)}${secondary ? `<br><span>${escapeHtml(secondary)}</span>` : ''}`;
-}
+const template = `
+  <div class="nodel-add-node space-y-3">
+    <button type="button" class="nodel-add-node-toggle nodel-button" data-link="aria-expanded{:open ? 'true' : 'false'}">
+      Add node here
+    </button>
+
+    <div class="nodel-add-node-panel nodel-panel p-4" data-link="class{:open ? 'nodel-add-node-panel nodel-panel p-4' : 'nodel-add-node-panel nodel-panel hidden p-4'}">
+      <form class="space-y-4" novalidate>
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-name">Node name</label>
+          <input id="nodel-add-node-name" class="nodel-add-node-name nodel-field w-full" type="text" autocomplete="off" data-link="nodeName trigger=true" />
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-template">Template <small class="text-nodel-muted">(optional)</small></label>
+          <div class="relative">
+            <input id="nodel-add-node-template" class="nodel-add-node-template nodel-field w-full" type="text" placeholder="Search recipes or nodes..." autocomplete="off" data-link="templateQuery trigger=true" />
+            <div class="nodel-template-selected nodel-card mt-2 px-3 py-2 text-sm text-nodel-muted" data-link="class{:showSelection ? 'nodel-template-selected nodel-card mt-2 px-3 py-2 text-sm text-nodel-muted' : 'nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-nodel-muted'}">{^{>selectionText}}</div>
+            <div class="nodel-template-autocomplete nodel-popover mt-2" data-link="class{:showAutocomplete ? 'nodel-template-autocomplete nodel-popover mt-2' : 'nodel-template-autocomplete nodel-popover mt-2 hidden'}">
+              <ul class="divide-y divide-nodel-border">
+                {^{if hasRecipeResults}}
+                  <li class="nodel-section-heading px-3 py-2">Recipes</li>
+                  {^{for recipeResults}}
+                    <li>
+                      <button type="button" class="nodel-menu-item" data-template-result-index="{{:index}}">
+                        {^{>primary}}<br><span>{^{>secondary}}</span>
+                      </button>
+                    </li>
+                  {{/for}}
+                {{/if}}
+                {^{if hasNodeResults}}
+                  <li class="nodel-section-heading px-3 py-2">Existing Nodes</li>
+                  {^{for nodeResults}}
+                    <li>
+                      <button type="button" class="nodel-menu-item" data-template-result-index="{{:index}}">
+                        {^{>primary}}<br><span>{^{>secondary}}</span>
+                      </button>
+                    </li>
+                  {{/for}}
+                {{/if}}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <p class="nodel-add-node-status text-sm text-nodel-muted">{^{>status}}</p>
+          <button type="submit" class="nodeaddsubmit nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+`;
 
 async function refreshRecipes(force = false) {
   const now = Date.now();
@@ -59,31 +131,48 @@ export class NodelAddNode extends HTMLElement {
   static observedAttributes = ['redirect', 'recipes', 'duplicate'];
 
   private connected = false;
-  private open = false;
   private debounceTimer: number | null = null;
+  private linked = false;
   private searchToken = 0;
   private selection: Selection = null;
   private templateResults: TemplateResult[] = [];
+  private state: AddNodeViewModel = {
+    duplicateEnabled: true,
+    hasNodeResults: false,
+    hasRecipeResults: false,
+    nodeName: '',
+    open: false,
+    recipeResults: [],
+    nodeResults: [],
+    selectionText: '',
+    showAutocomplete: false,
+    showSelection: false,
+    status: '',
+    submitting: false,
+    templateQuery: ''
+  };
 
   connectedCallback() {
     this.connected = true;
-    this.render();
-    this.bindEvents();
+    void this.initialize();
   }
 
   disconnectedCallback() {
     this.connected = false;
-    if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
+    this.clearDebounceTimer();
+    this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('submit', this.handleSubmit);
+    this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.removeEventListener('keydown', this.handleKeydown);
+    this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.removeEventListener('keydown', this.handleKeydown);
+    this.unobserveControls();
     document.removeEventListener('click', this.handleDocumentClick);
+    void unlinkTemplate(this);
+    this.linked = false;
   }
 
   attributeChangedCallback() {
     if (this.connected) {
-      this.render();
-      this.bindEvents();
+      this.syncAttributeState();
     }
   }
 
@@ -99,132 +188,108 @@ export class NodelAddNode extends HTMLElement {
     return this.getAttribute('duplicate') !== 'false';
   }
 
-  private render() {
-    this.innerHTML = `
-      <div class="nodel-add-node space-y-3">
-        <button type="button" class="nodel-add-node-toggle nodel-button" aria-expanded="false">
-          Add node here
-        </button>
-
-        <div class="nodel-add-node-panel nodel-panel hidden p-4">
-          <form class="space-y-4" novalidate>
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-name">Node name</label>
-              <input id="nodel-add-node-name" class="nodel-add-node-name nodel-field w-full" type="text" autocomplete="off" />
-            </div>
-
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-template">Template <small class="text-nodel-muted">(optional)</small></label>
-              <div class="relative">
-                <input id="nodel-add-node-template" class="nodel-add-node-template nodel-field w-full" type="text" placeholder="Search recipes or nodes..." autocomplete="off" />
-                <div class="nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-nodel-muted"></div>
-                <div class="nodel-template-autocomplete nodel-popover mt-2 hidden">
-                  <ul class="divide-y divide-nodel-border"></ul>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between gap-3">
-              <p class="nodel-add-node-status text-sm text-nodel-muted"></p>
-              <button type="submit" class="nodeaddsubmit nodel-button nodel-button-primary">Add</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    `;
+  private async initialize() {
+    this.syncAttributeState();
+    if (!this.linked) {
+      await linkTemplate(this, template, this.state);
+      this.linked = true;
+      this.addEventListener('click', this.handleClick);
+      this.addEventListener('submit', this.handleSubmit);
+      document.addEventListener('click', this.handleDocumentClick);
+      this.bindKeydownEvents();
+      this.observeControls();
+    }
   }
 
-  private bindEvents() {
-    const toggle = this.querySelector<HTMLButtonElement>('.nodel-add-node-toggle');
-    const panel = this.querySelector<HTMLElement>('.nodel-add-node-panel');
-    const form = this.querySelector<HTMLFormElement>('form');
-    const nameInput = this.querySelector<HTMLInputElement>('.nodel-add-node-name');
-    const templateInput = this.querySelector<HTMLInputElement>('.nodel-add-node-template');
-    const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
-    const selection = this.querySelector<HTMLElement>('.nodel-template-selected');
-    const status = this.querySelector<HTMLElement>('.nodel-add-node-status');
-
-    toggle?.removeEventListener('click', this.handleToggleClick);
-    toggle?.addEventListener('click', this.handleToggleClick);
-
-    form?.removeEventListener('submit', this.handleSubmit);
-    form?.addEventListener('submit', this.handleSubmit);
-
-    templateInput?.removeEventListener('input', this.handleTemplateInput);
-    templateInput?.addEventListener('input', this.handleTemplateInput);
-
-    templateInput?.removeEventListener('keydown', this.handleTemplateKeydown);
-    templateInput?.addEventListener('keydown', this.handleTemplateKeydown);
-
-    document.removeEventListener('click', this.handleDocumentClick);
-    document.addEventListener('click', this.handleDocumentClick);
-
-    if (!this.open) {
-      panel?.classList.add('hidden');
-      toggle?.setAttribute('aria-expanded', 'false');
-    }
-
-    if (status) {
-      status.textContent = '';
-    }
-
-    if (selection) {
-      selection.classList.add('hidden');
-      selection.textContent = '';
-    }
-
-    if (autocomplete) {
-      autocomplete.classList.add('hidden');
-    }
-
-    nameInput?.removeEventListener('keydown', this.handleNameKeydown);
-    nameInput?.addEventListener('keydown', this.handleNameKeydown);
+  private bindKeydownEvents() {
+    this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.addEventListener('keydown', this.handleKeydown);
+    this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.addEventListener('keydown', this.handleKeydown);
   }
 
-  private handleToggleClick = async () => {
-    this.open = !this.open;
-    const panel = this.querySelector<HTMLElement>('.nodel-add-node-panel');
-    const toggle = this.querySelector<HTMLButtonElement>('.nodel-add-node-toggle');
-    const nameInput = this.querySelector<HTMLInputElement>('.nodel-add-node-name');
-    const templateInput = this.querySelector<HTMLInputElement>('.nodel-add-node-template');
+  private observeControls() {
+    const $ = getJQuery() as ReturnType<typeof getJQuery> & {
+      observe: (object: unknown, paths: string, handler: () => void) => void;
+    };
+    $.observe(this.state, 'templateQuery', this.handleTemplateQueryChange);
+  }
 
-    if (panel) {
-      panel.classList.toggle('hidden', !this.open);
+  private unobserveControls() {
+    const $ = getJQuery() as ReturnType<typeof getJQuery> & {
+      unobserve?: (object: unknown, paths: string, handler: () => void) => void;
+    };
+    $.unobserve?.(this.state, 'templateQuery', this.handleTemplateQueryChange);
+  }
+
+  private syncAttributeState() {
+    this.setState({ duplicateEnabled: this.allowDuplicate });
+  }
+
+  private clearDebounceTimer() {
+    if (this.debounceTimer !== null) {
+      window.clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
     }
-    toggle?.setAttribute('aria-expanded', String(this.open));
+  }
 
-    if (this.open) {
-      this.selection = null;
-      if (nameInput) {
-        nameInput.value = '';
-      }
-      if (templateInput) {
-        templateInput.value = '';
-      }
-      this.renderSelection(null);
-      this.renderResults([]);
-      await refreshRecipes(true);
-      nameInput?.focus();
-    }
-  };
-
-  private handleDocumentClick = (event: MouseEvent) => {
+  private handleClick = (event: MouseEvent) => {
     const target = event.target;
-    if (!(target instanceof Node) || this.contains(target)) {
+    if (!(target instanceof Element)) {
       return;
     }
 
-    this.closePanel();
+    if (target.closest('.nodel-add-node-toggle')) {
+      event.preventDefault();
+      void this.togglePanel();
+      return;
+    }
+
+    const result = target.closest<HTMLElement>('[data-template-result-index]');
+    if (result && this.contains(result)) {
+      event.preventDefault();
+      this.selectResult(Number(result.dataset.templateResultIndex));
+    }
   };
 
-  private closePanel() {
-    this.open = false;
-    this.querySelector<HTMLElement>('.nodel-add-node-panel')?.classList.add('hidden');
-    this.querySelector<HTMLButtonElement>('.nodel-add-node-toggle')?.setAttribute('aria-expanded', 'false');
-    this.querySelector<HTMLElement>('.nodel-template-autocomplete')?.classList.add('hidden');
-  }
+  private handleSubmit = (event: Event) => {
+    if (!(event.target instanceof HTMLFormElement) || !this.contains(event.target)) {
+      return;
+    }
 
-  private handleTemplateKeydown = (event: KeyboardEvent) => {
+    event.preventDefault();
+    void this.submit();
+  };
+
+  private handleTemplateQueryChange = () => {
+    if (!this.state.open) {
+      return;
+    }
+
+    const selectionValue = this.selection?.type === 'recipe' ? this.selection.path : this.selection?.type === 'node' ? this.selection.name : '';
+    if (selectionValue && this.state.templateQuery === selectionValue) {
+      return;
+    }
+
+    this.selection = null;
+    this.setState({ showSelection: false, selectionText: '' });
+    this.scheduleSearch();
+  };
+
+  private handleKeydown = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    if (target.matches('.nodel-add-node-name') && event.key === 'Enter') {
+      event.preventDefault();
+      void this.submit();
+      return;
+    }
+
+    if (!target.matches('.nodel-add-node-template')) {
+      return;
+    }
+
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       const autocomplete = this.showTemplateAutocompleteIfOptions();
       const direction = event.key === 'ArrowDown' ? 1 : -1;
@@ -247,7 +312,7 @@ export class NodelAddNode extends HTMLElement {
       if (autocomplete && !autocomplete.classList.contains('hidden') && getPopoverOptions(autocomplete, '.nodel-menu-item').length > 0) {
         event.preventDefault();
         clearActivePopoverOption(autocomplete, '.nodel-menu-item');
-        autocomplete.classList.add('hidden');
+        this.setState({ showAutocomplete: false });
         return;
       }
 
@@ -255,31 +320,57 @@ export class NodelAddNode extends HTMLElement {
     }
   };
 
-  private handleNameKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      void this.submit();
+  private handleDocumentClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node) || this.contains(target)) {
+      return;
     }
+
+    this.closePanel();
   };
 
-  private handleTemplateInput = () => {
-    if (this.debounceTimer !== null) {
-      window.clearTimeout(this.debounceTimer);
-    }
+  private async togglePanel() {
+    const open = !this.state.open;
+    this.setState({ open });
 
+    if (open) {
+      this.selection = null;
+      this.templateResults = [];
+      this.setState({
+        nodeName: '',
+        hasNodeResults: false,
+        hasRecipeResults: false,
+        nodeResults: [],
+        recipeResults: [],
+        selectionText: '',
+        showAutocomplete: false,
+        showSelection: false,
+        status: '',
+        templateQuery: ''
+      });
+      await refreshRecipes(true);
+      this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
+    }
+  }
+
+  private closePanel() {
+    this.setState({ open: false, showAutocomplete: false });
+  }
+
+  private scheduleSearch() {
+    this.clearDebounceTimer();
     this.debounceTimer = window.setTimeout(() => {
       this.debounceTimer = null;
       void this.searchTemplates();
     }, debounceMs);
-  };
+  }
 
   private async searchTemplates() {
     const token = ++this.searchToken;
-    const query = this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.value.trim() ?? '';
-    const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
+    const query = this.state.templateQuery.trim();
 
     if (!query) {
-      this.renderResults([]);
+      this.refreshResultViews([]);
       return;
     }
 
@@ -304,9 +395,7 @@ export class NodelAddNode extends HTMLElement {
           .map((node) => this.normalizeNodeResult(node))
       : [];
 
-    this.templateResults = [...recipeResults, ...nodeResults];
-    this.renderResults(this.templateResults);
-    autocomplete?.classList.remove('hidden');
+    this.refreshResultViews([...recipeResults, ...nodeResults]);
   }
 
   private normalizeNodeResult(node: NodelNodeUrlEntry): { type: 'node'; address: string; name: string; host: string } {
@@ -316,63 +405,25 @@ export class NodelAddNode extends HTMLElement {
     return { type: 'node', address, name, host };
   }
 
-  private renderResults(results: TemplateResult[]) {
-    const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
-    const list = this.querySelector<HTMLUListElement>('.nodel-template-autocomplete ul');
-    const selection = this.querySelector<HTMLElement>('.nodel-template-selected');
+  private refreshResultViews(results: TemplateResult[]) {
+    this.templateResults = results;
+    const views = results.map((result, index): TemplateResultView => ({
+      ...result,
+      index,
+      primary: result.type === 'recipe' ? result.path : result.name,
+      secondary: result.type === 'recipe' ? 'Recipe' : result.host
+    }));
 
-    if (!autocomplete || !list) {
-      return;
-    }
-
-    list.innerHTML = '';
-
-    if (results.length === 0) {
-      autocomplete.classList.add('hidden');
-      return;
-    }
-
-    const recipes = results.filter((item) => item.type === 'recipe') as Array<{ type: 'recipe'; path: string }>;
-    const nodes = results.filter((item) => item.type === 'node') as Array<{ type: 'node'; address: string; name: string; host: string }>;
-
-    if (recipes.length > 0) {
-      const header = document.createElement('li');
-      header.className = 'nodel-section-heading px-3 py-2';
-      header.textContent = 'Recipes';
-      list.appendChild(header);
-
-      for (const recipe of recipes) {
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'nodel-menu-item';
-        button.innerHTML = buildResultLabel(recipe.path, 'Recipe');
-        button.addEventListener('click', () => this.selectRecipe(recipe.path));
-        item.appendChild(button);
-        list.appendChild(item);
-      }
-    }
-
-    if (nodes.length > 0) {
-      const header = document.createElement('li');
-      header.className = 'nodel-section-heading px-3 py-2';
-      header.textContent = 'Existing Nodes';
-      list.appendChild(header);
-
-      for (const node of nodes) {
-        const item = document.createElement('li');
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'nodel-menu-item';
-        button.innerHTML = buildResultLabel(node.name, node.host);
-        button.addEventListener('click', () => this.selectNode(node.address, node.name, node.host));
-        item.appendChild(button);
-        list.appendChild(item);
-      }
-    }
-
-    autocomplete.classList.remove('hidden');
-    selection?.classList.add('hidden');
+    const recipeViews = views.filter((result) => result.type === 'recipe');
+    const nodeViews = views.filter((result) => result.type === 'node');
+    getJQuery().observable(this.state.recipeResults).refresh(recipeViews);
+    getJQuery().observable(this.state.nodeResults).refresh(nodeViews);
+    this.setState({
+      hasNodeResults: nodeViews.length > 0,
+      hasRecipeResults: recipeViews.length > 0,
+      showAutocomplete: views.length > 0,
+      showSelection: false
+    });
   }
 
   private showTemplateAutocompleteIfOptions() {
@@ -381,77 +432,56 @@ export class NodelAddNode extends HTMLElement {
       return null;
     }
 
-    autocomplete.classList.remove('hidden');
+    this.setState({ showAutocomplete: true });
     return autocomplete;
   }
 
-  private renderSelection(selection: Selection) {
-    const selectionEl = this.querySelector<HTMLElement>('.nodel-template-selected');
-    if (!selectionEl) {
+  private selectResult(index: number) {
+    const result = this.templateResults[index];
+    if (!result) {
       return;
     }
 
-    if (!selection) {
-      selectionEl.classList.add('hidden');
-      selectionEl.textContent = '';
+    if (result.type === 'recipe') {
+      this.selection = { type: 'recipe', path: result.path };
+      this.setState({
+        selectionText: `Recipe: ${result.path}`,
+        showAutocomplete: false,
+        showSelection: true,
+        templateQuery: result.path
+      });
       return;
     }
 
-    selectionEl.classList.remove('hidden');
-    selectionEl.textContent = selection.type === 'recipe' ? `Recipe: ${selection.path}` : `Node: ${selection.name}`;
+    this.selection = { type: 'node', address: result.address, name: result.name, host: result.host };
+    this.setState({
+      selectionText: `Node: ${result.name}`,
+      showAutocomplete: false,
+      showSelection: true,
+      templateQuery: result.name
+    });
   }
-
-  private selectRecipe(path: string) {
-    this.selection = { type: 'recipe', path };
-    this.renderSelection(this.selection);
-    this.querySelector<HTMLInputElement>('.nodel-add-node-template')!.value = path;
-    this.querySelector<HTMLElement>('.nodel-template-autocomplete')?.classList.add('hidden');
-  }
-
-  private selectNode(address: string, name: string, host: string) {
-    this.selection = { type: 'node', address, name, host };
-    this.renderSelection(this.selection);
-    this.querySelector<HTMLInputElement>('.nodel-add-node-template')!.value = name;
-    this.querySelector<HTMLElement>('.nodel-template-autocomplete')?.classList.add('hidden');
-  }
-
-  private handleSubmit = (event: Event) => {
-    event.preventDefault();
-    void this.submit();
-  };
 
   private async submit() {
-    const button = this.querySelector<HTMLButtonElement>('.nodeaddsubmit');
-    const nameInput = this.querySelector<HTMLInputElement>('.nodel-add-node-name');
-    const templateInput = this.querySelector<HTMLInputElement>('.nodel-add-node-template');
-    const status = this.querySelector<HTMLElement>('.nodel-add-node-status');
-    const name = nameInput?.value.trim() ?? '';
-    const templateValue = templateInput?.value.trim() ?? '';
+    const name = this.state.nodeName.trim();
+    const templateValue = this.state.templateQuery.trim();
 
     if (!name) {
-      if (status) {
-        status.textContent = 'Please enter a node name';
-      }
+      this.setState({ status: 'Please enter a node name' });
       return;
     }
 
-    if (button) {
-      button.disabled = true;
-    }
+    this.setState({ submitting: true });
 
     try {
       let url = '';
 
       if (this.selection?.type === 'node' && this.allowDuplicate) {
-        if (status) {
-          status.textContent = 'Duplicating node...';
-        }
+        this.setState({ status: 'Duplicating node...' });
         url = await duplicateNode(this.selection.address, name);
       } else {
         const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
-        if (status) {
-          status.textContent = 'Creating node...';
-        }
+        this.setState({ status: 'Creating node...' });
         await createNode(name, base || undefined);
         url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
       }
@@ -460,20 +490,22 @@ export class NodelAddNode extends HTMLElement {
       if (this.allowRedirect) {
         window.location.href = url;
       } else {
-        if (status) {
-          status.textContent = 'Node created';
-        }
+        this.setState({ status: 'Node created' });
       }
 
       this.closePanel();
     } catch (error) {
-      if (status) {
-        status.textContent = error instanceof Error ? error.message : 'Node add failed';
-      }
+      this.setState({ status: error instanceof Error ? error.message : 'Node add failed' });
     } finally {
-      if (button) {
-        button.disabled = false;
-      }
+      this.setState({ submitting: false });
+    }
+  }
+
+  private setState(values: Partial<AddNodeViewModel>) {
+    if (this.linked) {
+      getJQuery().observable(this.state).setProperty(values);
+    } else {
+      Object.assign(this.state, values);
     }
   }
 }

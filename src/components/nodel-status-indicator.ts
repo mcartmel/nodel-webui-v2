@@ -1,4 +1,4 @@
-import { parseSignalBindings, signalBindingKey, subscribeSignalBindings } from '../data/signal-bindings';
+import { createSignalBindingController } from '../data/signal-bindings';
 
 type NodelStatusTone = 'success' | 'info' | 'warning' | 'danger';
 type NodelStatusState = 'on' | 'off';
@@ -30,8 +30,7 @@ function stateFromValue(value: string, onValue: string | null, offValue: string 
 export class NodelStatusIndicator extends HTMLElement {
   static observedAttributes = ['signal', 'signals', 'value', 'on-value', 'off-value', 'tone', 'off-tone', 'label'];
 
-  private signalBindingsKey = '';
-  private signalSubscription: { dispose(): void } | null = null;
+  private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
     this.render();
@@ -39,7 +38,7 @@ export class NodelStatusIndicator extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.disposeSignalSubscription();
+    this.signalBindings.dispose();
   }
 
   attributeChangedCallback() {
@@ -76,21 +75,7 @@ export class NodelStatusIndicator extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const bindings = parseSignalBindings(this.getAttribute('signal'), this.getAttribute('signals'), 'value');
-    const bindingsKey = signalBindingKey(bindings);
-
-    if (bindingsKey === this.signalBindingsKey) {
-      return;
-    }
-
-    this.disposeSignalSubscription();
-    this.signalBindingsKey = bindingsKey;
-
-    if (bindings.length === 0) {
-      return;
-    }
-
-    this.signalSubscription = subscribeSignalBindings(this, bindings, {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'value', {
       label: (value) => this.setSignalAttribute('label', value),
       value: (value) => this.setSignalAttribute('value', value)
     });
@@ -106,11 +91,6 @@ export class NodelStatusIndicator extends HTMLElement {
     }
   }
 
-  private disposeSignalSubscription() {
-    this.signalSubscription?.dispose();
-    this.signalSubscription = null;
-    this.signalBindingsKey = '';
-  }
 }
 
 if (!customElements.get('nodel-status-indicator')) {

@@ -200,6 +200,24 @@ function getOrCreateSource<T>(options: NodelPollSourceOptions<T>) {
 export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
   const entry = getOrCreateSource(options);
 
+  function ensureRegistered() {
+    if (!sources.has(options.key)) {
+      sources.set(options.key, entry as SourceEntry<unknown>);
+    }
+  }
+
+  function resetAfterLastSubscriber() {
+    clearTimer(entry);
+    entry.abortController?.abort();
+    entry.abortController = null;
+    entry.inFlight = null;
+    entry.refreshToken += 1;
+    entry.state = createState<T>();
+    entry.failureCount = 0;
+    entry.pendingRefresh = false;
+    sources.delete(options.key);
+  }
+
   function evaluate() {
     const active = shouldRun(entry);
     entry.state.active = active;
@@ -224,6 +242,8 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
 
   return {
     subscribe(element: HTMLElement, listener: Listener<T>): NodelSourceSubscription<T> {
+      ensureRegistered();
+
       const subscriber: SourceSubscriber<T> = {
         element,
         visible: false,
@@ -247,11 +267,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
           entry.subscribers.delete(subscriber);
 
           if (entry.subscribers.size === 0) {
-            clearTimer(entry);
-            entry.abortController?.abort();
-            entry.refreshToken += 1;
-            entry.state.active = false;
-            entry.pendingRefresh = false;
+            resetAfterLastSubscriber();
           }
         },
         getState: () => entry.state

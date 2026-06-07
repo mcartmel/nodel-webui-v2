@@ -107,6 +107,7 @@ export class NodelDiagnostics extends HTMLElement {
   private source: NodelSourceSubscription<DiagnosticsPayload> | null = null;
   private static nextSourceId = 0;
   private sourceKey = '';
+  private lastRenderKey = '';
 
   connectedCallback() {
     if (!this.sourceKey) {
@@ -148,6 +149,11 @@ export class NodelDiagnostics extends HTMLElement {
     });
 
     this.source = source.subscribe(this, (state: NodelSourceState<DiagnosticsPayload>) => {
+      const renderKey = `${state.loading}|${state.error}|${state.updatedAt ?? ''}`;
+      if (renderKey === this.lastRenderKey) {
+        return;
+      }
+      this.lastRenderKey = renderKey;
       this.state = {
         loading: state.loading,
         error: state.error,
