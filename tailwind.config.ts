@@ -15,16 +15,29 @@ export default {
           bg: 'rgb(var(--nodel-bg) / <alpha-value>)',
           fg: 'rgb(var(--nodel-fg) / <alpha-value>)',
           surface: 'rgb(var(--nodel-surface) / <alpha-value>)',
+          surfaceRaised: 'rgb(var(--nodel-surface-raised) / <alpha-value>)',
           muted: 'rgb(var(--nodel-muted) / <alpha-value>)',
           border: 'rgb(var(--nodel-border) / <alpha-value>)',
           accent: 'rgb(var(--nodel-accent) / <alpha-value>)',
+          accentFill: 'rgb(var(--nodel-accent-fill) / <alpha-value>)',
+          onAccent: 'rgb(var(--nodel-on-accent) / <alpha-value>)',
           info: 'rgb(var(--nodel-info) / <alpha-value>)',
+          infoFill: 'rgb(var(--nodel-info-fill) / <alpha-value>)',
+          onInfo: 'rgb(var(--nodel-on-info) / <alpha-value>)',
           backdrop: 'rgb(var(--nodel-backdrop) / <alpha-value>)',
           danger: 'rgb(var(--nodel-danger) / <alpha-value>)',
+          dangerFill: 'rgb(var(--nodel-danger-fill) / <alpha-value>)',
+          onDanger: 'rgb(var(--nodel-on-danger) / <alpha-value>)',
           dangerBg: 'rgb(var(--nodel-danger-bg) / <alpha-value>)',
           dangerBorder: 'rgb(var(--nodel-danger-border) / <alpha-value>)',
+          focus: 'rgb(var(--nodel-focus) / <alpha-value>)',
+          statusOff: 'rgb(var(--nodel-status-off) / <alpha-value>)',
           success: 'rgb(var(--nodel-success) / <alpha-value>)',
-          warning: 'rgb(var(--nodel-warning) / <alpha-value>)'
+          successFill: 'rgb(var(--nodel-success-fill) / <alpha-value>)',
+          onSuccess: 'rgb(var(--nodel-on-success) / <alpha-value>)',
+          warning: 'rgb(var(--nodel-warning) / <alpha-value>)',
+          warningFill: 'rgb(var(--nodel-warning-fill) / <alpha-value>)',
+          onWarning: 'rgb(var(--nodel-on-warning) / <alpha-value>)'
         }
       },
       fontSize: {
@@ -42,9 +55,9 @@ export default {
         mono: ['ui-monospace', 'SFMono-Regular', 'monospace']
       },
       boxShadow: {
-        'nodel-panel': '0 1px 2px 0 rgb(15 23 42 / 0.05)',
-        'nodel-popover': '0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1)',
-        'nodel-editor-status': '0 0.5rem 1.5rem rgb(15 23 42 / 0.14)'
+        'nodel-panel': 'var(--nodel-shadow-panel)',
+        'nodel-popover': 'var(--nodel-shadow-popover)',
+        'nodel-editor-status': 'var(--nodel-shadow-editor-status)'
       }
     }
   },

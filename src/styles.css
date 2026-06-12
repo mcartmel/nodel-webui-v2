@@ -8,16 +8,32 @@
     --nodel-bg: 241 245 249;
     --nodel-fg: 15 23 42;
     --nodel-surface: 255 255 255;
+    --nodel-surface-raised: 255 255 255;
     --nodel-muted: 51 65 85;
     --nodel-border: 203 213 225;
-    --nodel-accent: 14 165 233;
-    --nodel-info: 8 145 178;
+    --nodel-accent: 3 105 161;
+    --nodel-accent-fill: 3 105 161;
+    --nodel-on-accent: 255 255 255;
+    --nodel-info: 14 116 144;
+    --nodel-info-fill: 14 116 144;
+    --nodel-on-info: 255 255 255;
     --nodel-backdrop: 2 6 23;
-    --nodel-success: 22 163 74;
-    --nodel-warning: 217 119 6;
+    --nodel-success: 21 128 61;
+    --nodel-success-fill: 21 128 61;
+    --nodel-on-success: 255 255 255;
+    --nodel-warning: 180 83 9;
+    --nodel-warning-fill: 180 83 9;
+    --nodel-on-warning: 255 255 255;
     --nodel-danger: 220 38 38;
+    --nodel-danger-fill: 220 38 38;
+    --nodel-on-danger: 255 255 255;
     --nodel-danger-bg: 254 242 242;
     --nodel-danger-border: 248 113 113;
+    --nodel-focus: 3 105 161;
+    --nodel-status-off: 15 23 42;
+    --nodel-shadow-panel: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+    --nodel-shadow-popover: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1);
+    --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
     --nodel-radius-control: 0.5rem;
     --nodel-radius-card: 0.75rem;
     --nodel-radius-panel: 1rem;
@@ -51,14 +67,31 @@
     --nodel-bg: 2 6 23;
     --nodel-fg: 226 232 240;
     --nodel-surface: 22 32 53;
+    --nodel-surface-raised: 30 41 59;
     --nodel-muted: 148 163 184;
     --nodel-border: 51 65 85;
     --nodel-accent: 56 189 248;
+    --nodel-accent-fill: 14 165 233;
+    --nodel-on-accent: 2 6 23;
     --nodel-info: 103 232 249;
+    --nodel-info-fill: 6 182 212;
+    --nodel-on-info: 2 6 23;
     --nodel-success: 74 222 128;
+    --nodel-success-fill: 34 197 94;
+    --nodel-on-success: 2 6 23;
     --nodel-warning: 251 191 36;
+    --nodel-warning-fill: 245 158 11;
+    --nodel-on-warning: 2 6 23;
+    --nodel-danger: 248 113 113;
+    --nodel-danger-fill: 239 68 68;
+    --nodel-on-danger: 2 6 23;
     --nodel-danger-bg: 69 10 10;
     --nodel-danger-border: 153 27 27;
+    --nodel-focus: 125 211 252;
+    --nodel-status-off: 148 163 184;
+    --nodel-shadow-panel: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --nodel-shadow-popover: 0 18px 40px -18px rgb(0 0 0 / 0.85), 0 8px 20px -12px rgb(0 0 0 / 0.75);
+    --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(0 0 0 / 0.55);
     --nodel-editor-selection: rgb(var(--nodel-accent) / 0.28);
     --nodel-editor-active-line: rgb(var(--nodel-accent) / 0.1);
     --nodel-editor-matching-bracket-bg: rgb(var(--nodel-accent) / 0.16);
@@ -466,7 +499,7 @@
   }
 
   .nodel-button:focus-visible {
-    @apply outline-none ring-2 ring-nodel-accent/40;
+    @apply outline-none ring-2 ring-nodel-focus;
   }
 
   .nodel-button:disabled,
@@ -487,48 +520,48 @@
   }
 
   .nodel-button-primary {
-    @apply border-nodel-accent bg-nodel-accent text-white;
+    @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
   }
 
   .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
-    @apply border-nodel-accent bg-nodel-accent/90 text-white;
-    filter: brightness(1.05);
+    @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
+    filter: brightness(0.95);
   }
 
   .nodel-button-success {
-    @apply border-nodel-success bg-nodel-success text-white;
+    @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
   }
 
   .nodel-button-success:hover:not(:disabled):not(.is-disabled) {
-    @apply border-nodel-success bg-nodel-success/90 text-white;
-    filter: brightness(1.05);
+    @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
+    filter: brightness(0.95);
   }
 
   .nodel-button-info {
-    @apply border-nodel-info bg-nodel-info text-white;
+    @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
   }
 
   .nodel-button-info:hover:not(:disabled):not(.is-disabled) {
-    @apply border-nodel-info bg-nodel-info/90 text-white;
-    filter: brightness(1.05);
+    @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
+    filter: brightness(0.95);
   }
 
   .nodel-button-warning {
-    @apply border-nodel-warning bg-nodel-warning text-white;
+    @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
   }
 
   .nodel-button-warning:hover:not(:disabled):not(.is-disabled) {
-    @apply border-nodel-warning bg-nodel-warning/90 text-white;
-    filter: brightness(1.05);
+    @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
+    filter: brightness(0.95);
   }
 
   .nodel-button-danger {
-    @apply border-nodel-danger bg-nodel-danger text-white;
+    @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
   }
 
   .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
-    @apply border-nodel-danger bg-nodel-danger/90 text-white;
-    filter: brightness(1.05);
+    @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
+    filter: brightness(0.95);
   }
 
   .nodel-button-ghost {
@@ -720,7 +753,7 @@
   }
 
   .nodel-status-indicator-dot {
-    @apply block h-3 w-3 rounded-full border border-black/20 bg-slate-900 shadow-sm;
+    @apply block h-3 w-3 rounded-full border border-black/20 bg-nodel-statusOff shadow-sm;
   }
 
   nodel-status-indicator[data-state='off'][data-off-tone='muted'] .nodel-status-indicator-dot {
@@ -728,19 +761,19 @@
   }
 
   nodel-status-indicator[data-state='on'][data-tone='success'] .nodel-status-indicator-dot {
-    @apply bg-nodel-success;
+    @apply bg-nodel-successFill;
   }
 
   nodel-status-indicator[data-state='on'][data-tone='info'] .nodel-status-indicator-dot {
-    @apply bg-nodel-info;
+    @apply bg-nodel-infoFill;
   }
 
   nodel-status-indicator[data-state='on'][data-tone='warning'] .nodel-status-indicator-dot {
-    @apply bg-nodel-warning;
+    @apply bg-nodel-warningFill;
   }
 
   nodel-status-indicator[data-state='on'][data-tone='danger'] .nodel-status-indicator-dot {
-    @apply bg-nodel-danger;
+    @apply bg-nodel-dangerFill;
   }
 
   .nodel-button-content nodel-status-indicator {
@@ -756,7 +789,7 @@
   }
 
   .nodel-field:focus-visible {
-    @apply ring-2 ring-nodel-accent/35;
+    @apply ring-2 ring-nodel-focus;
   }
 
   .nodel-field:disabled {
@@ -776,7 +809,7 @@
   }
 
   .nodel-popover {
-    @apply overflow-hidden rounded-popover border border-nodel-border bg-nodel-surface shadow-nodel-popover;
+    @apply overflow-hidden rounded-popover border border-nodel-border bg-nodel-surfaceRaised shadow-nodel-popover;
   }
 
   .nodel-list-item {
@@ -796,15 +829,15 @@
   }
 
   .nodel-menu-item:focus-visible {
-    @apply outline-none ring-2 ring-nodel-accent/40;
+    @apply outline-none ring-2 ring-nodel-focus;
   }
 
   .nodel-menu-item-active {
-    @apply bg-nodel-accent text-white;
+    @apply bg-nodel-accentFill text-nodel-onAccent;
   }
 
   .nodel-menu-item-active:hover {
-    @apply bg-nodel-accent text-white;
+    @apply bg-nodel-accentFill text-nodel-onAccent;
   }
 
   .nodel-alert {
@@ -829,7 +862,7 @@
   }
 
   .nodel-toast {
-    @apply pointer-events-auto relative flex min-w-0 items-start gap-3 overflow-hidden rounded-card border bg-nodel-surface px-4 py-3 text-sm leading-5 shadow-nodel-popover;
+    @apply pointer-events-auto relative flex min-w-0 items-start gap-3 overflow-hidden rounded-card border bg-nodel-surfaceRaised px-4 py-3 text-sm leading-5 shadow-nodel-popover;
   }
 
   .nodel-toast::before {
@@ -862,7 +895,7 @@
   }
 
   .nodel-toast-close:focus-visible {
-    @apply outline-none ring-2 ring-nodel-accent/40;
+    @apply outline-none ring-2 ring-nodel-focus;
   }
 
   .nodel-toast-info {
@@ -870,7 +903,7 @@
   }
 
   .nodel-toast-info::before {
-    @apply bg-nodel-accent;
+    @apply bg-nodel-accentFill;
   }
 
   .nodel-toast-info .nodel-toast-icon {
@@ -882,7 +915,7 @@
   }
 
   .nodel-toast-success::before {
-    @apply bg-nodel-success;
+    @apply bg-nodel-successFill;
   }
 
   .nodel-toast-success .nodel-toast-icon {
@@ -894,7 +927,7 @@
   }
 
   .nodel-toast-warning::before {
-    @apply bg-nodel-warning;
+    @apply bg-nodel-warningFill;
   }
 
   .nodel-toast-warning .nodel-toast-icon {
@@ -906,7 +939,7 @@
   }
 
   .nodel-toast-danger::before {
-    @apply bg-nodel-danger;
+    @apply bg-nodel-dangerFill;
   }
 
   .nodel-toast-danger .nodel-toast-icon,
@@ -934,7 +967,7 @@
 
   .nodel-collapse-summary:focus-visible {
     @apply outline-none;
-    box-shadow: inset 0 0 0 2px rgb(var(--nodel-accent) / 0.4);
+    box-shadow: inset 0 0 0 2px rgb(var(--nodel-focus));
   }
 
   .nodel-collapse-label {
@@ -1100,7 +1133,7 @@
   }
 
   .nodel-description-toggle:focus-visible {
-    @apply outline-none ring-2 ring-nodel-accent/40;
+    @apply outline-none ring-2 ring-nodel-focus;
   }
 
   .nodel-description-toggle[aria-expanded='true'] .nodel-collapse-icon svg {
@@ -1124,11 +1157,11 @@
   }
 
   .nodel-theme-switch:focus-visible {
-    @apply outline-none ring-2 ring-nodel-accent/40;
+    @apply outline-none ring-2 ring-nodel-focus;
   }
 
   .nodel-theme-switch[data-theme='dark'] {
-    @apply border-nodel-accent bg-nodel-accent;
+    @apply border-nodel-accentFill bg-nodel-accentFill;
   }
 
   .nodel-theme-switch-thumb {
@@ -1639,7 +1672,7 @@
   }
 
   .nodel-editor-status {
-    @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surface/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
+    @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surfaceRaised/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
     max-width: min(28rem, calc(100% - 1.5rem));
   }
 
