@@ -36,7 +36,7 @@
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
     --nodel-radius-control: 0.5rem;
     --nodel-radius-card: 0.75rem;
-    --nodel-radius-panel: 1rem;
+    --nodel-radius-panel: 0.875rem;
     --nodel-radius-popover: 0.75rem;
     --nodel-editor-cursor: rgb(var(--nodel-accent));
     --nodel-editor-selection: rgb(var(--nodel-accent) / 0.22);
