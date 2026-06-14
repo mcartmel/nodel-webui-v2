@@ -917,6 +917,9 @@
     @apply flex h-full w-full min-w-0;
     --nodel-fader-tone-rgb: var(--nodel-accent);
     --nodel-fader-fill-rgb: var(--nodel-accent-fill);
+    --nodel-fader-thumb-inset: 0.125rem;
+    --nodel-fader-nudge-size: 2.25rem;
+    --nodel-fader-control-gap: 0.5rem;
   }
 
   .nodel-fader-shell {
@@ -1007,6 +1010,7 @@
 
   .nodel-fader-control {
     @apply flex min-h-0 min-w-0 flex-none items-center justify-center gap-2;
+    gap: var(--nodel-fader-control-gap, 0.5rem);
   }
 
   nodel-fader[data-orientation='vertical'] .nodel-fader-control {
@@ -1056,7 +1060,7 @@
   }
 
   nodel-fader[data-orientation='vertical'][data-increment='false'] .nodel-fader-track {
-    height: var(--nodel-fader-length-no-increment, var(--nodel-fader-length, 12rem));
+    height: var(--nodel-fader-length-no-increment, calc(var(--nodel-fader-length, 12rem) + (var(--nodel-fader-nudge-size, 2.25rem) * 2) + (var(--nodel-fader-control-gap, 0.5rem) * 2)));
   }
 
   nodel-fader[data-orientation='horizontal'] .nodel-fader-track {
@@ -1070,12 +1074,12 @@
 
   nodel-fader[data-orientation='vertical'] .nodel-fader-fill {
     @apply bottom-0 left-0 w-full;
-    height: calc((var(--nodel-fader-thumb-size, 2.25rem) / 2) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem))));
+    height: calc(var(--nodel-fader-thumb-inset, 0.125rem) + (var(--nodel-fader-thumb-size, 2.25rem) / 2) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem) - (var(--nodel-fader-thumb-inset, 0.125rem) * 2))));
   }
 
   nodel-fader[data-orientation='horizontal'] .nodel-fader-fill {
     @apply bottom-0 left-0 h-full;
-    width: calc((var(--nodel-fader-thumb-size, 2.25rem) / 2) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem))));
+    width: calc(var(--nodel-fader-thumb-inset, 0.125rem) + (var(--nodel-fader-thumb-size, 2.25rem) / 2) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem) - (var(--nodel-fader-thumb-inset, 0.125rem) * 2))));
   }
 
   .nodel-fader-thumb {
@@ -1086,16 +1090,18 @@
 
   nodel-fader[data-orientation='vertical'] .nodel-fader-thumb {
     @apply left-1/2 -translate-x-1/2;
-    bottom: calc(var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem)));
+    bottom: calc(var(--nodel-fader-thumb-inset, 0.125rem) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem) - (var(--nodel-fader-thumb-inset, 0.125rem) * 2))));
   }
 
   nodel-fader[data-orientation='horizontal'] .nodel-fader-thumb {
     @apply top-1/2 -translate-y-1/2;
-    left: calc(var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem)));
+    left: calc(var(--nodel-fader-thumb-inset, 0.125rem) + (var(--nodel-fader-value, 0) * (100% - var(--nodel-fader-thumb-size, 2.25rem) - (var(--nodel-fader-thumb-inset, 0.125rem) * 2))));
   }
 
   .nodel-fader-nudge {
     @apply inline-flex h-9 w-9 flex-none items-center justify-center rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg outline-none;
+    height: var(--nodel-fader-nudge-size, 2.25rem);
+    width: var(--nodel-fader-nudge-size, 2.25rem);
   }
 
   .nodel-fader-nudge:hover:not(:disabled) {

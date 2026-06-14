@@ -358,7 +358,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">dB Range</h2>
               <p class="nodel-catalogue-description">
-                Set <code>unit=&quot;db&quot;</code> for dB formatting and default <code>-60..+10</code> range. Min and max remain configurable.
+                Set <code>unit=&quot;db&quot;</code> for dB formatting, default <code>-60..+10</code> range, and audio-style <code>curve=&quot;vu&quot;</code> meter display. Min and max remain configurable.
               </p>
             </header>
 
@@ -383,7 +383,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Meter Options</h2>
               <p class="nodel-catalogue-description">
-                Meters can be horizontal, use custom ranges, and change warning/danger thresholds without changing the signal value.
+                Meters can be horizontal, use custom ranges, change warning/danger thresholds, and override the display curve.
               </p>
             </header>
 
@@ -392,12 +392,14 @@
                 <nodel-column md="8">
                   <nodel-control-grid columns="1">
                     <nodel-meter orientation="horizontal" min="0" max="10" value="7" warn="6" danger="9" readout="show" label="Temperature"></nodel-meter>
+                    <nodel-meter unit="db" curve="linear" value="-25" readout="show" label="Linear dB override"></nodel-meter>
                   </nodel-control-grid>
                 </nodel-column>
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-meter orientation=&quot;horizontal&quot; min=&quot;0&quot; max=&quot;10&quot; value=&quot;7&quot; warn=&quot;6&quot; danger=&quot;9&quot; readout=&quot;show&quot; label=&quot;Temperature&quot;&gt;&lt;/nodel-meter&gt;</code></pre>
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-meter orientation=&quot;horizontal&quot; min=&quot;0&quot; max=&quot;10&quot; value=&quot;7&quot; warn=&quot;6&quot; danger=&quot;9&quot; readout=&quot;show&quot; label=&quot;Temperature&quot;&gt;&lt;/nodel-meter&gt;
+&lt;nodel-meter unit=&quot;db&quot; curve=&quot;linear&quot; value=&quot;-25&quot; readout=&quot;show&quot; label=&quot;Linear dB override&quot;&gt;&lt;/nodel-meter&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">

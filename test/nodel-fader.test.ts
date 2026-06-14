@@ -180,7 +180,7 @@ describe('nodel-fader', () => {
     document.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientY: 10 }));
     await flush();
 
-    expect(fader.getAttribute('value')).toBe('60');
-    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 60 });
+    expect(fader.getAttribute('value')).toBe('67');
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 67 });
   });
 });

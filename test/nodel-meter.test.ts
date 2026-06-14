@@ -41,6 +41,7 @@ describe('nodel-meter', () => {
 
     const meter = document.querySelector('nodel-meter') as HTMLElement;
     expect(meter.dataset.orientation).toBe('vertical');
+    expect(meter.dataset.curve).toBe('linear');
     expect(meter.style.getPropertyValue('--nodel-meter-value')).toBe('0.5');
     expect(meter.getAttribute('role')).toBe('meter');
     expect(meter.getAttribute('aria-valuenow')).toBe('50');
@@ -54,9 +55,20 @@ describe('nodel-meter', () => {
     await Promise.resolve();
 
     const meter = document.querySelector('nodel-meter') as HTMLElement;
-    expect(meter.style.getPropertyValue('--nodel-meter-value')).toBe(String(68 / 70));
+    expect(meter.dataset.curve).toBe('vu');
+    expect(Number(meter.style.getPropertyValue('--nodel-meter-value'))).toBeCloseTo(0.976, 5);
     expect(meter.dataset.zone).toBe('danger');
     expect(meter.querySelector('.nodel-meter-readout')?.textContent).toBe('+8 dB');
+  });
+
+  it('can override dB meters back to linear display scaling', async () => {
+    document.body.innerHTML = '<nodel-meter unit="db" curve="linear" value="-25" label="Level"></nodel-meter>';
+    await customElements.whenDefined('nodel-meter');
+    await Promise.resolve();
+
+    const meter = document.querySelector('nodel-meter') as HTMLElement;
+    expect(meter.dataset.curve).toBe('linear');
+    expect(meter.style.getPropertyValue('--nodel-meter-value')).toBe('0.5');
   });
 
   it('updates value, peak, and label from signals', async () => {

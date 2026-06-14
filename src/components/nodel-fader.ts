@@ -72,6 +72,18 @@ function apiErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function parseCssPixelValue(value: string, fallback: number): number {
+  const trimmed = value.trim();
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  if (trimmed.endsWith('rem')) {
+    return parsed * parseCssPixelValue(window.getComputedStyle(document.documentElement).fontSize, 16);
+  }
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export class NodelFader extends HTMLElement {
   static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'title'];
 
@@ -378,7 +390,11 @@ export class NodelFader extends HTMLElement {
     event.preventDefault();
     const orientation = normalizeOrientation(this.getAttribute('orientation'));
     const rect = this.trackNode.getBoundingClientRect();
-    const length = orientation === 'vertical' ? rect.height : rect.width;
+    const rawLength = orientation === 'vertical' ? rect.height : rect.width;
+    const styles = window.getComputedStyle(this.trackNode);
+    const thumbSize = parseCssPixelValue(styles.getPropertyValue('--nodel-fader-thumb-size'), 36);
+    const thumbInset = parseCssPixelValue(styles.getPropertyValue('--nodel-fader-thumb-inset'), 2);
+    const length = rawLength - thumbSize - (thumbInset * 2);
     if (length <= 0) {
       return;
     }

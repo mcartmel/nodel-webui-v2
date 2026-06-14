@@ -1,4 +1,5 @@
 export type LevelUnit = 'percent' | 'db' | 'none';
+export type LevelCurve = 'linear' | 'vu';
 
 export interface LevelRange {
   min: number;
@@ -12,6 +13,16 @@ export interface LevelScale extends LevelRange {
 
 export function normalizeLevelUnit(value: string | null): LevelUnit {
   return value === 'db' || value === 'none' ? value : 'percent';
+}
+
+export function normalizeLevelCurve(value: string | null, unit: LevelUnit): LevelCurve {
+  if (value === 'linear') {
+    return 'linear';
+  }
+  if (value === 'vu' || value === 'audio') {
+    return 'vu';
+  }
+  return unit === 'db' ? 'vu' : 'linear';
 }
 
 export function defaultRangeForUnit(unit: LevelUnit): LevelRange {
@@ -60,6 +71,14 @@ export function valueToFraction(value: number, min: number, max: number) {
   return clampValue((value - min) / (max - min), 0, 1);
 }
 
+export function valueToDisplayFraction(value: number, min: number, max: number, curve: LevelCurve) {
+  if (curve === 'linear') {
+    return valueToFraction(value, min, max);
+  }
+
+  return vuValueToFraction(value, min, max);
+}
+
 export function fractionToValue(fraction: number, min: number, max: number) {
   const safeFraction = clampValue(fraction, 0, 1);
   if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
@@ -93,6 +112,42 @@ function trimNumber(value: number) {
   }
 
   return String(Number(value.toFixed(1)));
+}
+
+function vuValueToFraction(value: number, min: number, max: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max === min) {
+    return 0;
+  }
+
+  const clampedValue = clampValue(value, min, max);
+  if (min >= 0 || max <= min) {
+    return valueToFraction(clampedValue, min, max);
+  }
+
+  if (max <= 0) {
+    return exponentialDbFraction(clampedValue, min, max);
+  }
+
+  if (clampedValue <= 0) {
+    return exponentialDbFraction(clampedValue, min, 0) * 0.88;
+  }
+
+  return 0.88 + valueToFraction(clampedValue, 0, max) * 0.12;
+}
+
+function exponentialDbFraction(value: number, min: number, max: number) {
+  if (max <= min) {
+    return 0;
+  }
+
+  const minPower = Math.pow(10, min / 40);
+  const maxPower = Math.pow(10, max / 40);
+  const valuePower = Math.pow(10, value / 40);
+  if (maxPower === minPower) {
+    return 0;
+  }
+
+  return clampValue((valuePower - minPower) / (maxPower - minPower), 0, 1);
 }
 
 function decimalPlaces(value: number) {

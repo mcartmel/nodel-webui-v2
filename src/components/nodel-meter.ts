@@ -3,9 +3,11 @@ import {
   clampValue,
   defaultRangeForUnit,
   formatValue,
+  normalizeLevelCurve,
   normalizeLevelUnit,
   parseNumber,
-  valueToFraction,
+  valueToDisplayFraction,
+  type LevelCurve,
   type LevelUnit
 } from '../utils/level-scale';
 
@@ -37,7 +39,7 @@ function zoneForValue(value: number, warn: number, danger: number): MeterZone {
 }
 
 export class NodelMeter extends HTMLElement {
-  static observedAttributes = ['signal', 'signals', 'value', 'min', 'max', 'unit', 'orientation', 'warn', 'danger', 'peak', 'readout', 'label'];
+  static observedAttributes = ['signal', 'signals', 'value', 'min', 'max', 'unit', 'curve', 'orientation', 'warn', 'danger', 'peak', 'readout', 'label'];
 
   private shellReady = false;
   private trackNode: HTMLElement | null = null;
@@ -77,6 +79,7 @@ export class NodelMeter extends HTMLElement {
   private render() {
     this.ensureShell();
     const unit = normalizeLevelUnit(this.getAttribute('unit'));
+    const curve = normalizeLevelCurve(this.getAttribute('curve'), unit);
     const { min, max } = this.range(unit);
     const value = clampValue(parseNumber(this.getAttribute('value'), min), min, max);
     const orientation = normalizeOrientation(this.getAttribute('orientation'));
@@ -85,11 +88,12 @@ export class NodelMeter extends HTMLElement {
     const warn = parseNumber(this.getAttribute('warn'), min + (max - min) * 0.8);
     const danger = parseNumber(this.getAttribute('danger'), min + (max - min) * 0.95);
     const zone = zoneForValue(value, warn, danger);
-    const fraction = valueToFraction(value, min, max);
+    const fraction = valueToDisplayFraction(value, min, max, curve);
     const label = this.getAttribute('label') ?? '';
 
     this.dataset.orientation = orientation;
     this.dataset.unit = unit;
+    this.dataset.curve = curve;
     this.dataset.zone = zone;
     this.dataset.readout = readout;
     this.dataset.peak = peakMode;
@@ -99,7 +103,7 @@ export class NodelMeter extends HTMLElement {
     this.fillNode?.setAttribute('data-zone', zone);
     this.readoutNode!.hidden = readout !== 'show';
     this.readoutNode!.textContent = formatValue(value, unit);
-    this.syncPeak(value, min, max, peakMode, unit);
+    this.syncPeak(value, min, max, peakMode, unit, curve);
   }
 
   private ensureShell() {
@@ -154,7 +158,7 @@ export class NodelMeter extends HTMLElement {
     this.setAttribute('aria-valuetext', formatValue(value, unit));
   }
 
-  private syncPeak(value: number, min: number, max: number, peakMode: MeterPeakMode, unit: LevelUnit) {
+  private syncPeak(value: number, min: number, max: number, peakMode: MeterPeakMode, unit: LevelUnit, curve: LevelCurve) {
     if (!this.peakNode) {
       return;
     }
@@ -171,7 +175,7 @@ export class NodelMeter extends HTMLElement {
       : Math.max(this.heldPeak ?? value, value);
     this.heldPeak = nextPeak;
     this.peakNode.hidden = false;
-    this.style.setProperty('--nodel-meter-peak', String(valueToFraction(nextPeak, min, max)));
+    this.style.setProperty('--nodel-meter-peak', String(valueToDisplayFraction(nextPeak, min, max, curve)));
     this.peakNode.setAttribute('title', formatValue(nextPeak, unit));
 
     if (explicitPeak === null) {

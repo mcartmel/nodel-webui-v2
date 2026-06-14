@@ -276,7 +276,7 @@ Supported `nodel-fader` attributes:
 - `signal="SignalName"` as shorthand for `value`
 - `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
 
-`nodel-meter` renders a read-only signal-driven level meter. It can be a standalone control-grid tile or a compact child inside a fader rail. Percent values default to `0..100`; dB values default to `-60..+10`. Both faders and meters use the same linear min/max mapping, so `unit="db"` changes the defaults and readout format without applying a logarithmic curve.
+`nodel-meter` renders a read-only signal-driven level meter. It can be a standalone control-grid tile or a compact child inside a fader rail. Percent values default to `0..100`; dB values default to `-60..+10`. Percent and raw numeric meters default to `curve="linear"`; dB meters default to `curve="vu"` for audio-style display. Override the display curve with `curve="linear"`, `curve="vu"`, or the `curve="audio"` alias.
 
 Supported `nodel-meter` attributes:
 
@@ -285,6 +285,7 @@ Supported `nodel-meter` attributes:
 - `value`
 - `min`, `max`
 - `unit="percent|db|none"`
+- `curve="linear|vu|audio"`
 - `orientation="vertical|horizontal"`
 - `warn`, `danger`
 - `peak="off|hold"`
@@ -297,7 +298,7 @@ Faders preserve compound children and place them in a compact rail in source ord
 
 The fader readout is rendered inside the track by default. On vertical faders it sits near the top when the value is low and near the bottom when the value is high so it stays away from the thumb.
 
-Vertical faders keep a stable default track length whether or not increment buttons are shown. Override `--nodel-fader-length` for a group of faders, or `--nodel-fader-length-no-increment` when no-button faders need a different length.
+Vertical faders keep a stable overall height whether or not increment buttons are shown. When increment buttons are hidden, the track grows by the missing button slots so simple faders align with nudged faders. Override `--nodel-fader-length` for the increment-mode track length, or `--nodel-fader-length-no-increment` when no-button faders need a different length.
 
 ```html
 <nodel-control-grid columns="2">

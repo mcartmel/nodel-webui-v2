@@ -140,6 +140,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'min', description: 'Minimum value.' },
       { name: 'max', description: 'Maximum value.' },
       { name: 'unit', description: 'Value display unit and default range.', values: ['percent', 'db', 'none'] },
+      { name: 'curve', description: 'Visual display curve. Defaults to linear for percent/none and vu for dB.', values: ['linear', 'vu', 'audio'] },
       { name: 'orientation', description: 'Meter orientation.', values: ['vertical', 'horizontal'] },
       { name: 'warn', description: 'Warning zone threshold.' },
       { name: 'danger', description: 'Danger zone threshold.' },
