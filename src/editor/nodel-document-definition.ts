@@ -88,6 +88,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     description: 'Touch-sized action or state button.',
     attributes: [
       { name: 'variant', description: 'Button visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'] },
+      { name: 'tone', description: 'Button visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'layout', description: 'Button child layout.', values: ['inline', 'stack'] },
       { name: 'action', description: 'Current-node action name to call on click.' },
       { name: 'arg', description: 'Optional action argument value.' },

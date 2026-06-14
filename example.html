@@ -355,7 +355,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Variants</h2>
               <p class="nodel-catalogue-description">
-                Set <code>variant</code> for Bootstrap-like emphasis: primary, success, info, warning, danger, and link-style options.
+                Set <code>variant</code> for the default solid semantic treatments: primary, success, info, warning, danger, and link-style options.
               </p>
             </header>
 
@@ -385,6 +385,99 @@
   &lt;nodel-button variant=&quot;danger&quot;&gt;Danger&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;ghost&quot;&gt;Ghost&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;link&quot;&gt;Link&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Soft Tone</h2>
+              <p class="nodel-catalogue-description">
+                Add <code>tone=&quot;soft&quot;</code> for semantic buttons with an alpha background and subtle border.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-button tone="soft">Default</nodel-button>
+                    <nodel-button variant="primary" tone="soft">Primary</nodel-button>
+                    <nodel-button variant="success" tone="soft">Success</nodel-button>
+                    <nodel-button variant="info" tone="soft">Info</nodel-button>
+                    <nodel-button variant="warning" tone="soft">Warning</nodel-button>
+                    <nodel-button variant="danger" tone="soft">Danger</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-button tone=&quot;soft&quot;&gt;Default&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;Primary&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;success&quot; tone=&quot;soft&quot;&gt;Success&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;info&quot; tone=&quot;soft&quot;&gt;Info&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;warning&quot; tone=&quot;soft&quot;&gt;Warning&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;danger&quot; tone=&quot;soft&quot;&gt;Danger&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Outline Tone</h2>
+              <p class="nodel-catalogue-description">
+                Add <code>tone=&quot;outline&quot;</code> for low-fill buttons with a thicker semantic border.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-button tone="outline">Default</nodel-button>
+                    <nodel-button variant="primary" tone="outline">Primary</nodel-button>
+                    <nodel-button variant="success" tone="outline">Success</nodel-button>
+                    <nodel-button variant="info" tone="outline">Info</nodel-button>
+                    <nodel-button variant="warning" tone="outline">Warning</nodel-button>
+                    <nodel-button variant="danger" tone="outline">Danger</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-button tone=&quot;outline&quot;&gt;Default&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;primary&quot; tone=&quot;outline&quot;&gt;Primary&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;success&quot; tone=&quot;outline&quot;&gt;Success&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;info&quot; tone=&quot;outline&quot;&gt;Info&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;warning&quot; tone=&quot;outline&quot;&gt;Warning&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;danger&quot; tone=&quot;outline&quot;&gt;Danger&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Tone Comparison</h2>
+              <p class="nodel-catalogue-description">
+                Combine <code>variant</code> and <code>tone</code> to keep semantic colour separate from visual weight.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1" md="3">
+                    <nodel-button variant="primary">Solid</nodel-button>
+                    <nodel-button variant="primary" tone="soft">Soft</nodel-button>
+                    <nodel-button variant="primary" tone="outline">Outline</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
+  &lt;nodel-button variant=&quot;primary&quot;&gt;Solid&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;Soft&lt;/nodel-button&gt;
+  &lt;nodel-button variant=&quot;primary&quot; tone=&quot;outline&quot;&gt;Outline&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
 

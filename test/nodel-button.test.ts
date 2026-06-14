@@ -95,6 +95,23 @@ describe('nodel-button', () => {
     expect(buttons[3].querySelector('button')?.className).toContain('nodel-button-link');
   });
 
+  it('supports soft and outline tones', async () => {
+    document.body.innerHTML = `
+      <nodel-button variant="primary" tone="soft">Soft</nodel-button>
+      <nodel-button variant="danger" tone="outline">Outline</nodel-button>
+      <nodel-button tone="invalid">Fallback</nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const buttons = Array.from(document.querySelectorAll('nodel-button'));
+    expect(buttons.map((button) => button.getAttribute('data-tone'))).toEqual(['soft', 'outline', 'solid']);
+    expect(buttons[0].querySelector('button')?.className).toContain('nodel-button-soft');
+    expect(buttons[1].querySelector('button')?.className).toContain('nodel-button-outline');
+    expect(buttons[2].querySelector('button')?.className).not.toContain('nodel-button-soft');
+    expect(buttons[2].querySelector('button')?.className).not.toContain('nodel-button-outline');
+  });
+
   it('supports stacked child layout', async () => {
     document.body.innerHTML = `
       <nodel-button layout="stack">

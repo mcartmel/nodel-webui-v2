@@ -64,6 +64,8 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-button-info` for informational actions.
 - `.nodel-button-warning` for cautionary actions.
 - `.nodel-button-danger` for destructive actions such as delete.
+- `.nodel-button-soft` for alpha-background semantic buttons.
+- `.nodel-button-outline` for semantic buttons with a thicker border and low-alpha background.
 - `.nodel-button-ghost` for low-emphasis actions such as “more” or inactive navigation.
 - `.nodel-button-link` for link-styled button actions.
 - `.nodel-button-compact` for smaller buttons inside dense toolbars.
@@ -250,6 +252,7 @@ Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a 
 Supported `nodel-button` attributes:
 
 - `variant="default|primary|success|info|warning|danger|ghost|link"`
+- `tone="solid|soft|outline"`
 - `layout="inline|stack"`
 - `action="ActionName"`
 - `arg="value"`
@@ -261,6 +264,17 @@ Supported `nodel-button` attributes:
 - `signals="SignalName:target"`
 
 `disabled` and `active` are state attributes. They can be set statically, but custom node pages usually let local Nodel signals drive them so the UI follows runtime state.
+
+`variant` chooses the semantic colour or special treatment, while `tone` chooses the visual weight. `tone="solid"` is the default filled treatment. Use `tone="soft"` for lower-emphasis semantic actions and `tone="outline"` when a button needs a stronger border without a filled background.
+
+```html
+<nodel-control-grid columns="2" md="4">
+  <nodel-button variant="primary">Save</nodel-button>
+  <nodel-button variant="success" tone="soft">Ready</nodel-button>
+  <nodel-button variant="warning" tone="outline">Review</nodel-button>
+  <nodel-button variant="danger" tone="soft">Delete</nodel-button>
+</nodel-control-grid>
+```
 
 Signal targets:
 

@@ -479,6 +479,7 @@
 
   .nodel-button {
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
+    --nodel-button-tone-rgb: var(--nodel-fg);
   }
 
   .nodel-button-content {
@@ -521,6 +522,7 @@
 
   .nodel-button-primary {
     @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
+    --nodel-button-tone-rgb: var(--nodel-accent);
   }
 
   .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
@@ -530,6 +532,7 @@
 
   .nodel-button-success {
     @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
+    --nodel-button-tone-rgb: var(--nodel-success);
   }
 
   .nodel-button-success:hover:not(:disabled):not(.is-disabled) {
@@ -539,6 +542,7 @@
 
   .nodel-button-info {
     @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
+    --nodel-button-tone-rgb: var(--nodel-info);
   }
 
   .nodel-button-info:hover:not(:disabled):not(.is-disabled) {
@@ -548,6 +552,7 @@
 
   .nodel-button-warning {
     @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
+    --nodel-button-tone-rgb: var(--nodel-warning);
   }
 
   .nodel-button-warning:hover:not(:disabled):not(.is-disabled) {
@@ -557,6 +562,7 @@
 
   .nodel-button-danger {
     @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
+    --nodel-button-tone-rgb: var(--nodel-danger);
   }
 
   .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
@@ -580,8 +586,42 @@
     @apply border-transparent bg-transparent text-nodel-accent underline;
   }
 
+  .nodel-button-soft:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.28);
+    background-color: rgb(var(--nodel-button-tone-rgb) / 0.1);
+    color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  .nodel-button-soft:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.42);
+    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
+  .nodel-button-outline:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.65);
+    background-color: rgb(var(--nodel-button-tone-rgb) / 0.04);
+    color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  .nodel-button-outline:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background-color: rgb(var(--nodel-button-tone-rgb) / 0.12);
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
   .nodel-button.is-active {
     @apply border-nodel-accent bg-nodel-accent/10 text-nodel-accent;
+  }
+
+  .nodel-button-soft.is-active:not(.nodel-button-ghost):not(.nodel-button-link),
+  .nodel-button-outline.is-active:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    color: rgb(var(--nodel-button-tone-rgb));
   }
 
   nodel-image {

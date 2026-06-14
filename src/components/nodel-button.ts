@@ -7,8 +7,11 @@ type NodelButtonArgType = 'string' | 'number' | 'boolean' | 'json';
 type NodelButtonLayout = 'inline' | 'stack';
 
 const variants: NodelButtonVariant[] = ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'];
+const tones = ['solid', 'soft', 'outline'] as const;
 const argTypes: NodelButtonArgType[] = ['string', 'number', 'boolean', 'json'];
 const layouts: NodelButtonLayout[] = ['inline', 'stack'];
+
+type NodelButtonTone = (typeof tones)[number];
 
 const variantClasses: Record<NodelButtonVariant, string> = {
   default: '',
@@ -21,8 +24,18 @@ const variantClasses: Record<NodelButtonVariant, string> = {
   link: 'nodel-button-link'
 };
 
+const toneClasses: Record<NodelButtonTone, string> = {
+  solid: '',
+  soft: 'nodel-button-soft',
+  outline: 'nodel-button-outline'
+};
+
 function normalizeVariant(value: string | null): NodelButtonVariant {
   return variants.includes(value as NodelButtonVariant) ? (value as NodelButtonVariant) : 'default';
+}
+
+function normalizeTone(value: string | null): NodelButtonTone {
+  return tones.includes(value as NodelButtonTone) ? (value as NodelButtonTone) : 'solid';
 }
 
 function normalizeArgType(value: string | null): NodelButtonArgType {
@@ -73,7 +86,7 @@ function apiErrorMessage(error: unknown, fallback: string) {
 }
 
 export class NodelButton extends HTMLElement {
-  static observedAttributes = ['variant', 'layout', 'action', 'arg', 'arg-type', 'disabled', 'active', 'active-value', 'signal', 'signals', 'aria-label', 'aria-labelledby', 'title'];
+  static observedAttributes = ['variant', 'tone', 'layout', 'action', 'arg', 'arg-type', 'disabled', 'active', 'active-value', 'signal', 'signals', 'aria-label', 'aria-labelledby', 'title'];
 
   private shellReady = false;
   private buttonNode: HTMLButtonElement | null = null;
@@ -107,17 +120,20 @@ export class NodelButton extends HTMLElement {
   private render(label = this.currentLabel()) {
     this.ensureShell();
     const variant = normalizeVariant(this.getAttribute('variant'));
+    const tone = normalizeTone(this.getAttribute('tone'));
     const layout = normalizeLayout(this.getAttribute('layout'));
     const active = this.hasAttribute('active');
     const disabled = this.hasAttribute('disabled') || this.busy;
     const variantClass = variantClasses[variant] ? ` ${variantClasses[variant]}` : '';
+    const toneClass = toneClasses[tone] ? ` ${toneClasses[tone]}` : '';
     const stateClass = active ? ' is-active' : '';
     const busyClass = this.busy ? ' is-busy' : '';
 
     this.dataset.variant = variant;
+    this.dataset.tone = tone;
     this.dataset.layout = layout;
     this.dataset.active = String(active);
-    this.buttonNode!.className = `nodel-button nodel-button-touch${variantClass}${stateClass}${busyClass}`;
+    this.buttonNode!.className = `nodel-button nodel-button-touch${variantClass}${toneClass}${stateClass}${busyClass}`;
     this.buttonNode!.disabled = disabled;
     this.syncNativeButtonMetadata();
 
