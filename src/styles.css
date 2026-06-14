@@ -143,6 +143,8 @@
     nodel-control-grid,
     nodel-control-space,
     nodel-button,
+    nodel-toggle,
+    nodel-segmented,
     nodel-meter,
     nodel-fader,
     nodel-image,
@@ -168,6 +170,7 @@
     nodel-editor,
     nodel-theme-toggle,
     nodel-toast-host,
+    nodel-confirm-host,
     .nodel-button,
     .nodel-field,
     .nodel-card,
@@ -180,6 +183,9 @@
     .nodel-toast::before,
     .nodel-toast-icon,
     .nodel-toast-close,
+    .nodel-confirm-backdrop,
+    .nodel-confirm-dialog,
+    .nodel-confirm-icon,
     .nodel-collapse-summary,
     .nodel-collapse-icon,
     .nodel-description-panel,
@@ -221,6 +227,8 @@
   nodel-control-grid,
     nodel-control-space,
     nodel-button,
+    nodel-toggle,
+    nodel-segmented,
     nodel-meter,
     nodel-fader,
     nodel-image,
@@ -245,7 +253,8 @@
   nodel-bindings,
   nodel-editor,
   nodel-theme-toggle,
-  nodel-toast-host {
+  nodel-toast-host,
+  nodel-confirm-host {
     @apply block;
   }
 
@@ -257,6 +266,8 @@
   nodel-control-grid:not(:defined),
   nodel-control-space:not(:defined),
   nodel-button:not(:defined),
+  nodel-toggle:not(:defined),
+  nodel-segmented:not(:defined),
   nodel-meter:not(:defined),
   nodel-fader:not(:defined),
   nodel-image:not(:defined),
@@ -274,7 +285,8 @@
   nodel-params:not(:defined),
   nodel-bindings:not(:defined),
   nodel-editor:not(:defined),
-  nodel-toast-host:not(:defined) {
+  nodel-toast-host:not(:defined),
+  nodel-confirm-host:not(:defined) {
     visibility: hidden;
   }
 
@@ -283,6 +295,8 @@
   nodel-column,
   nodel-control-grid,
   nodel-button,
+  nodel-toggle,
+  nodel-segmented,
   nodel-meter,
   nodel-fader,
   nodel-image,
@@ -318,6 +332,8 @@
     min-height: var(--nodel-control-min-height, 3.5rem);
   }
 
+  nodel-toggle,
+  nodel-segmented,
   nodel-meter,
   nodel-fader {
     @apply min-w-0;
@@ -647,6 +663,150 @@
     border-color: rgb(var(--nodel-button-tone-rgb));
     background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
     color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  .nodel-toggle {
+    @apply flex h-full min-h-14 w-full min-w-0 items-center justify-between gap-3 rounded-control border border-transparent bg-transparent p-2 text-left text-sm font-medium leading-5 text-nodel-fg shadow-none;
+    --nodel-toggle-on-rgb: var(--nodel-success);
+    --nodel-toggle-on-fill-rgb: var(--nodel-success-fill);
+  }
+
+  .nodel-toggle:hover:not(:disabled) {
+    @apply text-nodel-accent;
+  }
+
+  .nodel-toggle:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus;
+  }
+
+  .nodel-toggle:disabled,
+  nodel-toggle[data-disabled='true'] .nodel-toggle {
+    @apply cursor-not-allowed opacity-disabled;
+  }
+
+  .nodel-toggle.is-busy {
+    @apply cursor-wait opacity-attention;
+  }
+
+  .nodel-toggle-label {
+    @apply min-w-0 flex-1 truncate;
+  }
+
+  .nodel-toggle-state {
+    @apply flex-none text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-toggle-state[hidden] {
+    display: none;
+  }
+
+  .nodel-toggle-track {
+    @apply relative inline-flex h-8 w-14 flex-none items-center rounded-full border border-nodel-border bg-nodel-surface p-0.5;
+  }
+
+  .nodel-toggle-thumb {
+    @apply block h-6 w-6 rounded-full bg-nodel-border/80 shadow-sm;
+    transform: translateX(0);
+    transition: transform 160ms ease, background-color 160ms ease;
+  }
+
+  nodel-toggle[data-state='on'] .nodel-toggle-track {
+    border-color: rgb(var(--nodel-toggle-on-rgb) / 0.6);
+    background-color: rgb(var(--nodel-toggle-on-fill-rgb));
+  }
+
+  nodel-toggle[data-state='on'] .nodel-toggle-thumb {
+    @apply bg-nodel-surfaceRaised;
+    transform: translateX(1.5rem);
+  }
+
+  nodel-toggle[data-state='partially-on'] .nodel-toggle-track,
+  nodel-toggle[data-state='partially-off'] .nodel-toggle-track {
+    @apply border-nodel-warning/70 bg-nodel-warningFill/80;
+  }
+
+  nodel-toggle[data-state='partially-on'] .nodel-toggle-thumb {
+    @apply bg-nodel-surfaceRaised;
+    transform: translateX(1.125rem);
+  }
+
+  nodel-toggle[data-state='partially-off'] .nodel-toggle-thumb {
+    @apply bg-nodel-surfaceRaised;
+    transform: translateX(0.375rem);
+  }
+
+  nodel-toggle[data-state='on'] .nodel-toggle-state {
+    color: rgb(var(--nodel-toggle-on-rgb));
+  }
+
+  nodel-toggle[data-state='partially-on'] .nodel-toggle-state,
+  nodel-toggle[data-state='partially-off'] .nodel-toggle-state {
+    @apply text-nodel-warning;
+  }
+
+  .nodel-toggle-primary {
+    --nodel-toggle-on-rgb: var(--nodel-accent);
+    --nodel-toggle-on-fill-rgb: var(--nodel-accent-fill);
+  }
+
+  .nodel-toggle-success {
+    --nodel-toggle-on-rgb: var(--nodel-success);
+    --nodel-toggle-on-fill-rgb: var(--nodel-success-fill);
+  }
+
+  .nodel-toggle-info {
+    --nodel-toggle-on-rgb: var(--nodel-info);
+    --nodel-toggle-on-fill-rgb: var(--nodel-info-fill);
+  }
+
+  .nodel-toggle-warning {
+    --nodel-toggle-on-rgb: var(--nodel-warning);
+    --nodel-toggle-on-fill-rgb: var(--nodel-warning-fill);
+  }
+
+  .nodel-toggle-danger {
+    --nodel-toggle-on-rgb: var(--nodel-danger);
+    --nodel-toggle-on-fill-rgb: var(--nodel-danger-fill);
+  }
+
+  .nodel-toggle-soft {
+    border-color: rgb(var(--nodel-toggle-on-rgb) / 0.2);
+    background-color: rgb(var(--nodel-toggle-on-rgb) / 0.07);
+  }
+
+  .nodel-toggle-outline {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-toggle-on-rgb) / 0.45);
+    background-color: rgb(var(--nodel-toggle-on-rgb) / 0.025);
+  }
+
+  .nodel-segmented {
+    @apply flex h-full min-h-14 min-w-0 rounded-control border border-nodel-border bg-nodel-surface p-1;
+  }
+
+  nodel-segmented[data-orientation='vertical'] {
+    @apply flex-col;
+  }
+
+  nodel-segmented[data-disabled='true'] {
+    @apply opacity-disabled;
+  }
+
+  .nodel-segmented > nodel-button {
+    @apply min-w-0 flex-1;
+  }
+
+  .nodel-segmented > nodel-button .nodel-button-touch {
+    @apply h-full min-h-10 rounded-control border-transparent bg-transparent px-3 py-2 text-sm leading-5 shadow-none;
+  }
+
+  .nodel-segmented > nodel-button .nodel-button-touch:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-border bg-nodel-border/25;
+  }
+
+  .nodel-segmented > nodel-button[active] .nodel-button-touch,
+  .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
+    @apply border-nodel-accent bg-nodel-accent/10 text-nodel-accent shadow-nodel-panel;
   }
 
   nodel-image {
@@ -1333,6 +1493,54 @@
   .nodel-toast-danger .nodel-toast-message,
   .nodel-toast-danger .nodel-toast-close {
     @apply text-nodel-danger;
+  }
+
+  .nodel-confirm-host {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+
+  .nodel-confirm-host[hidden] {
+    display: none;
+  }
+
+  .nodel-confirm-backdrop {
+    @apply absolute inset-0 bg-black/45 backdrop-blur-sm;
+  }
+
+  .nodel-confirm-dialog {
+    @apply relative flex w-[min(28rem,100%)] gap-4 rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover;
+  }
+
+  .nodel-confirm-icon {
+    @apply mt-1 inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-nodel-accent/10 text-nodel-accent;
+  }
+
+  .nodel-confirm-warning .nodel-confirm-icon {
+    @apply bg-nodel-warning/10 text-nodel-warning;
+  }
+
+  .nodel-confirm-danger .nodel-confirm-icon {
+    @apply bg-nodel-dangerBg text-nodel-danger;
+  }
+
+  .nodel-confirm-success .nodel-confirm-icon {
+    @apply bg-nodel-success/10 text-nodel-success;
+  }
+
+  .nodel-confirm-body {
+    @apply min-w-0 flex-1;
+  }
+
+  .nodel-confirm-title {
+    @apply m-0 text-base font-semibold leading-6 text-nodel-fg;
+  }
+
+  .nodel-confirm-text {
+    @apply mt-2 text-sm leading-6 text-nodel-muted;
+  }
+
+  .nodel-confirm-actions {
+    @apply mt-5 flex flex-wrap justify-end gap-2;
   }
 
   .nodel-collapse {

@@ -105,6 +105,57 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-button action="ActionName">${}</nodel-button>'
   },
   {
+    name: 'nodel-toggle',
+    description: 'Touch switch for boolean action/state controls, including partial feedback states.',
+    attributes: [
+      { name: 'action', description: 'Current-node action name to call on toggle.' },
+      { name: 'on-arg', description: 'Action argument sent when toggling on. Defaults to true.' },
+      { name: 'off-arg', description: 'Action argument sent when toggling off. Defaults to false.' },
+      { name: 'arg-type', description: 'Parser for on/off args.', values: ['boolean', 'string', 'number', 'json'] },
+      { name: 'value', description: 'Current toggle state.', values: ['off', 'on', 'partially-off', 'partially-on'] },
+      { name: 'on-value', description: 'Exact signal value that means on.' },
+      { name: 'off-value', description: 'Exact signal value that means off.' },
+      { name: 'partial-on-value', description: 'Exact signal value that means partially on.' },
+      { name: 'partial-off-value', description: 'Exact signal value that means partially off.' },
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'on-label', description: 'State label shown for on/partially-on.' },
+      { name: 'off-label', description: 'State label shown for off/partially-off.' },
+      { name: 'state-label', description: 'Show or hide visible state text. Hidden by default.', values: ['hide', 'show'] },
+      { name: 'variant', description: 'On-state colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
+      { name: 'tone', description: 'Switch surface treatment.', values: ['solid', 'soft', 'outline'] },
+      { name: 'disabled', description: 'Disable the switch.' },
+      { name: 'confirm', description: 'Require confirmation before calling the action.' },
+      { name: 'confirm-title', description: 'Confirmation dialog title.' },
+      { name: 'confirm-text', description: 'Confirmation dialog body text.' },
+      { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for state.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: state, label, disabled.' }
+    ],
+    snippet: '<nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>'
+  },
+  {
+    name: 'nodel-segmented',
+    description: 'Mutually exclusive option group using direct nodel-button children.',
+    attributes: [
+      { name: 'action', description: 'Current-node action name called when an option is selected.' },
+      { name: 'arg-type', description: 'Parser for option values.', values: ['string', 'number', 'boolean', 'json'] },
+      { name: 'value', description: 'Current selected option value.' },
+      { name: 'variant', description: 'Active option colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
+      { name: 'tone', description: 'Active option tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'orientation', description: 'Option group orientation.', values: ['horizontal', 'vertical'] },
+      { name: 'disabled', description: 'Disable the group.' },
+      { name: 'allow-deselect', description: 'Allow tapping the active option to clear selection.' },
+      { name: 'label', description: 'Accessible group label.' },
+      { name: 'confirm', description: 'Require confirmation before applying a selection.' },
+      { name: 'confirm-title', description: 'Confirmation dialog title.' },
+      { name: 'confirm-text', description: 'Confirmation dialog body text.' },
+      { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label, disabled.' }
+    ],
+    snippet: '<nodel-segmented label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-segmented>'
+  },
+  {
     name: 'nodel-fader',
     description: 'Touch-first level fader with optional increment buttons and compound rail content.',
     attributes: [
@@ -348,6 +399,11 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
   {
     name: 'nodel-toast-host',
     description: 'App-level toast notification host.',
+    attributes: []
+  },
+  {
+    name: 'nodel-confirm-host',
+    description: 'App-level confirmation dialog host.',
     attributes: []
   }
 ];

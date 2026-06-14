@@ -1,9 +1,12 @@
 import { getNodeDetails } from '../api/nodel-host-client';
+import { NODEL_CONFIRM, type NodelConfirmDetail } from '../data/confirm';
 import { resolveTheme } from '../theme/theme';
 import { refreshNodeActivity } from '../data/node-activity-source';
 import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
 import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartWatcher } from '../data/node-restart-source';
 import { NODEL_TOAST, type NodelToastDetail, type NodelToastHost } from './nodel-toast-host';
+import './nodel-confirm-host';
+import type { NodelConfirmHostElement } from './nodel-confirm-host';
 import {
   NODEL_NAVIGATION_CHANGE,
   NODEL_NAV_SELECT,
@@ -31,6 +34,7 @@ interface RestartRefreshElement extends Element {
 }
 
 type ToastCustomEvent = CustomEvent<NodelToastDetail>;
+type ConfirmCustomEvent = CustomEvent<NodelConfirmDetail>;
 
 function isNodelPage(element: Element): element is HTMLElement {
   return element.localName === 'nodel-page';
@@ -79,14 +83,17 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
   private titleLoadToken = 0;
+  private confirmHost: NodelConfirmHostElement | null = null;
   private toastHost: NodelToastHost | null = null;
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
+    this.ensureConfirmHost();
     this.ensureToastHost();
     this.syncTheme();
     this.syncTitle();
     this.addEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
+    this.addEventListener(NODEL_CONFIRM, this.handleConfirmRequest as EventListener);
     this.addEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
     this.addEventListener('nodel-params-saved', this.handleParamsSaved);
     this.addEventListener('nodel-bindings-saved', this.handleBindingsSaved);
@@ -106,6 +113,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   disconnectedCallback() {
     this.titleLoadToken += 1;
     this.removeEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
+    this.removeEventListener(NODEL_CONFIRM, this.handleConfirmRequest as EventListener);
     this.removeEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
     this.removeEventListener('nodel-params-saved', this.handleParamsSaved);
     this.removeEventListener('nodel-bindings-saved', this.handleBindingsSaved);
@@ -118,6 +126,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.mutationObserver = null;
     this.restartWatcher?.dispose();
     this.restartWatcher = null;
+    this.confirmHost = null;
     this.toastHost = null;
   }
 
@@ -154,6 +163,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private handleToastRequest = (event: ToastCustomEvent) => {
     this.showToast(event.detail);
+  };
+
+  private handleConfirmRequest = (event: ConfirmCustomEvent) => {
+    event.preventDefault();
+    this.ensureConfirmHost().confirm(event.detail, event.target instanceof Element ? event.target : document.activeElement);
   };
 
   private handleParamsSaved = () => {
@@ -253,6 +267,19 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     const host = document.createElement('nodel-toast-host') as NodelToastHost;
     this.appendChild(host);
     this.toastHost = host;
+    return host;
+  }
+
+  private ensureConfirmHost() {
+    const existing = Array.from(this.children).find((child): child is NodelConfirmHostElement => child.localName === 'nodel-confirm-host');
+    if (existing) {
+      this.confirmHost = existing;
+      return existing;
+    }
+
+    const host = document.createElement('nodel-confirm-host') as NodelConfirmHostElement;
+    this.appendChild(host);
+    this.confirmHost = host;
     return host;
   }
 

@@ -6,6 +6,8 @@ import './components/nodel-column';
 import './components/nodel-control-grid';
 import './components/nodel-control-space';
 import './components/nodel-button';
+import './components/nodel-toggle';
+import './components/nodel-segmented';
 import './components/nodel-meter';
 import './components/nodel-fader';
 import './components/nodel-image';
@@ -31,6 +33,7 @@ import './components/nodel-bindings';
 import './components/nodel-editor';
 import './components/nodel-theme-toggle';
 import './components/nodel-toast-host';
+import './components/nodel-confirm-host';
 
 import { updateHostFavicon } from './icons/favicon';
 import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';

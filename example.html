@@ -475,6 +475,97 @@
           </section>
         </nodel-page>
 
+        <nodel-page title="Toggles &amp; Segmented">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Toggles &amp; Segmented</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-toggle</code> for boolean switch controls, including partial feedback states. Use <code>nodel-segmented</code> for mutually exclusive choices authored with <code>nodel-button</code> children.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Switch States</h2>
+              <p class="nodel-catalogue-description">
+                Toggle defaults to neutral off, success on, and warning for partial/mixed readings.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-toggle label="Projector" value="off"></nodel-toggle>
+                    <nodel-toggle label="Audio" value="on"></nodel-toggle>
+                    <nodel-toggle label="Lighting" value="partially-on"></nodel-toggle>
+                    <nodel-toggle label="Locked" value="partially-off" disabled></nodel-toggle>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-toggle label=&quot;Projector&quot; value=&quot;off&quot;&gt;&lt;/nodel-toggle&gt;
+&lt;nodel-toggle label=&quot;Audio&quot; value=&quot;on&quot;&gt;&lt;/nodel-toggle&gt;
+&lt;nodel-toggle label=&quot;Lighting&quot; value=&quot;partially-on&quot;&gt;&lt;/nodel-toggle&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Actions And Confirm</h2>
+              <p class="nodel-catalogue-description">
+                Action toggles send <code>on-arg</code> or <code>off-arg</code>. Add <code>confirm</code>, <code>confirm-title</code>, or <code>confirm-text</code> to route the command through the app-level confirm dialog.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>
+                    <nodel-toggle label="Shutdown" action="Shutdown" confirm-title="Confirm shutdown" confirm-text="Shut down the device?" confirm-tone="danger" variant="danger"></nodel-toggle>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-toggle label=&quot;Power&quot; action=&quot;SetPower&quot; signal=&quot;Power&quot;&gt;&lt;/nodel-toggle&gt;
+&lt;nodel-toggle label=&quot;Shutdown&quot; action=&quot;Shutdown&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Shut down the device?&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Segmented Choices</h2>
+              <p class="nodel-catalogue-description">
+                Segmented controls preserve their button children and maintain one active option from <code>value</code> or a signal.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1">
+                    <nodel-segmented label="Source" value="HDMI 1" action="SetSource" signal="Source">
+                      <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+                      <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+                      <nodel-button value="USB-C">USB-C</nodel-button>
+                    </nodel-segmented>
+                    <nodel-segmented label="Mode" value="Auto" allow-deselect confirm-text="Change operating mode?">
+                      <nodel-button value="Auto">Auto</nodel-button>
+                      <nodel-button value="Manual">Manual</nodel-button>
+                    </nodel-segmented>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-segmented label=&quot;Source&quot; value=&quot;HDMI 1&quot; action=&quot;SetSource&quot; signal=&quot;Source&quot;&gt;
+  &lt;nodel-button value=&quot;HDMI 1&quot;&gt;HDMI 1&lt;/nodel-button&gt;
+  &lt;nodel-button value=&quot;HDMI 2&quot;&gt;HDMI 2&lt;/nodel-button&gt;
+  &lt;nodel-button value=&quot;USB-C&quot;&gt;USB-C&lt;/nodel-button&gt;
+&lt;/nodel-segmented&gt;</code></pre>
+          </section>
+        </nodel-page>
+
         <nodel-page title="Media">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Media</h1>

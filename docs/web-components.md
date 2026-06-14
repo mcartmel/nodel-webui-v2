@@ -110,6 +110,12 @@ Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--
 
 Use `tone="success"` for completed saves, `tone="info"` for progress, `tone="warning"` for partial completion, and `tone="danger"` for failures. Reuse `id` to update an existing toast, such as replacing a persistent restart progress toast with the final refresh result.
 
+## Confirm Dialogs
+
+`nodel-app` creates a `nodel-confirm-host` automatically. Components can request confirmation by dispatching a bubbled `nodel-confirm` event with `{ title?, text?, confirmLabel?, cancelLabel?, tone?, resolve }`; the host opens an accessible modal dialog and calls `resolve(true)` only after the user confirms.
+
+Touch controls that support confirmation expose `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, and `confirm-tone`. The action is called only after confirmation.
+
 ## Toolbar Icon
 
 `nodel-toolbar` accepts:
@@ -291,6 +297,60 @@ Supported `nodel-meter` attributes:
 - `peak="off|hold"`
 - `readout="show|hide"`
 - `label`
+
+`nodel-toggle` renders a touch switch for boolean actions and signal feedback. It is switch-only: use `nodel-segmented` with two options when an Off/On segmented look is desired. Toggle states are `off`, `on`, `partially-off`, and `partially-on`; partial states use warning styling and expose `aria-checked="mixed"`.
+
+The default toggle surface is transparent, matching the fader's no-card treatment. Use `tone="soft"` or `tone="outline"` when a page needs a tile-like container. Visible state text is hidden by default because the switch visual and ARIA state carry the state; set `state-label="show"` if text such as `On` or `Partial On` should be rendered.
+
+Supported `nodel-toggle` attributes:
+
+- `action`
+- `on-arg`, default `true`
+- `off-arg`, default `false`
+- `arg-type="boolean|string|number|json"`
+- `value`
+- `on-value`, `off-value`, `partial-on-value`, `partial-off-value`
+- `label`
+- `on-label`, `off-label`
+- `state-label="hide|show"`
+- `variant="default|primary|success|info|warning|danger"`
+- `tone="solid|soft|outline"`
+- `disabled`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
+- `signal="SignalName"` as shorthand for `state`
+- `signals="SignalName:target"` with targets `state`, `label`, and `disabled`
+
+```html
+<nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>
+<nodel-toggle label="Shutdown" action="Shutdown" confirm-text="Shut down the device?" confirm-tone="danger"></nodel-toggle>
+```
+
+`nodel-segmented` renders a mutually exclusive option group using direct `nodel-button` children. The group preserves child content, marks the matching child active from `value`/`signal`, and captures child clicks so one shared group action is called.
+
+Supported `nodel-segmented` attributes:
+
+- `action`
+- `arg-type="string|number|boolean|json"`
+- `value`
+- `variant="default|primary|success|info|warning|danger"`
+- `tone="solid|soft|outline"`
+- `orientation="horizontal|vertical"`
+- `disabled`
+- `allow-deselect`
+- `label`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
+
+Child `nodel-button` options use `value` first, then `arg`, then their text content as the selection value. Option-level confirm attributes override the group confirm settings for that option.
+
+```html
+<nodel-segmented label="Source" action="SetSource" signal="Source">
+  <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+  <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+  <nodel-button value="USB-C">USB-C</nodel-button>
+</nodel-segmented>
+```
 
 Faders preserve compound children and place them in a compact rail in source order. The rail has no separate card or border treatment by default; it relies on proximity to keep related status, meter, and button controls visually grouped while allowing each child component to keep its own signal/action behavior. The rail defaults to bottom/end alignment; set `compound-align="top"`, `compound-align="center"`, or `compound-align="bottom"` when a vertical fader needs different placement.
 
