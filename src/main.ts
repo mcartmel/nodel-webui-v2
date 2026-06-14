@@ -6,6 +6,8 @@ import './components/nodel-column';
 import './components/nodel-control-grid';
 import './components/nodel-control-space';
 import './components/nodel-button';
+import './components/nodel-meter';
+import './components/nodel-fader';
 import './components/nodel-image';
 import './components/nodel-icon';
 import './components/nodel-status-indicator';

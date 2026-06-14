@@ -127,6 +127,20 @@ describe('nodel-button', () => {
     expect(host.querySelector('.nodel-button-content')).not.toBeNull();
   });
 
+  it('supports explicit button sizes', async () => {
+    document.body.innerHTML = `
+      <nodel-button size="sm">Small</nodel-button>
+      <nodel-button size="md">Medium</nodel-button>
+      <nodel-button size="lg">Large</nodel-button>
+      <nodel-button size="bad">Fallback</nodel-button>
+    `;
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const buttons = Array.from(document.querySelectorAll('nodel-button'));
+    expect(buttons.map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'md', 'lg', 'auto']);
+  });
+
   it('maps disabled and active attributes to native state', async () => {
     document.body.innerHTML = '<nodel-button active disabled>Selected</nodel-button>';
     await customElements.whenDefined('nodel-button');

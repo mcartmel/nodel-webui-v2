@@ -95,6 +95,10 @@
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;2 column&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <pre class="nodel-catalogue-code"><code>&lt;nodel-collapse label=&quot;Console&quot; preview=&quot;No console output yet&quot;&gt;
+  &lt;nodel-console collapse-preview=&quot;last-line&quot;&gt;&lt;/nodel-console&gt;
+&lt;/nodel-collapse&gt;</code></pre>
         </nodel-page>
 
         <nodel-page title="Responsive">
@@ -280,7 +284,9 @@
               <nodel-row>
                 <nodel-column md="8">
                   <nodel-control-grid columns="2">
-                    <nodel-text surface="card" tone="default">Future tall control area</nodel-text>
+                    <nodel-fader label="Volume" value="65" nudge="5">
+                      <nodel-meter value="72" peak="hold" label="Output level"></nodel-meter>
+                    </nodel-fader>
                     <nodel-control-grid columns="1">
                       <nodel-button>Mute</nodel-button>
                       <nodel-button>Speech</nodel-button>
@@ -300,6 +306,169 @@
     &lt;nodel-button&gt;Music&lt;/nodel-button&gt;
     &lt;nodel-control-space&gt;&lt;/nodel-control-space&gt;
   &lt;/nodel-control-grid&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+
+        <nodel-page title="Faders &amp; Meters">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Faders &amp; Meters</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-fader</code> for touch-first level control and <code>nodel-meter</code> for read-only signal levels. Faders drag relative to the current value instead of jumping to a touched track position.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Vertical And Horizontal</h2>
+              <p class="nodel-catalogue-description">
+                Vertical faders are compact by default. Horizontal faders use the same range, readout, and keyboard behavior, and are best placed in a wide grid cell or full-width row.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-fader label="Volume" value="65" nudge="5"></nodel-fader>
+                    <nodel-fader label="Mic" value="45"></nodel-fader>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid>
+                    <nodel-fader label="Brightness" orientation="horizontal" value="40" increment nudge="10"></nodel-fader>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Volume&quot; value=&quot;65&quot; nudge=&quot;5&quot;&gt;&lt;/nodel-fader&gt;
+  &lt;nodel-fader label=&quot;Mic&quot; value=&quot;45&quot;&gt;&lt;/nodel-fader&gt;
+&lt;/nodel-control-grid&gt;
+
+&lt;nodel-control-grid&gt;
+  &lt;nodel-fader label=&quot;Brightness&quot; orientation=&quot;horizontal&quot; value=&quot;40&quot; increment nudge=&quot;10&quot;&gt;&lt;/nodel-fader&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">dB Range</h2>
+              <p class="nodel-catalogue-description">
+                Set <code>unit=&quot;db&quot;</code> for dB formatting and default <code>-60..+10</code> range. Min and max remain configurable.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-fader label="Program" unit="db" value="-12" step="0.5" nudge="1" variant="warning"></nodel-fader>
+                    <nodel-meter unit="db" value="-6" peak="hold" readout="show" label="Program level"></nodel-meter>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Program&quot; unit=&quot;db&quot; value=&quot;-12&quot; step=&quot;0.5&quot; nudge=&quot;1&quot; variant=&quot;warning&quot;&gt;&lt;/nodel-fader&gt;
+  &lt;nodel-meter unit=&quot;db&quot; value=&quot;-6&quot; peak=&quot;hold&quot; readout=&quot;show&quot; label=&quot;Program level&quot;&gt;&lt;/nodel-meter&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Meter Options</h2>
+              <p class="nodel-catalogue-description">
+                Meters can be horizontal, use custom ranges, and change warning/danger thresholds without changing the signal value.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1">
+                    <nodel-meter orientation="horizontal" min="0" max="10" value="7" warn="6" danger="9" readout="show" label="Temperature"></nodel-meter>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-meter orientation=&quot;horizontal&quot; min=&quot;0&quot; max=&quot;10&quot; value=&quot;7&quot; warn=&quot;6&quot; danger=&quot;9&quot; readout=&quot;show&quot; label=&quot;Temperature&quot;&gt;&lt;/nodel-meter&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Compound Fader</h2>
+              <p class="nodel-catalogue-description">
+                Faders preserve compound children and place them in a compact rail in source order so related controls remain visually grouped.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-fader label="Zone A" value="70" action="SetZoneA" signal="ZoneA" nudge="5" variant="info" tone="soft">
+                      <nodel-meter value="82" peak="hold" label="Zone A output"></nodel-meter>
+                      <nodel-status-indicator value="present" label="Zone A online"></nodel-status-indicator>
+                      <nodel-button action="MuteZoneA" variant="warning" tone="soft">Mute</nodel-button>
+                    </nodel-fader>
+                    <nodel-control-grid columns="1">
+                      <nodel-button>Speech</nodel-button>
+                      <nodel-button>Music</nodel-button>
+                      <nodel-button>Preset</nodel-button>
+                    </nodel-control-grid>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Zone A&quot; value=&quot;70&quot; action=&quot;SetZoneA&quot; signal=&quot;ZoneA&quot; nudge=&quot;5&quot; variant=&quot;info&quot; tone=&quot;soft&quot;&gt;
+    &lt;nodel-meter value=&quot;82&quot; peak=&quot;hold&quot; label=&quot;Zone A output&quot;&gt;&lt;/nodel-meter&gt;
+    &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Zone A online&quot;&gt;&lt;/nodel-status-indicator&gt;
+    &lt;nodel-button action=&quot;MuteZoneA&quot; variant=&quot;warning&quot; tone=&quot;soft&quot;&gt;Mute&lt;/nodel-button&gt;
+  &lt;/nodel-fader&gt;
+  &lt;nodel-control-grid columns=&quot;1&quot;&gt;
+    &lt;nodel-button&gt;Speech&lt;/nodel-button&gt;
+    &lt;nodel-button&gt;Music&lt;/nodel-button&gt;
+    &lt;nodel-button&gt;Preset&lt;/nodel-button&gt;
+  &lt;/nodel-control-grid&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Fader Options</h2>
+              <p class="nodel-catalogue-description">
+                Faders support custom numeric ranges, hidden readouts, disabled state, surface tones, and compound alignment.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-fader label="Trim" min="-10" max="10" unit="none" value="3" readout="hide" variant="success" tone="outline" compound-align="top">
+                      <nodel-button size="sm">A</nodel-button>
+                      <nodel-button size="sm">B</nodel-button>
+                    </nodel-fader>
+                    <nodel-fader label="Locked" value="30" disabled variant="danger" tone="outline"></nodel-fader>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Trim&quot; min=&quot;-10&quot; max=&quot;10&quot; unit=&quot;none&quot; value=&quot;3&quot; readout=&quot;hide&quot; variant=&quot;success&quot; tone=&quot;outline&quot; compound-align=&quot;top&quot;&gt;
+    &lt;nodel-button size=&quot;sm&quot;&gt;A&lt;/nodel-button&gt;
+    &lt;nodel-button size=&quot;sm&quot;&gt;B&lt;/nodel-button&gt;
+  &lt;/nodel-fader&gt;
+  &lt;nodel-fader label=&quot;Locked&quot; value=&quot;30&quot; disabled variant=&quot;danger&quot; tone=&quot;outline&quot;&gt;&lt;/nodel-fader&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
         </nodel-page>
@@ -340,6 +509,62 @@
   &lt;nodel-icon name=&quot;volume&quot; label=&quot;Volume&quot; tone=&quot;success&quot; size=&quot;lg&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
   &lt;nodel-icon name=&quot;warning&quot; label=&quot;Warning&quot; tone=&quot;warning&quot; size=&quot;xl&quot;&gt;&lt;/nodel-icon&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Image Options</h2>
+              <p class="nodel-catalogue-description">
+                Images can show labels, use constrained sizes, choose shape, and opt into soft or bordered standalone treatments.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-image src="./v2/img/logo.png" label="Rounded" fit="contain" shape="rounded" variant="bordered" size="lg"></nodel-image>
+                    <nodel-image src="./v2/img/logo.png" label="Circle" fit="cover" shape="circle" variant="soft" size="lg"></nodel-image>
+                    <nodel-icon name="info" label="Info" tone="info" variant="soft"></nodel-icon>
+                    <nodel-icon name="warning" label="Danger" tone="danger" variant="bordered"></nodel-icon>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-image src=&quot;./v2/img/logo.png&quot; label=&quot;Rounded&quot; fit=&quot;contain&quot; shape=&quot;rounded&quot; variant=&quot;bordered&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;nodel-image src=&quot;./v2/img/logo.png&quot; label=&quot;Circle&quot; fit=&quot;cover&quot; shape=&quot;circle&quot; variant=&quot;soft&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;nodel-icon name=&quot;info&quot; label=&quot;Info&quot; tone=&quot;info&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-icon name=&quot;warning&quot; label=&quot;Danger&quot; tone=&quot;danger&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Status Indicators</h2>
+              <p class="nodel-catalogue-description">
+                Indicators can use default truthy/falsey values or exact <code>on-value</code> and <code>off-value</code> matching.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-button>Present <nodel-status-indicator value="present" label="Present"></nodel-status-indicator></nodel-button>
+                    <nodel-button>Muted Off <nodel-status-indicator value="absent" off-tone="muted" label="Absent"></nodel-status-indicator></nodel-button>
+                    <nodel-button>Fault <nodel-status-indicator value="fault" on-value="fault" tone="danger" label="Fault"></nodel-status-indicator></nodel-button>
+                    <nodel-button>Signal <nodel-status-indicator signal="DeviceOnline" label="Device online"></nodel-status-indicator></nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-button&gt;Present &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Present&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+&lt;nodel-button&gt;Muted Off &lt;nodel-status-indicator value=&quot;absent&quot; off-tone=&quot;muted&quot; label=&quot;Absent&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+&lt;nodel-button&gt;Fault &lt;nodel-status-indicator value=&quot;fault&quot; on-value=&quot;fault&quot; tone=&quot;danger&quot; label=&quot;Fault&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+&lt;nodel-button&gt;Signal &lt;nodel-status-indicator signal=&quot;DeviceOnline&quot; label=&quot;Device online&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;</code></pre>
           </section>
         </nodel-page>
 
@@ -483,6 +708,37 @@
 
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Sizes And States</h2>
+              <p class="nodel-catalogue-description">
+                Use <code>size</code> for explicit button sizing and state attributes for static examples or signal-driven runtime state.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-button size="sm">Small</nodel-button>
+                    <nodel-button size="md">Medium</nodel-button>
+                    <nodel-button size="lg">Large</nodel-button>
+                    <nodel-button active>Active</nodel-button>
+                    <nodel-button disabled>Disabled</nodel-button>
+                    <nodel-button active-value="on" signal="Power">Signal Active</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-button size=&quot;sm&quot;&gt;Small&lt;/nodel-button&gt;
+&lt;nodel-button size=&quot;md&quot;&gt;Medium&lt;/nodel-button&gt;
+&lt;nodel-button size=&quot;lg&quot;&gt;Large&lt;/nodel-button&gt;
+&lt;nodel-button active&gt;Active&lt;/nodel-button&gt;
+&lt;nodel-button disabled&gt;Disabled&lt;/nodel-button&gt;
+&lt;nodel-button active-value=&quot;on&quot; signal=&quot;Power&quot;&gt;Signal Active&lt;/nodel-button&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Signal State</h2>
               <p class="nodel-catalogue-description">
                 Button state usually follows Nodel signals. The shorthand <code>signal</code> target controls <code>active</code>; explicit <code>signals</code> targets can control <code>active</code>, <code>disabled</code>, or <code>label</code>.
@@ -493,6 +749,8 @@
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;StartShow&quot; signals=&quot;ShowRunning:active; ControlsLocked:disabled&quot;&gt;Start Show&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetLevel&quot; arg=&quot;42&quot; arg-type=&quot;number&quot;&gt;Level 42&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetEnabled&quot; arg=&quot;true&quot; arg-type=&quot;boolean&quot;&gt;Enable&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
@@ -586,6 +844,7 @@
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Signage&quot; signal=&quot;Source&quot;&gt;Signage&lt;/nodel-button&gt;
+  &lt;nodel-button action=&quot;SetLevel&quot; arg=&quot;42&quot; arg-type=&quot;number&quot;&gt;Level 42&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
         </nodel-page>
@@ -619,6 +878,11 @@
                 <nodel-title level="1" signals="PageTitle:value">Waiting for PageTitle signal</nodel-title>
               </nodel-column>
             </nodel-row>
+            <nodel-row>
+              <nodel-column span="12">
+                <nodel-title level="2" tone="accent" signal="SectionTitle">Accent title waiting for SectionTitle signal</nodel-title>
+              </nodel-column>
+            </nodel-row>
           </div>
 
           <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
@@ -637,6 +901,11 @@
 &lt;nodel-row&gt;
   &lt;nodel-column span=&quot;12&quot;&gt;
     &lt;nodel-title level=&quot;1&quot; signals=&quot;PageTitle:value&quot;&gt;Waiting for PageTitle signal&lt;/nodel-title&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column span=&quot;12&quot;&gt;
+    &lt;nodel-title level=&quot;2&quot; tone=&quot;accent&quot; signal=&quot;SectionTitle&quot;&gt;Accent title waiting for SectionTitle signal&lt;/nodel-title&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
         </nodel-page>
@@ -797,12 +1066,18 @@
                 <nodel-column md="6">
                   <nodel-text signal="Status" surface="card" tone="default">Waiting for Status signal</nodel-text>
                 </nodel-column>
+                <nodel-column md="6">
+                  <nodel-text signals="AlertText:value" surface="card" tone="warning">Waiting for AlertText signal</nodel-text>
+                </nodel-column>
               </nodel-row>
             </div>
 
             <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
     &lt;nodel-text signal=&quot;Status&quot; surface=&quot;card&quot; tone=&quot;default&quot;&gt;Waiting for Status signal&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text signals=&quot;AlertText:value&quot; surface=&quot;card&quot; tone=&quot;warning&quot;&gt;Waiting for AlertText signal&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
           </section>

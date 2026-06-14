@@ -31,11 +31,14 @@ Examples:
 - `nodel-control-grid`
 - `nodel-control-space`
 - `nodel-button`
+- `nodel-fader`
+- `nodel-meter`
 - `nodel-image`
 - `nodel-icon`
 - `nodel-status-indicator`
 - `nodel-collapse`
 - `nodel-description`
+- `nodel-title`
 - `nodel-text`
 - `nodel-host-icon`
 - `nodel-node-list`
@@ -45,6 +48,8 @@ Examples:
 - `nodel-toolkit`
 - `nodel-console`
 - `nodel-log`
+- `nodel-host-log`
+- `nodel-diagnostic-charts`
 - `nodel-actsig`
 - `nodel-params`
 - `nodel-bindings`
@@ -249,11 +254,71 @@ Use `nodel-control-space` for deliberate empty cells. It is scoped to control-gr
 
 Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a full control-grid cell when they are direct grid children, and render inline when placed inside `nodel-button`. `nodel-status-indicator` is intended for button content for now; inside a button it is overlaid in the top-right corner and stays out of inline or stacked content flow. Components keep their own signal behavior; the button only arranges them.
 
+`nodel-fader` renders a touch-first level slider. It does not include a meter by default; the filled track shows the current set position. Add an explicit `nodel-meter` child when live level display is needed. It defaults to a vertical fader so it naturally occupies a compact control-grid cell and can sit beside a stack of related controls. Dragging is relative to the current value: touching the track begins a drag, but does not jump the level to the touched position. During drag, action calls are throttled and a final exact value is sent when the drag ends. Add `increment` or `nudge` to show +/- controls; `nudge` sets the increment amount and defaults to `step`.
+
+Supported `nodel-fader` attributes:
+
+- `orientation="vertical|horizontal"`
+- `compound-align="bottom|center|top"` for vertical faders, or `end|center|start` aliases
+- `variant="default|primary|success|info|warning|danger|ghost"`
+- `tone="solid|soft|outline"`
+- `min`, `max`, `step`
+- `unit="percent|db|none"`
+- `value`
+- `nudge`
+- `increment`
+- `action`
+- `arg-type="number|string|json"`
+- `disabled`
+- `readout="show|hide"`
+- `label`
+- `live-interval`
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
+
+`nodel-meter` renders a read-only signal-driven level meter. It can be a standalone control-grid tile or a compact child inside a fader rail. Percent values default to `0..100`; dB values default to `-60..+10`. Both faders and meters use the same linear min/max mapping, so `unit="db"` changes the defaults and readout format without applying a logarithmic curve.
+
+Supported `nodel-meter` attributes:
+
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with targets `value`, `peak`, and `label`
+- `value`
+- `min`, `max`
+- `unit="percent|db|none"`
+- `orientation="vertical|horizontal"`
+- `warn`, `danger`
+- `peak="off|hold"`
+- `readout="show|hide"`
+- `label`
+
+Faders preserve compound children and place them in a compact rail in source order. The rail has no separate card or border treatment by default; it relies on proximity to keep related status, meter, and button controls visually grouped while allowing each child component to keep its own signal/action behavior. The rail defaults to bottom/end alignment; set `compound-align="top"`, `compound-align="center"`, or `compound-align="bottom"` when a vertical fader needs different placement.
+
+`variant` controls the fader fill colour. `tone` controls the surrounding surface: the default `solid` tone leaves the fader directly on the parent background, while `soft` and `outline` add progressively stronger visual grouping.
+
+The fader readout is rendered inside the track by default. On vertical faders it sits near the top when the value is low and near the bottom when the value is high so it stays away from the thumb.
+
+Vertical faders keep a stable default track length whether or not increment buttons are shown. Override `--nodel-fader-length` for a group of faders, or `--nodel-fader-length-no-increment` when no-button faders need a different length.
+
+```html
+<nodel-control-grid columns="2">
+  <nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">
+    <nodel-meter signal="Level" peak="hold" label="Output level"></nodel-meter>
+    <nodel-status-indicator signal="Muted" label="Mute state" tone="warning"></nodel-status-indicator>
+    <nodel-button action="Mute" variant="warning" tone="soft">Mute</nodel-button>
+  </nodel-fader>
+  <nodel-control-grid columns="1">
+    <nodel-button>Speech</nodel-button>
+    <nodel-button>Music</nodel-button>
+  </nodel-control-grid>
+</nodel-control-grid>
+```
+
 Supported `nodel-button` attributes:
 
 - `variant="default|primary|success|info|warning|danger|ghost|link"`
 - `tone="solid|soft|outline"`
 - `layout="inline|stack"`
+- `size="auto|sm|md|lg"`
 - `action="ActionName"`
 - `arg="value"`
 - `arg-type="string|number|boolean|json"`
@@ -266,6 +331,8 @@ Supported `nodel-button` attributes:
 `disabled` and `active` are state attributes. They can be set statically, but custom node pages usually let local Nodel signals drive them so the UI follows runtime state.
 
 `variant` chooses the semantic colour or special treatment, while `tone` chooses the visual weight. `tone="solid"` is the default filled treatment. Use `tone="soft"` for lower-emphasis semantic actions and `tone="outline"` when a button needs a stronger border without a filled background.
+
+`size="auto"` is the default and uses the surrounding context. Direct control-grid buttons keep the normal touch size. Buttons inside a `nodel-fader` compound rail default to a compact height matching the fader nudge buttons. Use `size="sm"`, `size="md"`, or `size="lg"` to override this.
 
 ```html
 <nodel-control-grid columns="2" md="4">
@@ -381,6 +448,20 @@ Components that support collapse previews should emit plain-text `nodel-collapse
 
 ## Text
 
+Use `nodel-title` for visible page and section headings. `nodel-page title="..."` controls navigation labels only; it does not render a visible heading.
+
+```html
+<nodel-title level="1">Node Overview</nodel-title>
+<nodel-title level="2" tone="accent" signal="SectionTitle">Waiting for title</nodel-title>
+```
+
+Supported `nodel-title` attributes:
+
+- `level="1|2|3"`
+- `tone="default|muted|accent"`
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with target `value`
+
 Use `nodel-text` for ordinary body text. It applies the default muted body styling so override pages do not need to repeat Tailwind utility classes.
 
 ```html
@@ -394,6 +475,8 @@ Supported attributes:
 - `tone="muted|default|accent|success|info|warning|danger"`
 - `size="xs|sm|md|lg|xl"`
 - `surface="none|card"`
+- `signal="SignalName"` as shorthand for `value`
+- `signals="SignalName:target"` with target `value`
 
 Use `surface="card"` for bordered/padded callouts.
 

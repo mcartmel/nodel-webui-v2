@@ -90,6 +90,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'variant', description: 'Button visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'] },
       { name: 'tone', description: 'Button visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'layout', description: 'Button child layout.', values: ['inline', 'stack'] },
+      { name: 'size', description: 'Button size. Auto uses the context default.', values: ['auto', 'sm', 'md', 'lg'] },
       { name: 'action', description: 'Current-node action name to call on click.' },
       { name: 'arg', description: 'Optional action argument value.' },
       { name: 'arg-type', description: 'Parser for arg.', values: ['string', 'number', 'boolean', 'json'] },
@@ -102,6 +103,51 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: active, label, disabled.' }
     ],
     snippet: '<nodel-button action="ActionName">${}</nodel-button>'
+  },
+  {
+    name: 'nodel-fader',
+    description: 'Touch-first level fader with optional increment buttons and compound rail content.',
+    attributes: [
+      { name: 'orientation', description: 'Fader orientation.', values: ['vertical', 'horizontal'] },
+      { name: 'compound-align', description: 'Compound rail alignment. Defaults to bottom/end.', values: ['bottom', 'center', 'top'] },
+      { name: 'variant', description: 'Fader fill colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Fader surface treatment.', values: ['solid', 'soft', 'outline'] },
+      { name: 'min', description: 'Minimum value.' },
+      { name: 'max', description: 'Maximum value.' },
+      { name: 'step', description: 'Value step.' },
+      { name: 'unit', description: 'Value display unit and default range.', values: ['percent', 'db', 'none'] },
+      { name: 'nudge', description: 'Increment amount for +/- controls. Presence enables increment buttons.' },
+      { name: 'increment', description: 'Show +/- increment controls.' },
+      { name: 'action', description: 'Current-node action name called on change.' },
+      { name: 'arg-type', description: 'Parser for action arg.', values: ['number', 'string', 'json'] },
+      { name: 'value', description: 'Current fader value.' },
+      { name: 'disabled', description: 'Disable dragging and increment controls.' },
+      { name: 'readout', description: 'Show or hide numeric value readout.', values: ['show', 'hide'] },
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'live-interval', description: 'Throttled live action interval in milliseconds.' },
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label, disabled.' }
+    ],
+    snippet: '<nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">\n  ${}\n</nodel-fader>'
+  },
+  {
+    name: 'nodel-meter',
+    description: 'Signal-driven level meter for percent or dB values.',
+    attributes: [
+      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
+      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, peak, label.' },
+      { name: 'value', description: 'Current meter value.' },
+      { name: 'min', description: 'Minimum value.' },
+      { name: 'max', description: 'Maximum value.' },
+      { name: 'unit', description: 'Value display unit and default range.', values: ['percent', 'db', 'none'] },
+      { name: 'orientation', description: 'Meter orientation.', values: ['vertical', 'horizontal'] },
+      { name: 'warn', description: 'Warning zone threshold.' },
+      { name: 'danger', description: 'Danger zone threshold.' },
+      { name: 'peak', description: 'Peak marker behavior.', values: ['off', 'hold'] },
+      { name: 'readout', description: 'Show or hide numeric value readout.', values: ['show', 'hide'] },
+      { name: 'label', description: 'Accessible meter label.' }
+    ],
+    snippet: '<nodel-meter signal="Level" label="Level"></nodel-meter>'
   },
   {
     name: 'nodel-image',

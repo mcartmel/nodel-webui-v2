@@ -5,11 +5,13 @@ import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 type NodelButtonVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost' | 'link';
 type NodelButtonArgType = 'string' | 'number' | 'boolean' | 'json';
 type NodelButtonLayout = 'inline' | 'stack';
+type NodelButtonSize = 'auto' | 'sm' | 'md' | 'lg';
 
 const variants: NodelButtonVariant[] = ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'];
 const tones = ['solid', 'soft', 'outline'] as const;
 const argTypes: NodelButtonArgType[] = ['string', 'number', 'boolean', 'json'];
 const layouts: NodelButtonLayout[] = ['inline', 'stack'];
+const sizes: NodelButtonSize[] = ['auto', 'sm', 'md', 'lg'];
 
 type NodelButtonTone = (typeof tones)[number];
 
@@ -44,6 +46,10 @@ function normalizeArgType(value: string | null): NodelButtonArgType {
 
 function normalizeLayout(value: string | null): NodelButtonLayout {
   return layouts.includes(value as NodelButtonLayout) ? (value as NodelButtonLayout) : 'inline';
+}
+
+function normalizeSize(value: string | null): NodelButtonSize {
+  return sizes.includes(value as NodelButtonSize) ? (value as NodelButtonSize) : 'auto';
 }
 
 function parseBoolean(value: string) {
@@ -86,7 +92,7 @@ function apiErrorMessage(error: unknown, fallback: string) {
 }
 
 export class NodelButton extends HTMLElement {
-  static observedAttributes = ['variant', 'tone', 'layout', 'action', 'arg', 'arg-type', 'disabled', 'active', 'active-value', 'signal', 'signals', 'aria-label', 'aria-labelledby', 'title'];
+  static observedAttributes = ['variant', 'tone', 'layout', 'size', 'action', 'arg', 'arg-type', 'disabled', 'active', 'active-value', 'signal', 'signals', 'aria-label', 'aria-labelledby', 'title'];
 
   private shellReady = false;
   private buttonNode: HTMLButtonElement | null = null;
@@ -122,6 +128,7 @@ export class NodelButton extends HTMLElement {
     const variant = normalizeVariant(this.getAttribute('variant'));
     const tone = normalizeTone(this.getAttribute('tone'));
     const layout = normalizeLayout(this.getAttribute('layout'));
+    const size = normalizeSize(this.getAttribute('size'));
     const active = this.hasAttribute('active');
     const disabled = this.hasAttribute('disabled') || this.busy;
     const variantClass = variantClasses[variant] ? ` ${variantClasses[variant]}` : '';
@@ -132,6 +139,7 @@ export class NodelButton extends HTMLElement {
     this.dataset.variant = variant;
     this.dataset.tone = tone;
     this.dataset.layout = layout;
+    this.dataset.size = size;
     this.dataset.active = String(active);
     this.buttonNode!.className = `nodel-button nodel-button-touch${variantClass}${toneClass}${stateClass}${busyClass}`;
     this.buttonNode!.disabled = disabled;
