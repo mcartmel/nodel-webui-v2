@@ -26,7 +26,7 @@ import '../src/components/nodel-image';
 import '../src/components/nodel-status-indicator';
 import '../src/components/nodel-text';
 
-function emitSignal(alias: string, arg: unknown) {
+function emitSignals(entries: Array<{ alias: string; arg: unknown }>) {
   for (const listener of activityMock.listeners) {
     listener({
       loading: false,
@@ -34,7 +34,7 @@ function emitSignal(alias: string, arg: unknown) {
       error: '',
       batch: {
         items: [
-          {
+          ...entries.map(({ alias, arg }, index) => ({
             entry: {
               seq: 1,
               timestamp: '2026-06-06T00:00:00Z',
@@ -45,7 +45,7 @@ function emitSignal(alias: string, arg: unknown) {
             },
             changed: true,
             live: true
-          }
+          }))
         ],
         replace: false,
         transport: 'websocket',
@@ -53,6 +53,10 @@ function emitSignal(alias: string, arg: unknown) {
       }
     });
   }
+}
+
+function emitSignal(alias: string, arg: unknown) {
+  emitSignals([{ alias, arg }]);
 }
 
 describe('nodel-button', () => {
@@ -170,6 +174,32 @@ describe('nodel-button', () => {
     expect(submitted).toHaveBeenCalledTimes(1);
   });
 
+  it('uses join as action and default active signal shorthand', async () => {
+    document.body.innerHTML = '<nodel-button join="Power">Power</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    host.querySelector('button')?.click();
+    await flush();
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('Power', {});
+
+    emitSignal('Power', 'on');
+    expect(host.hasAttribute('active')).toBe(true);
+  });
+
+  it('calls multiple click actions in declaration order', async () => {
+    document.body.innerHTML = '<nodel-button actions="Prepare; Start" arg="true" arg-type="boolean">Start</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    document.querySelector<HTMLButtonElement>('nodel-button button')?.click();
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'Prepare', { arg: true });
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'Start', { arg: true });
+  });
+
   it('parses arg payloads before calling an action', async () => {
     document.body.innerHTML = '<nodel-button action="SetLevel" arg="42" arg-type="number">Set</nodel-button>';
     await customElements.whenDefined('nodel-button');
@@ -218,6 +248,43 @@ describe('nodel-button', () => {
     expect(toast.mock.calls[0][0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
   });
 
+  it('does not dispatch submitted events when action calls fail', async () => {
+    actionMock.callNodeAction.mockRejectedValue(new Error('No route'));
+    document.body.innerHTML = '<nodel-button action="Missing">Missing</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const submitted = vi.fn();
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    host.addEventListener('nodel-button-submitted', submitted);
+    host.querySelector('button')?.click();
+    await flush();
+
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it('gates click actions through confirmation', async () => {
+    document.body.innerHTML = '<nodel-button action="Delete" confirm-text="Delete it?">Delete</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    let confirmed = false;
+    host.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      (event as CustomEvent).detail.resolve(confirmed);
+    });
+
+    host.querySelector('button')?.click();
+    await flush();
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+
+    confirmed = true;
+    host.querySelector('button')?.click();
+    await flush();
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('Delete', {});
+  });
+
   it('updates active, label, and disabled state from signal bindings', async () => {
     document.body.innerHTML = '<nodel-button signal="Source" arg="TV" signals="ButtonLabel:label; Locked:disabled">Waiting</nodel-button>';
     await customElements.whenDefined('nodel-button');
@@ -237,6 +304,75 @@ describe('nodel-button', () => {
 
     emitSignal('Locked', 'false');
     expect(host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(false);
+  });
+
+  it('aggregates repeated active signal targets when requested', async () => {
+    document.body.innerHTML = '<nodel-button signals="ReadyA:active(any); ReadyB:active(any)">Ready</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    emitSignal('ReadyA', 'off');
+    expect(host.hasAttribute('active')).toBe(false);
+
+    emitSignal('ReadyB', 'on');
+    expect(host.hasAttribute('active')).toBe(true);
+
+    emitSignals([{ alias: 'ReadyA', arg: 'off' }, { alias: 'ReadyB', arg: 'off' }]);
+    expect(host.hasAttribute('active')).toBe(false);
+  });
+
+  it('supports momentary press and release actions', async () => {
+    document.body.innerHTML = '<nodel-button actions="VolumeUp:press; VolumeStop:release">Up</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const button = document.querySelector('nodel-button button') as HTMLButtonElement;
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    await flush();
+    document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'VolumeUp', {});
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
+  });
+
+  it('runs confirmed momentary press and release after pointer release', async () => {
+    document.body.innerHTML = '<nodel-button actions="VolumeUp:press; VolumeStop:release" confirm-text="Move volume?">Up</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    let resolveConfirm: (confirmed: boolean) => void = () => undefined;
+    host.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveConfirm = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+
+    const button = host.querySelector('button') as HTMLButtonElement;
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
+    resolveConfirm(true);
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'VolumeUp', {});
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
+  });
+
+  it('allows click actions on buttons that also define momentary phases', async () => {
+    document.body.innerHTML = '<nodel-button actions="Arm:click; VolumeUp:press; VolumeStop:release">Up</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const button = document.querySelector('nodel-button button') as HTMLButtonElement;
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
+    button.click();
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('VolumeUp', {});
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('VolumeStop', {});
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('Arm', {});
   });
 
   it('preserves media and indicator children across state renders', async () => {

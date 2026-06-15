@@ -1,4 +1,5 @@
-import { callNodeAction } from '../api/nodel-host-client';
+import { callActionBindings, hasActionPhase, parseActionBindings, type ActionBinding } from '../data/action-bindings';
+import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 
@@ -12,6 +13,8 @@ const tones = ['solid', 'soft', 'outline'] as const;
 const argTypes: NodelButtonArgType[] = ['string', 'number', 'boolean', 'json'];
 const layouts: NodelButtonLayout[] = ['inline', 'stack'];
 const sizes: NodelButtonSize[] = ['auto', 'sm', 'md', 'lg'];
+const aggregatedTrue = '__nodel_aggregate_true__';
+const aggregatedFalse = '__nodel_aggregate_false__';
 
 type NodelButtonTone = (typeof tones)[number];
 
@@ -92,7 +95,11 @@ function apiErrorMessage(error: unknown, fallback: string) {
 }
 
 export class NodelButton extends HTMLElement {
-  static observedAttributes = ['variant', 'tone', 'layout', 'size', 'action', 'arg', 'arg-type', 'disabled', 'active', 'active-value', 'signal', 'signals', 'aria-label', 'aria-labelledby', 'title'];
+  static observedAttributes = [
+    'variant', 'tone', 'layout', 'size', 'action', 'actions', 'action-on', 'action-off', 'join', 'arg', 'arg-type',
+    'disabled', 'active', 'active-value', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text',
+    'confirm-label', 'cancel-label', 'confirm-tone', 'aria-label', 'aria-labelledby', 'title'
+  ];
 
   private shellReady = false;
   private buttonNode: HTMLButtonElement | null = null;
@@ -100,6 +107,10 @@ export class NodelButton extends HTMLElement {
   private defaultLabel = 'Button';
   private busy = false;
   private connected = false;
+  private momentaryActive = false;
+  private momentaryStarting = false;
+  private momentaryReleaseRequested = false;
+  private ignoreNextClick = false;
   private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
@@ -108,11 +119,22 @@ export class NodelButton extends HTMLElement {
     this.render();
     this.syncSignalSubscription();
     this.addEventListener('click', this.handleClick);
+    this.addEventListener('pointerdown', this.handlePointerDown);
+    this.addEventListener('keydown', this.handleKeyDown);
+    this.addEventListener('keyup', this.handleKeyUp);
   }
 
   disconnectedCallback() {
     this.connected = false;
     this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('pointerdown', this.handlePointerDown);
+    this.removeEventListener('keydown', this.handleKeyDown);
+    this.removeEventListener('keyup', this.handleKeyUp);
+    if (this.momentaryStarting) {
+      this.clearMomentaryStart();
+    } else {
+      this.finishMomentary();
+    }
     this.signalBindings.dispose();
   }
 
@@ -224,37 +246,85 @@ export class NodelButton extends HTMLElement {
     return { arg };
   }
 
-  private async submitAction(action: string) {
-    if (this.busy) {
+  private actionBindings() {
+    return parseActionBindings({
+      action: this.getAttribute('action'),
+      actions: this.getAttribute('actions'),
+      join: this.getAttribute('join'),
+      defaultPhase: 'click',
+      aliases: [
+        { action: this.getAttribute('action-on'), phase: 'press' },
+        { action: this.getAttribute('action-off'), phase: 'release' }
+      ]
+    });
+  }
+
+  private async submitActions(phase: string, bindings: ActionBinding[], options: { confirm?: boolean; busy?: boolean } = {}) {
+    if (options.busy && this.busy) {
       return;
     }
 
     const payload = this.payload();
-    this.busy = true;
-    this.render();
+    if (options.confirm && shouldConfirm(this)) {
+      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
+        title: 'Confirm action',
+        text: `Run ${this.currentLabel() || 'action'}?`,
+        tone: 'warning'
+      }));
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    if (options.busy) {
+      this.busy = true;
+      this.render();
+    }
 
     try {
-      await callNodeAction(action, payload);
+      const execution = await callActionBindings(bindings, phase, payload);
+      if (execution.failures.length > 0) {
+        const detail = execution.failures.length === 1
+          ? execution.failures[0].error ?? 'Failed to call action'
+          : execution.failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
+        this.dispatchEvent(new CustomEvent('nodel-button-error', {
+          bubbles: true,
+          detail: { phase, payload, failures: execution.failures, error: detail }
+        }));
+        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        return;
+      }
       this.dispatchEvent(new CustomEvent('nodel-button-submitted', {
         bubbles: true,
-        detail: { action, payload }
+        detail: { action: bindings[0]?.action ?? '', phase, payload, results: execution.results }
       }));
     } catch (error) {
       const message = apiErrorMessage(error, 'Failed to call action');
       this.dispatchEvent(new CustomEvent('nodel-button-error', {
         bubbles: true,
-        detail: { action, payload, error: message }
+        detail: { phase, payload, error: message }
       }));
       this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
     } finally {
-      this.busy = false;
-      if (this.isConnected) {
+      if (options.busy) {
+        this.busy = false;
+      }
+      if (this.isConnected && options.busy) {
         this.render();
       }
     }
   }
 
   private setActiveFromValue(value: string) {
+    if (value === aggregatedTrue) {
+      this.setAttribute('active', '');
+      return;
+    }
+    if (value === aggregatedFalse) {
+      this.removeAttribute('active');
+      return;
+    }
+
     const expected = this.getAttribute('active-value') ?? this.getAttribute('arg');
     if (valueMatches(value, expected)) {
       this.setAttribute('active', '');
@@ -295,6 +365,18 @@ export class NodelButton extends HTMLElement {
       active: (value) => this.setActiveFromValue(value),
       disabled: (value) => this.setDisabledFromValue(value),
       label: (value) => this.setLabel(value)
+    }, {
+      join: this.getAttribute('join'),
+      aggregators: {
+        active: {
+          evaluate: (value) => {
+            const expected = this.getAttribute('active-value') ?? this.getAttribute('arg');
+            return valueMatches(value, expected);
+          },
+          format: (value) => value ? aggregatedTrue : aggregatedFalse
+        },
+        disabled: { evaluate: (value) => valueMatches(value, null) }
+      }
     });
   }
 
@@ -310,13 +392,110 @@ export class NodelButton extends HTMLElement {
       return;
     }
 
-    const action = this.getAttribute('action')?.trim() ?? '';
-    if (!action || this.hasAttribute('disabled')) {
+    const bindings = this.actionBindings();
+    if (this.hasAttribute('disabled') || bindings.length === 0) {
+      return;
+    }
+
+    const hasMomentary = hasActionPhase(bindings, 'press') || hasActionPhase(bindings, 'release');
+    if (this.ignoreNextClick) {
+      this.ignoreNextClick = false;
+      if (!hasActionPhase(bindings, 'click')) {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    if (hasMomentary && !hasActionPhase(bindings, 'click')) {
+      event.preventDefault();
       return;
     }
 
     event.preventDefault();
-    void this.submitAction(action);
+    void this.submitActions('click', bindings, { confirm: true, busy: true });
+  };
+
+  private isMomentary(bindings = this.actionBindings()) {
+    return hasActionPhase(bindings, 'press') || hasActionPhase(bindings, 'release');
+  }
+
+  private async startMomentary(event?: Event) {
+    const bindings = this.actionBindings();
+    if (!this.isMomentary(bindings) || this.momentaryActive || this.momentaryStarting || this.hasAttribute('disabled')) {
+      return;
+    }
+    if (!hasActionPhase(bindings, 'click')) {
+      event?.preventDefault();
+    }
+    this.ignoreNextClick = true;
+    this.momentaryStarting = true;
+    this.momentaryReleaseRequested = false;
+    document.addEventListener('pointerup', this.handleDocumentPointerUp);
+    document.addEventListener('pointercancel', this.handleDocumentPointerUp);
+    window.addEventListener('blur', this.handleWindowBlur);
+
+    if (shouldConfirm(this)) {
+      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
+        title: 'Confirm action',
+        text: `Run ${this.currentLabel() || 'action'}?`,
+        tone: 'warning'
+      }));
+      if (!confirmed) {
+        this.clearMomentaryStart();
+        return;
+      }
+    }
+
+    this.momentaryStarting = false;
+    this.momentaryActive = true;
+    this.setAttribute('active', '');
+    void this.submitActions('press', bindings);
+    if (this.momentaryReleaseRequested) {
+      this.finishMomentary();
+    }
+  }
+
+  private finishMomentary() {
+    if (this.momentaryStarting && !this.momentaryActive) {
+      this.momentaryReleaseRequested = true;
+      return;
+    }
+    if (!this.momentaryActive) {
+      return;
+    }
+    this.momentaryActive = false;
+    this.removeAttribute('active');
+    this.clearMomentaryStart();
+    void this.submitActions('release', this.actionBindings());
+  }
+
+  private clearMomentaryStart() {
+    this.momentaryStarting = false;
+    this.momentaryReleaseRequested = false;
+    document.removeEventListener('pointerup', this.handleDocumentPointerUp);
+    document.removeEventListener('pointercancel', this.handleDocumentPointerUp);
+    window.removeEventListener('blur', this.handleWindowBlur);
+  }
+
+  private handlePointerDown = (event: PointerEvent) => {
+    if (event.target === this.buttonNode || this.buttonNode?.contains(event.target as Node)) {
+      this.startMomentary(event);
+    }
+  };
+
+  private handleDocumentPointerUp = () => this.finishMomentary();
+  private handleWindowBlur = () => this.finishMomentary();
+
+  private handleKeyDown = (event: KeyboardEvent) => {
+    if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+      this.startMomentary(event);
+    }
+  };
+
+  private handleKeyUp = (event: KeyboardEvent) => {
+    if (event.key === ' ' || event.key === 'Enter') {
+      this.finishMomentary();
+    }
   };
 }
 

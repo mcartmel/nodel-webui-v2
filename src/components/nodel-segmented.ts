@@ -1,4 +1,4 @@
-import { callNodeAction } from '../api/nodel-host-client';
+import { callActionBindings, parseActionBindings } from '../data/action-bindings';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
@@ -66,7 +66,7 @@ function valueMatches(value: string, expected: string) {
 
 export class NodelSegmented extends HTMLElement {
   static observedAttributes = [
-    'action', 'arg-type', 'signal', 'signals', 'value', 'variant', 'tone', 'orientation', 'disabled',
+    'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'variant', 'tone', 'orientation', 'disabled',
     'allow-deselect', 'label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
   ];
 
@@ -164,7 +164,8 @@ export class NodelSegmented extends HTMLElement {
     const optionValue = this.optionValue(option);
     const currentValue = this.getAttribute('value') ?? '';
     const nextValue = currentValue === optionValue && this.hasAttribute('allow-deselect') ? '' : optionValue;
-    const action = this.getAttribute('action')?.trim() ?? '';
+    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'select' });
     const payload = { arg: parseArg(nextValue, normalizeArgType(this.getAttribute('arg-type'))) };
     const confirmSource = shouldConfirm(option) ? option : this;
 
@@ -179,7 +180,7 @@ export class NodelSegmented extends HTMLElement {
       }
     }
 
-    if (!action) {
+    if (bindings.length === 0) {
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, payload, nextValue);
       return;
@@ -188,7 +189,18 @@ export class NodelSegmented extends HTMLElement {
     this.busy = true;
     this.render();
     try {
-      await callNodeAction(action, payload);
+      const execution = await callActionBindings(bindings, 'select', payload);
+      if (execution.failures.length > 0) {
+        const detail = execution.failures.length === 1
+          ? execution.failures[0].error ?? 'Failed to call action'
+          : execution.failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
+        this.dispatchEvent(new CustomEvent('nodel-segmented-error', {
+          bubbles: true,
+          detail: { action, value: nextValue, payload, failures: execution.failures, error: detail }
+        }));
+        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        return;
+      }
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, payload, nextValue);
     } catch (error) {
@@ -227,6 +239,11 @@ export class NodelSegmented extends HTMLElement {
       value: (value) => this.setAttribute('value', value),
       disabled: (value) => this.setDisabledFromValue(value),
       label: (value) => this.setAttribute('label', value)
+    }, {
+      join: this.getAttribute('join'),
+      aggregators: {
+        disabled: { evaluate: (value) => ['true', '1', 'on', 'yes'].includes(value.trim().toLocaleLowerCase()) }
+      }
     });
   }
 

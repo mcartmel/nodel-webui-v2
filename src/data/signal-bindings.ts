@@ -4,12 +4,21 @@ import { subscribeNodeActivity } from './node-activity-source';
 export interface SignalBinding {
   signal: string;
   target: string;
+  mode: SignalBindingMode;
 }
 
 export type SignalTargetHandlers = Record<string, (value: string) => void>;
+export type SignalBindingMode = 'last' | 'any' | 'all';
+
+export interface SignalTargetAggregator {
+  evaluate(value: string): boolean;
+  format?(value: boolean): string;
+}
+
+export type SignalTargetAggregators = Record<string, SignalTargetAggregator>;
 
 export interface SignalBindingController {
-  sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers): void;
+  sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers, options?: { join?: string | null; aggregators?: SignalTargetAggregators }): void;
   dispose(): void;
 }
 
@@ -37,6 +46,18 @@ export function normalizeSignalName(value: string | null) {
   return value?.trim() ?? '';
 }
 
+function parseTarget(value: string): { target: string; mode: SignalBindingMode } {
+  const modeMatch = value.match(/^(.+)\((last|any|all)\)$/i);
+  if (!modeMatch) {
+    return { target: value.trim(), mode: 'last' };
+  }
+
+  return {
+    target: modeMatch[1].trim(),
+    mode: modeMatch[2].toLocaleLowerCase() as SignalBindingMode
+  };
+}
+
 function parseSignalBindingList(value: string | null, defaultTarget?: string): SignalBinding[] {
   const bindings: SignalBinding[] = [];
 
@@ -49,7 +70,7 @@ function parseSignalBindingList(value: string | null, defaultTarget?: string): S
     const separatorIndex = trimmed.indexOf(':');
     if (separatorIndex === -1) {
       if (defaultTarget) {
-        bindings.push({ signal: trimmed, target: defaultTarget });
+        bindings.push({ signal: trimmed, target: defaultTarget, mode: 'last' });
       }
       continue;
     }
@@ -59,35 +80,75 @@ function parseSignalBindingList(value: string | null, defaultTarget?: string): S
     }
 
     const signal = trimmed.slice(0, separatorIndex).trim();
-    const target = trimmed.slice(separatorIndex + 1).trim();
+    const { target, mode } = parseTarget(trimmed.slice(separatorIndex + 1).trim());
 
     if (signal && target) {
-      bindings.push({ signal, target });
+      bindings.push({ signal, target, mode });
     }
   }
 
   return bindings;
 }
 
-export function parseSignalBindings(signal: string | null, signals?: string | null, defaultTarget?: string): SignalBinding[] {
-  return [
+export function parseSignalBindings(signal: string | null, signals?: string | null, defaultTarget?: string, join?: string | null): SignalBinding[] {
+  const bindings = [
+    ...parseSignalBindingList(join ?? null, defaultTarget),
     ...parseSignalBindingList(signal, defaultTarget),
     ...parseSignalBindingList(signals ?? null, defaultTarget)
   ];
+
+  const seen = new Set<string>();
+  return bindings.filter((binding) => {
+    const key = `${binding.signal}:${binding.target}:${binding.mode}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 export function signalBindingKey(bindings: SignalBinding[]) {
-  return bindings.map((binding) => `${binding.signal}:${binding.target}`).join(';');
+  return bindings.map((binding) => `${binding.signal}:${binding.target}:${binding.mode}`).join(';');
 }
 
-export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBinding[], handlers: SignalTargetHandlers) {
+export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBinding[], handlers: SignalTargetHandlers, aggregators: SignalTargetAggregators = {}) {
+  const aggregateGroups = new Map<string, { signals: string[]; values: Map<string, boolean>; mode: SignalBindingMode; target: string }>();
+  for (const binding of bindings) {
+    if (binding.mode === 'last' || !aggregators[binding.target]) {
+      continue;
+    }
+    const key = `${binding.target}:${binding.mode}`;
+    const group = aggregateGroups.get(key) ?? { signals: [], values: new Map<string, boolean>(), mode: binding.mode, target: binding.target };
+    if (!group.signals.includes(binding.signal)) {
+      group.signals.push(binding.signal);
+    }
+    aggregateGroups.set(key, group);
+  }
+
   return subscribeNodeActivity(element, (state) => {
     const entries = state.batch?.items.map((item) => item.entry) ?? [];
 
     for (const entry of entries) {
       for (const binding of bindings) {
         if (isMatchingSignal(entry, binding.signal)) {
-          handlers[binding.target]?.(formatSignalValue(entry.arg));
+          const value = formatSignalValue(entry.arg);
+          const aggregator = aggregators[binding.target];
+          if (binding.mode === 'last' || !aggregator) {
+            handlers[binding.target]?.(value);
+            continue;
+          }
+
+          const group = aggregateGroups.get(`${binding.target}:${binding.mode}`);
+          if (!group) {
+            continue;
+          }
+          group.values.set(binding.signal, aggregator.evaluate(value));
+          const values = group.signals.map((signal) => group.values.get(signal) ?? false);
+          const next = binding.mode === 'any'
+            ? values.some(Boolean)
+            : values.every(Boolean);
+          handlers[binding.target]?.(aggregator.format?.(next) ?? String(next));
         }
       }
     }
@@ -99,9 +160,9 @@ export function createSignalBindingController(element: HTMLElement): SignalBindi
   let subscription: { dispose(): void } | null = null;
 
   return {
-    sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers) {
+    sync(signal: string | null, signals: string | null, defaultTarget: string | undefined, handlers: SignalTargetHandlers, options: { join?: string | null; aggregators?: SignalTargetAggregators } = {}) {
       const supportedTargets = new Set(Object.keys(handlers));
-      const bindings = parseSignalBindings(signal, signals, defaultTarget).filter((binding) => supportedTargets.has(binding.target));
+      const bindings = parseSignalBindings(signal, signals, defaultTarget, options.join).filter((binding) => supportedTargets.has(binding.target));
       const nextKey = signalBindingKey(bindings);
 
       if (nextKey === bindingsKey) {
@@ -113,7 +174,7 @@ export function createSignalBindingController(element: HTMLElement): SignalBindi
       bindingsKey = nextKey;
 
       if (bindings.length > 0) {
-        subscription = subscribeSignalBindings(element, bindings, handlers);
+        subscription = subscribeSignalBindings(element, bindings, handlers, options.aggregators);
       }
     },
     dispose() {

@@ -1,4 +1,4 @@
-import { callNodeAction } from '../api/nodel-host-client';
+import { callActionBindings, parseActionBindings } from '../data/action-bindings';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
@@ -85,7 +85,7 @@ function parseCssPixelValue(value: string, fallback: number): number {
 }
 
 export class NodelFader extends HTMLElement {
-  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'title'];
+  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'title'];
 
   private shellReady = false;
   private shellNode: HTMLElement | null = null;
@@ -327,7 +327,8 @@ export class NodelFader extends HTMLElement {
   }
 
   private emitLive(value: number) {
-    if (!this.getAttribute('action')) {
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'change' });
+    if (bindings.length === 0) {
       this.dispatchChange(value, false);
       return;
     }
@@ -348,15 +349,29 @@ export class NodelFader extends HTMLElement {
   }
 
   private async submitValue(value: number, committed: boolean) {
-    const action = this.getAttribute('action')?.trim() ?? '';
-    if (!action || this.hasAttribute('disabled')) {
+    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'change' });
+    if (bindings.length === 0 || this.hasAttribute('disabled')) {
       this.dispatchChange(value, committed);
       return;
     }
 
     const payload = this.actionPayload(value);
     try {
-      await callNodeAction(action, payload);
+      const changeExecution = await callActionBindings(bindings, 'change', payload);
+      const phaseExecution = await callActionBindings(bindings, committed ? 'commit' : 'live', payload);
+      const failures = [...changeExecution.failures, ...phaseExecution.failures];
+      if (failures.length > 0) {
+        const detail = failures.length === 1
+          ? failures[0].error ?? 'Failed to call action'
+          : failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
+        this.dispatchEvent(new CustomEvent('nodel-fader-error', {
+          bubbles: true,
+          detail: { action, payload, value, committed, failures, error: detail }
+        }));
+        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        return;
+      }
       this.dispatchChange(value, committed);
     } catch (error) {
       const message = apiErrorMessage(error, 'Failed to call action');
@@ -551,6 +566,11 @@ export class NodelFader extends HTMLElement {
       disabled: (value) => this.setSignalAttribute('disabled', value),
       label: (value) => this.setSignalAttribute('label', value),
       value: (value) => this.setSignalAttribute('value', value)
+    }, {
+      join: this.getAttribute('join'),
+      aggregators: {
+        disabled: { evaluate: truthy }
+      }
     });
   }
 }

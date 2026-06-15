@@ -147,6 +147,50 @@ describe('nodel-fader', () => {
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 55 });
   });
 
+  it('uses join as action and value signal shorthand', async () => {
+    document.body.innerHTML = '<nodel-fader join="Volume" value="50" step="5"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    emitSignal('Volume', 30);
+    expect(fader.getAttribute('value')).toBe('30');
+
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await flush();
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('Volume', { arg: 35 });
+  });
+
+  it('supports live and commit action phases', async () => {
+    document.body.innerHTML = '<nodel-fader value="50" actions="Preview:live; SetVolume:commit"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 51 });
+  });
+
+  it('does not dispatch change events when action calls fail', async () => {
+    actionMock.callNodeAction.mockRejectedValue(new Error('No route'));
+    document.body.innerHTML = '<nodel-fader label="Volume" value="50" step="5" action="Missing"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    const change = vi.fn();
+    fader.addEventListener('nodel-fader-change', change);
+    track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(change).not.toHaveBeenCalled();
+  });
+
   it('updates value, label, and disabled state from signals', async () => {
     document.body.innerHTML = '<nodel-fader signal="Volume" signals="Name:label; Lock:disabled"></nodel-fader>';
     await customElements.whenDefined('nodel-fader');

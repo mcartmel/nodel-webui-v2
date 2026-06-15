@@ -274,6 +274,8 @@ Supported `nodel-fader` attributes:
 - `nudge`
 - `increment`
 - `action`
+- `actions="ActionName:phase; OtherAction:phase"` with phases `change`, `live`, and `commit`
+- `join="Name"` as shorthand for `action="Name" signal="Name"`
 - `arg-type="number|string|json"`
 - `disabled`
 - `readout="show|hide"`
@@ -305,6 +307,8 @@ The default toggle surface is transparent, matching the fader's no-card treatmen
 Supported `nodel-toggle` attributes:
 
 - `action`
+- `actions="ActionName:phase; OtherAction:phase"` with phases `toggle`, `on`, and `off`
+- `join="Name"` as shorthand for `action="Name" signal="Name"`
 - `on-arg`, default `true`
 - `off-arg`, default `false`
 - `arg-type="boolean|string|number|json"`
@@ -314,6 +318,7 @@ Supported `nodel-toggle` attributes:
 - `on-label`, `off-label`
 - `state-label="hide|show"`
 - `variant="default|primary|success|info|warning|danger"`
+- `off-variant="default|primary|success|info|warning|danger"`
 - `tone="solid|soft|outline"`
 - `disabled`
 - `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
@@ -322,6 +327,8 @@ Supported `nodel-toggle` attributes:
 
 ```html
 <nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>
+<nodel-toggle join="Power" variant="success" off-variant="danger"></nodel-toggle>
+<nodel-toggle signal="Power" actions="PowerOn:on; PowerOff:off"></nodel-toggle>
 <nodel-toggle label="Shutdown" action="Shutdown" confirm-text="Shut down the device?" confirm-tone="danger"></nodel-toggle>
 ```
 
@@ -330,6 +337,8 @@ Supported `nodel-toggle` attributes:
 Supported `nodel-segmented` attributes:
 
 - `action`
+- `actions="ActionName:phase; OtherAction:phase"` with phase `select`
+- `join="Name"` as shorthand for `action="Name" signal="Name"`
 - `arg-type="string|number|boolean|json"`
 - `value`
 - `variant="default|primary|success|info|warning|danger"`
@@ -381,11 +390,14 @@ Supported `nodel-button` attributes:
 - `layout="inline|stack"`
 - `size="auto|sm|md|lg"`
 - `action="ActionName"`
+- `actions="ActionName:phase; OtherAction:phase"` with phases `click`, `press`, and `release`
+- `join="Name"` as shorthand for `action="Name" signal="Name"`
 - `arg="value"`
 - `arg-type="string|number|boolean|json"`
 - `disabled`
 - `active`
 - `active-value="value"`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
 - `signal="SignalName"`
 - `signals="SignalName:target"`
 
@@ -410,12 +422,28 @@ Signal targets:
 - `label` updates the button label.
 - `disabled` toggles disabled state from truthy/falsey text.
 
+`signal` and `signals` use the same parser. Either may contain one binding or a `;`/`,` separated list. Repeated boolean targets default to last-event-wins for v1 compatibility. Use `target(any)` for OR aggregation or `target(all)` for AND aggregation, such as `signals="ShowRunning:active(any); Override:active(any)"`.
+
+`action` and `actions` also use the same parser. Entries are `ActionName` or `ActionName:phase`. Use `actions` for multiple entries. Momentary buttons are inferred when a `press` or `release` phase is present.
+
 ```html
 <nodel-button action="SetSource" arg="Chromecast" signal="Source">
   Chromecast
 </nodel-button>
 
 <nodel-button action="StartShow" signals="ShowRunning:active; ControlsLocked:disabled">
+  Start Show
+</nodel-button>
+
+<nodel-button join="Mute" confirm-text="Mute this zone?">
+  Mute
+</nodel-button>
+
+<nodel-button actions="VolumeUp:press; VolumeStop:release">
+  Volume Up
+</nodel-button>
+
+<nodel-button actions="PrepareShow; StartShow" signals="Ready:active(all); Unlocked:active(all)">
   Start Show
 </nodel-button>
 
@@ -429,7 +457,7 @@ Signal targets:
   <nodel-icon name="image" size="lg"></nodel-icon>
   <nodel-text tone="default" size="lg">HDMI 1</nodel-text>
   <nodel-text tone="muted" size="xs">Projector</nodel-text>
-</nodel-button>
+  </nodel-button>
 ```
 
 `nodel-image` supports:

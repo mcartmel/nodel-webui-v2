@@ -74,6 +74,26 @@ describe('nodel-toggle', () => {
     expect(host.querySelector('button')?.textContent).toContain('Partial On');
   });
 
+  it('supports configurable off variants', async () => {
+    document.body.innerHTML = '<nodel-toggle value="off" off-variant="danger"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    expect(host.dataset.offVariant).toBe('danger');
+    expect(host.querySelector('button')?.className).toContain('nodel-toggle-off-danger');
+  });
+
+  it('keeps the off state neutral by default', async () => {
+    document.body.innerHTML = '<nodel-toggle value="off"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    expect(host.dataset.variant).toBe('success');
+    expect(host.dataset.offVariant).toBe('default');
+  });
+
   it('calls on/off args based on onish state', async () => {
     document.body.innerHTML = '<nodel-toggle label="Power" action="SetPower" value="off" on-arg="1" off-arg="0" arg-type="number"></nodel-toggle>';
     await customElements.whenDefined('nodel-toggle');
@@ -88,6 +108,20 @@ describe('nodel-toggle', () => {
     host.querySelector('button')?.click();
     await flush();
     expect(actionMock.callNodeAction).toHaveBeenLastCalledWith('SetPower', { arg: 0 });
+  });
+
+  it('uses join and action phases for toggle state changes', async () => {
+    document.body.innerHTML = '<nodel-toggle join="Power" actions="PowerOn:on; PowerOff:off" value="off"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    host.querySelector('button')?.click();
+    await flush();
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('PowerOn', { arg: true });
+
+    emitSignal('Power', 'on');
+    expect(host.dataset.state).toBe('on');
   });
 
   it('updates state, label, and disabled from signal bindings', async () => {
@@ -143,5 +177,20 @@ describe('nodel-toggle', () => {
 
     expect(error).toHaveBeenCalledTimes(1);
     expect(toast.mock.calls[0][0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
+  });
+
+  it('does not dispatch change events when action calls fail', async () => {
+    actionMock.callNodeAction.mockRejectedValue(new Error('No route'));
+    document.body.innerHTML = '<nodel-toggle action="Missing"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    const change = vi.fn();
+    host.addEventListener('nodel-toggle-change', change);
+    host.querySelector('button')?.click();
+    await flush();
+
+    expect(change).not.toHaveBeenCalled();
   });
 });
