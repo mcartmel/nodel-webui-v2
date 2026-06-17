@@ -310,6 +310,106 @@
           </section>
         </nodel-page>
 
+        <nodel-page title="Templates">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Templates</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>nodel-template</code> with a native <code>&lt;template&gt;</code> child to render repeated controls from one inert source block.
+              Placeholders are replaced in text and attributes, so action and signal names can be generated consistently.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Repeated Controls</h2>
+              <p class="nodel-catalogue-description">
+                The rendered controls become siblings of <code>nodel-template</code>, which keeps them as direct children of the surrounding control grid.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-template name="Zone" repeat="4" start="1">
+                      <template>
+                        <nodel-button join="{{item}}" variant="primary" tone="soft">
+                          {{name}} {{number}}
+                          <nodel-status-indicator signal="{{item}}Online" label="{{name}} {{number}} online"></nodel-status-indicator>
+                        </nodel-button>
+                      </template>
+                    </nodel-template>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-template name=&quot;Zone&quot; repeat=&quot;4&quot; start=&quot;1&quot;&gt;
+    &lt;template&gt;
+      &lt;nodel-button join=&quot;{{item}}&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;
+        {{name}} {{number}}
+        &lt;nodel-status-indicator signal=&quot;{{item}}Online&quot; label=&quot;{{name}} {{number}} online&quot;&gt;&lt;/nodel-status-indicator&gt;
+      &lt;/nodel-button&gt;
+    &lt;/template&gt;
+  &lt;/nodel-template&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-template name=&quot;Level&quot; repeat=&quot;3&quot; data-action-prefix=&quot;SetLevel&quot;&gt;
+  &lt;template&gt;
+    &lt;nodel-fader label=&quot;{{name}} {{number}}&quot; action=&quot;{{actionPrefix}}{{number}}&quot; signal=&quot;{{item}}&quot;&gt;&lt;/nodel-fader&gt;
+  &lt;/template&gt;
+&lt;/nodel-template&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Shared Templates</h2>
+              <p class="nodel-catalogue-description">
+                Define a native <code>&lt;template id=&quot;...&quot;&gt;</code> once, then reference it from multiple <code>nodel-template</code> elements with <code>template=&quot;id&quot;</code>.
+                Each use can provide its own <code>name</code>, repeat count, and custom <code>data-*</code> placeholders.
+              </p>
+            </header>
+
+            <template id="shared-template-button">
+              <nodel-button action="{{actionPrefix}}{{number}}" signal="{{item}}" variant="info" tone="outline">
+                {{name}} {{number}}
+              </nodel-button>
+            </template>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2" md="4">
+                    <nodel-template template="shared-template-button" name="Zone" repeat="4" data-action-prefix="SetZone"></nodel-template>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="2">
+                    <nodel-template template="shared-template-button" name="Output" repeat="2" start="5" data-action-prefix="SetOutput"></nodel-template>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code"><code>&lt;template id=&quot;shared-template-button&quot;&gt;
+  &lt;nodel-button action=&quot;{{actionPrefix}}{{number}}&quot; signal=&quot;{{item}}&quot; variant=&quot;info&quot; tone=&quot;outline&quot;&gt;
+    {{name}} {{number}}
+  &lt;/nodel-button&gt;
+&lt;/template&gt;
+
+&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Zone&quot; repeat=&quot;4&quot; data-action-prefix=&quot;SetZone&quot;&gt;&lt;/nodel-template&gt;
+&lt;/nodel-control-grid&gt;
+
+&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Output&quot; repeat=&quot;2&quot; start=&quot;5&quot; data-action-prefix=&quot;SetOutput&quot;&gt;&lt;/nodel-template&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+
         <nodel-page title="Faders &amp; Meters">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Faders &amp; Meters</h1>

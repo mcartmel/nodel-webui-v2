@@ -30,6 +30,7 @@ Examples:
 - `nodel-column`
 - `nodel-control-grid`
 - `nodel-control-space`
+- `nodel-template`
 - `nodel-button`
 - `nodel-fader`
 - `nodel-meter`
@@ -257,6 +258,60 @@ Use `nodel-control-space` for deliberate empty cells. It is scoped to control-gr
 ```
 
 `nodel-button` renders a touch-sized native button. Without an `action`, it is inert and can be used for examples or custom scripting. With an `action`, it posts to the current node's relative `REST/actions/<name>/call` endpoint, so action-enabled buttons should be used from a node page.
+
+## Templates
+
+Use `nodel-template` with a native HTML `<template>` child when repeated page fragments only differ by a small set of names, labels, actions, or signals. The native template stays inert in source markup, and `nodel-template` renders placeholder-filled clones as siblings so repeated controls remain direct children of their parent layout.
+
+```html
+<nodel-control-grid columns="2" md="4">
+  <nodel-template name="Zone" repeat="4" start="1">
+    <template>
+      <nodel-button join="{{item}}" variant="primary" tone="soft">
+        {{name}} {{number}}
+        <nodel-status-indicator signal="{{item}}Online" label="{{name}} {{number}} online"></nodel-status-indicator>
+      </nodel-button>
+    </template>
+  </nodel-template>
+</nodel-control-grid>
+```
+
+Define a shared native template once and reuse it from multiple locations with `template="id"`:
+
+```html
+<template id="zone-button-template">
+  <nodel-button join="{{item}}" variant="primary" tone="soft">
+    {{name}} {{number}}
+  </nodel-button>
+</template>
+
+<nodel-control-grid columns="2" md="4">
+  <nodel-template template="zone-button-template" name="Zone" repeat="4"></nodel-template>
+</nodel-control-grid>
+
+<nodel-control-grid columns="1">
+  <nodel-template template="zone-button-template" name="Output" repeat="2"></nodel-template>
+</nodel-control-grid>
+```
+
+Supported `nodel-template` attributes:
+
+- `template`: `id` of a shared native `<template>` element. When omitted, the first direct child `<template>` is used.
+- `repeat`: number of clones to render, default `1`, clamped to a safe range.
+- `start`: first numeric value for `{{number}}`, default `1`.
+- `step`: increment between numeric values, default `1`.
+- `name`: base name for `{{name}}` and `{{item}}`.
+- `data-*`: custom placeholder values. For example, `data-action-prefix="SetZone"` exposes both `{{action-prefix}}` and `{{actionPrefix}}`.
+
+Built-in placeholders:
+
+- `{{index}}`: zero-based iteration index.
+- `{{number}}`: numeric value for this clone.
+- `{{name}}`: exact `name` attribute value.
+- `{{item}}`: `name` followed by `number`, such as `Zone1`.
+- `{{repeat}}`: normalized repeat count.
+
+Placeholders are replaced in text nodes and attribute values only. Unknown placeholders are left unchanged, and no JavaScript or raw HTML is evaluated.
 
 Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a full control-grid cell when they are direct grid children, and render inline when placed inside `nodel-button`. `nodel-status-indicator` is intended for button content for now; inside a button it is overlaid in the top-right corner and stays out of inline or stacked content flow. Components keep their own signal behavior; the button only arranges them.
 

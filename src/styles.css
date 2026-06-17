@@ -142,6 +142,7 @@
     nodel-column,
     nodel-control-grid,
     nodel-control-space,
+    nodel-template,
     nodel-button,
     nodel-toggle,
     nodel-segmented,
@@ -225,13 +226,13 @@
   nodel-row,
   nodel-column,
   nodel-control-grid,
-    nodel-control-space,
-    nodel-button,
-    nodel-toggle,
-    nodel-segmented,
-    nodel-meter,
-    nodel-fader,
-    nodel-image,
+  nodel-control-space,
+  nodel-button,
+  nodel-toggle,
+  nodel-segmented,
+  nodel-meter,
+  nodel-fader,
+  nodel-image,
   nodel-icon,
   nodel-status-indicator,
   nodel-collapse,
@@ -265,6 +266,7 @@
   nodel-column:not(:defined),
   nodel-control-grid:not(:defined),
   nodel-control-space:not(:defined),
+  nodel-template:not(:defined),
   nodel-button:not(:defined),
   nodel-toggle:not(:defined),
   nodel-segmented:not(:defined),
@@ -294,6 +296,7 @@
   nodel-row,
   nodel-column,
   nodel-control-grid,
+  nodel-template,
   nodel-button,
   nodel-toggle,
   nodel-segmented,
@@ -319,6 +322,10 @@
   nodel-control-grid nodel-control-grid {
     @apply h-full;
     grid-auto-rows: minmax(var(--nodel-control-min-height, 3.5rem), 1fr);
+  }
+
+  nodel-template {
+    display: none;
   }
 
   nodel-control-space {

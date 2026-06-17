@@ -84,6 +84,18 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-control-space></nodel-control-space>'
   },
   {
+    name: 'nodel-template',
+    description: 'Authoring macro that renders placeholder-filled clones from a native template.',
+    attributes: [
+      { name: 'template', description: 'ID of a shared native template element to render.' },
+      { name: 'name', description: 'Base name exposed as {{name}} and used by {{item}}.' },
+      { name: 'repeat', description: 'Number of clones to render. Defaults to 1.' },
+      { name: 'start', description: 'First numeric {{number}} value. Defaults to 1.' },
+      { name: 'step', description: 'Increment between rendered {{number}} values. Defaults to 1.' }
+    ],
+    snippet: '<nodel-template name="Zone" repeat="4">\n  <template>\n    <nodel-button join="{{item}}">{{name}} {{number}}</nodel-button>\n  </template>\n</nodel-template>'
+  },
+  {
     name: 'nodel-button',
     description: 'Touch-sized action or state button.',
     attributes: [
