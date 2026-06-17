@@ -55,6 +55,8 @@ export default {
         mono: ['ui-monospace', 'SFMono-Regular', 'monospace']
       },
       boxShadow: {
+        'nodel-card': 'var(--nodel-shadow-card)',
+        'nodel-control': 'var(--nodel-shadow-control)',
         'nodel-panel': 'var(--nodel-shadow-panel)',
         'nodel-popover': 'var(--nodel-shadow-popover)',
         'nodel-editor-status': 'var(--nodel-shadow-editor-status)'

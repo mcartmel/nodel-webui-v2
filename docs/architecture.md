@@ -58,6 +58,8 @@ Tailwind is the primary styling layer. Use utilities directly for local layout, 
 
 Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls, surfaces, and user-authored page primitives.
 
+Light and dark themes use shared glass surface tokens for page gradients, translucent cards, panels, popovers, controls, borders, and shadows. Prefer those semantic primitives over hard-coded gradient or alpha backgrounds so user-authored pages inherit future theme updates.
+
 Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` when behavior or public API drives appearance. Keep raw CSS for theme variable definitions, custom-element defaults, generated markdown content, CodeMirror/editor styling, CSS-variable-driven layout, third-party widgets, and complex runtime selectors.
 
 ## Stable Head Contract

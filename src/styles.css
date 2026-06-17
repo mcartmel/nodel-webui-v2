@@ -31,8 +31,25 @@
     --nodel-danger-border: 248 113 113;
     --nodel-focus: 3 105 161;
     --nodel-status-off: 15 23 42;
-    --nodel-shadow-panel: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-    --nodel-shadow-popover: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1);
+    --nodel-body-background:
+      radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.12), transparent 26rem),
+      radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.09), transparent 28rem),
+      linear-gradient(180deg, rgb(248 250 252), rgb(var(--nodel-bg)) 34rem);
+    --nodel-glass-blur: 18px;
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 255 255 / 0.68));
+    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(248 250 252 / 0.72));
+    --nodel-popover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.9));
+    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.82), rgb(248 250 252 / 0.68));
+    --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(var(--nodel-accent) / 0.08));
+    --nodel-subtle-background: rgb(var(--nodel-border) / 0.18);
+    --nodel-subtle-hover-background: rgb(var(--nodel-border) / 0.3);
+    --nodel-card-border: rgb(148 163 184 / 0.38);
+    --nodel-panel-border: rgb(148 163 184 / 0.44);
+    --nodel-divider: rgb(148 163 184 / 0.28);
+    --nodel-shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 14px 40px rgb(15 23 42 / 0.08);
+    --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.06);
+    --nodel-shadow-panel: 0 18px 60px rgb(15 23 42 / 0.12), 0 1px 0 rgb(255 255 255 / 0.65) inset;
+    --nodel-shadow-popover: 0 24px 70px -24px rgb(15 23 42 / 0.36), 0 8px 24px -16px rgb(15 23 42 / 0.22);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
     --nodel-radius-control: 0.5rem;
     --nodel-radius-card: 0.75rem;
@@ -89,8 +106,25 @@
     --nodel-danger-border: 153 27 27;
     --nodel-focus: 125 211 252;
     --nodel-status-off: 148 163 184;
-    --nodel-shadow-panel: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --nodel-shadow-popover: 0 18px 40px -18px rgb(0 0 0 / 0.85), 0 8px 20px -12px rgb(0 0 0 / 0.75);
+    --nodel-body-background:
+      radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.14), transparent 28rem),
+      radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.1), transparent 28rem),
+      linear-gradient(180deg, rgb(7 11 24), rgb(var(--nodel-bg)) 32rem);
+    --nodel-glass-blur: 18px;
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.065), rgb(255 255 255 / 0.03));
+    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.032));
+    --nodel-popover-background: linear-gradient(180deg, rgb(20 27 42 / 0.98), rgb(15 23 42 / 0.94));
+    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.04));
+    --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(var(--nodel-accent) / 0.08));
+    --nodel-subtle-background: rgb(255 255 255 / 0.045);
+    --nodel-subtle-hover-background: rgb(255 255 255 / 0.08);
+    --nodel-card-border: rgb(255 255 255 / 0.12);
+    --nodel-panel-border: rgb(255 255 255 / 0.14);
+    --nodel-divider: rgb(255 255 255 / 0.08);
+    --nodel-shadow-card: 0 16px 50px rgb(0 0 0 / 0.2), 0 1px 0 rgb(255 255 255 / 0.04) inset;
+    --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.34);
+    --nodel-shadow-panel: 0 22px 70px rgb(0 0 0 / 0.32), 0 1px 0 rgb(255 255 255 / 0.05) inset;
+    --nodel-shadow-popover: 0 24px 70px rgb(0 0 0 / 0.48), 0 8px 24px rgb(0 0 0 / 0.32);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(0 0 0 / 0.55);
     --nodel-editor-selection: rgb(var(--nodel-accent) / 0.28);
     --nodel-editor-active-line: rgb(var(--nodel-accent) / 0.1);
@@ -207,7 +241,7 @@
     .nodel-log-icon,
     .nodel-editor-status
   ) {
-    transition-property: background-color, border-color, color, fill, stroke, outline-color;
+    transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke;
     transition-duration: var(--nodel-theme-transition-duration, 200ms);
     transition-timing-function: var(--nodel-theme-transition-easing, ease);
   }
@@ -358,8 +392,9 @@
 
   nodel-text[data-surface='card'] {
     @apply border;
-    background: var(--nodel-text-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-text-border-color, rgb(var(--nodel-border)));
+    background: var(--nodel-text-background, var(--nodel-card-background, rgb(var(--nodel-surface))));
+    border-color: var(--nodel-text-border-color, var(--nodel-card-border, rgb(var(--nodel-border))));
+    box-shadow: var(--nodel-shadow-card, none);
     padding: var(--nodel-text-padding, 1rem);
     border-radius: var(--nodel-text-radius, var(--nodel-radius-card));
   }
@@ -511,11 +546,16 @@
 
   .nodel-catalogue-code {
     @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-panel;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
   .nodel-button {
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
     --nodel-button-tone-rgb: var(--nodel-fg);
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-button-content {
@@ -533,6 +573,7 @@
 
   .nodel-button:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-accent text-nodel-accent;
+    background: var(--nodel-control-hover-background, rgb(var(--nodel-border) / 0.18));
   }
 
   .nodel-button:focus-visible {
@@ -571,78 +612,93 @@
   .nodel-button-primary {
     @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
     --nodel-button-tone-rgb: var(--nodel-accent);
+    background: rgb(var(--nodel-accent-fill));
   }
 
   .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
+    background: rgb(var(--nodel-accent-fill));
     filter: brightness(0.95);
   }
 
   .nodel-button-success {
     @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
     --nodel-button-tone-rgb: var(--nodel-success);
+    background: rgb(var(--nodel-success-fill));
   }
 
   .nodel-button-success:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
+    background: rgb(var(--nodel-success-fill));
     filter: brightness(0.95);
   }
 
   .nodel-button-info {
     @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
     --nodel-button-tone-rgb: var(--nodel-info);
+    background: rgb(var(--nodel-info-fill));
   }
 
   .nodel-button-info:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
+    background: rgb(var(--nodel-info-fill));
     filter: brightness(0.95);
   }
 
   .nodel-button-warning {
     @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
     --nodel-button-tone-rgb: var(--nodel-warning);
+    background: rgb(var(--nodel-warning-fill));
   }
 
   .nodel-button-warning:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
+    background: rgb(var(--nodel-warning-fill));
     filter: brightness(0.95);
   }
 
   .nodel-button-danger {
     @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
     --nodel-button-tone-rgb: var(--nodel-danger);
+    background: rgb(var(--nodel-danger-fill));
   }
 
   .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
+    background: rgb(var(--nodel-danger-fill));
     filter: brightness(0.95);
   }
 
   .nodel-button-ghost {
     @apply border-transparent bg-nodel-border/20 text-nodel-fg;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
+    box-shadow: none;
   }
 
   .nodel-button-ghost:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-border bg-nodel-border/35 text-nodel-accent;
+    background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.35));
   }
 
   .nodel-button-link {
     @apply border-transparent bg-transparent text-nodel-accent underline-offset-4 shadow-none;
+    background: transparent;
   }
 
   .nodel-button-link:hover:not(:disabled):not(.is-disabled) {
     @apply border-transparent bg-transparent text-nodel-accent underline;
+    background: transparent;
   }
 
   .nodel-button-soft:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.28);
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.1);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.14), rgb(var(--nodel-button-tone-rgb) / 0.08));
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-button-soft:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.42);
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
@@ -650,27 +706,27 @@
   .nodel-button-outline:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-width: 2px;
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.65);
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.04);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.07), rgb(var(--nodel-button-tone-rgb) / 0.035));
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-button-outline:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb));
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.12);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.16), rgb(var(--nodel-button-tone-rgb) / 0.09));
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
 
   .nodel-button.is-active {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-button-soft.is-active:not(.nodel-button-ghost):not(.nodel-button-link),
   .nodel-button-outline.is-active:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb));
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.22), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
@@ -711,6 +767,9 @@
 
   .nodel-toggle-track {
     @apply relative inline-flex h-8 w-14 flex-none items-center rounded-full border border-nodel-border bg-nodel-surface p-0.5;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-toggle-thumb {
@@ -721,7 +780,7 @@
 
   nodel-toggle[data-state='on'] .nodel-toggle-track {
     border-color: rgb(var(--nodel-toggle-on-rgb) / 0.6);
-    background-color: rgb(var(--nodel-toggle-on-fill-rgb));
+    background: rgb(var(--nodel-toggle-on-fill-rgb));
   }
 
   nodel-toggle[data-state='on'] .nodel-toggle-thumb {
@@ -732,6 +791,7 @@
   nodel-toggle[data-state='partially-on'] .nodel-toggle-track,
   nodel-toggle[data-state='partially-off'] .nodel-toggle-track {
     @apply border-nodel-warning/70 bg-nodel-warningFill/80;
+    background: rgb(var(--nodel-warning-fill) / 0.8);
   }
 
   nodel-toggle[data-state='partially-on'] .nodel-toggle-thumb {
@@ -750,22 +810,27 @@
 
   nodel-toggle[data-state='off'][data-off-variant='primary'] .nodel-toggle-track {
     @apply border-nodel-accent/70 bg-nodel-accentFill/80;
+    background: rgb(var(--nodel-accent-fill) / 0.8);
   }
 
   nodel-toggle[data-state='off'][data-off-variant='success'] .nodel-toggle-track {
     @apply border-nodel-success/70 bg-nodel-successFill/80;
+    background: rgb(var(--nodel-success-fill) / 0.8);
   }
 
   nodel-toggle[data-state='off'][data-off-variant='info'] .nodel-toggle-track {
     @apply border-nodel-info/70 bg-nodel-infoFill/80;
+    background: rgb(var(--nodel-info-fill) / 0.8);
   }
 
   nodel-toggle[data-state='off'][data-off-variant='warning'] .nodel-toggle-track {
     @apply border-nodel-warning/70 bg-nodel-warningFill/80;
+    background: rgb(var(--nodel-warning-fill) / 0.8);
   }
 
   nodel-toggle[data-state='off'][data-off-variant='danger'] .nodel-toggle-track {
     @apply border-nodel-danger/70 bg-nodel-dangerFill/80;
+    background: rgb(var(--nodel-danger-fill) / 0.8);
   }
 
   nodel-toggle[data-state='off']:not([data-off-variant='default']) .nodel-toggle-thumb {
@@ -815,6 +880,9 @@
 
   .nodel-segmented {
     @apply flex h-full min-h-14 min-w-0 rounded-control border border-nodel-border bg-nodel-surface p-1;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   nodel-segmented[data-orientation='vertical'] {
@@ -831,17 +899,20 @@
 
   .nodel-segmented > nodel-button .nodel-button-touch {
     @apply h-full min-h-10 rounded-control border-transparent bg-transparent px-3 py-2 text-sm leading-5 shadow-none;
+    background: transparent;
+    box-shadow: none;
   }
 
   .nodel-segmented > nodel-button .nodel-button-touch:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-border bg-nodel-border/25;
+    background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.25));
   }
 
   .nodel-segmented > nodel-button[active] .nodel-button-touch,
   .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
     @apply shadow-nodel-panel;
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
-    background-color: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
@@ -851,10 +922,14 @@
 
   nodel-image[data-variant='soft'] {
     @apply bg-nodel-border/20;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
   }
 
   nodel-image[data-variant='bordered'] {
     @apply border-nodel-border bg-nodel-surface;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-image-frame {
@@ -937,10 +1012,14 @@
 
   nodel-icon[data-variant='soft'] {
     @apply bg-nodel-border/20;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
   }
 
   nodel-icon[data-variant='bordered'] {
     @apply border-nodel-border bg-nodel-surface;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-icon-glyph {
@@ -980,6 +1059,8 @@
   .nodel-button-content nodel-icon,
   .nodel-button-content nodel-text {
     @apply inline-flex h-auto min-h-0 w-auto border-0 bg-transparent p-0 text-inherit;
+    background: transparent;
+    box-shadow: none;
   }
 
   .nodel-button-content nodel-text {
@@ -988,6 +1069,7 @@
 
   .nodel-button-content nodel-text[data-surface='card'] {
     @apply border-0 bg-transparent p-0 shadow-none;
+    background: transparent;
   }
 
   .nodel-button-content nodel-image .nodel-image-frame {
@@ -1296,6 +1378,9 @@
 
   .nodel-fader-nudge {
     @apply inline-flex h-9 w-9 flex-none items-center justify-center rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg outline-none;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
     height: var(--nodel-fader-nudge-size, 2.25rem);
     width: var(--nodel-fader-nudge-size, 2.25rem);
   }
@@ -1365,6 +1450,9 @@
 
   .nodel-field {
     @apply block min-w-0 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm leading-5 text-nodel-fg outline-none;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-field::placeholder {
@@ -1373,6 +1461,7 @@
 
   .nodel-field:focus-visible {
     @apply ring-2 ring-nodel-focus;
+    border-color: rgb(var(--nodel-focus) / 0.65);
   }
 
   .nodel-field:disabled {
@@ -1385,22 +1474,37 @@
 
   .nodel-card {
     @apply rounded-card border border-nodel-border bg-nodel-surface;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-panel {
     @apply rounded-panel border border-nodel-border bg-nodel-surface shadow-nodel-panel;
+    background: var(--nodel-panel-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-panel, none);
   }
 
   .nodel-popover {
     @apply overflow-hidden rounded-popover border border-nodel-border bg-nodel-surfaceRaised shadow-nodel-popover;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-popover, none);
+    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
+    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-list-item {
     @apply rounded-card border border-nodel-border bg-nodel-surface text-nodel-fg no-underline;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-list-item:hover {
     @apply border-nodel-accent bg-nodel-border/15 text-nodel-accent;
+    background: var(--nodel-control-hover-background, rgb(var(--nodel-border) / 0.15));
   }
 
   .nodel-menu-item {
@@ -1409,6 +1513,7 @@
 
   .nodel-menu-item:hover {
     @apply bg-nodel-border/30;
+    background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.3));
   }
 
   .nodel-menu-item:focus-visible {
@@ -1417,14 +1522,18 @@
 
   .nodel-menu-item-active {
     @apply bg-nodel-accentFill text-nodel-onAccent;
+    background: rgb(var(--nodel-accent-fill));
   }
 
   .nodel-menu-item-active:hover {
     @apply bg-nodel-accentFill text-nodel-onAccent;
+    background: rgb(var(--nodel-accent-fill));
   }
 
   .nodel-alert {
     @apply rounded-card border border-dashed border-nodel-border bg-nodel-surface text-nodel-muted;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
   .nodel-alert-sm {
@@ -1437,6 +1546,7 @@
 
   .nodel-alert-danger {
     @apply border-solid border-nodel-dangerBorder/45 bg-nodel-dangerBg/75 text-nodel-danger;
+    background: rgb(var(--nodel-danger-bg) / 0.75);
   }
 
   .nodel-toast-host {
@@ -1446,6 +1556,10 @@
 
   .nodel-toast {
     @apply pointer-events-auto relative flex min-w-0 items-start gap-3 overflow-hidden rounded-card border bg-nodel-surfaceRaised px-4 py-3 text-sm leading-5 shadow-nodel-popover;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
+    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
+    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-toast::before {
@@ -1519,6 +1633,7 @@
 
   .nodel-toast-danger {
     @apply border-nodel-dangerBorder/70 bg-nodel-dangerBg text-nodel-danger;
+    background: rgb(var(--nodel-danger-bg));
   }
 
   .nodel-toast-danger::before {
@@ -1627,6 +1742,7 @@
 
   .nodel-collapse-content {
     @apply border-t border-nodel-border p-4;
+    border-color: var(--nodel-divider, rgb(var(--nodel-border)));
   }
 
   .nodel-description {
@@ -1753,6 +1869,8 @@
 
   .nodel-description-toggle {
     @apply inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-nodel-border bg-nodel-surface p-0 text-nodel-muted shadow-nodel-panel;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
   .nodel-description-toggle .nodel-collapse-icon {
@@ -1781,6 +1899,9 @@
 
   .nodel-theme-switch {
     @apply relative inline-flex h-8 w-16 items-center rounded-full border border-nodel-border bg-nodel-border p-1 transition;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-theme-switch:hover {
@@ -1793,6 +1914,7 @@
 
   .nodel-theme-switch[data-theme='dark'] {
     @apply border-nodel-accentFill bg-nodel-accentFill;
+    background: rgb(var(--nodel-accent-fill));
   }
 
   .nodel-theme-switch-thumb {
@@ -1879,6 +2001,8 @@
 
   .nodel-diagnostic-category-picker {
     @apply grid max-h-48 grid-cols-1 gap-1 overflow-auto rounded-card border border-nodel-border bg-nodel-bg p-2 sm:grid-cols-2 lg:grid-cols-3;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-bg)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
   .nodel-diagnostic-category-picker:disabled {
@@ -1889,12 +2013,19 @@
     @apply flex min-w-0 cursor-pointer items-center gap-2 rounded-card px-2 py-1.5 text-sm text-nodel-fg hover:bg-nodel-surface;
   }
 
+  .nodel-diagnostic-category-option:hover {
+    background: var(--nodel-subtle-hover-background, rgb(var(--nodel-surface)));
+  }
+
   .nodel-diagnostic-category-option input {
     @apply h-4 w-4 shrink-0 accent-nodel-accent;
   }
 
   .nodel-diagnostic-chart-card {
     @apply min-w-0 rounded-card border border-nodel-border bg-nodel-surface p-3 shadow-nodel-panel;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-diagnostic-chart-title {
@@ -1923,6 +2054,9 @@
 
   .nodel-node-menu-drawer {
     @apply fixed inset-0 flex min-w-0 flex-col bg-nodel-surface text-nodel-fg shadow-nodel-popover;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface)));
+    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
+    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-node-menu-header {
@@ -1955,6 +2089,8 @@
 
   .nodel-node-menu-theme-row {
     @apply flex min-w-0 items-center justify-between gap-3 rounded-card border border-nodel-border bg-nodel-border/15 px-3 py-2;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.15));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
   .nodel-node-menu-link-list {
@@ -2058,6 +2194,9 @@
 
   .nodel-bindings-toolbar-panel {
     @apply relative z-10 space-y-2.5 rounded-card border border-nodel-border bg-nodel-surface p-2.5;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-bindings-section.nodel-collapse {
@@ -2080,6 +2219,9 @@
 
   .nodel-bindings-row {
     @apply items-start rounded-card border border-nodel-border bg-nodel-surface px-2 py-2 text-13 leading-5;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-bindings-combobox {
@@ -2247,6 +2389,7 @@
 
   .nodel-schema-root-object {
     @apply min-w-0 overflow-hidden rounded-control bg-nodel-bg/25;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-bg) / 0.25));
   }
 
   .nodel-schema-root-object-summary {
@@ -2296,6 +2439,7 @@
 
   .nodel-schema-array-entry {
     @apply bg-nodel-bg/35;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-bg) / 0.35));
   }
 
   .nodel-editor-current {
@@ -2304,6 +2448,10 @@
 
   .nodel-editor-status {
     @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surfaceRaised/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised) / 0.94));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
+    backdrop-filter: blur(var(--nodel-glass-blur, 0));
     max-width: min(28rem, calc(100% - 1.5rem));
   }
 
@@ -2314,6 +2462,7 @@
   .nodel-editor-status.is-error,
   .nodel-editor.is-error .nodel-editor-status {
     @apply border-nodel-dangerBorder/55 bg-nodel-dangerBg/[0.94] text-nodel-danger;
+    background: rgb(var(--nodel-danger-bg) / 0.94);
   }
 
   .nodel-editor-host {

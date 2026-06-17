@@ -69,8 +69,8 @@ export class NodelText extends HTMLElement {
     this.style.setProperty('--nodel-text-line-height', lineHeight);
 
     if (surface === 'card') {
-      this.style.setProperty('--nodel-text-background', 'rgb(var(--nodel-surface))');
-      this.style.setProperty('--nodel-text-border-color', 'rgb(var(--nodel-border))');
+      this.style.setProperty('--nodel-text-background', 'var(--nodel-card-background)');
+      this.style.setProperty('--nodel-text-border-color', 'var(--nodel-card-border)');
       this.style.setProperty('--nodel-text-padding', '1rem');
       this.style.setProperty('--nodel-text-radius', 'var(--nodel-radius-card)');
     } else {

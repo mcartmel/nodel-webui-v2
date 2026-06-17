@@ -43,7 +43,7 @@ describe('nodel-text', () => {
     expect(text.dataset.size).toBe('xl');
     expect(text.dataset.surface).toBe('card');
     expect(text.style.getPropertyValue('--nodel-text-padding')).toBe('1rem');
-    expect(text.style.getPropertyValue('--nodel-text-background')).toContain('rgb(var(--nodel-surface))');
+    expect(text.style.getPropertyValue('--nodel-text-background')).toContain('var(--nodel-card-background)');
   });
 
   it('supports warning and danger tones', async () => {
