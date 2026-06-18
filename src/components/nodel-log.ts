@@ -18,7 +18,9 @@ interface ActivityRowView {
   key: string;
   pulse: boolean;
   rowClass: string;
+  source: string;
   showArg: boolean;
+  type: string;
 }
 
 interface LogViewModel {
@@ -55,8 +57,8 @@ const template = `
       </div>
       <div data-log-output class="nodel-log-output space-y-1">
         {^{for visibleRows}}
-          <div data-link="class{:rowClass}">
-            <span data-link="class{:iconClass}" aria-hidden="true">{^{:iconMarkup}}</span>
+          <div data-link="class{:rowClass} data-log-source{:source} data-log-type{:type}">
+            <span data-link="class{:iconClass} data-log-source{:source} data-log-type{:type}" aria-hidden="true">{^{:iconMarkup}}</span>
             <span class="nodel-log-main">
               <span class="nodel-log-titleline">
                 <span class="nodel-log-alias">{^{>alias}}</span>
@@ -129,7 +131,7 @@ function logIcon(entry: NodelActivityLogEntry) {
 }
 
 function rowClass(entry: NodelActivityLogEntry, pulse: boolean) {
-  return `nodel-log-row nodel-log-row-source-${escapeHtml(entry.source)} nodel-log-row-type-${escapeHtml(entry.type)} ${pulse ? 'is-pulsing' : ''}`;
+  return `nodel-log-row${pulse ? ' is-pulsing' : ''}`;
 }
 
 function rowLimitCount(limit: RowLimit) {
@@ -279,12 +281,14 @@ export class NodelLog extends HTMLElement {
       displayTime: formatTimestamp(entry.timestamp),
       entry,
       highlightArg,
-      iconClass: `nodel-log-icon nodel-log-source-${escapeHtml(entry.source)} nodel-log-type-${escapeHtml(entry.type)}`,
+      iconClass: 'nodel-log-icon',
       iconMarkup: logIcon(entry),
       key,
       pulse,
       rowClass: rowClass(entry, pulse),
-      showArg: entry.arg !== undefined
+      source: entry.source,
+      showArg: entry.arg !== undefined,
+      type: entry.type
     };
   }
 
@@ -301,7 +305,9 @@ export class NodelLog extends HTMLElement {
       iconMarkup: next.iconMarkup,
       pulse: next.pulse,
       rowClass: next.rowClass,
-      showArg: next.showArg
+      source: next.source,
+      showArg: next.showArg,
+      type: next.type
     });
   }
 

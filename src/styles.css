@@ -326,16 +326,23 @@
   nodel-status-indicator:not(:defined),
   nodel-collapse:not(:defined),
   nodel-description:not(:defined),
+  nodel-text:not(:defined),
   nodel-title:not(:defined),
+  nodel-host-icon:not(:defined),
+  nodel-node-list:not(:defined),
+  nodel-add-node:not(:defined),
   nodel-node-menu:not(:defined),
+  nodel-diagnostics:not(:defined),
   nodel-host-log:not(:defined),
   nodel-diagnostic-charts:not(:defined),
+  nodel-toolkit:not(:defined),
   nodel-console:not(:defined),
   nodel-log:not(:defined),
   nodel-actsig:not(:defined),
   nodel-params:not(:defined),
   nodel-bindings:not(:defined),
   nodel-editor:not(:defined),
+  nodel-theme-toggle:not(:defined),
   nodel-toast-host:not(:defined),
   nodel-confirm-host:not(:defined) {
     visibility: hidden;
@@ -525,18 +532,6 @@
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
-  .nodel-surface {
-    @apply bg-nodel-surface;
-  }
-
-  .nodel-border {
-    @apply border-nodel-border;
-  }
-
-  .nodel-muted {
-    @apply text-nodel-muted;
-  }
-
   .nodel-section-heading {
     @apply text-xs font-semibold uppercase tracking-wide text-nodel-muted;
   }
@@ -555,10 +550,6 @@
 
   .nodel-catalogue-description {
     @apply m-0 text-15 text-nodel-muted;
-  }
-
-  .nodel-catalogue-description code {
-    @apply rounded-control bg-nodel-border/[0.42] px-[0.3125rem] py-0.5 font-mono text-[0.85em] text-nodel-fg;
   }
 
   .nodel-catalogue-examples {
@@ -867,37 +858,37 @@
     @apply text-nodel-warning;
   }
 
-  .nodel-toggle-primary {
+  nodel-toggle[data-variant='primary'] .nodel-toggle {
     --nodel-toggle-on-rgb: var(--nodel-accent);
     --nodel-toggle-on-fill-rgb: var(--nodel-accent-fill);
   }
 
-  .nodel-toggle-success {
+  nodel-toggle[data-variant='success'] .nodel-toggle {
     --nodel-toggle-on-rgb: var(--nodel-success);
     --nodel-toggle-on-fill-rgb: var(--nodel-success-fill);
   }
 
-  .nodel-toggle-info {
+  nodel-toggle[data-variant='info'] .nodel-toggle {
     --nodel-toggle-on-rgb: var(--nodel-info);
     --nodel-toggle-on-fill-rgb: var(--nodel-info-fill);
   }
 
-  .nodel-toggle-warning {
+  nodel-toggle[data-variant='warning'] .nodel-toggle {
     --nodel-toggle-on-rgb: var(--nodel-warning);
     --nodel-toggle-on-fill-rgb: var(--nodel-warning-fill);
   }
 
-  .nodel-toggle-danger {
+  nodel-toggle[data-variant='danger'] .nodel-toggle {
     --nodel-toggle-on-rgb: var(--nodel-danger);
     --nodel-toggle-on-fill-rgb: var(--nodel-danger-fill);
   }
 
-  .nodel-toggle-soft {
+  nodel-toggle[data-tone='soft'] .nodel-toggle {
     border-color: rgb(var(--nodel-toggle-on-rgb) / 0.2);
     background-color: rgb(var(--nodel-toggle-on-rgb) / 0.07);
   }
 
-  .nodel-toggle-outline {
+  nodel-toggle[data-tone='outline'] .nodel-toggle {
     border-width: 2px;
     border-color: rgb(var(--nodel-toggle-on-rgb) / 0.45);
     background-color: rgb(var(--nodel-toggle-on-rgb) / 0.025);
@@ -2218,6 +2209,7 @@
     @apply font-bold text-nodel-fg;
   }
 
+  .nodel-catalogue-description code,
   .nodel-description-content code,
   .nodel-description-content kbd {
     @apply rounded-control bg-nodel-border/[0.42] px-[0.3125rem] py-0.5 font-mono text-[0.85em] text-nodel-fg;
@@ -2355,20 +2347,20 @@
     @apply mr-2 inline-block min-w-12 font-semibold;
   }
 
-  .nodel-host-log-level-trace,
-  .nodel-host-log-level-debug {
+  .nodel-host-log-line[data-log-level='trace'] .nodel-host-log-level,
+  .nodel-host-log-line[data-log-level='debug'] .nodel-host-log-level {
     @apply text-nodel-muted;
   }
 
-  .nodel-host-log-level-info {
+  .nodel-host-log-line[data-log-level='info'] .nodel-host-log-level {
     @apply text-nodel-accent;
   }
 
-  .nodel-host-log-level-warn {
+  .nodel-host-log-line[data-log-level='warn'] .nodel-host-log-level {
     @apply text-nodel-warning;
   }
 
-  .nodel-host-log-level-error {
+  .nodel-host-log-line[data-log-level='error'] .nodel-host-log-level {
     @apply text-nodel-danger;
   }
 
@@ -2382,6 +2374,18 @@
 
   .nodel-host-log-empty {
     @apply text-nodel-muted;
+  }
+
+  .nodel-diagnostics-label {
+    @apply whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted;
+  }
+
+  .nodel-diagnostics-value {
+    @apply px-4 py-3 text-nodel-fg;
+  }
+
+  .nodel-diagnostics-value-break {
+    @apply break-words;
   }
 
   .nodel-diagnostic-chart-grid {
@@ -2682,24 +2686,24 @@
     flex: none;
   }
 
-  .nodel-log-type-action.nodel-log-source-local {
+  .nodel-log-icon[data-log-type='action'][data-log-source='local'] {
     @apply text-nodel-success;
   }
 
-  .nodel-log-type-action.nodel-log-source-remote {
+  .nodel-log-icon[data-log-type='action'][data-log-source='remote'] {
     @apply text-nodel-accent;
   }
 
-  .nodel-log-type-event.nodel-log-source-local {
+  .nodel-log-icon[data-log-type='event'][data-log-source='local'] {
     @apply text-nodel-danger;
   }
 
-  .nodel-log-type-event.nodel-log-source-remote {
+  .nodel-log-icon[data-log-type='event'][data-log-source='remote'] {
     @apply text-nodel-warning;
   }
 
-  .nodel-log-type-actionBinding,
-  .nodel-log-type-eventBinding {
+  .nodel-log-icon[data-log-type='actionBinding'],
+  .nodel-log-icon[data-log-type='eventBinding'] {
     @apply text-nodel-accent;
   }
 

@@ -150,7 +150,7 @@ export class NodelToggle extends HTMLElement {
     this.dataset.stateLabel = stateLabelMode;
     this.dataset.disabled = String(disabled);
 
-    this.buttonNode!.className = `nodel-toggle nodel-toggle-${variant} nodel-toggle-off-${offVariant} nodel-toggle-${tone}${this.busy ? ' is-busy' : ''}`;
+    this.buttonNode!.className = `nodel-toggle${this.busy ? ' is-busy' : ''}`;
     this.buttonNode!.disabled = disabled;
     this.buttonNode!.setAttribute('aria-checked', toggleAriaChecked(this.state));
     this.buttonNode!.setAttribute('aria-label', this.getAttribute('aria-label') || label);

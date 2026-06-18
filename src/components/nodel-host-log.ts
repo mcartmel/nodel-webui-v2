@@ -12,6 +12,7 @@ interface HostLogBatch {
 interface HostLogEntryView {
   displayTime: string;
   error: string;
+  levelClass: string;
   level: string;
   lineClass: string;
   message: string;
@@ -38,7 +39,7 @@ const template = `
           <div class="nodel-host-log-empty">No host log entries.</div>
         {{else}}
           {^{for entries}}
-            <div data-link="class{:lineClass}">
+            <div data-link="class{:lineClass} data-log-level{:levelClass}">
               <span class="nodel-host-log-timestamp">{^{>displayTime}}</span>
               <span class="nodel-host-log-level">{^{>level}}</span>
               <span class="nodel-host-log-message">{^{>message}}</span>
@@ -71,7 +72,8 @@ function toEntryView(entry: NodelHostLogEntry): HostLogEntryView {
     displayTime: formatTimestamp(entry.timestamp),
     error: String(entry.error ?? ''),
     level,
-    lineClass: `nodel-host-log-line nodel-host-log-level-${levelClass(level)}`,
+    levelClass: levelClass(level),
+    lineClass: 'nodel-host-log-line',
     message: String(entry.message ?? ''),
     meta,
     seq: entry.seq

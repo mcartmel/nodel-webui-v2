@@ -195,40 +195,40 @@ export class NodelDiagnostics extends HTMLElement {
           <table class="nodel-diagnostics-table min-w-full border-collapse text-left text-sm">
             <tbody class="divide-y divide-nodel-border">
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Release</th>
-                <td class="px-4 py-3 text-nodel-fg">${buildRelease(this.state.build)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Release</th>
+                <td class="nodel-diagnostics-value">${buildRelease(this.state.build)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Serving from</th>
-                <td class="px-4 py-3 text-nodel-fg">${safeText(diagnostics.hostname)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Serving from</th>
+                <td class="nodel-diagnostics-value">${safeText(diagnostics.hostname)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Advertising</th>
-                <td class="px-4 py-3 text-nodel-fg">${joinList(diagnostics.httpAddresses)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Advertising</th>
+                <td class="nodel-diagnostics-value">${joinList(diagnostics.httpAddresses)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Uptime</th>
-                <td class="px-4 py-3 text-nodel-fg">${escapeHtml(formatDuration(diagnostics.uptime))}, start timestamp ${escapeHtml(formatDateTime(diagnostics.startTime))}</td>
+                <th scope="row" class="nodel-diagnostics-label">Uptime</th>
+                <td class="nodel-diagnostics-value">${escapeHtml(formatDuration(diagnostics.uptime))}, start timestamp ${escapeHtml(formatDateTime(diagnostics.startTime))}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Host path</th>
-                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.hostPath)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Host path</th>
+                <td class="nodel-diagnostics-value nodel-diagnostics-value-break">${safeText(diagnostics.hostPath)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Nodes root</th>
-                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.nodesRoot)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Nodes root</th>
+                <td class="nodel-diagnostics-value nodel-diagnostics-value-break">${safeText(diagnostics.nodesRoot)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Hosting rule</th>
-                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.hostingRule)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Hosting rule</th>
+                <td class="nodel-diagnostics-value nodel-diagnostics-value-break">${safeText(diagnostics.hostingRule)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Announcing agent</th>
-                <td class="px-4 py-3 text-nodel-fg break-words">${safeText(diagnostics.agent)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Announcing agent</th>
+                <td class="nodel-diagnostics-value nodel-diagnostics-value-break">${safeText(diagnostics.agent)}</td>
               </tr>
               <tr>
-                <th scope="row" class="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-nodel-muted">Build details</th>
-                <td class="px-4 py-3 text-nodel-fg break-words">${buildLinks(this.state.build)}</td>
+                <th scope="row" class="nodel-diagnostics-label">Build details</th>
+                <td class="nodel-diagnostics-value nodel-diagnostics-value-break">${buildLinks(this.state.build)}</td>
               </tr>
             </tbody>
           </table>

@@ -97,7 +97,7 @@ const template = `
 
         <div class="flex items-center justify-between gap-3">
           <p class="nodel-add-node-status text-sm text-nodel-muted">{^{>status}}</p>
-          <button type="submit" class="nodeaddsubmit nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
+          <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
         </div>
       </form>
     </div>

@@ -81,7 +81,7 @@ describe('nodel-toggle', () => {
 
     const host = document.querySelector('nodel-toggle') as HTMLElement;
     expect(host.dataset.offVariant).toBe('danger');
-    expect(host.querySelector('button')?.className).toContain('nodel-toggle-off-danger');
+    expect(host.querySelector('button')?.className).toBe('nodel-toggle');
   });
 
   it('keeps the off state neutral by default', async () => {
