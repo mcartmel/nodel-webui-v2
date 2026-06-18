@@ -28,6 +28,7 @@ The first UI layer is intentionally small:
 - `nodel-row` and `nodel-column` provide simple layout primitives.
 - `nodel-control-grid`, `nodel-control-space`, `nodel-template`, and `nodel-button` provide touch-focused control layout, repeated authoring fragments, and button primitives for custom node pages.
 - `nodel-fader` and `nodel-meter` provide touch-first level control and read-only level display. They share a linear min/max scaling utility, support percent and dB readouts, and the fader reuses the child-aware control pattern to preserve compound rail children.
+- `nodel-select`, `nodel-stepper`, `nodel-pad`, `nodel-readout`, and `nodel-palette` extend touch controls with scalable pickers, precise numeric adjustment, directional/momentary control, general value/status tiles, and swatch-first colour selection.
 - `nodel-image`, `nodel-icon`, and `nodel-status-indicator` provide child-aware media and status primitives for touch controls.
 - `nodel-collapse` renders reusable collapsible panels.
 - `nodel-description` renders the current node description from `REST/` as markdown with a collapsed preview.

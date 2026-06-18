@@ -181,6 +181,27 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-segmented label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-segmented>'
   },
   {
+    name: 'nodel-select',
+    description: 'Touch picker for larger option sets using nodel-button options.',
+    attributes: [
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'placeholder', description: 'Text shown when no value is selected.' },
+      { name: 'value', description: 'Current selected value.' },
+      { name: 'action', description: 'Current-node action called when an option is selected.' },
+      { name: 'actions', description: 'Action bindings in ActionName:phase format. Supported phase: select.' },
+      { name: 'join', description: 'Shorthand that uses the same name for action and value signal.' },
+      { name: 'arg-type', description: 'Parser for selected option values.', values: ['string', 'number', 'boolean', 'json'] },
+      { name: 'variant', description: 'Picker visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Picker visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'disabled', description: 'Disable the picker.' },
+      { name: 'allow-deselect', description: 'Allow selecting the active option to clear value.' },
+      { name: 'open', description: 'Start with the option panel open.' },
+      { name: 'signal', description: 'Signal binding shorthand for value.' },
+      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled.' }
+    ],
+    snippet: '<nodel-select label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-select>'
+  },
+  {
     name: 'nodel-fader',
     description: 'Touch-first level fader with optional increment buttons and compound rail content.',
     attributes: [
@@ -207,6 +228,95 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label, disabled.' }
     ],
     snippet: '<nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">\n  ${}\n</nodel-fader>'
+  },
+  {
+    name: 'nodel-stepper',
+    description: 'Precise touch numeric increment/decrement control.',
+    attributes: [
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'value', description: 'Current numeric value.' },
+      { name: 'min', description: 'Minimum value.' },
+      { name: 'max', description: 'Maximum value.' },
+      { name: 'step', description: 'Increment size.' },
+      { name: 'unit', description: 'Optional value unit formatting.', values: ['percent', 'db', 'none'] },
+      { name: 'suffix', description: 'Display suffix for plain numbers.' },
+      { name: 'precision', description: 'Decimal precision for display.' },
+      { name: 'repeat', description: 'Hold repeat mode.', values: ['hold', 'off'] },
+      { name: 'action', description: 'Current-node action called on value changes.' },
+      { name: 'actions', description: 'Action bindings. Supported phases: change, live, commit, increase, decrease.' },
+      { name: 'join', description: 'Shorthand that uses the same name for action and value signal.' },
+      { name: 'arg-type', description: 'Parser for emitted value.', values: ['number', 'string', 'json'] },
+      { name: 'variant', description: 'Stepper visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Stepper visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'disabled', description: 'Disable both buttons.' },
+      { name: 'readout', description: 'Show or hide the numeric readout.', values: ['show', 'hide'] },
+      { name: 'signal', description: 'Signal binding shorthand for value.' },
+      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled.' }
+    ],
+    snippet: '<nodel-stepper label="Temperature" action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>'
+  },
+  {
+    name: 'nodel-pad',
+    description: 'Directional touch pad with click or momentary press/release modes.',
+    attributes: [
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'center', description: 'Centre button behavior.', values: ['auto', 'show', 'hide', 'disabled'] },
+      { name: 'press-mode', description: 'Button action mode.', values: ['click', 'momentary'] },
+      { name: 'action', description: 'Shared action called with direction arg.' },
+      { name: 'actions', description: 'Shared action bindings. Supported phases: click, press, release.' },
+      { name: 'up-action', description: 'Action for the up button.' },
+      { name: 'down-action', description: 'Action for the down button.' },
+      { name: 'left-action', description: 'Action for the left button.' },
+      { name: 'right-action', description: 'Action for the right button.' },
+      { name: 'center-action', description: 'Action for the centre button.' },
+      { name: 'variant', description: 'Pad visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Pad visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'disabled', description: 'Disable the whole pad.' },
+      { name: 'center-disabled', description: 'Disable only the centre button.' },
+      { name: 'signals', description: 'Signal bindings. Supported targets: disabled, label, center-disabled.' }
+    ],
+    snippet: '<nodel-pad label="Navigate" action="Navigate" center="show"></nodel-pad>'
+  },
+  {
+    name: 'nodel-readout',
+    description: 'Read-only touch value/status tile with optional bar, ring, or status visuals.',
+    attributes: [
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'value', description: 'Current displayed value.' },
+      { name: 'type', description: 'Value type.', values: ['text', 'number', 'percent', 'db', 'boolean', 'duration'] },
+      { name: 'visual', description: 'Graphical representation.', values: ['none', 'bar', 'ring', 'status'] },
+      { name: 'min', description: 'Minimum numeric value for visuals.' },
+      { name: 'max', description: 'Maximum numeric value for visuals.' },
+      { name: 'suffix', description: 'Display suffix.' },
+      { name: 'precision', description: 'Decimal precision.' },
+      { name: 'variant', description: 'Readout visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Readout visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'signal', description: 'Signal binding shorthand for value.' },
+      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, variant, suffix, prefix.' }
+    ],
+    snippet: '<nodel-readout label="Brightness" type="percent" visual="ring" value="72"></nodel-readout>'
+  },
+  {
+    name: 'nodel-palette',
+    description: 'Swatch-first colour picker with predefined colour buttons and optional native custom colour input.',
+    attributes: [
+      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'value', description: 'Current selected colour or preset value.' },
+      { name: 'action', description: 'Current-node action called when a swatch is selected.' },
+      { name: 'actions', description: 'Action bindings. Supported phase: select.' },
+      { name: 'join', description: 'Shorthand that uses the same name for action and value signal.' },
+      { name: 'arg-type', description: 'Parser for selected values.', values: ['string', 'json'] },
+      { name: 'columns', description: 'Internal swatch column count.' },
+      { name: 'shape', description: 'Swatch shape.', values: ['square', 'rounded', 'circle'] },
+      { name: 'picker', description: 'Optional custom colour picker.', values: ['off', 'native'] },
+      { name: 'show-labels', description: 'Swatch label visibility.', values: ['auto', 'show', 'hide'] },
+      { name: 'variant', description: 'Palette visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
+      { name: 'tone', description: 'Palette visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'disabled', description: 'Disable all swatches.' },
+      { name: 'signal', description: 'Signal binding shorthand for value.' },
+      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled, custom-color.' }
+    ],
+    snippet: '<nodel-palette label="Colour" action="SetColour" signal="Colour" picker="native">\n  <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>\n  <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>\n  <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>\n</nodel-palette>'
   },
   {
     name: 'nodel-meter',

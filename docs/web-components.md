@@ -416,6 +416,47 @@ Child `nodel-button` options use `value` first, then `arg`, then their text cont
 </nodel-segmented>
 ```
 
+`nodel-select` renders a touch-friendly picker for larger option sets. Use direct `nodel-button` children as options; the selected value is taken from `value`, then `arg`, then text content. It supports `action`, `actions="Action:select"`, `join`, `arg-type`, `variant`, `tone`, `disabled`, `allow-deselect`, `signal`, `signals="Name:value; Lock:disabled"`, and the standard confirmation attributes.
+
+```html
+<nodel-select label="Source" action="SetSource" signal="Source">
+  <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+  <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+  <nodel-button value="USB-C">USB-C</nodel-button>
+</nodel-select>
+```
+
+`nodel-stepper` renders large `-` and `+` controls with a central readout for precise numeric changes. It supports `min`, `max`, `step`, `value`, `unit="percent|db|none"`, `prefix`, `suffix`, `precision`, `repeat="hold|off"`, `action`, `actions` with phases `change`, `live`, `commit`, `increase`, and `decrease`, `join`, `arg-type="number|string|json"`, `variant`, `tone`, `disabled`, `readout`, `signal`, and `signals` targets `value`, `label`, and `disabled`.
+
+```html
+<nodel-stepper label="Temperature" action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>
+```
+
+`nodel-pad` renders a gamepad-style directional pad. Set `center="auto|show|hide|disabled"` and `press-mode="click|momentary"`. A shared `action` sends the direction as `arg`; direction-specific attributes such as `up-action`, `left-action`, or `up-actions="MoveUp:press; Stop:release"` override the shared action. Signal targets are `disabled`, `label`, and `center-disabled`.
+
+```html
+<nodel-pad label="Navigate" action="Navigate" center="show"></nodel-pad>
+<nodel-pad label="Camera" center="hide" press-mode="momentary" up-actions="TiltUp:press; Stop:release" down-actions="TiltDown:press; Stop:release" left-actions="PanLeft:press; Stop:release" right-actions="PanRight:press; Stop:release"></nodel-pad>
+```
+
+`nodel-readout` renders a read-only value tile for text, numeric values, status, and simple graphical indicators. Supported `type` values are `text`, `number`, `percent`, `db`, `boolean`, and `duration`. Supported `visual` values are `none`, `bar`, `ring`, and `status`. It supports `min`, `max`, `prefix`, `suffix`, `precision`, `warn`, `danger`, `empty`, `variant`, `tone`, `signal`, and `signals` targets `value`, `label`, `variant`, `suffix`, and `prefix`.
+
+```html
+<nodel-readout label="Source" signal="Source" value="HDMI 1"></nodel-readout>
+<nodel-readout label="Brightness" type="percent" visual="ring" value="72" variant="warning" tone="outline"></nodel-readout>
+<nodel-readout label="Runtime" type="duration" signal="RuntimeSeconds"></nodel-readout>
+```
+
+`nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native custom colour input. It supports `action`, `actions="Action:select"`, `join`, `arg-type="string|json"`, `columns`, `shape="square|rounded|circle"`, `show-labels="auto|show|hide"`, `allow-deselect`, `variant`, `tone`, `disabled`, `signal`, and `signals` targets `value`, `label`, `disabled`, and `custom-color`.
+
+```html
+<nodel-palette label="LED Colour" action="SetColour" signal="Colour" picker="native" show-labels="hide">
+  <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>
+  <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>
+  <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>
+</nodel-palette>
+```
+
 Faders preserve compound children and place them in a compact rail in source order. The rail has no separate card or border treatment by default; it relies on proximity to keep related status, meter, and button controls visually grouped while allowing each child component to keep its own signal/action behavior. The rail defaults to bottom/end alignment; set `compound-align="top"`, `compound-align="center"`, or `compound-align="bottom"` when a vertical fader needs different placement.
 
 `variant` controls the fader fill colour. `tone` controls the surrounding surface: the default `solid` tone leaves the fader directly on the parent background, while `soft` and `outline` add progressively stronger visual grouping.

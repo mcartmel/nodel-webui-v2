@@ -21,6 +21,22 @@ function fakeCompletionContext(text: string, explicit = true) {
   };
 }
 
+function normaliseExampleMarkup(markup: string) {
+  const template = document.createElement('template');
+  template.innerHTML = markup.trim();
+  const first = template.content.firstElementChild;
+  if (!first) {
+    return '';
+  }
+  return first.outerHTML.replace(/>\s+</g, '><').trim();
+}
+
+function normaliseLiveExample(element: Element) {
+  const clone = element.cloneNode(true) as Element;
+  clone.removeAttribute('data-catalogue-example');
+  return clone.outerHTML.replace(/>\s+</g, '><').trim();
+}
+
 describe('nodel document definition', () => {
   it('includes custom layout elements and completions', () => {
     const names = nodelDocumentElements.map((element) => element.name);
@@ -32,6 +48,11 @@ describe('nodel document definition', () => {
       'nodel-control-grid',
       'nodel-control-space',
       'nodel-button',
+      'nodel-select',
+      'nodel-stepper',
+      'nodel-pad',
+      'nodel-readout',
+      'nodel-palette',
       'nodel-image',
       'nodel-icon',
       'nodel-status-indicator',
@@ -122,5 +143,25 @@ describe('nodel document definition', () => {
     for (const component of expectedComponents) {
       expect(exampleUi).toContain(`<${component}`);
     }
+  });
+
+  it('keeps marked catalogue examples matched to their code snippets', async () => {
+    const exampleUi = await readFile(resolve(process.cwd(), 'example.html'), 'utf8');
+    const template = document.createElement('template');
+    template.innerHTML = exampleUi;
+    const examples = Array.from(template.content.querySelectorAll('[data-catalogue-example]'));
+    const codeBlocks = new Map(Array.from(template.content.querySelectorAll<HTMLElement>('[data-catalogue-code-for]')).map((code) => [code.dataset.catalogueCodeFor, code.querySelector('code')?.textContent ?? '']));
+
+    expect(examples.length).toBeGreaterThan(0);
+
+    for (const example of examples) {
+      const id = (example as HTMLElement).dataset.catalogueExample;
+      expect(id).toBeTruthy();
+      expect(codeBlocks.has(id)).toBe(true);
+      expect(normaliseLiveExample(example)).toBe(normaliseExampleMarkup(codeBlocks.get(id) ?? ''));
+      codeBlocks.delete(id);
+    }
+
+    expect(Array.from(codeBlocks.keys()).filter(Boolean)).toEqual([]);
   });
 });

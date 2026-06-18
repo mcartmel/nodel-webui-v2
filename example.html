@@ -410,6 +410,123 @@
           </section>
         </nodel-page>
 
+        <nodel-page title="Pickers &amp; Precision">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Pickers &amp; Precision</h1>
+            <p class="nodel-catalogue-description">
+              Use picker, stepper, pad, readout, and palette controls for touch layouts that need more than basic buttons.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Select And Stepper</h2>
+              <p class="nodel-catalogue-description">
+                <code>nodel-select</code> handles larger choice sets, while <code>nodel-stepper</code> makes precise numeric changes with large touch targets.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1" md="2" data-catalogue-example="select-stepper">
+                    <nodel-select label="Source" action="SetSource" signal="Source" value="HDMI 1" variant="primary" tone="soft">
+                      <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+                      <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+                      <nodel-button value="USB-C">USB-C</nodel-button>
+                    </nodel-select>
+                    <nodel-stepper label="Temperature" action="SetTemp" signal="Temp" value="22" min="16" max="28" step="0.5" suffix="C" variant="info" tone="outline"></nodel-stepper>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="select-stepper"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;2&quot;&gt;
+  &lt;nodel-select label=&quot;Source&quot; action=&quot;SetSource&quot; signal=&quot;Source&quot; value=&quot;HDMI 1&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;
+    &lt;nodel-button value=&quot;HDMI 1&quot;&gt;HDMI 1&lt;/nodel-button&gt;
+    &lt;nodel-button value=&quot;HDMI 2&quot;&gt;HDMI 2&lt;/nodel-button&gt;
+    &lt;nodel-button value=&quot;USB-C&quot;&gt;USB-C&lt;/nodel-button&gt;
+  &lt;/nodel-select&gt;
+  &lt;nodel-stepper label=&quot;Temperature&quot; action=&quot;SetTemp&quot; signal=&quot;Temp&quot; value=&quot;22&quot; min=&quot;16&quot; max=&quot;28&quot; step=&quot;0.5&quot; suffix=&quot;C&quot; variant=&quot;info&quot; tone=&quot;outline&quot;&gt;&lt;/nodel-stepper&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Directional Pads</h2>
+              <p class="nodel-catalogue-description">
+                <code>nodel-pad</code> provides a gamepad-style directional pad with optional centre button and click or momentary actions.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1" md="2" data-catalogue-example="directional-pads">
+                    <nodel-pad label="Navigate" action="Navigate" center="show" variant="primary" tone="soft"></nodel-pad>
+                    <nodel-pad label="Camera" center="hide" press-mode="momentary" up-actions="TiltUp:press; Stop:release" down-actions="TiltDown:press; Stop:release" left-actions="PanLeft:press; Stop:release" right-actions="PanRight:press; Stop:release" variant="warning" tone="outline"></nodel-pad>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="directional-pads"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;2&quot;&gt;
+  &lt;nodel-pad label=&quot;Navigate&quot; action=&quot;Navigate&quot; center=&quot;show&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;&lt;/nodel-pad&gt;
+  &lt;nodel-pad label=&quot;Camera&quot; center=&quot;hide&quot; press-mode=&quot;momentary&quot; up-actions=&quot;TiltUp:press; Stop:release&quot; down-actions=&quot;TiltDown:press; Stop:release&quot; left-actions=&quot;PanLeft:press; Stop:release&quot; right-actions=&quot;PanRight:press; Stop:release&quot; variant=&quot;warning&quot; tone=&quot;outline&quot;&gt;&lt;/nodel-pad&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Readouts</h2>
+              <p class="nodel-catalogue-description">
+                <code>nodel-readout</code> displays signal values as text, status, bar, or ring indicators without needing button-like cards.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1" md="3" data-catalogue-example="readouts">
+                    <nodel-readout label="Source" value="HDMI 1"></nodel-readout>
+                    <nodel-readout label="Brightness" type="percent" visual="ring" value="72" variant="warning"></nodel-readout>
+                    <nodel-readout label="Power" type="boolean" visual="status" value="on" variant="success"></nodel-readout>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="readouts"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
+  &lt;nodel-readout label=&quot;Source&quot; value=&quot;HDMI 1&quot;&gt;&lt;/nodel-readout&gt;
+  &lt;nodel-readout label=&quot;Brightness&quot; type=&quot;percent&quot; visual=&quot;ring&quot; value=&quot;72&quot; variant=&quot;warning&quot;&gt;&lt;/nodel-readout&gt;
+  &lt;nodel-readout label=&quot;Power&quot; type=&quot;boolean&quot; visual=&quot;status&quot; value=&quot;on&quot; variant=&quot;success&quot;&gt;&lt;/nodel-readout&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Palette</h2>
+              <p class="nodel-catalogue-description">
+                <code>nodel-palette</code> can provide a compact native custom colour input when swatch buttons are not needed.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="4">
+                  <nodel-control-grid columns="1" data-catalogue-example="palette-native">
+                    <nodel-palette label="LED Colour" value="#00ff00" picker="native" variant="primary" tone="soft"></nodel-palette>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="palette-native"><code>&lt;nodel-control-grid columns=&quot;1&quot;&gt;
+  &lt;nodel-palette label=&quot;LED Colour&quot; value=&quot;#00ff00&quot; picker=&quot;native&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;&lt;/nodel-palette&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+        </nodel-page>
+
         <nodel-page title="Faders &amp; Meters">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Faders &amp; Meters</h1>

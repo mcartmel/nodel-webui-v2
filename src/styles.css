@@ -180,8 +180,13 @@
     nodel-button,
     nodel-toggle,
     nodel-segmented,
+    nodel-select,
     nodel-meter,
     nodel-fader,
+    nodel-stepper,
+    nodel-pad,
+    nodel-readout,
+    nodel-palette,
     nodel-image,
     nodel-icon,
     nodel-status-indicator,
@@ -264,8 +269,13 @@
   nodel-button,
   nodel-toggle,
   nodel-segmented,
+  nodel-select,
   nodel-meter,
   nodel-fader,
+  nodel-stepper,
+  nodel-pad,
+  nodel-readout,
+  nodel-palette,
   nodel-image,
   nodel-icon,
   nodel-status-indicator,
@@ -304,8 +314,13 @@
   nodel-button:not(:defined),
   nodel-toggle:not(:defined),
   nodel-segmented:not(:defined),
+  nodel-select:not(:defined),
   nodel-meter:not(:defined),
   nodel-fader:not(:defined),
+  nodel-stepper:not(:defined),
+  nodel-pad:not(:defined),
+  nodel-readout:not(:defined),
+  nodel-palette:not(:defined),
   nodel-image:not(:defined),
   nodel-icon:not(:defined),
   nodel-status-indicator:not(:defined),
@@ -334,8 +349,13 @@
   nodel-button,
   nodel-toggle,
   nodel-segmented,
+  nodel-select,
   nodel-meter,
   nodel-fader,
+  nodel-stepper,
+  nodel-pad,
+  nodel-readout,
+  nodel-palette,
   nodel-image,
   nodel-icon {
     @apply w-full;
@@ -375,8 +395,13 @@
 
   nodel-toggle,
   nodel-segmented,
+  nodel-select,
   nodel-meter,
-  nodel-fader {
+  nodel-fader,
+  nodel-stepper,
+  nodel-pad,
+  nodel-readout,
+  nodel-palette {
     @apply min-w-0;
   }
 
@@ -914,6 +939,370 @@
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
     background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  nodel-select,
+  nodel-stepper,
+  nodel-pad,
+  nodel-readout,
+  nodel-palette {
+    @apply relative flex h-full w-full min-w-0;
+    --nodel-touch-tone-rgb: var(--nodel-accent);
+    --nodel-touch-fill-rgb: var(--nodel-accent-fill);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-variant='success'] {
+    --nodel-touch-tone-rgb: var(--nodel-success);
+    --nodel-touch-fill-rgb: var(--nodel-success-fill);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-variant='info'] {
+    --nodel-touch-tone-rgb: var(--nodel-info);
+    --nodel-touch-fill-rgb: var(--nodel-info-fill);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-variant='warning'] {
+    --nodel-touch-tone-rgb: var(--nodel-warning);
+    --nodel-touch-fill-rgb: var(--nodel-warning-fill);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-variant='danger'] {
+    --nodel-touch-tone-rgb: var(--nodel-danger);
+    --nodel-touch-fill-rgb: var(--nodel-danger-fill);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-variant='ghost'] {
+    --nodel-touch-tone-rgb: var(--nodel-muted);
+    --nodel-touch-fill-rgb: var(--nodel-muted);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-disabled='true'] {
+    @apply opacity-disabled;
+  }
+
+  .nodel-select-trigger,
+  .nodel-stepper-shell,
+  .nodel-pad-shell,
+  .nodel-readout-shell,
+  .nodel-palette-shell {
+    @apply flex h-full min-h-14 w-full min-w-0 rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-tone='soft'] :where(.nodel-select-trigger, .nodel-stepper-shell, .nodel-pad-shell, .nodel-readout-shell, .nodel-palette-shell) {
+    border-color: rgb(var(--nodel-touch-tone-rgb) / 0.28);
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.12), rgb(var(--nodel-touch-tone-rgb) / 0.06));
+  }
+
+  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-tone='outline'] :where(.nodel-select-trigger, .nodel-stepper-shell, .nodel-pad-shell, .nodel-readout-shell, .nodel-palette-shell) {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-touch-tone-rgb) / 0.58);
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.06), rgb(var(--nodel-touch-tone-rgb) / 0.025));
+  }
+
+  .nodel-select-trigger:focus-visible,
+  .nodel-stepper-shell:focus-visible,
+  .nodel-stepper-button:focus-visible,
+  .nodel-pad-button:focus-visible,
+  .nodel-palette-custom-input:focus-visible,
+  .nodel-palette-custom-button:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus;
+  }
+
+  .nodel-select-trigger {
+    @apply items-center justify-between gap-3 px-4 py-3 text-left text-base font-medium leading-6;
+  }
+
+  .nodel-select-content {
+    @apply flex min-w-0 flex-1 items-center gap-3;
+  }
+
+  .nodel-select-label {
+    @apply inline-flex h-6 flex-none items-center leading-6;
+  }
+
+  .nodel-select-label,
+  .nodel-stepper-label,
+  .nodel-pad-label,
+  .nodel-readout-label,
+  .nodel-palette-label {
+    @apply min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-select-value {
+    @apply inline-flex h-6 min-w-0 flex-1 items-center truncate leading-6;
+  }
+
+  .nodel-select-chevron {
+    @apply flex h-6 w-6 flex-none items-center justify-center text-nodel-muted;
+    font-size: 0;
+    line-height: 0;
+  }
+
+  .nodel-select-chevron::before {
+    @apply block;
+    content: '';
+    width: 0.45rem;
+    height: 0.45rem;
+    border-bottom: 0.125rem solid currentColor;
+    border-right: 0.125rem solid currentColor;
+    transform: translateY(-0.125rem) rotate(45deg);
+  }
+
+  .nodel-select-panel {
+    @apply absolute left-0 right-0 top-[calc(100%+0.375rem)] z-30 max-h-72 space-y-1 overflow-auto rounded-popover border border-nodel-border bg-nodel-surfaceRaised p-1 shadow-nodel-popover;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-popover, none);
+  }
+
+  .nodel-select-panel nodel-button .nodel-button-touch {
+    @apply h-auto min-h-10 justify-start px-3 py-2 text-sm leading-5;
+  }
+
+  .nodel-stepper-shell {
+    @apply flex-col justify-center gap-2 p-2;
+  }
+
+  .nodel-stepper-row {
+    @apply flex min-w-0 flex-1 items-center gap-2;
+  }
+
+  .nodel-stepper-button,
+  .nodel-pad-button,
+  .nodel-palette-custom-button {
+    @apply inline-flex min-h-11 flex-none items-center justify-center rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-base font-semibold text-nodel-fg;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+  }
+
+  .nodel-stepper-button:hover:not(:disabled),
+  .nodel-pad-button:hover:not(:disabled),
+  .nodel-palette-custom-button:hover:not(:disabled) {
+    border-color: rgb(var(--nodel-touch-tone-rgb));
+    color: rgb(var(--nodel-touch-tone-rgb));
+  }
+
+  .nodel-stepper-button:disabled,
+  .nodel-pad-button:disabled,
+  .nodel-palette-custom-button:disabled {
+    @apply cursor-not-allowed opacity-disabled;
+  }
+
+  .nodel-stepper-readout {
+    @apply min-w-0 flex-1 truncate text-center text-xl font-semibold leading-7;
+  }
+
+  .nodel-pad-shell {
+    @apply flex-col gap-2 p-2;
+  }
+
+  .nodel-pad-grid {
+    @apply min-h-0 min-w-0 flex-1 self-center overflow-visible border-0 bg-transparent;
+    display: grid;
+    grid-template-areas:
+      '.    up     .'
+      'left center right'
+      '.    down   .';
+    grid-template-columns: 1.25fr 1fr 1.25fr;
+    grid-template-rows: 1.25fr 1fr 1.25fr;
+    gap: 0.4rem;
+    aspect-ratio: 1;
+    width: min(100%, 12rem);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .nodel-pad-button[data-direction='up'] { grid-area: up; }
+  .nodel-pad-button[data-direction='down'] { grid-area: down; }
+  .nodel-pad-button[data-direction='left'] { grid-area: left; }
+  .nodel-pad-button[data-direction='right'] { grid-area: right; }
+  .nodel-pad-button[data-direction='center'] { grid-area: center; }
+
+  .nodel-pad-button {
+    @apply flex h-full min-h-0 w-full items-center justify-center border p-0 text-xl;
+    border-radius: 0.45rem;
+    border-color: rgb(var(--nodel-border) / 0.85);
+    background: linear-gradient(180deg, rgb(var(--nodel-surface-raised) / 0.75), rgb(var(--nodel-border) / 0.22));
+    box-shadow: inset 0 0 0 0.0625rem rgb(255 255 255 / 0.04), var(--nodel-shadow-control, none);
+  }
+
+  .nodel-pad-button[hidden] {
+    display: none !important;
+  }
+
+  .nodel-pad-button:hover:not(:disabled) {
+    border-color: rgb(var(--nodel-touch-tone-rgb));
+    color: rgb(var(--nodel-touch-tone-rgb));
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.18), rgb(var(--nodel-touch-tone-rgb) / 0.1));
+  }
+
+  .nodel-pad-button.is-active {
+    border-color: rgb(var(--nodel-touch-tone-rgb));
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.24), rgb(var(--nodel-touch-tone-rgb) / 0.14));
+    color: rgb(var(--nodel-touch-tone-rgb));
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='up'] {
+    border-radius: 0.9rem 0.9rem 0.35rem 0.35rem;
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='down'] {
+    border-radius: 0.35rem 0.35rem 0.9rem 0.9rem;
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='left'] {
+    border-radius: 0.9rem 0.35rem 0.35rem 0.9rem;
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='right'] {
+    border-radius: 0.35rem 0.9rem 0.9rem 0.35rem;
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='center'] {
+    @apply z-10 justify-self-center self-center rounded-full border-2 p-0;
+    width: 2.875rem;
+    height: 2.875rem;
+    min-height: 0;
+    border-color: rgb(var(--nodel-bg) / 0.95);
+    background: rgb(var(--nodel-touch-fill-rgb));
+    box-shadow: 0 0 0 0.2rem rgb(var(--nodel-bg) / 0.75), var(--nodel-shadow-control, none);
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='center'] span {
+    @apply sr-only;
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='center']::after {
+    @apply block rounded-full;
+    content: '';
+    width: 1rem;
+    height: 1rem;
+    background: rgb(255 255 255 / 0.72);
+  }
+
+  nodel-pad .nodel-pad-button[data-direction='center']:disabled {
+    background: rgb(var(--nodel-muted) / 0.55);
+  }
+
+  .nodel-readout-shell {
+    @apply relative flex-col justify-center gap-2 overflow-hidden border-transparent bg-transparent p-3 shadow-none;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .nodel-readout-content {
+    @apply relative z-10 min-w-0 space-y-1 text-center;
+  }
+
+  .nodel-readout-value {
+    @apply min-w-0 break-words text-2xl font-semibold leading-8;
+  }
+
+  .nodel-readout-visual {
+    @apply pointer-events-none absolute inset-2 opacity-80;
+  }
+
+  nodel-readout[data-visual='bar'] .nodel-readout-visual {
+    @apply bottom-2 top-auto h-2 rounded-full bg-nodel-statusOff/70;
+  }
+
+  nodel-readout[data-visual='bar'] .nodel-readout-visual-inner {
+    @apply block h-full rounded-full;
+    width: calc(var(--nodel-readout-fraction, 0) * 100%);
+    background-color: rgb(var(--nodel-touch-fill-rgb));
+  }
+
+  nodel-readout[data-visual='ring'] .nodel-readout-visual {
+    @apply static mx-auto aspect-square h-16 flex-none translate-x-0 translate-y-0 rounded-full opacity-100;
+    background: conic-gradient(rgb(var(--nodel-touch-fill-rgb)) calc(var(--nodel-readout-fraction, 0) * 1turn), rgb(var(--nodel-border) / 0.35) 0);
+  }
+
+  nodel-readout[data-visual='ring'] .nodel-readout-visual::after {
+    @apply absolute inset-3 rounded-full border border-nodel-border/40;
+    content: '';
+    background: var(--nodel-body-background, rgb(var(--nodel-bg)));
+  }
+
+  nodel-readout[data-visual='ring'] .nodel-readout-content {
+    @apply mx-auto space-y-0 text-center;
+  }
+
+  nodel-readout[data-visual='ring'] .nodel-readout-label {
+    @apply text-[0.625rem] leading-3;
+  }
+
+  nodel-readout[data-visual='ring'] .nodel-readout-value {
+    @apply text-xl leading-6;
+  }
+
+  nodel-readout[data-visual='status'] .nodel-readout-visual {
+    @apply static mx-auto block h-3 w-12 rounded-full bg-nodel-statusOff/80;
+  }
+
+  nodel-readout[data-zone='on'] .nodel-readout-visual,
+  nodel-readout[data-zone='normal'] .nodel-readout-visual-inner {
+    background-color: rgb(var(--nodel-touch-fill-rgb));
+  }
+
+  nodel-readout[data-zone='warning'] .nodel-readout-visual-inner { @apply bg-nodel-warningFill; }
+  nodel-readout[data-zone='danger'] .nodel-readout-visual-inner { @apply bg-nodel-dangerFill; }
+
+  .nodel-palette-shell {
+    @apply flex-col gap-2 p-2;
+  }
+
+  .nodel-palette-grid {
+    @apply grid min-w-0 gap-1.5;
+    grid-template-columns: repeat(var(--nodel-palette-columns, auto-fit), minmax(2.75rem, 1fr));
+  }
+
+  .nodel-palette-grid:empty {
+    @apply hidden;
+  }
+
+  .nodel-palette-grid nodel-button .nodel-button-touch {
+    @apply h-full min-h-12 px-2 py-2 text-xs leading-4;
+  }
+
+  .nodel-palette-grid nodel-button[data-palette-swatch='true'] .nodel-button-content::before {
+    @apply block h-7 w-7 flex-none rounded-control border border-black/20 shadow-sm;
+    content: '';
+    background: var(--nodel-palette-swatch);
+    border-color: var(--nodel-palette-swatch-border, rgb(0 0 0 / 0.22));
+  }
+
+  nodel-palette[data-shape='square'] .nodel-palette-grid nodel-button .nodel-button-content::before {
+    border-radius: 0.125rem;
+  }
+
+  nodel-palette[data-shape='circle'] .nodel-palette-grid nodel-button .nodel-button-content::before {
+    @apply rounded-full;
+  }
+
+  nodel-palette[data-show-labels='hide'] .nodel-palette-grid nodel-button .nodel-button-content [data-button-label],
+  nodel-palette[data-show-labels='auto'] .nodel-palette-grid nodel-button[data-palette-swatch='true'] .nodel-button-content [data-button-label] {
+    @apply sr-only;
+  }
+
+  .nodel-palette-custom {
+    @apply flex min-w-0 items-center gap-2;
+  }
+
+  .nodel-palette-custom-label {
+    @apply flex min-w-0 flex-1 items-center gap-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-palette-custom-label span[hidden] {
+    display: none;
+  }
+
+  .nodel-palette-custom-input {
+    @apply h-11 min-w-16 flex-1 rounded-control border border-nodel-border bg-transparent p-1;
   }
 
   nodel-image {
