@@ -16,9 +16,12 @@ export interface NodelElementDefinition {
 const commonNodelAttributes: NodelAttributeDefinition[] = [
   {
     name: 'visibility',
-    description: 'Local signal controlling component visibility. visible/true/1 shows; hidden/false/0 hides.'
+    description: 'Local signal controlling component visibility. Supports SignalName.path extraction. visible/true/1 shows; hidden/false/0 hides.'
   }
 ];
+
+const signalBindingDescription = (defaultTarget: string) => `Signal binding in SignalName[.path]:target format, or shorthand signal name/path for ${defaultTarget}.`;
+const signalsBindingDescription = (targets: string) => `Signal bindings in SignalName[.path]:target format. Supported targets: ${targets}.`;
 
 export const nodelDocumentElements: NodelElementDefinition[] = [
   {
@@ -119,8 +122,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
       { name: 'aria-label', description: 'Accessible label for icon-only or image-only buttons.' },
       { name: 'title', description: 'Native button title text.' },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for active.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: active, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('active') },
+      { name: 'signals', description: signalsBindingDescription('active, label, disabled') }
     ],
     snippet: '<nodel-button action="ActionName">${}</nodel-button>'
   },
@@ -151,8 +154,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'confirm-title', description: 'Confirmation dialog title.' },
       { name: 'confirm-text', description: 'Confirmation dialog body text.' },
       { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for state.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: state, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('state') },
+      { name: 'signals', description: signalsBindingDescription('state, label, disabled') }
     ],
     snippet: '<nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>'
   },
@@ -175,8 +178,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'confirm-title', description: 'Confirmation dialog title.' },
       { name: 'confirm-text', description: 'Confirmation dialog body text.' },
       { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
     snippet: '<nodel-segmented label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-segmented>'
   },
@@ -196,8 +199,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'disabled', description: 'Disable the picker.' },
       { name: 'allow-deselect', description: 'Allow selecting the active option to clear value.' },
       { name: 'open', description: 'Start with the option panel open.' },
-      { name: 'signal', description: 'Signal binding shorthand for value.' },
-      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
     snippet: '<nodel-select label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-select>'
   },
@@ -224,8 +227,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'readout', description: 'Show or hide numeric value readout.', values: ['show', 'hide'] },
       { name: 'label', description: 'Visible/accessibility label.' },
       { name: 'live-interval', description: 'Throttled live action interval in milliseconds.' },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
     snippet: '<nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">\n  ${}\n</nodel-fader>'
   },
@@ -250,8 +253,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Stepper visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable both buttons.' },
       { name: 'readout', description: 'Show or hide the numeric readout.', values: ['show', 'hide'] },
-      { name: 'signal', description: 'Signal binding shorthand for value.' },
-      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
     snippet: '<nodel-stepper label="Temperature" action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>'
   },
@@ -273,7 +276,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Pad visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable the whole pad.' },
       { name: 'center-disabled', description: 'Disable only the centre button.' },
-      { name: 'signals', description: 'Signal bindings. Supported targets: disabled, label, center-disabled.' }
+      { name: 'signals', description: signalsBindingDescription('disabled, label, center-disabled') }
     ],
     snippet: '<nodel-pad label="Navigate" action="Navigate" center="show"></nodel-pad>'
   },
@@ -291,8 +294,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'precision', description: 'Decimal precision.' },
       { name: 'variant', description: 'Readout visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
       { name: 'tone', description: 'Readout visual tone.', values: ['solid', 'soft', 'outline'] },
-      { name: 'signal', description: 'Signal binding shorthand for value.' },
-      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, variant, suffix, prefix.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, variant, suffix, prefix') }
     ],
     snippet: '<nodel-readout label="Brightness" type="percent" visual="ring" value="72"></nodel-readout>'
   },
@@ -313,8 +316,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'variant', description: 'Palette visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
       { name: 'tone', description: 'Palette visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable all swatches.' },
-      { name: 'signal', description: 'Signal binding shorthand for value.' },
-      { name: 'signals', description: 'Signal bindings. Supported targets: value, label, disabled, custom-color.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label, disabled, custom-color') }
     ],
     snippet: '<nodel-palette label="Colour" action="SetColour" signal="Colour" picker="native">\n  <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>\n  <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>\n  <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>\n</nodel-palette>'
   },
@@ -322,8 +325,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     name: 'nodel-meter',
     description: 'Signal-driven level meter for percent or dB values.',
     attributes: [
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, peak, label.' },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, peak, label') },
       { name: 'value', description: 'Current meter value.' },
       { name: 'min', description: 'Minimum value.' },
       { name: 'max', description: 'Maximum value.' },
@@ -349,8 +352,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'shape', description: 'Image shape.', values: ['none', 'rounded', 'circle'] },
       { name: 'size', description: 'Image size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
       { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for src.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: src, alt, label.' }
+      { name: 'signal', description: signalBindingDescription('src') },
+      { name: 'signals', description: signalsBindingDescription('src, alt, label') }
     ],
     snippet: '<nodel-image src="${}" alt=""></nodel-image>'
   },
@@ -364,8 +367,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Icon tone.', values: ['default', 'muted', 'accent', 'success', 'info', 'warning', 'danger'] },
       { name: 'size', description: 'Icon size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
       { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for name.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: name, alt, label, tone.' }
+      { name: 'signal', description: signalBindingDescription('name') },
+      { name: 'signals', description: signalsBindingDescription('name, alt, label, tone') }
     ],
     snippet: '<nodel-icon name="power"></nodel-icon>'
   },
@@ -373,8 +376,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     name: 'nodel-status-indicator',
     description: 'Small signal-driven status indicator for control children.',
     attributes: [
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: value, label.' },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, label') },
       { name: 'value', description: 'Current indicator value.' },
       { name: 'on-value', description: 'Exact value that means on.' },
       { name: 'off-value', description: 'Exact value that means off.' },
@@ -410,8 +413,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Text tone.', values: ['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger'] },
       { name: 'size', description: 'Text size.', values: ['xs', 'sm', 'md', 'lg', 'xl'] },
       { name: 'surface', description: 'Optional surface style.', values: ['none', 'card'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Use target value for text content.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: 'Signal bindings in SignalName[.path]:target format. Use target value for text content.' }
     ],
     snippet: '<nodel-text surface="card">${}</nodel-text>'
   },
@@ -421,8 +424,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'level', description: 'Heading level.', values: ['1', '2', '3'] },
       { name: 'tone', description: 'Title tone.', values: ['default', 'muted', 'accent'] },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for value.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Use target value for title content.' }
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: 'Signal bindings in SignalName[.path]:target format. Use target value for title content.' }
     ],
     snippet: '<nodel-title level="1">${}</nodel-title>'
   },
@@ -440,8 +443,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'href', description: 'Optional link target.' },
       { name: 'title', description: 'Title text.' },
       { name: 'alt', description: 'Image alt text.' },
-      { name: 'signal', description: 'Signal binding in SignalName:target format, or shorthand signal name for host.' },
-      { name: 'signals', description: 'Signal bindings in SignalName:target format. Supported targets: host, icon-host, href, title, alt.' }
+      { name: 'signal', description: signalBindingDescription('host') },
+      { name: 'signals', description: signalsBindingDescription('host, icon-host, href, title, alt') }
     ]
   },
   {

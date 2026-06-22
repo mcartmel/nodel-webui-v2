@@ -24,17 +24,65 @@ function fakeCompletionContext(text: string, explicit = true) {
 function normaliseExampleMarkup(markup: string) {
   const template = document.createElement('template');
   template.innerHTML = markup.trim();
-  const first = template.content.firstElementChild;
-  if (!first) {
-    return '';
-  }
-  return first.outerHTML.replace(/>\s+</g, '><').trim();
+
+  return serialiseCatalogueFragment(template.content);
 }
 
 function normaliseLiveExample(element: Element) {
-  const clone = element.cloneNode(true) as Element;
-  clone.removeAttribute('data-catalogue-example');
-  return clone.outerHTML.replace(/>\s+</g, '><').trim();
+  const template = document.createElement('template');
+
+  if (element.classList.contains('nodel-catalogue-examples')) {
+    template.innerHTML = element.innerHTML;
+  } else {
+    template.content.append(element.cloneNode(true));
+  }
+
+  return serialiseCatalogueFragment(template.content);
+}
+
+function serialiseCatalogueFragment(fragment: DocumentFragment) {
+  const clone = fragment.cloneNode(true) as DocumentFragment;
+  normaliseCatalogueNode(clone);
+
+  const template = document.createElement('template');
+  template.content.append(clone);
+
+  return template.innerHTML.trim();
+}
+
+function normaliseCatalogueNode(node: Node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    if (text) {
+      node.textContent = text;
+    } else {
+      node.parentNode?.removeChild(node);
+    }
+
+    return;
+  }
+
+  if (node.nodeType === Node.COMMENT_NODE) {
+    node.parentNode?.removeChild(node);
+    return;
+  }
+
+  if (node instanceof HTMLTemplateElement) {
+    normaliseCatalogueNode(node.content);
+  }
+
+  if (node instanceof Element) {
+    node.removeAttribute('data-catalogue-example');
+  }
+
+  for (const child of Array.from(node.childNodes)) {
+    normaliseCatalogueNode(child);
+  }
+}
+
+function duplicateIds(ids: string[]) {
+  return Array.from(new Set(ids.filter((id, index) => ids.indexOf(id) !== index)));
 }
 
 describe('nodel document definition', () => {
@@ -129,7 +177,17 @@ describe('nodel document definition', () => {
       'nodel-column',
       'nodel-control-grid',
       'nodel-control-space',
+      'nodel-template',
       'nodel-button',
+      'nodel-toggle',
+      'nodel-segmented',
+      'nodel-select',
+      'nodel-stepper',
+      'nodel-pad',
+      'nodel-readout',
+      'nodel-palette',
+      'nodel-fader',
+      'nodel-meter',
       'nodel-image',
       'nodel-icon',
       'nodel-status-indicator',
@@ -143,6 +201,30 @@ describe('nodel document definition', () => {
     for (const component of expectedComponents) {
       expect(exampleUi).toContain(`<${component}`);
     }
+
+    const runtimeComponents = [
+      'nodel-node-list',
+      'nodel-add-node',
+      'nodel-diagnostics',
+      'nodel-host-log',
+      'nodel-diagnostic-charts',
+      'nodel-toolkit',
+      'nodel-description',
+      'nodel-console',
+      'nodel-log',
+      'nodel-actsig',
+      'nodel-params',
+      'nodel-bindings',
+      'nodel-editor',
+      'nodel-node-menu',
+      'nodel-toast-host',
+      'nodel-confirm-host'
+    ];
+
+    for (const component of runtimeComponents) {
+      expect(exampleUi).not.toContain(`<${component}`);
+      expect(exampleUi).not.toContain(`&lt;${component}`);
+    }
   });
 
   it('keeps marked catalogue examples matched to their code snippets', async () => {
@@ -150,13 +232,23 @@ describe('nodel document definition', () => {
     const template = document.createElement('template');
     template.innerHTML = exampleUi;
     const examples = Array.from(template.content.querySelectorAll('[data-catalogue-example]'));
-    const codeBlocks = new Map(Array.from(template.content.querySelectorAll<HTMLElement>('[data-catalogue-code-for]')).map((code) => [code.dataset.catalogueCodeFor, code.querySelector('code')?.textContent ?? '']));
+    const codeElements = Array.from(template.content.querySelectorAll<HTMLElement>('pre.nodel-catalogue-code'));
+    const codeIds = codeElements.map((code) => code.dataset.catalogueCodeFor ?? '');
+    const exampleIds = examples.map((example) => (example as HTMLElement).dataset.catalogueExample ?? '');
 
+    expect(codeElements.length).toBeGreaterThan(0);
     expect(examples.length).toBeGreaterThan(0);
+    expect(codeIds.filter((id) => !id)).toEqual([]);
+    expect(exampleIds.filter((id) => !id)).toEqual([]);
+    expect(duplicateIds(codeIds)).toEqual([]);
+    expect(duplicateIds(exampleIds)).toEqual([]);
+
+    const codeBlocks = new Map(codeElements.map((code) => [code.dataset.catalogueCodeFor, code.querySelector('code')?.textContent ?? '']));
+
+    expect(codeElements).toHaveLength(examples.length);
 
     for (const example of examples) {
       const id = (example as HTMLElement).dataset.catalogueExample;
-      expect(id).toBeTruthy();
       expect(codeBlocks.has(id)).toBe(true);
       expect(normaliseLiveExample(example)).toBe(normaliseExampleMarkup(codeBlocks.get(id) ?? ''));
       codeBlocks.delete(id);

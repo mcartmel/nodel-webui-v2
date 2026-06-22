@@ -518,7 +518,14 @@ Signal targets:
 - `label` updates the button label.
 - `disabled` toggles disabled state from truthy/falsey text.
 
-`signal` and `signals` use the same parser. Either may contain one binding or a `;`/`,` separated list. Repeated boolean targets default to last-event-wins for v1 compatibility. Use `target(any)` for OR aggregation or `target(all)` for AND aggregation, such as `signals="ShowRunning:active(any); Override:active(any)"`.
+`signal` and `signals` use the same parser. Either may contain one binding or a `;`/`,` separated list. Bindings are `SignalName:target`, and can extract nested event argument properties before formatting with `SignalName.path:target`. Shorthand `signal="SignalName.path"` sends the extracted value to the component's default target. Missing paths resolve to an empty value. Escape literal dots in event names or property keys with `\.`, such as `signal="Device\.Status.message"`. Repeated boolean targets default to last-event-wins for v1 compatibility. Use `target(any)` for OR aggregation or `target(all)` for AND aggregation, such as `signals="ShowRunning:active(any); Override:active(any)"`.
+
+```html
+<nodel-text signal="Status.message">Waiting</nodel-text>
+<nodel-readout label="Level" signals="Status.level:value; Status.unit:suffix"></nodel-readout>
+<!-- Future status-card style components can bind structured status values explicitly. -->
+<nodel-status signals="Status.level:level; Status.message:message"></nodel-status>
+```
 
 `action` and `actions` also use the same parser. Entries are `ActionName` or `ActionName:phase`. Use `actions` for multiple entries. Momentary buttons are inferred when a `press` or `release` phase is present.
 

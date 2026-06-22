@@ -22,7 +22,7 @@
             </p>
           </header>
 
-          <div class="nodel-catalogue-examples">
+          <div class="nodel-catalogue-examples" data-catalogue-example="layout-columns">
             <nodel-row>
               <nodel-column span="12">
                 <nodel-text surface="card" tone="default" size="lg">12 column</nodel-text>
@@ -60,7 +60,7 @@
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-columns"><code>&lt;nodel-row&gt;
   &lt;nodel-column span=&quot;12&quot;&gt;
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot; size=&quot;lg&quot;&gt;12 column&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -95,10 +95,6 @@
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;2 column&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
-
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-collapse label=&quot;Console&quot; preview=&quot;No console output yet&quot;&gt;
-  &lt;nodel-console collapse-preview=&quot;last-line&quot;&gt;&lt;/nodel-console&gt;
-&lt;/nodel-collapse&gt;</code></pre>
         </nodel-page>
 
         <nodel-page title="Responsive">
@@ -109,7 +105,7 @@
             </p>
           </header>
 
-          <div class="nodel-catalogue-examples">
+          <div class="nodel-catalogue-examples" data-catalogue-example="layout-responsive">
             <nodel-row>
               <nodel-column md="8">
                 <nodel-text surface="card" tone="default">Primary content</nodel-text>
@@ -134,7 +130,7 @@
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-responsive"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;8&quot;&gt;
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Primary content&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -166,7 +162,7 @@
             </p>
           </header>
 
-          <div class="nodel-catalogue-examples">
+          <div class="nodel-catalogue-examples" data-catalogue-example="layout-collapse">
             <nodel-row>
               <nodel-column md="4">
                 <nodel-collapse label="Default">
@@ -186,7 +182,7 @@
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-collapse"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;4&quot;&gt;
     &lt;nodel-collapse label=&quot;Default&quot;&gt;
       &lt;nodel-text&gt;Default collapsed section content.&lt;/nodel-text&gt;
@@ -201,6 +197,29 @@
     &lt;nodel-collapse label=&quot;Open&quot; preview=&quot;Starts open&quot; open&gt;
       &lt;nodel-text&gt;Open section content.&lt;/nodel-text&gt;
     &lt;/nodel-collapse&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+        </nodel-page>
+
+        <nodel-page title="Visibility">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Visibility</h1>
+            <p class="nodel-catalogue-description">
+              Use <code>visibility</code> on any component to show or hide it from a local signal. Values <code>visible</code>, <code>true</code>, and <code>1</code> show the component; <code>hidden</code>, <code>false</code>, and <code>0</code> hide it.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples" data-catalogue-example="layout-visibility">
+            <nodel-row visibility="PanelVisible">
+              <nodel-column md="6">
+                <nodel-text surface="card" tone="default">Signal-controlled panel</nodel-text>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-visibility"><code>&lt;nodel-row visibility=&quot;PanelVisible&quot;&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Signal-controlled panel&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
         </nodel-page>
@@ -227,14 +246,14 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="3">
+                  <nodel-control-grid columns="3" data-catalogue-example="control-grid-fixed-columns">
                     <nodel-button>One third</nodel-button>
                   </nodel-control-grid>
                 </nodel-column>
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="control-grid-fixed-columns"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
   &lt;nodel-button&gt;One third&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
@@ -250,7 +269,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="3">
+                  <nodel-control-grid columns="3" data-catalogue-example="control-grid-wrap">
                     <nodel-button>One</nodel-button>
                     <nodel-button>Two</nodel-button>
                     <nodel-button>Three</nodel-button>
@@ -262,7 +281,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="control-grid-wrap"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
   &lt;nodel-button&gt;One&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Two&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Three&lt;/nodel-button&gt;
@@ -283,7 +302,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="control-grid-nested-empty-cells">
                     <nodel-fader label="Volume" value="65" nudge="5">
                       <nodel-meter value="72" peak="hold" label="Output level"></nodel-meter>
                     </nodel-fader>
@@ -298,8 +317,10 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
-  &lt;nodel-fader label=&quot;Volume&quot;&gt;&lt;/nodel-fader&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="control-grid-nested-empty-cells"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-fader label=&quot;Volume&quot; value=&quot;65&quot; nudge=&quot;5&quot;&gt;
+    &lt;nodel-meter value=&quot;72&quot; peak=&quot;hold&quot; label=&quot;Output level&quot;&gt;&lt;/nodel-meter&gt;
+  &lt;/nodel-fader&gt;
   &lt;nodel-control-grid columns=&quot;1&quot;&gt;
     &lt;nodel-button&gt;Mute&lt;/nodel-button&gt;
     &lt;nodel-button&gt;Speech&lt;/nodel-button&gt;
@@ -330,7 +351,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="templates-repeated-controls">
                     <nodel-template name="Zone" repeat="4" start="1">
                       <template>
                         <nodel-button join="{{item}}" variant="primary" tone="soft">
@@ -344,7 +365,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="templates-repeated-controls"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-template name=&quot;Zone&quot; repeat=&quot;4&quot; start=&quot;1&quot;&gt;
     &lt;template&gt;
       &lt;nodel-button join=&quot;{{item}}&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;
@@ -354,12 +375,37 @@
     &lt;/template&gt;
   &lt;/nodel-template&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+          </section>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-template name=&quot;Level&quot; repeat=&quot;3&quot; data-action-prefix=&quot;SetLevel&quot;&gt;
-  &lt;template&gt;
-    &lt;nodel-fader label=&quot;{{name}} {{number}}&quot; action=&quot;{{actionPrefix}}{{number}}&quot; signal=&quot;{{item}}&quot;&gt;&lt;/nodel-fader&gt;
-  &lt;/template&gt;
-&lt;/nodel-template&gt;</code></pre>
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Fader Template</h2>
+              <p class="nodel-catalogue-description">
+                Templates can render any control, including generated faders with consistent action and signal names.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="1" md="3" data-catalogue-example="templates-fader-template">
+                    <nodel-template name="Level" repeat="3" data-action-prefix="SetLevel">
+                      <template>
+                        <nodel-fader label="{{name}} {{number}}" action="{{actionPrefix}}{{number}}" signal="{{item}}"></nodel-fader>
+                      </template>
+                    </nodel-template>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="templates-fader-template"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
+  &lt;nodel-template name=&quot;Level&quot; repeat=&quot;3&quot; data-action-prefix=&quot;SetLevel&quot;&gt;
+    &lt;template&gt;
+      &lt;nodel-fader label=&quot;{{name}} {{number}}&quot; action=&quot;{{actionPrefix}}{{number}}&quot; signal=&quot;{{item}}&quot;&gt;&lt;/nodel-fader&gt;
+    &lt;/template&gt;
+  &lt;/nodel-template&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -371,13 +417,12 @@
               </p>
             </header>
 
-            <template id="shared-template-button">
-              <nodel-button action="{{actionPrefix}}{{number}}" signal="{{item}}" variant="info" tone="outline">
-                {{name}} {{number}}
-              </nodel-button>
-            </template>
-
-            <div class="nodel-catalogue-examples">
+            <div class="nodel-catalogue-examples" data-catalogue-example="templates-shared">
+              <template id="shared-template-button">
+                <nodel-button action="{{actionPrefix}}{{number}}" signal="{{item}}" variant="info" tone="outline">
+                  {{name}} {{number}}
+                </nodel-button>
+              </template>
               <nodel-row>
                 <nodel-column md="8">
                   <nodel-control-grid columns="2" md="4">
@@ -394,19 +439,25 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;template id=&quot;shared-template-button&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="templates-shared"><code>&lt;template id=&quot;shared-template-button&quot;&gt;
   &lt;nodel-button action=&quot;{{actionPrefix}}{{number}}&quot; signal=&quot;{{item}}&quot; variant=&quot;info&quot; tone=&quot;outline&quot;&gt;
     {{name}} {{number}}
   &lt;/nodel-button&gt;
 &lt;/template&gt;
-
-&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
-  &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Zone&quot; repeat=&quot;4&quot; data-action-prefix=&quot;SetZone&quot;&gt;&lt;/nodel-template&gt;
-&lt;/nodel-control-grid&gt;
-
-&lt;nodel-control-grid columns=&quot;2&quot;&gt;
-  &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Output&quot; repeat=&quot;2&quot; start=&quot;5&quot; data-action-prefix=&quot;SetOutput&quot;&gt;&lt;/nodel-template&gt;
-&lt;/nodel-control-grid&gt;</code></pre>
+&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;8&quot;&gt;
+    &lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+      &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Zone&quot; repeat=&quot;4&quot; data-action-prefix=&quot;SetZone&quot;&gt;&lt;/nodel-template&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;8&quot;&gt;
+    &lt;nodel-control-grid columns=&quot;2&quot;&gt;
+      &lt;nodel-template template=&quot;shared-template-button&quot; name=&quot;Output&quot; repeat=&quot;2&quot; start=&quot;5&quot; data-action-prefix=&quot;SetOutput&quot;&gt;&lt;/nodel-template&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
           </section>
         </nodel-page>
 
@@ -546,7 +597,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="faders-vertical">
                     <nodel-fader label="Volume" value="65" nudge="5"></nodel-fader>
                     <nodel-fader label="Mic" value="45"></nodel-fader>
                   </nodel-control-grid>
@@ -554,19 +605,19 @@
               </nodel-row>
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid>
+                  <nodel-control-grid data-catalogue-example="faders-horizontal">
                     <nodel-fader label="Brightness" orientation="horizontal" value="40" increment nudge="10"></nodel-fader>
                   </nodel-control-grid>
                 </nodel-column>
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-vertical"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
   &lt;nodel-fader label=&quot;Volume&quot; value=&quot;65&quot; nudge=&quot;5&quot;&gt;&lt;/nodel-fader&gt;
   &lt;nodel-fader label=&quot;Mic&quot; value=&quot;45&quot;&gt;&lt;/nodel-fader&gt;
-&lt;/nodel-control-grid&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
 
-&lt;nodel-control-grid&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-horizontal"><code>&lt;nodel-control-grid&gt;
   &lt;nodel-fader label=&quot;Brightness&quot; orientation=&quot;horizontal&quot; value=&quot;40&quot; increment nudge=&quot;10&quot;&gt;&lt;/nodel-fader&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
@@ -582,7 +633,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="faders-db-range">
                     <nodel-fader label="Program" unit="db" value="-12" step="0.5" nudge="1" variant="warning"></nodel-fader>
                     <nodel-meter unit="db" value="-6" peak="hold" readout="show" label="Program level"></nodel-meter>
                   </nodel-control-grid>
@@ -590,7 +641,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-db-range"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
   &lt;nodel-fader label=&quot;Program&quot; unit=&quot;db&quot; value=&quot;-12&quot; step=&quot;0.5&quot; nudge=&quot;1&quot; variant=&quot;warning&quot;&gt;&lt;/nodel-fader&gt;
   &lt;nodel-meter unit=&quot;db&quot; value=&quot;-6&quot; peak=&quot;hold&quot; readout=&quot;show&quot; label=&quot;Program level&quot;&gt;&lt;/nodel-meter&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
@@ -607,7 +658,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="1">
+                  <nodel-control-grid columns="1" data-catalogue-example="faders-meter-options">
                     <nodel-meter orientation="horizontal" min="0" max="10" value="7" warn="6" danger="9" readout="show" label="Temperature"></nodel-meter>
                     <nodel-meter unit="db" curve="linear" value="-25" readout="show" label="Linear dB override"></nodel-meter>
                   </nodel-control-grid>
@@ -615,8 +666,10 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-meter orientation=&quot;horizontal&quot; min=&quot;0&quot; max=&quot;10&quot; value=&quot;7&quot; warn=&quot;6&quot; danger=&quot;9&quot; readout=&quot;show&quot; label=&quot;Temperature&quot;&gt;&lt;/nodel-meter&gt;
-&lt;nodel-meter unit=&quot;db&quot; curve=&quot;linear&quot; value=&quot;-25&quot; readout=&quot;show&quot; label=&quot;Linear dB override&quot;&gt;&lt;/nodel-meter&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-meter-options"><code>&lt;nodel-control-grid columns=&quot;1&quot;&gt;
+  &lt;nodel-meter orientation=&quot;horizontal&quot; min=&quot;0&quot; max=&quot;10&quot; value=&quot;7&quot; warn=&quot;6&quot; danger=&quot;9&quot; readout=&quot;show&quot; label=&quot;Temperature&quot;&gt;&lt;/nodel-meter&gt;
+  &lt;nodel-meter unit=&quot;db&quot; curve=&quot;linear&quot; value=&quot;-25&quot; readout=&quot;show&quot; label=&quot;Linear dB override&quot;&gt;&lt;/nodel-meter&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -630,7 +683,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="faders-compound-fader">
                     <nodel-fader label="Zone A" value="70" action="SetZoneA" signal="ZoneA" nudge="5" variant="info" tone="soft">
                       <nodel-meter value="82" peak="hold" label="Zone A output"></nodel-meter>
                       <nodel-status-indicator value="present" label="Zone A online"></nodel-status-indicator>
@@ -646,7 +699,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-compound-fader"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
   &lt;nodel-fader label=&quot;Zone A&quot; value=&quot;70&quot; action=&quot;SetZoneA&quot; signal=&quot;ZoneA&quot; nudge=&quot;5&quot; variant=&quot;info&quot; tone=&quot;soft&quot;&gt;
     &lt;nodel-meter value=&quot;82&quot; peak=&quot;hold&quot; label=&quot;Zone A output&quot;&gt;&lt;/nodel-meter&gt;
     &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Zone A online&quot;&gt;&lt;/nodel-status-indicator&gt;
@@ -671,7 +724,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="faders-options">
                     <nodel-fader label="Trim" min="-10" max="10" unit="none" value="3" readout="hide" variant="success" tone="outline" compound-align="top">
                       <nodel-button size="sm">A</nodel-button>
                       <nodel-button size="sm">B</nodel-button>
@@ -682,7 +735,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="faders-options"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
   &lt;nodel-fader label=&quot;Trim&quot; min=&quot;-10&quot; max=&quot;10&quot; unit=&quot;none&quot; value=&quot;3&quot; readout=&quot;hide&quot; variant=&quot;success&quot; tone=&quot;outline&quot; compound-align=&quot;top&quot;&gt;
     &lt;nodel-button size=&quot;sm&quot;&gt;A&lt;/nodel-button&gt;
     &lt;nodel-button size=&quot;sm&quot;&gt;B&lt;/nodel-button&gt;
@@ -711,7 +764,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="toggles-switch-states">
                     <nodel-toggle label="Projector" value="off"></nodel-toggle>
                     <nodel-toggle label="Audio" value="on"></nodel-toggle>
                     <nodel-toggle label="Lighting" value="partially-on"></nodel-toggle>
@@ -721,9 +774,12 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-toggle label=&quot;Projector&quot; value=&quot;off&quot;&gt;&lt;/nodel-toggle&gt;
-&lt;nodel-toggle label=&quot;Audio&quot; value=&quot;on&quot;&gt;&lt;/nodel-toggle&gt;
-&lt;nodel-toggle label=&quot;Lighting&quot; value=&quot;partially-on&quot;&gt;&lt;/nodel-toggle&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="toggles-switch-states"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-toggle label=&quot;Projector&quot; value=&quot;off&quot;&gt;&lt;/nodel-toggle&gt;
+  &lt;nodel-toggle label=&quot;Audio&quot; value=&quot;on&quot;&gt;&lt;/nodel-toggle&gt;
+  &lt;nodel-toggle label=&quot;Lighting&quot; value=&quot;partially-on&quot;&gt;&lt;/nodel-toggle&gt;
+  &lt;nodel-toggle label=&quot;Locked&quot; value=&quot;partially-off&quot; disabled&gt;&lt;/nodel-toggle&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -737,7 +793,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="toggles-actions-confirm">
                     <nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>
                     <nodel-toggle label="Shutdown" action="Shutdown" confirm-title="Confirm shutdown" confirm-text="Shut down the device?" confirm-tone="danger" variant="danger"></nodel-toggle>
                   </nodel-control-grid>
@@ -745,8 +801,10 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-toggle label=&quot;Power&quot; action=&quot;SetPower&quot; signal=&quot;Power&quot;&gt;&lt;/nodel-toggle&gt;
-&lt;nodel-toggle label=&quot;Shutdown&quot; action=&quot;Shutdown&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Shut down the device?&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="toggles-actions-confirm"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+  &lt;nodel-toggle label=&quot;Power&quot; action=&quot;SetPower&quot; signal=&quot;Power&quot;&gt;&lt;/nodel-toggle&gt;
+  &lt;nodel-toggle label=&quot;Shutdown&quot; action=&quot;Shutdown&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Shut down the device?&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -760,7 +818,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="1">
+                  <nodel-control-grid columns="1" data-catalogue-example="toggles-segmented-choices">
                     <nodel-segmented label="Source" value="HDMI 1" action="SetSource" signal="Source">
                       <nodel-button value="HDMI 1">HDMI 1</nodel-button>
                       <nodel-button value="HDMI 2">HDMI 2</nodel-button>
@@ -775,11 +833,17 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-segmented label=&quot;Source&quot; value=&quot;HDMI 1&quot; action=&quot;SetSource&quot; signal=&quot;Source&quot;&gt;
-  &lt;nodel-button value=&quot;HDMI 1&quot;&gt;HDMI 1&lt;/nodel-button&gt;
-  &lt;nodel-button value=&quot;HDMI 2&quot;&gt;HDMI 2&lt;/nodel-button&gt;
-  &lt;nodel-button value=&quot;USB-C&quot;&gt;USB-C&lt;/nodel-button&gt;
-&lt;/nodel-segmented&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="toggles-segmented-choices"><code>&lt;nodel-control-grid columns=&quot;1&quot;&gt;
+  &lt;nodel-segmented label=&quot;Source&quot; value=&quot;HDMI 1&quot; action=&quot;SetSource&quot; signal=&quot;Source&quot;&gt;
+    &lt;nodel-button value=&quot;HDMI 1&quot;&gt;HDMI 1&lt;/nodel-button&gt;
+    &lt;nodel-button value=&quot;HDMI 2&quot;&gt;HDMI 2&lt;/nodel-button&gt;
+    &lt;nodel-button value=&quot;USB-C&quot;&gt;USB-C&lt;/nodel-button&gt;
+  &lt;/nodel-segmented&gt;
+  &lt;nodel-segmented label=&quot;Mode&quot; value=&quot;Auto&quot; allow-deselect confirm-text=&quot;Change operating mode?&quot;&gt;
+    &lt;nodel-button value=&quot;Auto&quot;&gt;Auto&lt;/nodel-button&gt;
+    &lt;nodel-button value=&quot;Manual&quot;&gt;Manual&lt;/nodel-button&gt;
+  &lt;/nodel-segmented&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
         </nodel-page>
 
@@ -803,7 +867,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="media-standalone-media">
                     <nodel-image src="./v2/img/logo.png" alt="Nodel logo" size="lg"></nodel-image>
                     <nodel-icon name="power" alt="Power" tone="accent" variant="soft"></nodel-icon>
                     <nodel-icon name="volume" label="Volume" tone="success" size="lg" variant="bordered"></nodel-icon>
@@ -813,7 +877,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-standalone-media"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel logo&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;nodel-icon name=&quot;power&quot; alt=&quot;Power&quot; tone=&quot;accent&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
   &lt;nodel-icon name=&quot;volume&quot; label=&quot;Volume&quot; tone=&quot;success&quot; size=&quot;lg&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
@@ -832,7 +896,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="media-image-options">
                     <nodel-image src="./v2/img/logo.png" label="Rounded" fit="contain" shape="rounded" variant="bordered" size="lg"></nodel-image>
                     <nodel-image src="./v2/img/logo.png" label="Circle" fit="cover" shape="circle" variant="soft" size="lg"></nodel-image>
                     <nodel-icon name="info" label="Info" tone="info" variant="soft"></nodel-icon>
@@ -842,7 +906,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-image-options"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-image src=&quot;./v2/img/logo.png&quot; label=&quot;Rounded&quot; fit=&quot;contain&quot; shape=&quot;rounded&quot; variant=&quot;bordered&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;nodel-image src=&quot;./v2/img/logo.png&quot; label=&quot;Circle&quot; fit=&quot;cover&quot; shape=&quot;circle&quot; variant=&quot;soft&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;nodel-icon name=&quot;info&quot; label=&quot;Info&quot; tone=&quot;info&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
@@ -861,7 +925,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="media-status-indicators">
                     <nodel-button>Present <nodel-status-indicator value="present" label="Present"></nodel-status-indicator></nodel-button>
                     <nodel-button>Muted Off <nodel-status-indicator value="absent" off-tone="muted" label="Absent"></nodel-status-indicator></nodel-button>
                     <nodel-button>Fault <nodel-status-indicator value="fault" on-value="fault" tone="danger" label="Fault"></nodel-status-indicator></nodel-button>
@@ -871,10 +935,12 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-button&gt;Present &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Present&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
-&lt;nodel-button&gt;Muted Off &lt;nodel-status-indicator value=&quot;absent&quot; off-tone=&quot;muted&quot; label=&quot;Absent&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
-&lt;nodel-button&gt;Fault &lt;nodel-status-indicator value=&quot;fault&quot; on-value=&quot;fault&quot; tone=&quot;danger&quot; label=&quot;Fault&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
-&lt;nodel-button&gt;Signal &lt;nodel-status-indicator signal=&quot;DeviceOnline&quot; label=&quot;Device online&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-status-indicators"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-button&gt;Present &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Present&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Muted Off &lt;nodel-status-indicator value=&quot;absent&quot; off-tone=&quot;muted&quot; label=&quot;Absent&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Fault &lt;nodel-status-indicator value=&quot;fault&quot; on-value=&quot;fault&quot; tone=&quot;danger&quot; label=&quot;Fault&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Signal &lt;nodel-status-indicator signal=&quot;DeviceOnline&quot; label=&quot;Device online&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
         </nodel-page>
 
@@ -897,7 +963,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="buttons-variants">
                     <nodel-button>Default</nodel-button>
                     <nodel-button variant="primary">Primary</nodel-button>
                     <nodel-button variant="success">Success</nodel-button>
@@ -911,7 +977,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-variants"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-button&gt;Default&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;primary&quot;&gt;Primary&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;success&quot;&gt;Success&lt;/nodel-button&gt;
@@ -934,7 +1000,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="buttons-soft-tone">
                     <nodel-button tone="soft">Default</nodel-button>
                     <nodel-button variant="primary" tone="soft">Primary</nodel-button>
                     <nodel-button variant="success" tone="soft">Success</nodel-button>
@@ -946,7 +1012,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-soft-tone"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-button tone=&quot;soft&quot;&gt;Default&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;Primary&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;success&quot; tone=&quot;soft&quot;&gt;Success&lt;/nodel-button&gt;
@@ -967,7 +1033,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="buttons-outline-tone">
                     <nodel-button tone="outline">Default</nodel-button>
                     <nodel-button variant="primary" tone="outline">Primary</nodel-button>
                     <nodel-button variant="success" tone="outline">Success</nodel-button>
@@ -979,7 +1045,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-outline-tone"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-button tone=&quot;outline&quot;&gt;Default&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;primary&quot; tone=&quot;outline&quot;&gt;Primary&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;success&quot; tone=&quot;outline&quot;&gt;Success&lt;/nodel-button&gt;
@@ -1000,7 +1066,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="1" md="3">
+                  <nodel-control-grid columns="1" md="3" data-catalogue-example="buttons-tone-comparison">
                     <nodel-button variant="primary">Solid</nodel-button>
                     <nodel-button variant="primary" tone="soft">Soft</nodel-button>
                     <nodel-button variant="primary" tone="outline">Outline</nodel-button>
@@ -1009,7 +1075,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-tone-comparison"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
   &lt;nodel-button variant=&quot;primary&quot;&gt;Solid&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;Soft&lt;/nodel-button&gt;
   &lt;nodel-button variant=&quot;primary&quot; tone=&quot;outline&quot;&gt;Outline&lt;/nodel-button&gt;
@@ -1027,7 +1093,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4">
+                  <nodel-control-grid columns="2" md="4" data-catalogue-example="buttons-sizes-states">
                     <nodel-button size="sm">Small</nodel-button>
                     <nodel-button size="md">Medium</nodel-button>
                     <nodel-button size="lg">Large</nodel-button>
@@ -1039,12 +1105,14 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-button size=&quot;sm&quot;&gt;Small&lt;/nodel-button&gt;
-&lt;nodel-button size=&quot;md&quot;&gt;Medium&lt;/nodel-button&gt;
-&lt;nodel-button size=&quot;lg&quot;&gt;Large&lt;/nodel-button&gt;
-&lt;nodel-button active&gt;Active&lt;/nodel-button&gt;
-&lt;nodel-button disabled&gt;Disabled&lt;/nodel-button&gt;
-&lt;nodel-button active-value=&quot;on&quot; signal=&quot;Power&quot;&gt;Signal Active&lt;/nodel-button&gt;</code></pre>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-sizes-states"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+  &lt;nodel-button size=&quot;sm&quot;&gt;Small&lt;/nodel-button&gt;
+  &lt;nodel-button size=&quot;md&quot;&gt;Medium&lt;/nodel-button&gt;
+  &lt;nodel-button size=&quot;lg&quot;&gt;Large&lt;/nodel-button&gt;
+  &lt;nodel-button active&gt;Active&lt;/nodel-button&gt;
+  &lt;nodel-button disabled&gt;Disabled&lt;/nodel-button&gt;
+  &lt;nodel-button active-value=&quot;on&quot; signal=&quot;Power&quot;&gt;Signal Active&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -1055,7 +1123,21 @@
               </p>
             </header>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="3" data-catalogue-example="buttons-signal-state">
+                    <nodel-button action="SetSource" arg="Chromecast" signal="Source">Chromecast</nodel-button>
+                    <nodel-button action="SetSource" arg="TV" signal="Source">TV</nodel-button>
+                    <nodel-button action="StartShow" signals="ShowRunning:active; ControlsLocked:disabled">Start Show</nodel-button>
+                    <nodel-button action="SetLevel" arg="42" arg-type="number">Level 42</nodel-button>
+                    <nodel-button action="SetEnabled" arg="true" arg-type="boolean">Enable</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-signal-state"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;StartShow&quot; signals=&quot;ShowRunning:active; ControlsLocked:disabled&quot;&gt;Start Show&lt;/nodel-button&gt;
@@ -1075,7 +1157,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="3">
+                  <nodel-control-grid columns="2" md="3" data-catalogue-example="buttons-media-indicators">
                     <nodel-button aria-label="Power">
                       <nodel-icon name="power" size="md"></nodel-icon>
                     </nodel-button>
@@ -1091,16 +1173,16 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;3&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-media-indicators"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;3&quot;&gt;
   &lt;nodel-button aria-label=&quot;Power&quot;&gt;
     &lt;nodel-icon name=&quot;power&quot; size=&quot;md&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-button&gt;
   &lt;nodel-button&gt;
     &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;/nodel-button&gt;
-  &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;HDMI1&quot; signal=&quot;Source&quot;&gt;
+  &lt;nodel-button&gt;
     HDMI 1
-    &lt;nodel-status-indicator signal=&quot;HDMI1Present&quot; label=&quot;HDMI 1 signal present&quot;&gt;&lt;/nodel-status-indicator&gt;
+    &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;HDMI 1 signal present&quot;&gt;&lt;/nodel-status-indicator&gt;
   &lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
@@ -1116,7 +1198,7 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2">
+                  <nodel-control-grid columns="2" data-catalogue-example="buttons-text-components">
                     <nodel-button layout="stack">
                       <nodel-icon name="volume" size="lg"></nodel-icon>
                       <nodel-text tone="default" size="lg">Volume</nodel-text>
@@ -1130,7 +1212,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-text-components"><code>&lt;nodel-control-grid columns=&quot;2&quot;&gt;
   &lt;nodel-button layout=&quot;stack&quot;&gt;
     &lt;nodel-icon name=&quot;volume&quot; size=&quot;lg&quot;&gt;&lt;/nodel-icon&gt;
     &lt;nodel-text tone=&quot;default&quot; size=&quot;lg&quot;&gt;Volume&lt;/nodel-text&gt;
@@ -1150,7 +1232,20 @@
               </p>
             </header>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="8">
+                  <nodel-control-grid columns="3" data-catalogue-example="buttons-actions-signals">
+                    <nodel-button action="SetSource" arg="Chromecast" signal="Source">Chromecast</nodel-button>
+                    <nodel-button action="SetSource" arg="TV" signal="Source">TV</nodel-button>
+                    <nodel-button action="SetSource" arg="Signage" signal="Source">Signage</nodel-button>
+                    <nodel-button action="SetLevel" arg="42" arg-type="number">Level 42</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="buttons-actions-signals"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Chromecast&quot; signal=&quot;Source&quot;&gt;Chromecast&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;TV&quot; signal=&quot;Source&quot;&gt;TV&lt;/nodel-button&gt;
   &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Signage&quot; signal=&quot;Source&quot;&gt;Signage&lt;/nodel-button&gt;
@@ -1169,7 +1264,7 @@
             </p>
           </header>
 
-          <div class="nodel-catalogue-examples">
+          <div class="nodel-catalogue-examples" data-catalogue-example="content-titles">
             <nodel-row>
               <nodel-column span="12">
                 <nodel-title level="1">Node Overview</nodel-title>
@@ -1195,7 +1290,7 @@
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="content-titles"><code>&lt;nodel-row&gt;
   &lt;nodel-column span=&quot;12&quot;&gt;
     &lt;nodel-title level=&quot;1&quot;&gt;Node Overview&lt;/nodel-title&gt;
   &lt;/nodel-column&gt;
@@ -1236,7 +1331,7 @@
               </p>
             </header>
 
-            <div class="nodel-catalogue-examples">
+            <div class="nodel-catalogue-examples" data-catalogue-example="content-text-tone">
               <nodel-row>
                 <nodel-column sm="6" md="3">
                   <nodel-text tone="default">Default text</nodel-text>
@@ -1262,7 +1357,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="content-text-tone"><code>&lt;nodel-row&gt;
   &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text tone=&quot;default&quot;&gt;Default text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -1295,7 +1390,7 @@
               </p>
             </header>
 
-            <div class="nodel-catalogue-examples">
+            <div class="nodel-catalogue-examples" data-catalogue-example="content-text-size">
               <nodel-row>
                 <nodel-column sm="6" md="3">
                   <nodel-text size="xs">Extra small text</nodel-text>
@@ -1315,7 +1410,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="content-text-size"><code>&lt;nodel-row&gt;
   &lt;nodel-column sm=&quot;6&quot; md=&quot;3&quot;&gt;
     &lt;nodel-text size=&quot;xs&quot;&gt;Extra small text&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -1342,7 +1437,7 @@
               </p>
             </header>
 
-            <div class="nodel-catalogue-examples">
+            <div class="nodel-catalogue-examples" data-catalogue-example="content-text-surface">
               <nodel-row>
                 <nodel-column md="6">
                   <nodel-text tone="default">Plain text surface</nodel-text>
@@ -1353,7 +1448,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="content-text-surface"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
     &lt;nodel-text tone=&quot;default&quot;&gt;Plain text surface&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -1371,7 +1466,7 @@
               </p>
             </header>
 
-            <div class="nodel-catalogue-examples">
+            <div class="nodel-catalogue-examples" data-catalogue-example="content-text-signal">
               <nodel-row>
                 <nodel-column md="6">
                   <nodel-text signal="Status" surface="card" tone="default">Waiting for Status signal</nodel-text>
@@ -1382,7 +1477,7 @@
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="content-text-signal"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
     &lt;nodel-text signal=&quot;Status&quot; surface=&quot;card&quot; tone=&quot;default&quot;&gt;Waiting for Status signal&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
@@ -1393,29 +1488,6 @@
           </section>
         </nodel-page>
 
-        <nodel-page title="Visibility">
-          <header class="nodel-catalogue-header">
-            <h1 class="nodel-catalogue-title">Visibility</h1>
-            <p class="nodel-catalogue-description">
-              Use <code>visibility</code> on any component to show or hide it from a local signal. Values <code>visible</code>, <code>true</code>, and <code>1</code> show the component; <code>hidden</code>, <code>false</code>, and <code>0</code> hide it.
-            </p>
-          </header>
-
-          <div class="nodel-catalogue-examples">
-            <nodel-row visibility="PanelVisible">
-              <nodel-column md="6">
-                <nodel-text surface="card" tone="default">Signal-controlled panel</nodel-text>
-              </nodel-column>
-            </nodel-row>
-          </div>
-
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row visibility=&quot;PanelVisible&quot;&gt;
-  &lt;nodel-column md=&quot;6&quot;&gt;
-    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Signal-controlled panel&lt;/nodel-text&gt;
-  &lt;/nodel-column&gt;
-&lt;/nodel-row&gt;</code></pre>
-        </nodel-page>
-
         <nodel-page title="Host Icon">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Host Icon</h1>
@@ -1424,7 +1496,7 @@
             </p>
           </header>
 
-          <div class="nodel-catalogue-examples">
+          <div class="nodel-catalogue-examples" data-catalogue-example="content-host-icon">
             <nodel-row>
               <nodel-column md="6">
                 <nodel-host-icon host="Example Host" icon-host="example-host" title="Example host"></nodel-host-icon>
@@ -1435,7 +1507,7 @@
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code"><code>&lt;nodel-row&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="content-host-icon"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
     &lt;nodel-host-icon host=&quot;Example Host&quot; icon-host=&quot;example-host&quot; title=&quot;Example host&quot;&gt;&lt;/nodel-host-icon&gt;
   &lt;/nodel-column&gt;

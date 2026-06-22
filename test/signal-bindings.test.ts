@@ -10,7 +10,7 @@ vi.mock('../src/data/node-activity-source', () => ({
   })
 }));
 
-import { bootstrapSignalVisibilityBindings } from '../src/data/signal-bindings';
+import { bootstrapSignalVisibilityBindings, parseSignalBindings, subscribeSignalBindings } from '../src/data/signal-bindings';
 
 function emitSignal(alias: string, arg: unknown) {
   for (const listener of activityMock.listeners) {
@@ -56,6 +56,76 @@ describe('signal bindings', () => {
     document.body.innerHTML = '';
   });
 
+  it('parses path-aware signal expressions', () => {
+    expect(parseSignalBindings('Status.message', null, 'value')).toEqual([
+      { signal: 'Status', path: ['message'], target: 'value', mode: 'last' }
+    ]);
+    expect(parseSignalBindings(null, 'Status.level:level; Device\\.Status.message:message')).toEqual([
+      { signal: 'Status', path: ['level'], target: 'level', mode: 'last' },
+      { signal: 'Device.Status', path: ['message'], target: 'message', mode: 'last' }
+    ]);
+    expect(parseSignalBindings(null, 'Status.details\\.message:value')).toEqual([
+      { signal: 'Status', path: ['details.message'], target: 'value', mode: 'last' }
+    ]);
+    expect(parseSignalBindings(null, 'Status.:value; Status..message:value')).toEqual([]);
+  });
+
+  it('extracts nested values before formatting signal target values', () => {
+    const values: string[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings(null, 'Status.level:value; Status.message:value; Status.items.1:value'),
+      { value: (value) => values.push(value) }
+    );
+
+    emitSignal('Status', { level: 1, message: 'Lamp warning', items: ['first', 'second'] });
+
+    expect(values).toEqual(['1', 'Lamp warning', 'second']);
+  });
+
+  it('formats missing, object, and array path values consistently with whole signal values', () => {
+    const values: string[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings(null, 'Status.missing:value; Status.detail:value; Status.items:value'),
+      { value: (value) => values.push(value) }
+    );
+
+    emitSignal('Status', { detail: { label: 'Nested' }, items: ['one', 'two'] });
+
+    expect(values).toEqual(['', JSON.stringify({ label: 'Nested' }, null, 2), JSON.stringify(['one', 'two'], null, 2)]);
+  });
+
+  it('supports escaped dots in aliases and path keys', () => {
+    const values: string[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings(null, 'Device\\.Status.message:value; Status.details\\.message:value'),
+      { value: (value) => values.push(value) }
+    );
+
+    emitSignal('Device.Status', { message: 'Alias OK' });
+    emitSignal('Status', { 'details.message': 'Path OK' });
+
+    expect(values).toEqual(['Alias OK', 'Path OK']);
+  });
+
+  it('keeps multiple paths from the same signal independent for aggregation', () => {
+    const values: string[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings(null, 'Status.ready:active(any); Status.override:active(any)'),
+      { active: (value) => values.push(value) },
+      { active: { evaluate: (value) => value === 'true' || value === 'on' } }
+    );
+
+    emitSignal('Status', { ready: false, override: true });
+    emitSignal('Status', { ready: false, override: false });
+
+    expect(values[values.length - 2]).toBe('true');
+    expect(values[values.length - 1]).toBe('false');
+  });
+
   it('binds visibility signal targets generically', () => {
     document.body.innerHTML = `
       <nodel-row visibility="PanelVisible"></nodel-row>
@@ -85,6 +155,26 @@ describe('signal bindings', () => {
     expect(column.hidden).toBe(true);
 
     emitSignal('PanelVisible', 1);
+    expect(row.hidden).toBe(false);
+    expect(column.hidden).toBe(false);
+  });
+
+  it('binds visibility from signal paths', () => {
+    document.body.innerHTML = `
+      <nodel-row visibility="Panel.visible"></nodel-row>
+      <nodel-column signals="Panel.visible:visibility"></nodel-column>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+
+    const row = document.querySelector('nodel-row') as HTMLElement;
+    const column = document.querySelector('nodel-column') as HTMLElement;
+
+    emitSignal('Panel', { visible: 'hidden' });
+    expect(row.hidden).toBe(true);
+    expect(column.hidden).toBe(true);
+
+    emitSignal('Panel', { visible: 'visible' });
     expect(row.hidden).toBe(false);
     expect(column.hidden).toBe(false);
   });
