@@ -66,6 +66,34 @@ export const toastIcons = {
   warning: faTriangleExclamation
 };
 
+export const controlIcons = {
+  action: logIcons.action,
+  arrow: logIcons.remote,
+  event: logIcons.event,
+  image: uiIcons.image,
+  info: toastIcons.info,
+  link: logIcons.actionBinding,
+  moon: themeIcons.moon,
+  mute: uiIcons.volumeMute,
+  pause: uiIcons.pause,
+  play: uiIcons.play,
+  power: uiIcons.power,
+  sliders: uiIcons.sliders,
+  stop: uiIcons.stop,
+  success: toastIcons.success,
+  sun: themeIcons.sun,
+  warning: toastIcons.warning,
+  volume: uiIcons.volume,
+  'volume-low': uiIcons.volumeLow
+} as const;
+
+export type ControlIconName = keyof typeof controlIcons;
+
+export function iconForName(value: string | null, fallback?: FontAwesomeIcon) {
+  const key = (value ?? '').trim() as ControlIconName;
+  return controlIcons[key] ?? fallback;
+}
+
 export function renderFontAwesomeIcon(icon: FontAwesomeIcon, className = 'h-3.5 w-3.5') {
   const [width, height, , , pathData] = icon.icon;
   const paths = Array.isArray(pathData) ? pathData : [pathData];

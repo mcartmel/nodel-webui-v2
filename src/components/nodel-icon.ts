@@ -1,28 +1,9 @@
 import { createSignalBindingController } from '../data/signal-bindings';
-import { logIcons, renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
+import { iconForName, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 
 type NodelIconTone = 'default' | 'muted' | 'accent' | 'success' | 'info' | 'warning' | 'danger';
 type NodelIconSize = 'auto' | 'sm' | 'md' | 'lg' | 'xl';
 type NodelIconVariant = 'plain' | 'soft' | 'bordered';
-
-const iconMap = {
-  action: logIcons.action,
-  arrow: logIcons.remote,
-  event: logIcons.event,
-  image: uiIcons.image,
-  info: toastIcons.info,
-  link: logIcons.actionBinding,
-  mute: uiIcons.volumeMute,
-  pause: uiIcons.pause,
-  play: uiIcons.play,
-  power: uiIcons.power,
-  sliders: uiIcons.sliders,
-  stop: uiIcons.stop,
-  success: toastIcons.success,
-  warning: toastIcons.warning,
-  volume: uiIcons.volume,
-  'volume-low': uiIcons.volumeLow
-} as const;
 
 function normalizeTone(value: string | null): NodelIconTone {
   return value === 'muted' || value === 'accent' || value === 'success' || value === 'info' || value === 'warning' || value === 'danger' ? value : 'default';
@@ -34,11 +15,6 @@ function normalizeSize(value: string | null): NodelIconSize {
 
 function normalizeVariant(value: string | null): NodelIconVariant {
   return value === 'soft' || value === 'bordered' ? value : 'plain';
-}
-
-function iconForName(value: string | null) {
-  const key = (value ?? '').trim() as keyof typeof iconMap;
-  return iconMap[key] ?? uiIcons.image;
 }
 
 export class NodelIcon extends HTMLElement {
@@ -102,7 +78,7 @@ export class NodelIcon extends HTMLElement {
     }
 
     this.innerHTML = `
-      <span class="nodel-icon-glyph">${renderFontAwesomeIcon(iconForName(name), 'h-full w-full')}</span>
+      <span class="nodel-icon-glyph">${renderFontAwesomeIcon(iconForName(name, uiIcons.image)!, 'h-full w-full')}</span>
     `;
   }
 

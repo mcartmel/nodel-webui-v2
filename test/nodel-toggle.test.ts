@@ -21,6 +21,7 @@ vi.mock('../src/data/node-activity-source', () => ({
 }));
 
 import '../src/components/nodel-toggle';
+import '../src/components/nodel-group';
 
 function emitSignal(alias: string, arg: unknown) {
   for (const listener of activityMock.listeners) {
@@ -74,6 +75,58 @@ describe('nodel-toggle', () => {
     expect(host.dataset.stateLabel).toBe('show');
     expect(host.querySelector<HTMLElement>('.nodel-toggle-state')?.hidden).toBe(false);
     expect(host.querySelector('button')?.textContent).toContain('Partial On');
+  });
+
+  it('renders state icons independent of visible state text', async () => {
+    document.body.innerHTML = '<nodel-toggle label="Theme" value="off" off-icon="sun" on-icon="moon"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    const icon = host.querySelector('.nodel-toggle-state-icon') as HTMLElement;
+
+    expect(host.querySelector<HTMLElement>('.nodel-toggle-state')?.hidden).toBe(true);
+    expect(icon.hidden).toBe(false);
+    expect(icon.parentElement?.classList.contains('nodel-toggle-thumb')).toBe(true);
+    expect(icon.querySelector('svg')?.dataset.icon).toBe('sun');
+
+    host.setAttribute('value', 'on');
+    await flush();
+    expect(icon.querySelector('svg')?.dataset.icon).toBe('moon');
+  });
+
+  it('renders state icons with visible state labels and partial fallbacks', async () => {
+    document.body.innerHTML = '<nodel-toggle label="Theme" value="partially-off" off-icon="sun" on-icon="moon" off-label="Light" on-label="Dark" state-label="show"></nodel-toggle>';
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const host = document.querySelector('nodel-toggle') as HTMLElement;
+    const icon = host.querySelector('.nodel-toggle-state-icon') as HTMLElement;
+
+    expect(icon.querySelector('svg')?.dataset.icon).toBe('sun');
+    expect(host.querySelector('.nodel-toggle-state')?.textContent).toBe('Partial Light');
+
+    host.setAttribute('value', 'partially-on');
+    await flush();
+    expect(icon.querySelector('svg')?.dataset.icon).toBe('moon');
+    expect(host.querySelector('.nodel-toggle-state')?.textContent).toBe('Partial Dark');
+  });
+
+  it('keeps grouped accessible labels separate from visual state icons', async () => {
+    document.body.innerHTML = '<nodel-group label="Theme"><nodel-toggle value="on" off-icon="sun" on-icon="moon"></nodel-toggle></nodel-group>';
+    await customElements.whenDefined('nodel-group');
+    await customElements.whenDefined('nodel-toggle');
+    await flush();
+
+    const group = document.querySelector('nodel-group') as HTMLElement;
+    const label = group.querySelector('.nodel-group-label') as HTMLElement;
+    const toggle = group.querySelector('nodel-toggle') as HTMLElement;
+    const button = toggle.querySelector('button') as HTMLButtonElement;
+
+    expect(toggle.getAttribute('aria-labelledby')).toBe(label.id);
+    expect(button.getAttribute('aria-labelledby')).toBe(label.id);
+    expect(button.getAttribute('aria-label')).toBeNull();
+    expect(toggle.querySelector('.nodel-toggle-state-content')?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('supports configurable off variants', async () => {

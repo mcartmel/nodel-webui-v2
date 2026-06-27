@@ -1,6 +1,7 @@
 import { callActionBindings, parseActionBindings } from '../data/action-bindings';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
+import { iconForName, renderFontAwesomeIcon } from '../icons/fontawesome';
 import { syncInternalAccessibleLabel } from '../utils/accessibility';
 import { isToggleOnish, resolveToggleState, toggleAriaChecked, type ToggleState } from '../utils/toggle-state';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
@@ -68,12 +69,13 @@ function apiErrorMessage(error: unknown, fallback: string) {
 export class NodelToggle extends HTMLElement {
   static observedAttributes = [
     'action', 'actions', 'join', 'on-arg', 'off-arg', 'arg-type', 'signal', 'signals', 'value', 'on-value', 'off-value',
-    'partial-on-value', 'partial-off-value', 'label', 'on-label', 'off-label', 'state-label', 'variant', 'off-variant', 'tone',
+    'partial-on-value', 'partial-off-value', 'label', 'on-label', 'off-label', 'on-icon', 'off-icon', 'state-label', 'variant', 'off-variant', 'tone',
     'disabled', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone',
     'aria-label', 'aria-labelledby', 'title'
   ];
 
   private buttonNode: HTMLButtonElement | null = null;
+  private stateIconNode: HTMLElement | null = null;
   private stateNode: HTMLElement | null = null;
   private busy = false;
   private connected = false;
@@ -121,11 +123,14 @@ export class NodelToggle extends HTMLElement {
 
     this.innerHTML = `
       <button type="button" class="nodel-toggle" role="switch">
-        <span class="nodel-toggle-track" aria-hidden="true"><span class="nodel-toggle-thumb"></span></span>
-        <span class="nodel-toggle-state" data-toggle-state></span>
+        <span class="nodel-toggle-track" aria-hidden="true"><span class="nodel-toggle-thumb"><span class="nodel-toggle-state-icon" data-toggle-state-icon hidden></span></span></span>
+        <span class="nodel-toggle-state-content" aria-hidden="true">
+          <span class="nodel-toggle-state" data-toggle-state></span>
+        </span>
       </button>
     `;
     this.buttonNode = this.querySelector('button');
+    this.stateIconNode = this.querySelector('[data-toggle-state-icon]');
     this.stateNode = this.querySelector('[data-toggle-state]');
   }
 
@@ -139,7 +144,9 @@ export class NodelToggle extends HTMLElement {
     const label = this.getAttribute('label') || this.getAttribute('aria-label') || 'Toggle';
     const onLabel = this.getAttribute('on-label') || 'On';
     const offLabel = this.getAttribute('off-label') || 'Off';
-    const stateLabel = isToggleOnish(this.state) ? onLabel : offLabel;
+    const onish = isToggleOnish(this.state);
+    const stateLabel = onish ? onLabel : offLabel;
+    const stateIcon = iconForName(onish ? this.getAttribute('on-icon') : this.getAttribute('off-icon'));
 
     this.dataset.state = this.state;
     this.dataset.variant = variant;
@@ -167,6 +174,10 @@ export class NodelToggle extends HTMLElement {
       this.stateNode.textContent = stateLabelMode === 'show'
         ? (this.state.startsWith('partially-') ? `Partial ${stateLabel}` : stateLabel)
         : '';
+    }
+    if (this.stateIconNode) {
+      this.stateIconNode.hidden = !stateIcon;
+      this.stateIconNode.innerHTML = stateIcon ? renderFontAwesomeIcon(stateIcon, 'h-full w-full') : '';
     }
   }
 

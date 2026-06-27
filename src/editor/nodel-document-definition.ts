@@ -22,6 +22,7 @@ const commonNodelAttributes: NodelAttributeDefinition[] = [
 
 const signalBindingDescription = (defaultTarget: string) => `Signal binding in SignalName[.path]:target format, or shorthand signal name/path for ${defaultTarget}.`;
 const signalsBindingDescription = (targets: string) => `Signal bindings in SignalName[.path]:target format. Supported targets: ${targets}.`;
+const commonIconValues = ['sun', 'moon', 'power', 'volume', 'volume-low', 'mute', 'warning', 'success', 'info'];
 
 export const nodelDocumentElements: NodelElementDefinition[] = [
   {
@@ -155,6 +156,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'on-label', description: 'State label shown for on/partially-on.' },
       { name: 'off-label', description: 'State label shown for off/partially-off.' },
+      { name: 'on-icon', description: 'State icon shown for on/partially-on.', values: commonIconValues },
+      { name: 'off-icon', description: 'State icon shown for off/partially-off.', values: commonIconValues },
       { name: 'state-label', description: 'Show or hide visible state text. Hidden by default.', values: ['hide', 'show'] },
       { name: 'variant', description: 'On-state colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
       { name: 'off-variant', description: 'Off-state colour variant. Default keeps the off state neutral.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
@@ -167,7 +170,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signal', description: signalBindingDescription('state') },
       { name: 'signals', description: signalsBindingDescription('state, label, disabled') }
     ],
-    snippet: '<nodel-group label="Power">\n  <nodel-toggle action="SetPower" signal="Power"></nodel-toggle>\n</nodel-group>'
+    snippet: '<nodel-group label="Theme">\n  <nodel-toggle action="SetTheme" signal="Theme" off-label="Light" on-label="Dark" off-icon="sun" on-icon="moon" state-label="show"></nodel-toggle>\n</nodel-group>'
   },
   {
     name: 'nodel-segmented',

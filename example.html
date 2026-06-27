@@ -864,7 +864,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Switch States</h2>
               <p class="nodel-catalogue-description">
-                Toggle defaults to neutral off, success on, and warning for partial/mixed readings.
+                Toggle defaults to neutral off, success on, and warning for partial/mixed readings. Add <code>on-icon</code> and <code>off-icon</code> for compact visual state cues.
               </p>
             </header>
 
@@ -877,6 +877,9 @@
                     </nodel-group>
                     <nodel-group label="Audio">
                       <nodel-toggle value="on"></nodel-toggle>
+                    </nodel-group>
+                    <nodel-group label="Theme">
+                      <nodel-toggle value="off" off-label="Light" on-label="Dark" off-icon="sun" on-icon="moon" state-label="show"></nodel-toggle>
                     </nodel-group>
                     <nodel-group label="Lighting">
                       <nodel-toggle value="partially-on"></nodel-toggle>
@@ -895,6 +898,9 @@
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;Audio&quot;&gt;
     &lt;nodel-toggle value=&quot;on&quot;&gt;&lt;/nodel-toggle&gt;
+  &lt;/nodel-group&gt;
+  &lt;nodel-group label=&quot;Theme&quot;&gt;
+    &lt;nodel-toggle value=&quot;off&quot; off-label=&quot;Light&quot; on-label=&quot;Dark&quot; off-icon=&quot;sun&quot; on-icon=&quot;moon&quot; state-label=&quot;show&quot;&gt;&lt;/nodel-toggle&gt;
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;Lighting&quot;&gt;
     &lt;nodel-toggle value=&quot;partially-on&quot;&gt;&lt;/nodel-toggle&gt;

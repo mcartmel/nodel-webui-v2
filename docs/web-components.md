@@ -398,9 +398,9 @@ Supported `nodel-meter` attributes:
 - `readout="show|hide"`
 - `label`
 
-`nodel-toggle` renders a touch switch for boolean actions and signal feedback. It is switch-only: use `nodel-segmented` with two options when an Off/On segmented look is desired. Toggle states are `off`, `on`, `partially-off`, and `partially-on`; partial states use warning styling and expose `aria-checked="mixed"`. Use `nodel-group` for visible toggle captions.
+`nodel-toggle` renders a touch switch for boolean actions and signal feedback. It is switch-only: use `nodel-segmented` with two options when an Off/On segmented look is desired. Toggle states are `off`, `on`, `partially-off`, and `partially-on`; partial states use warning styling and expose `aria-checked="mixed"`. Use `nodel-group` for the visible label describing what the switch affects.
 
-The default toggle surface is transparent, matching the fader's no-card treatment. `variant`, `off-variant`, and `tone` affect the switch track/state, not an outer card surface. Visible state text is hidden by default because the switch visual and ARIA state carry the state; set `state-label="show"` if text such as `On` or `Partial On` should be rendered.
+The default toggle surface is transparent, matching the fader's no-card treatment. `variant`, `off-variant`, and `tone` affect the switch track/state, not an outer card surface. Visible state text is hidden by default because the switch visual and ARIA state carry the state; set `state-label="show"` if text such as `On` or `Partial On` should be rendered. Use `off-icon` and `on-icon` for compact visual state cues inside the switch thumb. Icons render even when `state-label="hide"`; they are visual only and the switch accessible state still comes from `role="switch"` and `aria-checked`.
 
 Supported `nodel-toggle` attributes:
 
@@ -414,6 +414,7 @@ Supported `nodel-toggle` attributes:
 - `on-value`, `off-value`, `partial-on-value`, `partial-off-value`
 - `label` as an accessibility-only fallback label
 - `on-label`, `off-label`
+- `on-icon`, `off-icon`
 - `state-label="hide|show"`
 - `variant="default|primary|success|info|warning|danger"`
 - `off-variant="default|primary|success|info|warning|danger"`
@@ -424,8 +425,11 @@ Supported `nodel-toggle` attributes:
 - `signals="SignalName:target"` with targets `state`, `label`, and `disabled`
 
 ```html
+<nodel-group label="Theme">
+  <nodel-toggle action="SetTheme" signal="Theme" off-label="Light" on-label="Dark" off-icon="sun" on-icon="moon" state-label="show"></nodel-toggle>
+</nodel-group>
 <nodel-group label="Power">
-  <nodel-toggle action="SetPower" signal="Power"></nodel-toggle>
+  <nodel-toggle action="SetPower" signal="Power" off-icon="power" on-icon="success"></nodel-toggle>
 </nodel-group>
 <nodel-toggle join="Power" variant="success" off-variant="danger"></nodel-toggle>
 <nodel-toggle signal="Power" actions="PowerOn:on; PowerOff:off"></nodel-toggle>
