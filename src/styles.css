@@ -36,18 +36,24 @@
       radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.09), transparent 28rem),
       linear-gradient(180deg, rgb(248 250 252), rgb(var(--nodel-bg)) 34rem);
     --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 255 255 / 0.68));
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.52));
     --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(248 250 252 / 0.72));
     --nodel-popover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.9));
-    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.82), rgb(248 250 252 / 0.68));
+    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.82));
     --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(var(--nodel-accent) / 0.08));
+    --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.13), rgb(var(--nodel-accent) / 0.08));
+    --nodel-control-border: rgb(100 116 139 / 0.52);
+    --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.72);
+    --nodel-control-active-border: rgb(var(--nodel-accent) / 0.88);
+    --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(var(--nodel-border) / 0.18);
     --nodel-subtle-hover-background: rgb(var(--nodel-border) / 0.3);
-    --nodel-card-border: rgb(148 163 184 / 0.38);
+    --nodel-card-border: rgb(148 163 184 / 0.30);
     --nodel-panel-border: rgb(148 163 184 / 0.44);
     --nodel-divider: rgb(148 163 184 / 0.28);
-    --nodel-shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 14px 40px rgb(15 23 42 / 0.08);
-    --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.06);
+    --nodel-shadow-card: 0 1px 2px rgb(15 23 42 / 0.035), 0 8px 24px rgb(15 23 42 / 0.045);
+    --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.09), 0 0 0 1px var(--nodel-control-highlight) inset;
+    --nodel-shadow-control-active: 0 1px 1px rgb(15 23 42 / 0.08), 0 0 0 1px rgb(255 255 255 / 0.045) inset;
     --nodel-shadow-panel: 0 18px 60px rgb(15 23 42 / 0.12), 0 1px 0 rgb(255 255 255 / 0.65) inset;
     --nodel-shadow-popover: 0 24px 70px -24px rgb(15 23 42 / 0.36), 0 8px 24px -16px rgb(15 23 42 / 0.22);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
@@ -111,18 +117,24 @@
       radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.1), transparent 28rem),
       linear-gradient(180deg, rgb(7 11 24), rgb(var(--nodel-bg)) 32rem);
     --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.065), rgb(255 255 255 / 0.03));
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.052), rgb(255 255 255 / 0.024));
     --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.032));
     --nodel-popover-background: linear-gradient(180deg, rgb(20 27 42 / 0.98), rgb(15 23 42 / 0.94));
-    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.04));
+    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.065));
     --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(var(--nodel-accent) / 0.08));
+    --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.18), rgb(var(--nodel-accent) / 0.1));
+    --nodel-control-border: rgb(255 255 255 / 0.2);
+    --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.62);
+    --nodel-control-active-border: rgb(var(--nodel-accent) / 0.78);
+    --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(255 255 255 / 0.045);
     --nodel-subtle-hover-background: rgb(255 255 255 / 0.08);
-    --nodel-card-border: rgb(255 255 255 / 0.12);
+    --nodel-card-border: rgb(255 255 255 / 0.095);
     --nodel-panel-border: rgb(255 255 255 / 0.14);
     --nodel-divider: rgb(255 255 255 / 0.08);
-    --nodel-shadow-card: 0 16px 50px rgb(0 0 0 / 0.2), 0 1px 0 rgb(255 255 255 / 0.04) inset;
-    --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.34);
+    --nodel-shadow-card: 0 10px 36px rgb(0 0 0 / 0.16), 0 1px 0 rgb(255 255 255 / 0.025) inset;
+    --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.38), 0 1px 0 var(--nodel-control-highlight) inset;
+    --nodel-shadow-control-active: 0 1px 1px rgb(0 0 0 / 0.36), 0 1px 0 rgb(255 255 255 / 0.045) inset;
     --nodel-shadow-panel: 0 22px 70px rgb(0 0 0 / 0.32), 0 1px 0 rgb(255 255 255 / 0.05) inset;
     --nodel-shadow-popover: 0 24px 70px rgb(0 0 0 / 0.48), 0 8px 24px rgb(0 0 0 / 0.32);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(0 0 0 / 0.55);
@@ -176,6 +188,7 @@
     nodel-column,
     nodel-control-grid,
     nodel-control-space,
+    nodel-group,
     nodel-template,
     nodel-button,
     nodel-toggle,
@@ -246,7 +259,7 @@
     .nodel-log-icon,
     .nodel-editor-status
   ) {
-    transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke;
+    transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke, transform, translate;
     transition-duration: var(--nodel-theme-transition-duration, 200ms);
     transition-timing-function: var(--nodel-theme-transition-easing, ease);
   }
@@ -392,6 +405,54 @@
   nodel-control-space {
     @apply min-w-0 rounded-control;
     min-height: var(--nodel-control-min-height, 3.5rem);
+  }
+
+  nodel-group {
+    @apply flex h-full w-full min-w-0;
+  }
+
+  .nodel-group-shell {
+    @apply flex h-full w-full min-w-0 flex-col rounded-card border border-nodel-border bg-nodel-surface text-nodel-fg;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-card, none);
+  }
+
+  .nodel-group-shell[data-surface='panel'] {
+    @apply rounded-panel shadow-nodel-panel;
+    background: var(--nodel-panel-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-panel, none);
+  }
+
+  .nodel-group-shell[data-surface='none'] {
+    @apply border-0 bg-transparent shadow-none;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nodel-group-shell[data-padding='default'] {
+    @apply p-3;
+  }
+
+  .nodel-group-shell[data-padding='compact'] {
+    @apply p-2;
+  }
+
+  .nodel-group-shell[data-padding='none'] {
+    @apply p-0;
+  }
+
+  .nodel-group-label {
+    @apply mb-2 min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-group-body {
+    @apply flex min-h-0 min-w-0 flex-1 flex-col;
+  }
+
+  .nodel-group-body > :where(nodel-control-grid, nodel-button, nodel-toggle, nodel-segmented, nodel-select, nodel-meter, nodel-fader, nodel-stepper, nodel-pad, nodel-readout, nodel-palette, nodel-image, nodel-icon) {
+    @apply flex-1;
   }
 
   nodel-image,
@@ -561,7 +622,7 @@
   }
 
   .nodel-catalogue-code {
-    @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-panel;
+    @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-card;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
@@ -570,8 +631,14 @@
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
     --nodel-button-tone-rgb: var(--nodel-fg);
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-button:not(:disabled):not(.is-disabled) {
+    @apply cursor-pointer;
   }
 
   .nodel-button-content {
@@ -590,6 +657,7 @@
   .nodel-button:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-accent text-nodel-accent;
     background: var(--nodel-control-hover-background, rgb(var(--nodel-border) / 0.18));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
   }
 
   .nodel-button:focus-visible {
@@ -733,10 +801,51 @@
     filter: none;
   }
 
+  .nodel-button:active:not(:disabled):not(.is-disabled) {
+    translate: 0 1px;
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+  }
+
+  .nodel-button:not(.nodel-button-primary):not(.nodel-button-success):not(.nodel-button-info):not(.nodel-button-warning):not(.nodel-button-danger):not(.nodel-button-ghost):not(.nodel-button-link):not(.nodel-button-soft):not(.nodel-button-outline):active:not(:disabled):not(.is-disabled) {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-button-primary:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-success:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-info:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-warning:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-danger:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline) {
+    filter: brightness(0.9);
+  }
+
+  .nodel-button-ghost:active:not(:disabled):not(.is-disabled) {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.35)));
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-button-link:active:not(:disabled):not(.is-disabled) {
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    translate: 0 0;
+  }
+
+  .nodel-button-soft:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link),
+  .nodel-button-outline:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.24), rgb(var(--nodel-button-tone-rgb) / 0.14));
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
   .nodel-button.is-active {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
     background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-button-soft.is-active:not(.nodel-button-ghost):not(.nodel-button-link),
@@ -750,6 +859,12 @@
     @apply flex h-full min-h-14 w-full min-w-0 items-center justify-between gap-3 rounded-control border border-transparent bg-transparent p-2 text-left text-sm font-medium leading-5 text-nodel-fg shadow-none;
     --nodel-toggle-on-rgb: var(--nodel-success);
     --nodel-toggle-on-fill-rgb: var(--nodel-success-fill);
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-toggle:not(:disabled) {
+    @apply cursor-pointer;
   }
 
   .nodel-toggle:hover:not(:disabled) {
@@ -760,6 +875,10 @@
     @apply outline-none ring-2 ring-nodel-focus;
   }
 
+  .nodel-toggle:active:not(:disabled) {
+    translate: 0 1px;
+  }
+
   .nodel-toggle:disabled,
   nodel-toggle[data-disabled='true'] .nodel-toggle {
     @apply cursor-not-allowed opacity-disabled;
@@ -767,10 +886,6 @@
 
   .nodel-toggle.is-busy {
     @apply cursor-wait opacity-attention;
-  }
-
-  .nodel-toggle-label {
-    @apply min-w-0 flex-1 truncate;
   }
 
   .nodel-toggle-state {
@@ -784,8 +899,13 @@
   .nodel-toggle-track {
     @apply relative inline-flex h-8 w-14 flex-none items-center rounded-full border border-nodel-border bg-nodel-surface p-0.5;
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
+  }
+
+  .nodel-toggle:active:not(:disabled) .nodel-toggle-track {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
   }
 
   .nodel-toggle-thumb {
@@ -883,12 +1003,12 @@
     --nodel-toggle-on-fill-rgb: var(--nodel-danger-fill);
   }
 
-  nodel-toggle[data-tone='soft'] .nodel-toggle {
+  nodel-toggle[data-tone='soft'] .nodel-toggle-track {
     border-color: rgb(var(--nodel-toggle-on-rgb) / 0.2);
     background-color: rgb(var(--nodel-toggle-on-rgb) / 0.07);
   }
 
-  nodel-toggle[data-tone='outline'] .nodel-toggle {
+  nodel-toggle[data-tone='outline'] .nodel-toggle-track {
     border-width: 2px;
     border-color: rgb(var(--nodel-toggle-on-rgb) / 0.45);
     background-color: rgb(var(--nodel-toggle-on-rgb) / 0.025);
@@ -896,9 +1016,9 @@
 
   .nodel-segmented {
     @apply flex h-full min-h-14 min-w-0 rounded-control border border-nodel-border bg-nodel-surface p-1;
-    background: var(--nodel-subtle-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   nodel-segmented[data-orientation='vertical'] {
@@ -914,19 +1034,21 @@
   }
 
   .nodel-segmented > nodel-button .nodel-button-touch {
-    @apply h-full min-h-10 rounded-control border-transparent bg-transparent px-3 py-2 text-sm leading-5 shadow-none;
+    @apply h-full min-h-10 rounded-control border px-3 py-2 text-sm leading-5;
     background: transparent;
+    border-color: transparent;
     box-shadow: none;
   }
 
   .nodel-segmented > nodel-button .nodel-button-touch:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-border bg-nodel-border/25;
     background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.25));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
   }
 
   .nodel-segmented > nodel-button[active] .nodel-button-touch,
   .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
-    @apply shadow-nodel-panel;
+    @apply shadow-nodel-control;
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
     background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
     color: rgb(var(--nodel-button-tone-rgb));
@@ -971,23 +1093,40 @@
     @apply opacity-disabled;
   }
 
-  .nodel-select-trigger,
+  .nodel-select-trigger {
+    @apply flex h-full min-h-14 w-full min-w-0 rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
+  }
+
   .nodel-stepper-shell,
   .nodel-pad-shell,
   .nodel-readout-shell,
   .nodel-palette-shell {
     @apply flex h-full min-h-14 w-full min-w-0 rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg;
-    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
   }
 
-  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-tone='soft'] :where(.nodel-select-trigger, .nodel-stepper-shell, .nodel-pad-shell, .nodel-readout-shell, .nodel-palette-shell) {
+  nodel-select[data-tone='soft'] .nodel-select-trigger {
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.28);
     background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.12), rgb(var(--nodel-touch-tone-rgb) / 0.06));
   }
 
-  :where(nodel-select, nodel-stepper, nodel-pad, nodel-readout, nodel-palette)[data-tone='outline'] :where(.nodel-select-trigger, .nodel-stepper-shell, .nodel-pad-shell, .nodel-readout-shell, .nodel-palette-shell) {
+  nodel-select[data-tone='outline'] .nodel-select-trigger {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-touch-tone-rgb) / 0.58);
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.06), rgb(var(--nodel-touch-tone-rgb) / 0.025));
+  }
+
+  :where(nodel-stepper, nodel-pad, nodel-palette)[data-tone='soft'] :where(.nodel-stepper-button, .nodel-pad-button, .nodel-palette-custom-button, .nodel-palette-custom-input) {
+    border-color: rgb(var(--nodel-touch-tone-rgb) / 0.28);
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.12), rgb(var(--nodel-touch-tone-rgb) / 0.06));
+  }
+
+  :where(nodel-stepper, nodel-pad, nodel-palette)[data-tone='outline'] :where(.nodel-stepper-button, .nodel-pad-button, .nodel-palette-custom-button, .nodel-palette-custom-input) {
     border-width: 2px;
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.58);
     background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.06), rgb(var(--nodel-touch-tone-rgb) / 0.025));
@@ -1004,22 +1143,30 @@
 
   .nodel-select-trigger {
     @apply items-center justify-between gap-3 px-4 py-3 text-left text-base font-medium leading-6;
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-select-trigger:not(:disabled) {
+    @apply cursor-pointer;
+  }
+
+  .nodel-select-trigger:active:not(:disabled) {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    color: rgb(var(--nodel-touch-tone-rgb));
+    translate: 0 1px;
+  }
+
+  nodel-select[data-open='true'] .nodel-select-trigger {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    color: rgb(var(--nodel-touch-tone-rgb));
   }
 
   .nodel-select-content {
     @apply flex min-w-0 flex-1 items-center gap-3;
-  }
-
-  .nodel-select-label {
-    @apply inline-flex h-6 flex-none items-center leading-6;
-  }
-
-  .nodel-select-label,
-  .nodel-stepper-label,
-  .nodel-pad-label,
-  .nodel-readout-label,
-  .nodel-palette-label {
-    @apply min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-nodel-muted;
   }
 
   .nodel-select-value {
@@ -1066,7 +1213,16 @@
   .nodel-palette-custom-button {
     @apply inline-flex min-h-11 flex-none items-center justify-center rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-base font-semibold text-nodel-fg;
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-stepper-button:not(:disabled),
+  .nodel-pad-button:not(:disabled),
+  .nodel-palette-custom-button:not(:disabled) {
+    @apply cursor-pointer;
   }
 
   .nodel-stepper-button:hover:not(:disabled),
@@ -1074,6 +1230,16 @@
   .nodel-palette-custom-button:hover:not(:disabled) {
     border-color: rgb(var(--nodel-touch-tone-rgb));
     color: rgb(var(--nodel-touch-tone-rgb));
+  }
+
+  .nodel-stepper-button:active:not(:disabled),
+  .nodel-pad-button:active:not(:disabled),
+  .nodel-palette-custom-button:active:not(:disabled) {
+    border-color: rgb(var(--nodel-touch-tone-rgb));
+    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.22), rgb(var(--nodel-touch-tone-rgb) / 0.13));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    color: rgb(var(--nodel-touch-tone-rgb));
+    translate: 0 1px;
   }
 
   .nodel-stepper-button:disabled,
@@ -1116,9 +1282,9 @@
   .nodel-pad-button {
     @apply flex h-full min-h-0 w-full items-center justify-center border p-0 text-xl;
     border-radius: 0.45rem;
-    border-color: rgb(var(--nodel-border) / 0.85);
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     background: linear-gradient(180deg, rgb(var(--nodel-surface-raised) / 0.75), rgb(var(--nodel-border) / 0.22));
-    box-shadow: inset 0 0 0 0.0625rem rgb(255 255 255 / 0.04), var(--nodel-shadow-control, none);
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-pad-button[hidden] {
@@ -1135,6 +1301,7 @@
     border-color: rgb(var(--nodel-touch-tone-rgb));
     background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.24), rgb(var(--nodel-touch-tone-rgb) / 0.14));
     color: rgb(var(--nodel-touch-tone-rgb));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
   }
 
   nodel-pad .nodel-pad-button[data-direction='up'] {
@@ -1202,6 +1369,16 @@
     @apply bottom-2 top-auto h-2 rounded-full bg-nodel-statusOff/70;
   }
 
+  nodel-readout[data-tone='soft'][data-visual='bar'] .nodel-readout-visual {
+    background-color: rgb(var(--nodel-touch-tone-rgb) / 0.1);
+    box-shadow: inset 0 0 0 1px rgb(var(--nodel-touch-tone-rgb) / 0.18);
+  }
+
+  nodel-readout[data-tone='outline'][data-visual='bar'] .nodel-readout-visual {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px rgb(var(--nodel-touch-tone-rgb) / 0.35);
+  }
+
   nodel-readout[data-visual='bar'] .nodel-readout-visual-inner {
     @apply block h-full rounded-full;
     width: calc(var(--nodel-readout-fraction, 0) * 100%);
@@ -1211,6 +1388,11 @@
   nodel-readout[data-visual='ring'] .nodel-readout-visual {
     @apply static mx-auto aspect-square h-16 flex-none translate-x-0 translate-y-0 rounded-full opacity-100;
     background: conic-gradient(rgb(var(--nodel-touch-fill-rgb)) calc(var(--nodel-readout-fraction, 0) * 1turn), rgb(var(--nodel-border) / 0.35) 0);
+  }
+
+  nodel-readout[data-tone='soft'][data-visual='ring'] .nodel-readout-visual,
+  nodel-readout[data-tone='outline'][data-visual='ring'] .nodel-readout-visual {
+    box-shadow: 0 0 0 1px rgb(var(--nodel-touch-tone-rgb) / 0.28);
   }
 
   nodel-readout[data-visual='ring'] .nodel-readout-visual::after {
@@ -1223,16 +1405,20 @@
     @apply mx-auto space-y-0 text-center;
   }
 
-  nodel-readout[data-visual='ring'] .nodel-readout-label {
-    @apply text-[0.625rem] leading-3;
-  }
-
   nodel-readout[data-visual='ring'] .nodel-readout-value {
     @apply text-xl leading-6;
   }
 
   nodel-readout[data-visual='status'] .nodel-readout-visual {
     @apply static mx-auto block h-3 w-12 rounded-full bg-nodel-statusOff/80;
+  }
+
+  nodel-readout[data-tone='soft'][data-visual='status'] .nodel-readout-visual {
+    box-shadow: 0 0 0 1px rgb(var(--nodel-touch-tone-rgb) / 0.2);
+  }
+
+  nodel-readout[data-tone='outline'][data-visual='status'] .nodel-readout-visual {
+    box-shadow: 0 0 0 2px rgb(var(--nodel-touch-tone-rgb) / 0.32);
   }
 
   nodel-readout[data-zone='on'] .nodel-readout-visual,
@@ -1294,6 +1480,8 @@
 
   .nodel-palette-custom-input {
     @apply h-11 min-w-16 flex-1 rounded-control border border-nodel-border bg-transparent p-1;
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
   }
 
   nodel-image {
@@ -1309,7 +1497,7 @@
     @apply border-nodel-border bg-nodel-surface;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-image-frame {
@@ -1381,11 +1569,6 @@
     @apply w-full object-cover;
   }
 
-  .nodel-image-label,
-  .nodel-icon-label {
-    @apply min-w-0 truncate text-center text-sm leading-5;
-  }
-
   nodel-icon {
     @apply flex-col gap-2 rounded-control border border-transparent bg-transparent p-3 text-nodel-fg;
   }
@@ -1399,7 +1582,7 @@
     @apply border-nodel-border bg-nodel-surface;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-icon-glyph {
@@ -1459,11 +1642,6 @@
   .nodel-button-content nodel-image:not([data-size='auto']) .nodel-image-frame {
     height: var(--nodel-control-media-size);
     width: var(--nodel-control-media-size);
-  }
-
-  .nodel-button-content nodel-image .nodel-image-label,
-  .nodel-button-content nodel-icon .nodel-icon-label {
-    @apply sr-only;
   }
 
   .nodel-button-content nodel-icon .nodel-icon-glyph {
@@ -1584,17 +1762,6 @@
     @apply flex h-full min-h-14 w-full min-w-0 flex-col gap-2 rounded-control border border-transparent bg-transparent p-2 text-nodel-fg shadow-none;
   }
 
-  nodel-fader[data-tone='soft'] .nodel-fader-shell {
-    border-color: rgb(var(--nodel-fader-tone-rgb) / 0.2);
-    background-color: rgb(var(--nodel-fader-tone-rgb) / 0.07);
-  }
-
-  nodel-fader[data-tone='outline'] .nodel-fader-shell {
-    border-width: 2px;
-    border-color: rgb(var(--nodel-fader-tone-rgb) / 0.45);
-    background-color: rgb(var(--nodel-fader-tone-rgb) / 0.025);
-  }
-
   nodel-fader[data-variant='primary'] {
     --nodel-fader-tone-rgb: var(--nodel-accent);
     --nodel-fader-fill-rgb: var(--nodel-accent-fill);
@@ -1627,10 +1794,6 @@
 
   nodel-fader[data-disabled='true'] .nodel-fader-shell {
     @apply opacity-disabled;
-  }
-
-  .nodel-fader-label {
-    @apply min-w-0 truncate text-center text-sm font-semibold leading-5;
   }
 
   .nodel-fader-readout {
@@ -1704,7 +1867,35 @@
   }
 
   .nodel-fader-track {
-    @apply relative overflow-hidden touch-none rounded-full bg-nodel-statusOff/65 outline-none;
+    @apply relative overflow-hidden touch-none rounded-full border bg-nodel-statusOff/65 outline-none;
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.18), 0 1px 0 var(--nodel-control-highlight, transparent);
+  }
+
+  nodel-fader[data-tone='soft'] .nodel-fader-track,
+  nodel-fader[data-tone='soft'] .nodel-fader-nudge {
+    border-color: rgb(var(--nodel-fader-tone-rgb) / 0.28);
+    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.12), rgb(var(--nodel-fader-tone-rgb) / 0.06));
+  }
+
+  nodel-fader[data-tone='outline'] .nodel-fader-track,
+  nodel-fader[data-tone='outline'] .nodel-fader-nudge {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-fader-tone-rgb) / 0.58);
+    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.06), rgb(var(--nodel-fader-tone-rgb) / 0.025));
+  }
+
+  nodel-fader:not([data-disabled='true']) .nodel-fader-track {
+    cursor: grab;
+  }
+
+  nodel-fader:not([data-disabled='true'])[data-dragging='true'] .nodel-fader-track {
+    border-color: rgb(var(--nodel-fader-tone-rgb));
+    cursor: grabbing;
+  }
+
+  nodel-fader[data-disabled='true'] .nodel-fader-track {
+    cursor: not-allowed;
   }
 
   .nodel-fader-track:focus-visible {
@@ -1744,6 +1935,7 @@
     @apply absolute z-10 rounded-full border-2 border-nodel-surface bg-nodel-onAccent shadow-nodel-panel;
     height: var(--nodel-fader-thumb-size, 2.25rem);
     width: var(--nodel-fader-thumb-size, 2.25rem);
+    box-shadow: 0 0.5rem 1.25rem rgb(0 0 0 / 0.24), 0 1px 0 rgb(255 255 255 / 0.5) inset;
   }
 
   nodel-fader[data-orientation='vertical'] .nodel-fader-thumb {
@@ -1759,15 +1951,29 @@
   .nodel-fader-nudge {
     @apply inline-flex h-9 w-9 flex-none items-center justify-center rounded-control border border-nodel-border bg-nodel-surface text-nodel-fg outline-none;
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
     height: var(--nodel-fader-nudge-size, 2.25rem);
+    touch-action: manipulation;
+    translate: 0 0;
     width: var(--nodel-fader-nudge-size, 2.25rem);
+  }
+
+  .nodel-fader-nudge:not(:disabled) {
+    @apply cursor-pointer;
   }
 
   .nodel-fader-nudge:hover:not(:disabled) {
     border-color: rgb(var(--nodel-fader-tone-rgb));
     color: rgb(var(--nodel-fader-tone-rgb));
+  }
+
+  .nodel-fader-nudge:active:not(:disabled) {
+    border-color: rgb(var(--nodel-fader-tone-rgb));
+    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.22), rgb(var(--nodel-fader-tone-rgb) / 0.13));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    color: rgb(var(--nodel-fader-tone-rgb));
+    translate: 0 1px;
   }
 
   .nodel-fader-nudge:focus-visible {
@@ -1831,12 +2037,18 @@
   .nodel-field {
     @apply block min-w-0 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm leading-5 text-nodel-fg outline-none;
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
   }
 
   .nodel-field::placeholder {
     @apply text-nodel-muted opacity-muted italic;
+  }
+
+  select.nodel-field:not(:disabled),
+  button.nodel-field:not(:disabled) {
+    @apply cursor-pointer;
+    touch-action: manipulation;
   }
 
   .nodel-field:focus-visible {
@@ -1876,24 +2088,76 @@
   }
 
   .nodel-list-item {
-    @apply rounded-card border border-nodel-border bg-nodel-surface text-nodel-fg no-underline;
-    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    @apply relative overflow-hidden rounded-card border border-nodel-border bg-nodel-surface text-nodel-fg no-underline;
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
-  .nodel-list-item:hover {
+  .nodel-list-item::before {
+    @apply absolute bottom-0 left-0 top-0 w-1;
+    content: '';
+    background: rgb(var(--nodel-accent) / 0.38);
+  }
+
+  .nodel-list-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']) {
+    @apply cursor-pointer;
+  }
+
+  .nodel-list-item:disabled,
+  .nodel-list-item.is-disabled,
+  .nodel-list-item[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-disabled;
+  }
+
+  .nodel-list-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']):hover {
     @apply border-nodel-accent bg-nodel-border/15 text-nodel-accent;
     background: var(--nodel-control-hover-background, rgb(var(--nodel-border) / 0.15));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
+  }
+
+  .nodel-list-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']):hover::before,
+  .nodel-list-item:focus-visible::before,
+  .nodel-list-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']):active::before {
+    background: rgb(var(--nodel-accent) / 0.82);
+  }
+
+  .nodel-list-item:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus;
+  }
+
+  .nodel-list-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']):active {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    color: rgb(var(--nodel-accent));
+    translate: 0 1px;
   }
 
   .nodel-menu-item {
-    @apply block w-full rounded-control px-3 py-2 text-left text-sm leading-5 text-nodel-fg;
+    @apply block w-full rounded-control border border-transparent px-3 py-2 text-left text-sm leading-5 text-nodel-fg;
+    background: transparent;
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
-  .nodel-menu-item:hover {
+  .nodel-menu-item:not(:disabled):not(.is-disabled):not([aria-disabled='true']) {
+    @apply cursor-pointer;
+  }
+
+  .nodel-menu-item:not(:disabled):not(.is-disabled):not(.nodel-menu-item-active):not([aria-disabled='true']):hover {
     @apply bg-nodel-border/30;
     background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.3));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-border)));
+  }
+
+  .nodel-menu-item:not(:disabled):not(.is-disabled):not(.nodel-menu-item-active):not([aria-disabled='true']):active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    color: rgb(var(--nodel-accent));
+    translate: 0 1px;
   }
 
   .nodel-menu-item:focus-visible {
@@ -1903,11 +2167,14 @@
   .nodel-menu-item-active {
     @apply bg-nodel-accentFill text-nodel-onAccent;
     background: rgb(var(--nodel-accent-fill));
+    border-color: rgb(var(--nodel-accent-fill));
   }
 
-  .nodel-menu-item-active:hover {
+  .nodel-menu-item-active:hover,
+  .nodel-menu-item-active:active {
     @apply bg-nodel-accentFill text-nodel-onAccent;
     background: rgb(var(--nodel-accent-fill));
+    border-color: rgb(var(--nodel-accent-fill));
   }
 
   .nodel-alert {
@@ -1965,10 +2232,22 @@
 
   .nodel-toast-close {
     @apply -mr-1 -mt-1 inline-flex h-7 w-7 flex-none items-center justify-center rounded-control border border-transparent bg-transparent text-base leading-none text-nodel-muted;
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-toast-close:not(:disabled) {
+    @apply cursor-pointer;
   }
 
   .nodel-toast-close:hover {
     @apply bg-nodel-border/35 text-nodel-fg;
+  }
+
+  .nodel-toast-close:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    color: rgb(var(--nodel-accent));
+    translate: 0 1px;
   }
 
   .nodel-toast-close:focus-visible {
@@ -2081,6 +2360,8 @@
   .nodel-collapse-summary {
     @apply flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold leading-5 text-nodel-fg;
     list-style: none;
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
   .nodel-collapse-summary::-webkit-details-marker {
@@ -2089,6 +2370,11 @@
 
   .nodel-collapse-summary:hover {
     @apply text-nodel-accent;
+  }
+
+  .nodel-collapse-summary:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
+    color: rgb(var(--nodel-accent));
   }
 
   .nodel-collapse-summary:focus-visible {
@@ -2250,16 +2536,28 @@
 
   .nodel-description-toggle {
     @apply inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-nodel-border bg-nodel-surface p-0 text-nodel-muted shadow-nodel-panel;
-    background: var(--nodel-popover-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
   .nodel-description-toggle .nodel-collapse-icon {
     @apply h-6 w-6 text-current;
   }
 
-  .nodel-description-toggle:hover {
+  .nodel-description-toggle:not(:disabled):not([aria-disabled='true']):hover {
     @apply border-nodel-accent text-nodel-accent;
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
+  }
+
+  .nodel-description-toggle:not(:disabled):not([aria-disabled='true']):active {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    color: rgb(var(--nodel-accent));
+    translate: 0 1px;
   }
 
   .nodel-description-toggle:focus-visible {
@@ -2280,13 +2578,26 @@
 
   .nodel-theme-switch {
     @apply relative inline-flex h-8 w-16 items-center rounded-full border border-nodel-border bg-nodel-border p-1 transition;
-    background: var(--nodel-subtle-background, rgb(var(--nodel-border)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    background: var(--nodel-control-background, rgb(var(--nodel-border)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
-  .nodel-theme-switch:hover {
+  .nodel-theme-switch:not(:disabled) {
+    @apply cursor-pointer;
+  }
+
+  .nodel-theme-switch:not(:disabled):not([aria-disabled='true']):hover {
     @apply border-nodel-accent;
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
+  }
+
+  .nodel-theme-switch:not(:disabled):not([aria-disabled='true']):active {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+    translate: 0 1px;
   }
 
   .nodel-theme-switch:focus-visible {
@@ -2403,11 +2714,26 @@
   }
 
   .nodel-diagnostic-category-option {
-    @apply flex min-w-0 cursor-pointer items-center gap-2 rounded-card px-2 py-1.5 text-sm text-nodel-fg hover:bg-nodel-surface;
+    @apply flex min-w-0 items-center gap-2 rounded-card px-2 py-1.5 text-sm text-nodel-fg;
+    border: 1px solid transparent;
+    touch-action: manipulation;
+    translate: 0 0;
   }
 
-  .nodel-diagnostic-category-option:hover {
+  .nodel-diagnostic-category-picker:not(:disabled) .nodel-diagnostic-category-option {
+    @apply cursor-pointer;
+  }
+
+  .nodel-diagnostic-category-picker:not(:disabled) .nodel-diagnostic-category-option:hover {
     background: var(--nodel-subtle-hover-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-border)));
+  }
+
+  .nodel-diagnostic-category-picker:not(:disabled) .nodel-diagnostic-category-option:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    color: rgb(var(--nodel-accent));
+    translate: 0 1px;
   }
 
   .nodel-diagnostic-category-option input {
@@ -2589,7 +2915,7 @@
     @apply relative z-10 space-y-2.5 rounded-card border border-nodel-border bg-nodel-surface p-2.5;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-bindings-section.nodel-collapse {
@@ -2614,7 +2940,7 @@
     @apply items-start rounded-card border border-nodel-border bg-nodel-surface px-2 py-2 text-13 leading-5;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-control, none);
+    box-shadow: var(--nodel-shadow-card, none);
   }
 
   .nodel-bindings-combobox {
@@ -2787,6 +3113,13 @@
 
   .nodel-schema-root-object-summary {
     @apply px-3 py-2;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .nodel-schema-root-object-summary:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
+    color: rgb(var(--nodel-accent));
   }
 
   .nodel-schema-root-object-summary-text {
@@ -2811,7 +3144,9 @@
 
   .nodel-schema-nested-summary {
     @apply px-3 py-2 font-medium;
+    cursor: pointer;
     list-style: none;
+    touch-action: manipulation;
   }
 
   .nodel-schema-nested-summary::-webkit-details-marker {
@@ -2820,6 +3155,11 @@
 
   .nodel-schema-nested-summary:hover {
     @apply text-nodel-accent;
+  }
+
+  .nodel-schema-nested-summary:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
+    color: rgb(var(--nodel-accent));
   }
 
   .nodel-schema-nested-summary small {

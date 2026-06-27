@@ -63,12 +63,13 @@ describe('control media components', () => {
     expect(image.dataset.size).toBe('lg');
     expect(image.dataset.variant).toBe('soft');
     expect(image.querySelector('img')?.getAttribute('src')).toBe('one.png');
-    expect(image.querySelector('.nodel-image-label')?.textContent).toBe('Input');
+    expect(image.querySelector('.nodel-image-label')).toBeNull();
+    expect(image.getAttribute('aria-label')).toBe('Input');
 
     emitSignal('ImageSrc', 'two.png');
     emitSignal('ImageLabel', 'Output');
     expect(image.querySelector('img')?.getAttribute('src')).toBe('two.png');
-    expect(image.querySelector('.nodel-image-label')?.textContent).toBe('Output');
+    expect(image.getAttribute('aria-label')).toBe('Output');
   });
 
   it('renders nodel-icon and signal updates', async () => {

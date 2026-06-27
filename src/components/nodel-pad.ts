@@ -2,6 +2,7 @@ import { callActionBindings, parseActionBindings, type ActionBinding } from '../
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
 import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy } from '../utils/control-values';
 
 type PadCenter = 'auto' | 'show' | 'hide' | 'disabled';
@@ -30,7 +31,7 @@ const directionGlyphs: Record<PadDirection, string> = {
 
 export class NodelPad extends HTMLElement {
   static observedAttributes = [
-    'label', 'center', 'press-mode', 'action', 'actions', 'arg-type', 'variant', 'tone', 'disabled', 'center-disabled', 'signal', 'signals',
+    'label', 'aria-label', 'aria-labelledby', 'center', 'press-mode', 'action', 'actions', 'arg-type', 'variant', 'tone', 'disabled', 'center-disabled', 'signal', 'signals',
     'up-action', 'down-action', 'left-action', 'right-action', 'center-action',
     'up-actions', 'down-actions', 'left-actions', 'right-actions', 'center-actions',
     'up-arg', 'down-arg', 'left-arg', 'right-arg', 'center-arg',
@@ -39,7 +40,6 @@ export class NodelPad extends HTMLElement {
   ];
 
   private shellReady = false;
-  private labelNode: HTMLElement | null = null;
   private signalBindings = createSignalBindingController(this);
   private activeDirection: PadDirection | null = null;
   private startingDirection: PadDirection | null = null;
@@ -82,13 +82,11 @@ export class NodelPad extends HTMLElement {
     }
     this.innerHTML = `
       <div class="nodel-pad-shell">
-        <div class="nodel-pad-label" hidden></div>
         <div class="nodel-pad-grid">
           ${directions.map((direction) => `<button type="button" class="nodel-pad-button" data-direction="${direction}"><span aria-hidden="true">${directionGlyphs[direction]}</span></button>`).join('')}
         </div>
       </div>
     `;
-    this.labelNode = this.querySelector('.nodel-pad-label');
     this.shellReady = true;
   }
 
@@ -129,9 +127,9 @@ export class NodelPad extends HTMLElement {
 
   private render() {
     this.ensureShell();
-    const label = this.getAttribute('label') ?? '';
     const variant = normalizeVariant(this.getAttribute('variant'));
     const tone = normalizeTone(this.getAttribute('tone'));
+    const accessibleLabel = accessibleLabelText(this);
     const center = this.centerMode();
     const pressMode = this.pressMode();
     const disabled = this.hasAttribute('disabled');
@@ -145,15 +143,12 @@ export class NodelPad extends HTMLElement {
     this.dataset.disabled = String(disabled);
     this.dataset.centerDisabled = String(centerDisabled);
     this.setAttribute('role', 'group');
-    if (label) {
-      this.setAttribute('aria-label', label);
-    }
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
+    syncHostAccessibleLabel(this);
 
     for (const direction of directions) {
       const button = this.button(direction)!;
-      const directionLabel = this.getAttribute(`${direction}-label`) ?? directionLabels[direction];
+      const explicitDirectionLabel = this.getAttribute(`${direction}-label`);
+      const directionLabel = explicitDirectionLabel ?? (accessibleLabel ? `${accessibleLabel} ${directionLabels[direction].toLowerCase()}` : directionLabels[direction]);
       const isVisible = visible.has(direction);
       const isDisabled = disabled || (direction === 'center' && centerDisabled);
       button.hidden = !isVisible;

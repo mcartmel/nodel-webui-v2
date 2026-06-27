@@ -7,15 +7,16 @@ import './nodel-button';
 
 type SelectArgType = ControlArgType;
 const argTypes: SelectArgType[] = ['string', 'number', 'boolean', 'json'];
+let selectIdCounter = 0;
 
 export class NodelSelect extends HTMLElement {
-  static observedAttributes = ['label', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
 
   private shellReady = false;
   private triggerNode: HTMLButtonElement | null = null;
-  private labelNode: HTMLElement | null = null;
   private valueNode: HTMLElement | null = null;
   private panelNode: HTMLElement | null = null;
+  private valueId = '';
   private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
@@ -48,18 +49,17 @@ export class NodelSelect extends HTMLElement {
       return;
     }
     const children = Array.from(this.childNodes);
+    this.valueId = `nodel-select-value-${++selectIdCounter}`;
     this.innerHTML = `
       <button type="button" class="nodel-select-trigger" aria-haspopup="listbox">
         <span class="nodel-select-content">
-          <span class="nodel-select-label" hidden></span>
-          <span class="nodel-select-value"></span>
+          <span class="nodel-select-value" id="${this.valueId}"></span>
         </span>
         <span class="nodel-select-chevron" aria-hidden="true">⌄</span>
       </button>
       <div class="nodel-select-panel" role="listbox" hidden></div>
     `;
     this.triggerNode = this.querySelector('.nodel-select-trigger');
-    this.labelNode = this.querySelector('.nodel-select-label');
     this.valueNode = this.querySelector('.nodel-select-value');
     this.panelNode = this.querySelector('.nodel-select-panel');
     for (const child of children) {
@@ -95,6 +95,7 @@ export class NodelSelect extends HTMLElement {
     const disabled = this.hasAttribute('disabled');
     const open = this.hasAttribute('open');
     const label = this.getAttribute('label') ?? '';
+    const displayValue = this.displayValue();
 
     this.dataset.variant = variant;
     this.dataset.tone = tone;
@@ -103,13 +104,9 @@ export class NodelSelect extends HTMLElement {
     this.dataset.value = this.getAttribute('value') ?? '';
     this.triggerNode!.disabled = disabled;
     this.triggerNode!.setAttribute('aria-expanded', String(open));
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
-    this.valueNode!.textContent = this.displayValue();
+    this.valueNode!.textContent = displayValue;
     this.panelNode!.hidden = !open;
-    if (label) {
-      this.triggerNode!.setAttribute('aria-label', `${label}: ${this.displayValue()}`);
-    }
+    this.syncTriggerAccessibility(label, displayValue);
 
     const value = this.getAttribute('value') ?? '';
     for (const option of this.options()) {
@@ -125,6 +122,23 @@ export class NodelSelect extends HTMLElement {
       } else {
         option.removeAttribute('active');
       }
+    }
+  }
+
+  private syncTriggerAccessibility(label: string, displayValue: string) {
+    const labelledBy = this.getAttribute('aria-labelledby');
+    if (labelledBy) {
+      this.triggerNode!.setAttribute('aria-labelledby', `${labelledBy} ${this.valueId}`);
+      this.triggerNode!.removeAttribute('aria-label');
+      return;
+    }
+
+    this.triggerNode!.removeAttribute('aria-labelledby');
+    const baseLabel = this.getAttribute('aria-label') ?? label;
+    if (baseLabel) {
+      this.triggerNode!.setAttribute('aria-label', `${baseLabel}: ${displayValue}`);
+    } else {
+      this.triggerNode!.removeAttribute('aria-label');
     }
   }
 

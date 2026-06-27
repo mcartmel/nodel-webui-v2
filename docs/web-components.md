@@ -64,7 +64,7 @@ Tailwind utilities are preferred for local component layout, spacing, sizing, ty
 
 Use the shared semantic classes from `src/styles.css` for repeated controls, surfaces, state variants, and stable page-authoring primitives. These classes are included in the built `v2/nodel-webui.css`, so they are safer for user-authored pages than relying on arbitrary Tailwind utility classes that may not be present in the production build.
 
-- `.nodel-button` for ordinary buttons and button-like labels or links.
+- `.nodel-button` for ordinary touchable buttons and button-like labels or links.
 - `.nodel-button-primary` for primary actions such as save, create, or submit.
 - `.nodel-button-success` for positive or completed actions.
 - `.nodel-button-info` for informational actions.
@@ -77,10 +77,10 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-button-compact` for smaller buttons inside dense toolbars.
 - `.nodel-field` for text inputs, search inputs, and selects.
 - `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
-- `.nodel-card` for simple bordered surfaces and list rows.
+- `.nodel-card` for passive bordered surfaces and display content.
 - `.nodel-panel` for larger section containers.
 - `.nodel-popover` for dropdowns, autocomplete panels, and floating menus.
-- `.nodel-list-item` for linked rows or selectable rows.
+- `.nodel-list-item` for linked rows or selectable rows that should read as tappable at rest.
 - `.nodel-menu-item` for menu and autocomplete result buttons.
 - `.nodel-menu-item-active` for the active menu item.
 - `.nodel-section-heading` for small uppercase section/table headings.
@@ -90,6 +90,8 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-toast-host` and `.nodel-toast` for app-level notifications.
 
 Prefer semantic state classes over raw visual utility classes when state or public component API drives appearance. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
+
+The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
 
 One-off Tailwind utilities are appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, `text-nodel-muted`, `bg-nodel-surface`, or responsive column classes.
 
@@ -103,7 +105,7 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 </div>
 ```
 
-Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, glass surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
+Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, glass surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
 ## Toast Notifications
 
@@ -209,17 +211,34 @@ Use `md="6"` for full width on small screens and half width from medium screens 
 
 Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls.
 
+Use `nodel-group` for visible control labels, passive card/panel surfaces, padding, and grouping. Control `label` attributes are accessibility-only fallback labels; they no longer render visible captions. When a labelled group contains exactly one direct labelable control with no explicit `label`, `aria-label`, or `aria-labelledby`, the group automatically labels that child for accessibility.
+
 ```html
 <nodel-row>
   <nodel-column md="6">
-    <nodel-control-grid columns="4">
-      <nodel-button>Power</nodel-button>
-      <nodel-button variant="primary">Arm</nodel-button>
-      <nodel-button variant="success">Start</nodel-button>
-      <nodel-button variant="danger">Stop</nodel-button>
-    </nodel-control-grid>
+    <nodel-group label="Transport">
+      <nodel-control-grid columns="4">
+        <nodel-button>Power</nodel-button>
+        <nodel-button variant="primary">Arm</nodel-button>
+        <nodel-button variant="success">Start</nodel-button>
+        <nodel-button variant="danger">Stop</nodel-button>
+      </nodel-control-grid>
+    </nodel-group>
   </nodel-column>
 </nodel-row>
+```
+
+Groups can also be the direct grid cells:
+
+```html
+<nodel-control-grid columns="2">
+  <nodel-group label="Navigate">
+    <nodel-pad action="Navigate" center="show"></nodel-pad>
+  </nodel-group>
+  <nodel-group label="Colour">
+    <nodel-palette action="SetColour" signal="Colour" picker="native"></nodel-palette>
+  </nodel-group>
+</nodel-control-grid>
 ```
 
 Supported `nodel-control-grid` attributes:
@@ -233,11 +252,35 @@ Supported `nodel-control-grid` attributes:
 
 Column counts are mobile-first and normalized to 1-12. A grid fills its parent width. Children naturally take the width of one grid cell; if there are more children than columns, they wrap to later rows.
 
+Supported `nodel-group` attributes:
+
+- `label`: visible group label and auto-label source for one direct child control.
+- `surface="card|panel|none"`: passive group surface. Defaults to `card`.
+- `padding="default|compact|none"`: group interior padding. Defaults to `default`.
+
+`nodel-group` intentionally has no column attributes. Put a control grid inside a group when the group should contain equal cells, or put groups inside a control grid when each labelled surface should be one cell.
+
+```html
+<nodel-control-grid columns="3">
+  <nodel-group label="Card Default">
+    <nodel-button variant="primary">Primary action</nodel-button>
+  </nodel-group>
+  <nodel-group label="Panel Compact" surface="panel" padding="compact">
+    <nodel-readout value="Ready" variant="success"></nodel-readout>
+  </nodel-group>
+  <nodel-group label="No Surface" surface="none" padding="none">
+    <nodel-button tone="outline">Outline action</nodel-button>
+  </nodel-group>
+</nodel-control-grid>
+```
+
 Nested grids are supported for mixed layouts. For example, a future tall fader can sit beside a stack of buttons:
 
 ```html
 <nodel-control-grid columns="2">
-  <nodel-fader label="Volume"></nodel-fader>
+  <nodel-group label="Volume">
+    <nodel-fader></nodel-fader>
+  </nodel-group>
   <nodel-control-grid columns="1">
     <nodel-button>Mute</nodel-button>
     <nodel-button>Speech</nodel-button>
@@ -315,7 +358,7 @@ Placeholders are replaced in text nodes and attribute values only. Unknown place
 
 Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a full control-grid cell when they are direct grid children, and render inline when placed inside `nodel-button`. `nodel-status-indicator` is intended for button content for now; inside a button it is overlaid in the top-right corner and stays out of inline or stacked content flow. Components keep their own signal behavior; the button only arranges them.
 
-`nodel-fader` renders a touch-first level slider. It does not include a meter by default; the filled track shows the current set position. Add an explicit `nodel-meter` child when live level display is needed. It defaults to a vertical fader so it naturally occupies a compact control-grid cell and can sit beside a stack of related controls. Dragging is relative to the current value: touching the track begins a drag, but does not jump the level to the touched position. During drag, action calls are throttled and a final exact value is sent when the drag ends. Add `increment` or `nudge` to show +/- controls; `nudge` sets the increment amount and defaults to `step`.
+`nodel-fader` renders a touch-first level slider. It does not include a meter by default; the filled track shows the current set position. Add an explicit `nodel-meter` child when live level display is needed. It defaults to a vertical fader so it naturally occupies a compact control-grid cell and can sit beside a stack of related controls. Dragging is relative to the current value: touching the track begins a drag, but does not jump the level to the touched position. During drag, action calls are throttled and a final exact value is sent when the drag ends. Add `increment` or `nudge` to show +/- controls; `nudge` sets the increment amount and defaults to `step`. Use `nodel-group` for visible fader captions.
 
 Supported `nodel-fader` attributes:
 
@@ -334,7 +377,7 @@ Supported `nodel-fader` attributes:
 - `arg-type="number|string|json"`
 - `disabled`
 - `readout="show|hide"`
-- `label`
+- `label` as an accessibility-only fallback label
 - `live-interval`
 - `signal="SignalName"` as shorthand for `value`
 - `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
@@ -355,9 +398,9 @@ Supported `nodel-meter` attributes:
 - `readout="show|hide"`
 - `label`
 
-`nodel-toggle` renders a touch switch for boolean actions and signal feedback. It is switch-only: use `nodel-segmented` with two options when an Off/On segmented look is desired. Toggle states are `off`, `on`, `partially-off`, and `partially-on`; partial states use warning styling and expose `aria-checked="mixed"`.
+`nodel-toggle` renders a touch switch for boolean actions and signal feedback. It is switch-only: use `nodel-segmented` with two options when an Off/On segmented look is desired. Toggle states are `off`, `on`, `partially-off`, and `partially-on`; partial states use warning styling and expose `aria-checked="mixed"`. Use `nodel-group` for visible toggle captions.
 
-The default toggle surface is transparent, matching the fader's no-card treatment. Use `tone="soft"` or `tone="outline"` when a page needs a tile-like container. Visible state text is hidden by default because the switch visual and ARIA state carry the state; set `state-label="show"` if text such as `On` or `Partial On` should be rendered.
+The default toggle surface is transparent, matching the fader's no-card treatment. `variant`, `off-variant`, and `tone` affect the switch track/state, not an outer card surface. Visible state text is hidden by default because the switch visual and ARIA state carry the state; set `state-label="show"` if text such as `On` or `Partial On` should be rendered.
 
 Supported `nodel-toggle` attributes:
 
@@ -369,7 +412,7 @@ Supported `nodel-toggle` attributes:
 - `arg-type="boolean|string|number|json"`
 - `value`
 - `on-value`, `off-value`, `partial-on-value`, `partial-off-value`
-- `label`
+- `label` as an accessibility-only fallback label
 - `on-label`, `off-label`
 - `state-label="hide|show"`
 - `variant="default|primary|success|info|warning|danger"`
@@ -381,10 +424,14 @@ Supported `nodel-toggle` attributes:
 - `signals="SignalName:target"` with targets `state`, `label`, and `disabled`
 
 ```html
-<nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>
+<nodel-group label="Power">
+  <nodel-toggle action="SetPower" signal="Power"></nodel-toggle>
+</nodel-group>
 <nodel-toggle join="Power" variant="success" off-variant="danger"></nodel-toggle>
 <nodel-toggle signal="Power" actions="PowerOn:on; PowerOff:off"></nodel-toggle>
-<nodel-toggle label="Shutdown" action="Shutdown" confirm-text="Shut down the device?" confirm-tone="danger"></nodel-toggle>
+<nodel-group label="Shutdown">
+  <nodel-toggle action="Shutdown" confirm-text="Shut down the device?" confirm-tone="danger"></nodel-toggle>
+</nodel-group>
 ```
 
 `nodel-segmented` renders a mutually exclusive option group using direct `nodel-button` children. The group preserves child content, marks the matching child active from `value`/`signal`, and captures child clicks so one shared group action is called.
@@ -401,7 +448,7 @@ Supported `nodel-segmented` attributes:
 - `orientation="horizontal|vertical"`
 - `disabled`
 - `allow-deselect`
-- `label`
+- `label` as an accessibility-only fallback label
 - `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
 - `signal="SignalName"` as shorthand for `value`
 - `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
@@ -409,57 +456,75 @@ Supported `nodel-segmented` attributes:
 Child `nodel-button` options use `value` first, then `arg`, then their text content as the selection value. Option-level confirm attributes override the group confirm settings for that option.
 
 ```html
-<nodel-segmented label="Source" action="SetSource" signal="Source">
-  <nodel-button value="HDMI 1">HDMI 1</nodel-button>
-  <nodel-button value="HDMI 2">HDMI 2</nodel-button>
-  <nodel-button value="USB-C">USB-C</nodel-button>
-</nodel-segmented>
+<nodel-group label="Source">
+  <nodel-segmented action="SetSource" signal="Source">
+    <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+    <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+    <nodel-button value="USB-C">USB-C</nodel-button>
+  </nodel-segmented>
+</nodel-group>
 ```
 
 `nodel-select` renders a touch-friendly picker for larger option sets. Use direct `nodel-button` children as options; the selected value is taken from `value`, then `arg`, then text content. It supports `action`, `actions="Action:select"`, `join`, `arg-type`, `variant`, `tone`, `disabled`, `allow-deselect`, `signal`, `signals="Name:value; Lock:disabled"`, and the standard confirmation attributes.
 
 ```html
-<nodel-select label="Source" action="SetSource" signal="Source">
-  <nodel-button value="HDMI 1">HDMI 1</nodel-button>
-  <nodel-button value="HDMI 2">HDMI 2</nodel-button>
-  <nodel-button value="USB-C">USB-C</nodel-button>
-</nodel-select>
+<nodel-group label="Source">
+  <nodel-select action="SetSource" signal="Source">
+    <nodel-button value="HDMI 1">HDMI 1</nodel-button>
+    <nodel-button value="HDMI 2">HDMI 2</nodel-button>
+    <nodel-button value="USB-C">USB-C</nodel-button>
+  </nodel-select>
+</nodel-group>
 ```
 
 `nodel-stepper` renders large `-` and `+` controls with a central readout for precise numeric changes. It supports `min`, `max`, `step`, `value`, `unit="percent|db|none"`, `prefix`, `suffix`, `precision`, `repeat="hold|off"`, `action`, `actions` with phases `change`, `live`, `commit`, `increase`, and `decrease`, `join`, `arg-type="number|string|json"`, `variant`, `tone`, `disabled`, `readout`, `signal`, and `signals` targets `value`, `label`, and `disabled`.
 
 ```html
-<nodel-stepper label="Temperature" action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>
+<nodel-group label="Temperature">
+  <nodel-stepper action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>
+</nodel-group>
 ```
 
 `nodel-pad` renders a gamepad-style directional pad. Set `center="auto|show|hide|disabled"` and `press-mode="click|momentary"`. A shared `action` sends the direction as `arg`; direction-specific attributes such as `up-action`, `left-action`, or `up-actions="MoveUp:press; Stop:release"` override the shared action. Signal targets are `disabled`, `label`, and `center-disabled`.
 
 ```html
-<nodel-pad label="Navigate" action="Navigate" center="show"></nodel-pad>
-<nodel-pad label="Camera" center="hide" press-mode="momentary" up-actions="TiltUp:press; Stop:release" down-actions="TiltDown:press; Stop:release" left-actions="PanLeft:press; Stop:release" right-actions="PanRight:press; Stop:release"></nodel-pad>
+<nodel-group label="Navigate">
+  <nodel-pad action="Navigate" center="show"></nodel-pad>
+</nodel-group>
+<nodel-group label="Camera">
+  <nodel-pad center="hide" press-mode="momentary" up-actions="TiltUp:press; Stop:release" down-actions="TiltDown:press; Stop:release" left-actions="PanLeft:press; Stop:release" right-actions="PanRight:press; Stop:release"></nodel-pad>
+</nodel-group>
 ```
 
 `nodel-readout` renders a read-only value tile for text, numeric values, status, and simple graphical indicators. Supported `type` values are `text`, `number`, `percent`, `db`, `boolean`, and `duration`. Supported `visual` values are `none`, `bar`, `ring`, and `status`. It supports `min`, `max`, `prefix`, `suffix`, `precision`, `warn`, `danger`, `empty`, `variant`, `tone`, `signal`, and `signals` targets `value`, `label`, `variant`, `suffix`, and `prefix`.
 
 ```html
-<nodel-readout label="Source" signal="Source" value="HDMI 1"></nodel-readout>
-<nodel-readout label="Brightness" type="percent" visual="ring" value="72" variant="warning" tone="outline"></nodel-readout>
-<nodel-readout label="Runtime" type="duration" signal="RuntimeSeconds"></nodel-readout>
+<nodel-group label="Source">
+  <nodel-readout signal="Source" value="HDMI 1"></nodel-readout>
+</nodel-group>
+<nodel-group label="Brightness">
+  <nodel-readout type="percent" visual="ring" value="72" variant="warning" tone="outline"></nodel-readout>
+</nodel-group>
+<nodel-group label="Runtime">
+  <nodel-readout type="duration" signal="RuntimeSeconds"></nodel-readout>
+</nodel-group>
 ```
 
 `nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native custom colour input. It supports `action`, `actions="Action:select"`, `join`, `arg-type="string|json"`, `columns`, `shape="square|rounded|circle"`, `show-labels="auto|show|hide"`, `allow-deselect`, `variant`, `tone`, `disabled`, `signal`, and `signals` targets `value`, `label`, `disabled`, and `custom-color`.
 
 ```html
-<nodel-palette label="LED Colour" action="SetColour" signal="Colour" picker="native" show-labels="hide">
-  <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>
-  <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>
-  <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>
-</nodel-palette>
+<nodel-group label="LED Colour">
+  <nodel-palette action="SetColour" signal="Colour" picker="native" show-labels="hide">
+    <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>
+    <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>
+    <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>
+  </nodel-palette>
+</nodel-group>
 ```
 
 Faders preserve compound children and place them in a compact rail in source order. The rail has no separate card or border treatment by default; it relies on proximity to keep related status, meter, and button controls visually grouped while allowing each child component to keep its own signal/action behavior. The rail defaults to bottom/end alignment; set `compound-align="top"`, `compound-align="center"`, or `compound-align="bottom"` when a vertical fader needs different placement.
 
-`variant` controls the fader fill colour. `tone` controls the surrounding surface: the default `solid` tone leaves the fader directly on the parent background, while `soft` and `outline` add progressively stronger visual grouping.
+`variant` controls the fader fill colour. `tone` adjusts fader rail/fill emphasis; use `nodel-group` when the fader needs a visible card or panel surface.
 
 The fader readout is rendered inside the track by default. On vertical faders it sits near the top when the value is low and near the bottom when the value is high so it stays away from the thumb.
 
@@ -467,11 +532,13 @@ Vertical faders keep a stable overall height whether or not increment buttons ar
 
 ```html
 <nodel-control-grid columns="2">
-  <nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">
-    <nodel-meter signal="Level" peak="hold" label="Output level"></nodel-meter>
-    <nodel-status-indicator signal="Muted" label="Mute state" tone="warning"></nodel-status-indicator>
-    <nodel-button action="Mute" variant="warning" tone="soft">Mute</nodel-button>
-  </nodel-fader>
+  <nodel-group label="Volume">
+    <nodel-fader action="SetVolume" signal="Volume" nudge="5">
+      <nodel-meter signal="Level" peak="hold" label="Output level"></nodel-meter>
+      <nodel-status-indicator signal="Muted" label="Mute state" tone="warning"></nodel-status-indicator>
+      <nodel-button action="Mute" variant="warning" tone="soft">Mute</nodel-button>
+    </nodel-fader>
+  </nodel-group>
   <nodel-control-grid columns="1">
     <nodel-button>Speech</nodel-button>
     <nodel-button>Music</nodel-button>
@@ -522,7 +589,9 @@ Signal targets:
 
 ```html
 <nodel-text signal="Status.message">Waiting</nodel-text>
-<nodel-readout label="Level" signals="Status.level:value; Status.unit:suffix"></nodel-readout>
+<nodel-group label="Level">
+  <nodel-readout signals="Status.level:value; Status.unit:suffix"></nodel-readout>
+</nodel-group>
 <!-- Future status-card style components can bind structured status values explicitly. -->
 <nodel-status signals="Status.level:level; Status.message:message"></nodel-status>
 ```
@@ -588,7 +657,7 @@ Signal targets:
 - `signal="SignalName"` as shorthand for `name`
 - `signals="SignalName:target"` with targets `name`, `alt`, `label`, and `tone`
 
-Use `label` when visible text should appear with a standalone icon. Use `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
+Use `nodel-group` when visible text should appear with a standalone icon. Use `label` or `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
 
 `nodel-status-indicator` supports:
 

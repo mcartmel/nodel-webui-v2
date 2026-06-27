@@ -87,6 +87,16 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-control-space></nodel-control-space>'
   },
   {
+    name: 'nodel-group',
+    description: 'Labelled composition group for visible captions, passive surfaces, and control grouping.',
+    attributes: [
+      { name: 'label', description: 'Visible group label. A single direct child control is auto-labelled for accessibility.' },
+      { name: 'surface', description: 'Passive group surface.', values: ['card', 'panel', 'none'] },
+      { name: 'padding', description: 'Group interior padding.', values: ['default', 'compact', 'none'] }
+    ],
+    snippet: '<nodel-group label="Group">\n  ${}\n</nodel-group>'
+  },
+  {
     name: 'nodel-template',
     description: 'Authoring macro that renders placeholder-filled clones from a native template.',
     attributes: [
@@ -142,13 +152,13 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'off-value', description: 'Exact signal value that means off.' },
       { name: 'partial-on-value', description: 'Exact signal value that means partially on.' },
       { name: 'partial-off-value', description: 'Exact signal value that means partially off.' },
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'on-label', description: 'State label shown for on/partially-on.' },
       { name: 'off-label', description: 'State label shown for off/partially-off.' },
       { name: 'state-label', description: 'Show or hide visible state text. Hidden by default.', values: ['hide', 'show'] },
       { name: 'variant', description: 'On-state colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
       { name: 'off-variant', description: 'Off-state colour variant. Default keeps the off state neutral.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
-      { name: 'tone', description: 'Switch surface treatment.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Switch track tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable the switch.' },
       { name: 'confirm', description: 'Require confirmation before calling the action.' },
       { name: 'confirm-title', description: 'Confirmation dialog title.' },
@@ -157,7 +167,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signal', description: signalBindingDescription('state') },
       { name: 'signals', description: signalsBindingDescription('state, label, disabled') }
     ],
-    snippet: '<nodel-toggle label="Power" action="SetPower" signal="Power"></nodel-toggle>'
+    snippet: '<nodel-group label="Power">\n  <nodel-toggle action="SetPower" signal="Power"></nodel-toggle>\n</nodel-group>'
   },
   {
     name: 'nodel-segmented',
@@ -181,13 +191,13 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
-    snippet: '<nodel-segmented label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-segmented>'
+    snippet: '<nodel-group label="Source">\n  <nodel-segmented action="SetSource" signal="Source">\n    <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n    <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n  </nodel-segmented>\n</nodel-group>'
   },
   {
     name: 'nodel-select',
     description: 'Touch picker for larger option sets using nodel-button options.',
     attributes: [
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'placeholder', description: 'Text shown when no value is selected.' },
       { name: 'value', description: 'Current selected value.' },
       { name: 'action', description: 'Current-node action called when an option is selected.' },
@@ -202,7 +212,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
-    snippet: '<nodel-select label="Source" action="SetSource" signal="Source">\n  <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n  <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n</nodel-select>'
+    snippet: '<nodel-group label="Source">\n  <nodel-select action="SetSource" signal="Source">\n    <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n    <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n  </nodel-select>\n</nodel-group>'
   },
   {
     name: 'nodel-fader',
@@ -211,7 +221,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'orientation', description: 'Fader orientation.', values: ['vertical', 'horizontal'] },
       { name: 'compound-align', description: 'Compound rail alignment. Defaults to bottom/end.', values: ['bottom', 'center', 'top'] },
       { name: 'variant', description: 'Fader fill colour variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
-      { name: 'tone', description: 'Fader surface treatment.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Fader rail/fill tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'min', description: 'Minimum value.' },
       { name: 'max', description: 'Maximum value.' },
       { name: 'step', description: 'Value step.' },
@@ -225,18 +235,18 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'value', description: 'Current fader value.' },
       { name: 'disabled', description: 'Disable dragging and increment controls.' },
       { name: 'readout', description: 'Show or hide numeric value readout.', values: ['show', 'hide'] },
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'live-interval', description: 'Throttled live action interval in milliseconds.' },
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
-    snippet: '<nodel-fader label="Volume" action="SetVolume" signal="Volume" nudge="5">\n  ${}\n</nodel-fader>'
+    snippet: '<nodel-group label="Volume">\n  <nodel-fader action="SetVolume" signal="Volume" nudge="5">\n    ${}\n  </nodel-fader>\n</nodel-group>'
   },
   {
     name: 'nodel-stepper',
     description: 'Precise touch numeric increment/decrement control.',
     attributes: [
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'value', description: 'Current numeric value.' },
       { name: 'min', description: 'Minimum value.' },
       { name: 'max', description: 'Maximum value.' },
@@ -250,19 +260,19 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'join', description: 'Shorthand that uses the same name for action and value signal.' },
       { name: 'arg-type', description: 'Parser for emitted value.', values: ['number', 'string', 'json'] },
       { name: 'variant', description: 'Stepper visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
-      { name: 'tone', description: 'Stepper visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Stepper button tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable both buttons.' },
       { name: 'readout', description: 'Show or hide the numeric readout.', values: ['show', 'hide'] },
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
-    snippet: '<nodel-stepper label="Temperature" action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>'
+    snippet: '<nodel-group label="Temperature">\n  <nodel-stepper action="SetTemp" signal="Temp" min="16" max="28" step="0.5" suffix="C"></nodel-stepper>\n</nodel-group>'
   },
   {
     name: 'nodel-pad',
     description: 'Directional touch pad with click or momentary press/release modes.',
     attributes: [
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'center', description: 'Centre button behavior.', values: ['auto', 'show', 'hide', 'disabled'] },
       { name: 'press-mode', description: 'Button action mode.', values: ['click', 'momentary'] },
       { name: 'action', description: 'Shared action called with direction arg.' },
@@ -273,18 +283,18 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'right-action', description: 'Action for the right button.' },
       { name: 'center-action', description: 'Action for the centre button.' },
       { name: 'variant', description: 'Pad visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
-      { name: 'tone', description: 'Pad visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Pad button tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable the whole pad.' },
       { name: 'center-disabled', description: 'Disable only the centre button.' },
       { name: 'signals', description: signalsBindingDescription('disabled, label, center-disabled') }
     ],
-    snippet: '<nodel-pad label="Navigate" action="Navigate" center="show"></nodel-pad>'
+    snippet: '<nodel-group label="Navigate">\n  <nodel-pad action="Navigate" center="show"></nodel-pad>\n</nodel-group>'
   },
   {
     name: 'nodel-readout',
     description: 'Read-only touch value/status tile with optional bar, ring, or status visuals.',
     attributes: [
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'value', description: 'Current displayed value.' },
       { name: 'type', description: 'Value type.', values: ['text', 'number', 'percent', 'db', 'boolean', 'duration'] },
       { name: 'visual', description: 'Graphical representation.', values: ['none', 'bar', 'ring', 'status'] },
@@ -293,17 +303,17 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'suffix', description: 'Display suffix.' },
       { name: 'precision', description: 'Decimal precision.' },
       { name: 'variant', description: 'Readout visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
-      { name: 'tone', description: 'Readout visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Readout value/visual tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, variant, suffix, prefix') }
     ],
-    snippet: '<nodel-readout label="Brightness" type="percent" visual="ring" value="72"></nodel-readout>'
+    snippet: '<nodel-group label="Brightness">\n  <nodel-readout type="percent" visual="ring" value="72"></nodel-readout>\n</nodel-group>'
   },
   {
     name: 'nodel-palette',
     description: 'Swatch-first colour picker with predefined colour buttons and optional native custom colour input.',
     attributes: [
-      { name: 'label', description: 'Visible/accessibility label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'value', description: 'Current selected colour or preset value.' },
       { name: 'action', description: 'Current-node action called when a swatch is selected.' },
       { name: 'actions', description: 'Action bindings. Supported phase: select.' },
@@ -314,12 +324,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'picker', description: 'Optional custom colour picker.', values: ['off', 'native'] },
       { name: 'show-labels', description: 'Swatch label visibility.', values: ['auto', 'show', 'hide'] },
       { name: 'variant', description: 'Palette visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
-      { name: 'tone', description: 'Palette visual tone.', values: ['solid', 'soft', 'outline'] },
+      { name: 'tone', description: 'Palette swatch/custom-control tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable all swatches.' },
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled, custom-color') }
     ],
-    snippet: '<nodel-palette label="Colour" action="SetColour" signal="Colour" picker="native">\n  <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>\n  <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>\n  <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>\n</nodel-palette>'
+    snippet: '<nodel-group label="Colour">\n  <nodel-palette action="SetColour" signal="Colour" picker="native">\n    <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>\n    <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>\n    <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>\n  </nodel-palette>\n</nodel-group>'
   },
   {
     name: 'nodel-meter',
@@ -347,7 +357,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'src', description: 'Image URL.' },
       { name: 'alt', description: 'Alternative text.' },
-      { name: 'label', description: 'Optional visible label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'fit', description: 'Image fit mode.', values: ['contain', 'cover'] },
       { name: 'shape', description: 'Image shape.', values: ['none', 'rounded', 'circle'] },
       { name: 'size', description: 'Image size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
@@ -362,7 +372,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     description: 'Standalone or inline control icon.',
     attributes: [
       { name: 'name', description: 'Built-in icon name.' },
-      { name: 'label', description: 'Optional visible/accessible label.' },
+      { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'alt', description: 'Accessible label without visible text.' },
       { name: 'tone', description: 'Icon tone.', values: ['default', 'muted', 'accent', 'success', 'info', 'warning', 'danger'] },
       { name: 'size', description: 'Icon size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },

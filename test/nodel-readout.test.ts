@@ -29,7 +29,7 @@ describe('nodel-readout', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders text label and value with variant and tone metadata', async () => {
+  it('uses label for accessibility and renders value with variant and tone metadata', async () => {
     document.body.innerHTML = '<nodel-readout label="Source" value="HDMI 1" variant="primary" tone="soft"></nodel-readout>';
     await customElements.whenDefined('nodel-readout');
     await Promise.resolve();
@@ -37,7 +37,8 @@ describe('nodel-readout', () => {
     const readout = document.querySelector('nodel-readout') as HTMLElement;
     expect(readout.dataset.variant).toBe('primary');
     expect(readout.dataset.tone).toBe('soft');
-    expect(readout.querySelector('.nodel-readout-label')?.textContent).toBe('Source');
+    expect(readout.querySelector('.nodel-readout-label')).toBeNull();
+    expect(readout.getAttribute('aria-label')).toBe('Source: HDMI 1');
     expect(readout.querySelector('.nodel-readout-value')?.textContent).toBe('HDMI 1');
   });
 
@@ -65,6 +66,7 @@ describe('nodel-readout', () => {
     expect(readout.dataset.visual).toBe('ring');
     expect(readout.style.getPropertyValue('--nodel-readout-fraction')).toBe('0.75');
     expect(readout.getAttribute('role')).toBe('meter');
+    expect(readout.getAttribute('aria-label')).toBe('Brightness: 75%');
     expect(readout.getAttribute('aria-valuenow')).toBe('75');
   });
 

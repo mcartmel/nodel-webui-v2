@@ -2,6 +2,7 @@ import { callActionBindings, parseActionBindings } from '../data/action-bindings
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
 import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy } from '../utils/control-values';
 import './nodel-button';
 
@@ -29,10 +30,9 @@ function looksLikeColor(value: string) {
 }
 
 export class NodelPalette extends HTMLElement {
-  static observedAttributes = ['label', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
 
   private shellReady = false;
-  private labelNode: HTMLElement | null = null;
   private gridNode: HTMLElement | null = null;
   private customNode: HTMLInputElement | null = null;
   private customButton: HTMLButtonElement | null = null;
@@ -68,7 +68,6 @@ export class NodelPalette extends HTMLElement {
     const children = Array.from(this.childNodes);
     this.innerHTML = `
       <div class="nodel-palette-shell">
-        <div class="nodel-palette-label" hidden></div>
         <div class="nodel-palette-grid"></div>
         <div class="nodel-palette-custom" hidden>
           <label class="nodel-palette-custom-label">
@@ -79,7 +78,6 @@ export class NodelPalette extends HTMLElement {
         </div>
       </div>
     `;
-    this.labelNode = this.querySelector('.nodel-palette-label');
     this.gridNode = this.querySelector('.nodel-palette-grid');
     this.customNode = this.querySelector('.nodel-palette-custom-input');
     this.customButton = this.querySelector('.nodel-palette-custom-button');
@@ -112,7 +110,7 @@ export class NodelPalette extends HTMLElement {
     const showLabels = normalizeFromList(this.getAttribute('show-labels'), labelModes, 'auto');
     const picker = normalizeFromList(this.getAttribute('picker'), pickerModes, 'off');
     const disabled = this.hasAttribute('disabled');
-    const label = this.getAttribute('label') ?? '';
+    const accessibleLabel = accessibleLabelText(this);
     const value = this.getAttribute('value') ?? '';
     const customWrap = this.querySelector<HTMLElement>('.nodel-palette-custom');
     const customLabel = this.querySelector<HTMLElement>('[data-custom-label]');
@@ -131,13 +129,13 @@ export class NodelPalette extends HTMLElement {
       this.style.removeProperty('--nodel-palette-columns');
     }
 
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
     customWrap!.hidden = picker !== 'native';
     const customLabelText = this.getAttribute('custom-label') ?? '';
     customLabel!.hidden = !customLabelText;
     customLabel!.textContent = customLabelText;
-    this.customNode!.setAttribute('aria-label', customLabelText || label || 'Colour');
+    this.setAttribute('role', 'group');
+    syncHostAccessibleLabel(this);
+    this.customNode!.setAttribute('aria-label', customLabelText || (accessibleLabel ? `${accessibleLabel} custom colour` : 'Custom colour'));
     this.customNode!.disabled = disabled;
     this.customButton!.disabled = disabled;
 

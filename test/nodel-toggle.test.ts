@@ -58,8 +58,10 @@ describe('nodel-toggle', () => {
     expect(host.dataset.state).toBe('partially-on');
     expect(host.dataset.stateLabel).toBe('hide');
     expect(button.getAttribute('role')).toBe('switch');
+    expect(button.getAttribute('aria-label')).toBe('Lighting');
     expect(button.getAttribute('aria-checked')).toBe('mixed');
     expect(host.querySelector<HTMLElement>('.nodel-toggle-state')?.hidden).toBe(true);
+    expect(button.textContent).not.toContain('Lighting');
     expect(button.textContent).not.toContain('Partial On');
   });
 
@@ -134,7 +136,8 @@ describe('nodel-toggle', () => {
     expect(host.dataset.state).toBe('on');
 
     emitSignal('Name', 'Main Power');
-    expect(host.querySelector('button')?.textContent).toContain('Main Power');
+    expect(host.querySelector('button')?.getAttribute('aria-label')).toBe('Main Power');
+    expect(host.querySelector('button')?.textContent).not.toContain('Main Power');
 
     emitSignal('Locked', 'true');
     expect(host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(true);

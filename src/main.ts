@@ -5,6 +5,7 @@ import './components/nodel-row';
 import './components/nodel-column';
 import './components/nodel-control-grid';
 import './components/nodel-control-space';
+import './components/nodel-group';
 import './components/nodel-template';
 import './components/nodel-button';
 import './components/nodel-toggle';

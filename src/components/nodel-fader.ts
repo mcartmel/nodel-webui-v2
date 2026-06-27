@@ -85,11 +85,10 @@ function parseCssPixelValue(value: string, fallback: number): number {
 }
 
 export class NodelFader extends HTMLElement {
-  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'title'];
+  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'aria-labelledby', 'title'];
 
   private shellReady = false;
   private shellNode: HTMLElement | null = null;
-  private labelNode: HTMLElement | null = null;
   private bodyNode: HTMLElement | null = null;
   private controlNode: HTMLElement | null = null;
   private decreaseNode: HTMLButtonElement | null = null;
@@ -153,7 +152,6 @@ export class NodelFader extends HTMLElement {
 
     this.innerHTML = `
       <div class="nodel-fader-shell">
-        <div class="nodel-fader-label" hidden></div>
         <div class="nodel-fader-body">
           <div class="nodel-fader-control">
             <button type="button" class="nodel-fader-nudge nodel-fader-nudge-down" aria-label="Decrease" hidden>${renderFontAwesomeIcon(uiIcons.minus)}</button>
@@ -170,7 +168,6 @@ export class NodelFader extends HTMLElement {
     `;
 
     this.shellNode = this.querySelector('.nodel-fader-shell');
-    this.labelNode = this.querySelector('.nodel-fader-label');
     this.bodyNode = this.querySelector('.nodel-fader-body');
     this.controlNode = this.querySelector('.nodel-fader-control');
     this.decreaseNode = this.querySelector('.nodel-fader-nudge-down');
@@ -232,8 +229,6 @@ export class NodelFader extends HTMLElement {
       ? (fraction < 0.5 ? 'top' : 'bottom')
       : (fraction < 0.5 ? 'right' : 'left');
     this.style.setProperty('--nodel-fader-value', String(fraction));
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
     this.readoutNode!.hidden = readout === 'hide';
     this.readoutNode!.textContent = formatValue(value, unit);
     this.railNode!.hidden = !this.railNode!.hasChildNodes();
@@ -285,10 +280,15 @@ export class NodelFader extends HTMLElement {
     this.trackNode.setAttribute('aria-disabled', String(disabled));
     this.trackNode.tabIndex = disabled ? -1 : 0;
 
-    const accessibleLabel = this.getAttribute('aria-label') ?? label;
-    if (accessibleLabel) {
-      this.trackNode.setAttribute('aria-label', accessibleLabel);
+    const labelledBy = this.getAttribute('aria-labelledby');
+    if (labelledBy) {
+      this.trackNode.setAttribute('aria-labelledby', labelledBy);
+      this.trackNode.removeAttribute('aria-label');
+    } else if (this.getAttribute('aria-label') ?? label) {
+      this.trackNode.removeAttribute('aria-labelledby');
+      this.trackNode.setAttribute('aria-label', this.getAttribute('aria-label') ?? label);
     } else {
+      this.trackNode.removeAttribute('aria-labelledby');
       this.trackNode.removeAttribute('aria-label');
     }
 

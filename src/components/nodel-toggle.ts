@@ -1,6 +1,7 @@
 import { callActionBindings, parseActionBindings } from '../data/action-bindings';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
+import { syncInternalAccessibleLabel } from '../utils/accessibility';
 import { isToggleOnish, resolveToggleState, toggleAriaChecked, type ToggleState } from '../utils/toggle-state';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 
@@ -73,7 +74,6 @@ export class NodelToggle extends HTMLElement {
   ];
 
   private buttonNode: HTMLButtonElement | null = null;
-  private labelNode: HTMLElement | null = null;
   private stateNode: HTMLElement | null = null;
   private busy = false;
   private connected = false;
@@ -121,13 +121,11 @@ export class NodelToggle extends HTMLElement {
 
     this.innerHTML = `
       <button type="button" class="nodel-toggle" role="switch">
-        <span class="nodel-toggle-label" data-toggle-label></span>
         <span class="nodel-toggle-track" aria-hidden="true"><span class="nodel-toggle-thumb"></span></span>
         <span class="nodel-toggle-state" data-toggle-state></span>
       </button>
     `;
     this.buttonNode = this.querySelector('button');
-    this.labelNode = this.querySelector('[data-toggle-label]');
     this.stateNode = this.querySelector('[data-toggle-state]');
   }
 
@@ -153,9 +151,9 @@ export class NodelToggle extends HTMLElement {
     this.buttonNode!.className = `nodel-toggle${this.busy ? ' is-busy' : ''}`;
     this.buttonNode!.disabled = disabled;
     this.buttonNode!.setAttribute('aria-checked', toggleAriaChecked(this.state));
-    this.buttonNode!.setAttribute('aria-label', this.getAttribute('aria-label') || label);
+    syncInternalAccessibleLabel(this, this.buttonNode!, label);
 
-    for (const attribute of ['aria-labelledby', 'title']) {
+    for (const attribute of ['title']) {
       const value = this.getAttribute(attribute);
       if (value) {
         this.buttonNode!.setAttribute(attribute, value);
@@ -164,9 +162,6 @@ export class NodelToggle extends HTMLElement {
       }
     }
 
-    if (this.labelNode) {
-      this.labelNode.textContent = label;
-    }
     if (this.stateNode) {
       this.stateNode.hidden = stateLabelMode !== 'show';
       this.stateNode.textContent = stateLabelMode === 'show'

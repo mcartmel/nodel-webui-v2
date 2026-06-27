@@ -23,7 +23,7 @@ function normalizeVariant(value: string | null): NodelImageVariant {
 }
 
 export class NodelImage extends HTMLElement {
-  static observedAttributes = ['src', 'alt', 'label', 'fit', 'shape', 'size', 'variant', 'signal', 'signals'];
+  static observedAttributes = ['src', 'alt', 'label', 'aria-label', 'aria-labelledby', 'fit', 'shape', 'size', 'variant', 'signal', 'signals'];
 
   private signalBindings = createSignalBindingController(this);
 
@@ -51,17 +51,42 @@ export class NodelImage extends HTMLElement {
     const shape = normalizeShape(this.getAttribute('shape'));
     const size = normalizeSize(this.getAttribute('size'));
     const variant = normalizeVariant(this.getAttribute('variant'));
+    const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
+    const explicitAria = autoAria ? null : this.getAttribute('aria-label');
+    const hostLabel = explicitAria ?? label;
+    const hostLabelled = Boolean(hostLabel || this.getAttribute('aria-labelledby'));
 
     this.dataset.fit = fit;
     this.dataset.shape = shape;
     this.dataset.size = size;
     this.dataset.variant = variant;
 
+    if (this.hasAttribute('aria-labelledby')) {
+      this.setAttribute('role', 'img');
+      if (this.hasAttribute('aria-label')) {
+        this.removeAttribute('aria-label');
+      }
+      this.removeAttribute('data-nodel-auto-aria-label');
+    } else if (hostLabel) {
+      this.setAttribute('role', 'img');
+      if (!explicitAria) {
+        this.setAttribute('data-nodel-auto-aria-label', 'true');
+      }
+      if (this.getAttribute('aria-label') !== hostLabel) {
+        this.setAttribute('aria-label', hostLabel);
+      }
+    } else {
+      this.removeAttribute('role');
+      if (this.hasAttribute('aria-label')) {
+        this.removeAttribute('aria-label');
+      }
+      this.removeAttribute('data-nodel-auto-aria-label');
+    }
+
     this.innerHTML = `
       <span class="nodel-image-frame">
-        ${src ? `<img class="nodel-image-media" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" />` : '<span class="nodel-image-placeholder" aria-hidden="true"></span>'}
+        ${src ? `<img class="nodel-image-media" src="${escapeHtml(src)}" alt="${hostLabelled ? '' : escapeHtml(alt)}" />` : '<span class="nodel-image-placeholder" aria-hidden="true"></span>'}
       </span>
-      ${label ? `<span class="nodel-image-label">${escapeHtml(label)}</span>` : ''}
     `;
   }
 

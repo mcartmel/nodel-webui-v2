@@ -3,6 +3,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { clampValue, formatValue, normalizeLevelUnit, normalizeStep, parseNumber, snapToStep } from '../utils/level-scale';
+import { accessibleLabelText, syncInternalAccessibleLabel } from '../utils/accessibility';
 import { apiErrorMessage, formatBindingFailures, formatPlainNumber, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy, type ControlArgType } from '../utils/control-values';
 
 type StepperRepeat = 'hold' | 'off';
@@ -12,10 +13,10 @@ type StepperArgType = Extract<ControlArgType, 'number' | 'string' | 'json'>;
 const argTypes: StepperArgType[] = ['number', 'string', 'json'];
 
 export class NodelStepper extends HTMLElement {
-  static observedAttributes = ['label', 'value', 'min', 'max', 'step', 'unit', 'prefix', 'suffix', 'precision', 'repeat', 'repeat-delay', 'repeat-interval', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'readout', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'min', 'max', 'step', 'unit', 'prefix', 'suffix', 'precision', 'repeat', 'repeat-delay', 'repeat-interval', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'readout', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
 
   private shellReady = false;
-  private labelNode: HTMLElement | null = null;
+  private shellNode: HTMLElement | null = null;
   private readoutNode: HTMLElement | null = null;
   private decreaseNode: HTMLButtonElement | null = null;
   private increaseNode: HTMLButtonElement | null = null;
@@ -64,7 +65,6 @@ export class NodelStepper extends HTMLElement {
     }
     this.innerHTML = `
       <div class="nodel-stepper-shell" tabindex="0">
-        <div class="nodel-stepper-label" hidden></div>
         <div class="nodel-stepper-row">
           <button type="button" class="nodel-stepper-button nodel-stepper-decrease" aria-label="Decrease">−</button>
           <output class="nodel-stepper-readout"></output>
@@ -72,7 +72,7 @@ export class NodelStepper extends HTMLElement {
         </div>
       </div>
     `;
-    this.labelNode = this.querySelector('.nodel-stepper-label');
+    this.shellNode = this.querySelector('.nodel-stepper-shell');
     this.readoutNode = this.querySelector('.nodel-stepper-readout');
     this.decreaseNode = this.querySelector('.nodel-stepper-decrease');
     this.increaseNode = this.querySelector('.nodel-stepper-increase');
@@ -108,27 +108,25 @@ export class NodelStepper extends HTMLElement {
     this.ensureShell();
     const value = this.currentValue();
     const { min, max } = this.range();
-    const label = this.getAttribute('label') ?? '';
     const variant = normalizeVariant(this.getAttribute('variant'));
     const tone = normalizeTone(this.getAttribute('tone'));
     const disabled = this.hasAttribute('disabled');
     const readout = normalizeFromList(this.getAttribute('readout'), ['show', 'hide'] as const, 'show' as StepperReadout);
+    const accessibleLabel = accessibleLabelText(this);
 
     this.dataset.variant = variant;
     this.dataset.tone = tone;
     this.dataset.disabled = String(disabled);
     this.dataset.readout = readout;
     this.dataset.value = String(value);
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
     this.readoutNode!.hidden = readout === 'hide';
     this.readoutNode!.textContent = this.formattedValue(value);
     this.decreaseNode!.disabled = disabled || value <= min;
     this.increaseNode!.disabled = disabled || value >= max;
-    this.setAttribute('role', 'group');
-    if (label) {
-      this.setAttribute('aria-label', label);
-    }
+    this.shellNode!.setAttribute('role', 'group');
+    syncInternalAccessibleLabel(this, this.shellNode!);
+    this.decreaseNode!.setAttribute('aria-label', accessibleLabel ? `Decrease ${accessibleLabel}` : 'Decrease');
+    this.increaseNode!.setAttribute('aria-label', accessibleLabel ? `Increase ${accessibleLabel}` : 'Increase');
   }
 
   private payload(value: number) {

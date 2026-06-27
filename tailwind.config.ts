@@ -57,6 +57,7 @@ export default {
       boxShadow: {
         'nodel-card': 'var(--nodel-shadow-card)',
         'nodel-control': 'var(--nodel-shadow-control)',
+        'nodel-control-active': 'var(--nodel-shadow-control-active)',
         'nodel-panel': 'var(--nodel-shadow-panel)',
         'nodel-popover': 'var(--nodel-shadow-popover)',
         'nodel-editor-status': 'var(--nodel-shadow-editor-status)'

@@ -1,5 +1,6 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { clampValue, defaultRangeForUnit, formatValue, normalizeLevelUnit, parseNumber, valueToFraction, type LevelUnit } from '../utils/level-scale';
+import { syncHostAccessibleLabel } from '../utils/accessibility';
 import { falsey, formatPlainNumber, normalizeTone, normalizeVariant, truthy } from '../utils/control-values';
 
 type ReadoutType = 'text' | 'number' | 'percent' | 'db' | 'boolean' | 'duration';
@@ -52,10 +53,9 @@ function zoneFor(value: number, warn: number, danger: number) {
 }
 
 export class NodelReadout extends HTMLElement {
-  static observedAttributes = ['label', 'value', 'type', 'visual', 'min', 'max', 'unit', 'prefix', 'suffix', 'precision', 'on-value', 'off-value', 'on-label', 'off-label', 'warn', 'danger', 'empty', 'variant', 'tone', 'signal', 'signals'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'type', 'visual', 'min', 'max', 'unit', 'prefix', 'suffix', 'precision', 'on-value', 'off-value', 'on-label', 'off-label', 'warn', 'danger', 'empty', 'variant', 'tone', 'signal', 'signals'];
 
   private shellReady = false;
-  private labelNode: HTMLElement | null = null;
   private valueNode: HTMLElement | null = null;
   private visualNode: HTMLElement | null = null;
   private signalBindings = createSignalBindingController(this);
@@ -89,12 +89,10 @@ export class NodelReadout extends HTMLElement {
       <div class="nodel-readout-shell">
         <div class="nodel-readout-visual" aria-hidden="true"><span class="nodel-readout-visual-inner"></span></div>
         <div class="nodel-readout-content">
-          <div class="nodel-readout-label" hidden></div>
           <div class="nodel-readout-value"></div>
         </div>
       </div>
     `;
-    this.labelNode = this.querySelector('.nodel-readout-label');
     this.valueNode = this.querySelector('.nodel-readout-value');
     this.visualNode = this.querySelector('.nodel-readout-visual');
     this.shellReady = true;
@@ -166,6 +164,7 @@ export class NodelReadout extends HTMLElement {
       ? (formatted.booleanState ? 'on' : 'off')
       : zoneFor(formatted.numeric, warn, danger);
     const label = this.getAttribute('label') ?? '';
+    const hasAccessibleName = Boolean(label || this.getAttribute('aria-label') || this.getAttribute('aria-labelledby'));
 
     this.dataset.type = type;
     this.dataset.visual = visual;
@@ -173,14 +172,12 @@ export class NodelReadout extends HTMLElement {
     this.dataset.tone = tone;
     this.dataset.zone = zone;
     this.style.setProperty('--nodel-readout-fraction', String(fraction));
-    this.labelNode!.hidden = !label;
-    this.labelNode!.textContent = label;
     this.valueNode!.textContent = formatted.text;
     this.visualNode!.hidden = visual === 'none';
 
-    if ((visual === 'bar' || visual === 'ring') && label) {
+    if ((visual === 'bar' || visual === 'ring') && hasAccessibleName) {
       this.setAttribute('role', 'meter');
-      this.setAttribute('aria-label', label);
+      this.syncAccessibleName(label, formatted.text);
       this.setAttribute('aria-valuemin', String(min));
       this.setAttribute('aria-valuemax', String(max));
       this.setAttribute('aria-valuenow', Number.isFinite(formatted.numeric) ? String(formatted.numeric) : String(min));
@@ -191,11 +188,29 @@ export class NodelReadout extends HTMLElement {
       this.removeAttribute('aria-valuemax');
       this.removeAttribute('aria-valuenow');
       this.removeAttribute('aria-valuetext');
-      if (label) {
-        this.setAttribute('aria-label', `${label}: ${formatted.text}`);
-      } else {
+      this.syncAccessibleName(label, formatted.text);
+    }
+  }
+
+  private syncAccessibleName(label: string, text: string) {
+    if (this.hasAttribute('aria-labelledby')) {
+      if (this.getAttribute('data-nodel-auto-aria-label') === 'true') {
         this.removeAttribute('aria-label');
+        this.removeAttribute('data-nodel-auto-aria-label');
       }
+      return;
+    }
+    if (this.hasAttribute('aria-label') && this.getAttribute('data-nodel-auto-aria-label') !== 'true') {
+      return;
+    }
+    if (label) {
+      this.setAttribute('data-nodel-auto-aria-label', 'true');
+      const ariaLabel = `${label}: ${text}`;
+      if (this.getAttribute('aria-label') !== ariaLabel) {
+        this.setAttribute('aria-label', ariaLabel);
+      }
+    } else {
+      syncHostAccessibleLabel(this);
     }
   }
 

@@ -39,7 +39,7 @@ describe('nodel-stepper', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders label, readout, and edge-disabled buttons', async () => {
+  it('uses label for accessibility, readout, and edge-disabled buttons', async () => {
     document.body.innerHTML = '<nodel-stepper label="Trim" value="0" min="0" max="10" variant="info" tone="outline"></nodel-stepper>';
     await customElements.whenDefined('nodel-stepper');
     await Promise.resolve();
@@ -47,7 +47,9 @@ describe('nodel-stepper', () => {
     const stepper = document.querySelector('nodel-stepper') as HTMLElement;
     expect(stepper.dataset.variant).toBe('info');
     expect(stepper.dataset.tone).toBe('outline');
-    expect(stepper.querySelector('.nodel-stepper-label')?.textContent).toBe('Trim');
+    expect(stepper.querySelector('.nodel-stepper-label')).toBeNull();
+    expect(stepper.querySelector('.nodel-stepper-shell')?.getAttribute('aria-label')).toBe('Trim');
+    expect(stepper.querySelector('.nodel-stepper-decrease')?.getAttribute('aria-label')).toBe('Decrease Trim');
     expect(stepper.querySelector('.nodel-stepper-readout')?.textContent).toBe('0');
     expect((stepper.querySelector('.nodel-stepper-decrease') as HTMLButtonElement).disabled).toBe(true);
   });

@@ -26,7 +26,7 @@ The first UI layer is intentionally small:
 - `nodel-toolbar` renders the top bar.
 - `nodel-page` renders page sections.
 - `nodel-row` and `nodel-column` provide simple layout primitives.
-- `nodel-control-grid`, `nodel-control-space`, `nodel-template`, and `nodel-button` provide touch-focused control layout, repeated authoring fragments, and button primitives for custom node pages.
+- `nodel-control-grid`, `nodel-control-space`, `nodel-group`, `nodel-template`, and `nodel-button` provide touch-focused control layout, labelled passive grouping, repeated authoring fragments, and button primitives for custom node pages.
 - `nodel-fader` and `nodel-meter` provide touch-first level control and read-only level display. They share a linear min/max scaling utility, support percent and dB readouts, and the fader reuses the child-aware control pattern to preserve compound rail children.
 - `nodel-select`, `nodel-stepper`, `nodel-pad`, `nodel-readout`, and `nodel-palette` extend touch controls with scalable pickers, precise numeric adjustment, directional/momentary control, general value/status tiles, and swatch-first colour selection.
 - `nodel-image`, `nodel-icon`, and `nodel-status-indicator` provide child-aware media and status primitives for touch controls.
@@ -57,9 +57,11 @@ Node editor behavior intentionally preserves the v1 file endpoints while using C
 
 Tailwind is the primary styling layer. Use utilities directly for local layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use the Nodel token utilities from `tailwind.config.ts`, such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel`, instead of repeated arbitrary CSS-variable utilities.
 
-Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls, surfaces, and user-authored page primitives.
+Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls, surfaces, and user-authored page primitives. Treat `.nodel-card` as a passive display surface and `.nodel-list-item` as a tappable row surface.
 
-Light and dark themes use shared glass surface tokens for page gradients, translucent cards, panels, popovers, controls, borders, and shadows. Prefer those semantic primitives over hard-coded gradient or alpha backgrounds so user-authored pages inherit future theme updates.
+Light and dark themes use shared glass surface tokens for page gradients, translucent cards, panels, popovers, controls, borders, and shadows. Interactive controls have separate control tokens for resting, active, and pressed states so touch users can identify tappable elements without hover. Prefer those semantic primitives over hard-coded gradient or alpha backgrounds so user-authored pages inherit future theme updates.
+
+Control authoring is composition-first. `nodel-group` owns visible labels, passive card/panel backgrounds, and padding. Individual controls own behavior, state, accessible names, and the tactile styling of actual interactive parts. Component `label` attributes are accessibility-only fallback labels; use `nodel-group label="..."` when text should be visible. Keep `variant` and `tone` scoped to the interactive/status part of a control, not to component-owned wrapper cards. `nodel-control-grid` remains the only equal-cell grid primitive, so groups should be placed inside grids or contain grids rather than growing their own column API.
 
 Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` when behavior or public API drives appearance. Keep raw CSS for theme variable definitions, custom-element defaults, generated markdown content, CodeMirror/editor styling, CSS-variable-driven layout, third-party widgets, and complex runtime selectors.
 

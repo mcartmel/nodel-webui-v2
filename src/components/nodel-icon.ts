@@ -1,6 +1,5 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { logIcons, renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
-import { escapeHtml } from '../utils/html';
 
 type NodelIconTone = 'default' | 'muted' | 'accent' | 'success' | 'info' | 'warning' | 'danger';
 type NodelIconSize = 'auto' | 'sm' | 'md' | 'lg' | 'xl';
@@ -43,7 +42,7 @@ function iconForName(value: string | null) {
 }
 
 export class NodelIcon extends HTMLElement {
-  static observedAttributes = ['name', 'label', 'alt', 'tone', 'size', 'variant', 'signal', 'signals'];
+  static observedAttributes = ['name', 'label', 'alt', 'aria-label', 'aria-labelledby', 'tone', 'size', 'variant', 'signal', 'signals'];
 
   private signalBindings = createSignalBindingController(this);
 
@@ -70,24 +69,40 @@ export class NodelIcon extends HTMLElement {
     const tone = normalizeTone(this.getAttribute('tone'));
     const size = normalizeSize(this.getAttribute('size'));
     const variant = normalizeVariant(this.getAttribute('variant'));
-    const accessibleLabel = alt || label;
+    const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
+    const explicitAria = autoAria ? null : this.getAttribute('aria-label');
+    const accessibleLabel = explicitAria || alt || label;
 
     this.dataset.name = name;
     this.dataset.tone = tone;
     this.dataset.size = size;
     this.dataset.variant = variant;
     this.setAttribute('role', accessibleLabel ? 'img' : 'presentation');
-    if (accessibleLabel) {
-      this.setAttribute('aria-label', accessibleLabel);
+    if (this.hasAttribute('aria-labelledby')) {
+      this.setAttribute('role', 'img');
+      this.removeAttribute('aria-hidden');
+      if (this.hasAttribute('aria-label')) {
+        this.removeAttribute('aria-label');
+      }
+      this.removeAttribute('data-nodel-auto-aria-label');
+    } else if (accessibleLabel) {
+      if (!explicitAria) {
+        this.setAttribute('data-nodel-auto-aria-label', 'true');
+      }
+      if (this.getAttribute('aria-label') !== accessibleLabel) {
+        this.setAttribute('aria-label', accessibleLabel);
+      }
       this.removeAttribute('aria-hidden');
     } else {
       this.setAttribute('aria-hidden', 'true');
-      this.removeAttribute('aria-label');
+      if (this.hasAttribute('aria-label')) {
+        this.removeAttribute('aria-label');
+      }
+      this.removeAttribute('data-nodel-auto-aria-label');
     }
 
     this.innerHTML = `
       <span class="nodel-icon-glyph">${renderFontAwesomeIcon(iconForName(name), 'h-full w-full')}</span>
-      ${label ? `<span class="nodel-icon-label">${escapeHtml(label)}</span>` : ''}
     `;
   }
 

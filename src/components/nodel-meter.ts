@@ -39,7 +39,7 @@ function zoneForValue(value: number, warn: number, danger: number): MeterZone {
 }
 
 export class NodelMeter extends HTMLElement {
-  static observedAttributes = ['signal', 'signals', 'value', 'min', 'max', 'unit', 'curve', 'orientation', 'warn', 'danger', 'peak', 'readout', 'label'];
+  static observedAttributes = ['signal', 'signals', 'value', 'min', 'max', 'unit', 'curve', 'orientation', 'warn', 'danger', 'peak', 'readout', 'label', 'aria-label', 'aria-labelledby'];
 
   private shellReady = false;
   private trackNode: HTMLElement | null = null;
@@ -138,10 +138,16 @@ export class NodelMeter extends HTMLElement {
   }
 
   private setAccessibility(label: string, value: number, min: number, max: number, unit: LevelUnit) {
-    if (!label) {
+    const labelledBy = this.getAttribute('aria-labelledby');
+    const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
+    const explicitLabel = autoAria ? null : this.getAttribute('aria-label');
+    const accessibleLabel = explicitLabel ?? label;
+    if (!accessibleLabel && !labelledBy) {
       this.setAttribute('aria-hidden', 'true');
       this.removeAttribute('role');
       this.removeAttribute('aria-label');
+      this.removeAttribute('aria-labelledby');
+      this.removeAttribute('data-nodel-auto-aria-label');
       this.removeAttribute('aria-valuemin');
       this.removeAttribute('aria-valuemax');
       this.removeAttribute('aria-valuenow');
@@ -151,7 +157,21 @@ export class NodelMeter extends HTMLElement {
 
     this.removeAttribute('aria-hidden');
     this.setAttribute('role', 'meter');
-    this.setAttribute('aria-label', label);
+    if (labelledBy) {
+      this.setAttribute('aria-labelledby', labelledBy);
+      if (this.hasAttribute('aria-label')) {
+        this.removeAttribute('aria-label');
+      }
+      this.removeAttribute('data-nodel-auto-aria-label');
+    } else {
+      this.removeAttribute('aria-labelledby');
+      if (!explicitLabel) {
+        this.setAttribute('data-nodel-auto-aria-label', 'true');
+      }
+      if (this.getAttribute('aria-label') !== accessibleLabel) {
+        this.setAttribute('aria-label', accessibleLabel);
+      }
+    }
     this.setAttribute('aria-valuemin', String(min));
     this.setAttribute('aria-valuemax', String(max));
     this.setAttribute('aria-valuenow', String(value));

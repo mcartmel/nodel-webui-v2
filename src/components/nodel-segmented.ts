@@ -2,6 +2,7 @@ import { callActionBindings, parseActionBindings } from '../data/action-bindings
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+import { syncHostAccessibleLabel } from '../utils/accessibility';
 import './nodel-button';
 
 type NodelSegmentedArgType = 'string' | 'number' | 'boolean' | 'json';
@@ -67,7 +68,7 @@ function valueMatches(value: string, expected: string) {
 export class NodelSegmented extends HTMLElement {
   static observedAttributes = [
     'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'variant', 'tone', 'orientation', 'disabled',
-    'allow-deselect', 'label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
+    'allow-deselect', 'label', 'aria-label', 'aria-labelledby', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
   ];
 
   private connected = false;
@@ -109,11 +110,7 @@ export class NodelSegmented extends HTMLElement {
     this.dataset.orientation = orientation;
     this.dataset.disabled = String(disabled);
     this.setAttribute('aria-orientation', orientation);
-    if (this.getAttribute('label')) {
-      this.setAttribute('aria-label', this.getAttribute('label') ?? '');
-    } else if (!this.hasAttribute('aria-label')) {
-      this.setAttribute('aria-label', 'Segmented control');
-    }
+    syncHostAccessibleLabel(this, 'Segmented control');
 
     for (const option of this.options()) {
       const optionValue = this.optionValue(option);
