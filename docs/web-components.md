@@ -644,11 +644,10 @@ Signal targets:
 - `fit="contain|cover"`
 - `shape="none|rounded|circle"`
 - `size="auto|sm|md|lg|xl"`
-- `variant="plain|soft|bordered"`
 - `signal="SignalName"` as shorthand for `src`
 - `signals="SignalName:target"` with targets `src`, `alt`, and `label`
 
-`size="auto"` is the default. Standalone images use the available tile space naturally; explicit sizes constrain the media. Inline button images default compact and use the same explicit size values when set. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
+`size="auto"` is the default. Standalone images use the available tile space naturally; explicit sizes constrain the media. Inline button images default compact and use the same explicit size values when set. Use `nodel-group` for visible captions, card/panel surfaces, and padding around standalone images.
 
 `nodel-icon` supports:
 
@@ -657,11 +656,20 @@ Signal targets:
 - `alt`
 - `tone="default|muted|accent|success|info|warning|danger"`
 - `size="auto|sm|md|lg|xl"`
-- `variant="plain|soft|bordered"`
 - `signal="SignalName"` as shorthand for `name`
 - `signals="SignalName:target"` with targets `name`, `alt`, `label`, and `tone`
 
-Use `nodel-group` when visible text should appear with a standalone icon. Use `label` or `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `variant="plain"` is the default media treatment. Use `soft` for a ghost-like background or `bordered` for a card-like tile.
+Use `nodel-group` when visible text or passive card/panel surfaces should appear with a standalone icon. Use `label` or `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `tone` colours the glyph itself; it does not create a media tile surface.
+
+```html
+<nodel-group label="Logo" surface="card">
+  <nodel-image src="./v2/img/logo.png" fit="contain" shape="rounded" size="lg"></nodel-image>
+</nodel-group>
+
+<nodel-group label="Info" surface="panel" padding="compact">
+  <nodel-icon name="info" tone="info" size="lg"></nodel-icon>
+</nodel-group>
+```
 
 `nodel-status-indicator` supports:
 

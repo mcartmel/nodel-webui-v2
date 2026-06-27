@@ -4,7 +4,6 @@ import { escapeHtml } from '../utils/html';
 type NodelImageFit = 'contain' | 'cover';
 type NodelImageShape = 'none' | 'rounded' | 'circle';
 type NodelImageSize = 'auto' | 'sm' | 'md' | 'lg' | 'xl';
-type NodelImageVariant = 'plain' | 'soft' | 'bordered';
 
 function normalizeFit(value: string | null): NodelImageFit {
   return value === 'cover' ? 'cover' : 'contain';
@@ -18,12 +17,8 @@ function normalizeSize(value: string | null): NodelImageSize {
   return value === 'sm' || value === 'md' || value === 'lg' || value === 'xl' ? value : 'auto';
 }
 
-function normalizeVariant(value: string | null): NodelImageVariant {
-  return value === 'soft' || value === 'bordered' ? value : 'plain';
-}
-
 export class NodelImage extends HTMLElement {
-  static observedAttributes = ['src', 'alt', 'label', 'aria-label', 'aria-labelledby', 'fit', 'shape', 'size', 'variant', 'signal', 'signals'];
+  static observedAttributes = ['src', 'alt', 'label', 'aria-label', 'aria-labelledby', 'fit', 'shape', 'size', 'signal', 'signals'];
 
   private signalBindings = createSignalBindingController(this);
 
@@ -50,7 +45,6 @@ export class NodelImage extends HTMLElement {
     const fit = normalizeFit(this.getAttribute('fit'));
     const shape = normalizeShape(this.getAttribute('shape'));
     const size = normalizeSize(this.getAttribute('size'));
-    const variant = normalizeVariant(this.getAttribute('variant'));
     const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
     const explicitAria = autoAria ? null : this.getAttribute('aria-label');
     const hostLabel = explicitAria ?? label;
@@ -59,7 +53,6 @@ export class NodelImage extends HTMLElement {
     this.dataset.fit = fit;
     this.dataset.shape = shape;
     this.dataset.size = size;
-    this.dataset.variant = variant;
 
     if (this.hasAttribute('aria-labelledby')) {
       this.setAttribute('role', 'img');

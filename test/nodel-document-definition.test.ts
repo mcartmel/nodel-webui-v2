@@ -126,10 +126,10 @@ describe('nodel document definition', () => {
     expect(text?.attributes.find((attribute) => attribute.name === 'size')?.values).toEqual(['xs', 'sm', 'md', 'lg', 'xl']);
 
     const image = nodelDocumentElements.find((element) => element.name === 'nodel-image');
-    expect(image?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['plain', 'soft', 'bordered']);
+    expect(image?.attributes.find((attribute) => attribute.name === 'variant')).toBeUndefined();
 
     const icon = nodelDocumentElements.find((element) => element.name === 'nodel-icon');
-    expect(icon?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['plain', 'soft', 'bordered']);
+    expect(icon?.attributes.find((attribute) => attribute.name === 'variant')).toBeUndefined();
 
     const completions = completeNodelDocument(fakeCompletionContext('<nodel-node-list scope="') as never);
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));

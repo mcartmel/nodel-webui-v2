@@ -1498,19 +1498,7 @@
   }
 
   nodel-image {
-    @apply flex-col gap-2 rounded-control border border-transparent bg-transparent p-3 text-sm font-medium text-nodel-fg;
-  }
-
-  nodel-image[data-variant='soft'] {
-    @apply bg-nodel-border/20;
-    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
-  }
-
-  nodel-image[data-variant='bordered'] {
-    @apply border-nodel-border bg-nodel-surface;
-    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-card, none);
+    @apply flex-col gap-2 bg-transparent text-sm font-medium text-nodel-fg;
   }
 
   .nodel-image-frame {
@@ -1583,19 +1571,7 @@
   }
 
   nodel-icon {
-    @apply flex-col gap-2 rounded-control border border-transparent bg-transparent p-3 text-nodel-fg;
-  }
-
-  nodel-icon[data-variant='soft'] {
-    @apply bg-nodel-border/20;
-    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
-  }
-
-  nodel-icon[data-variant='bordered'] {
-    @apply border-nodel-border bg-nodel-surface;
-    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-card, none);
+    @apply flex-col gap-2 bg-transparent text-nodel-fg;
   }
 
   .nodel-icon-glyph {

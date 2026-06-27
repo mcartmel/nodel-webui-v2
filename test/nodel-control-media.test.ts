@@ -61,7 +61,7 @@ describe('control media components', () => {
     expect(image.dataset.fit).toBe('cover');
     expect(image.dataset.shape).toBe('circle');
     expect(image.dataset.size).toBe('lg');
-    expect(image.dataset.variant).toBe('soft');
+    expect(image.dataset.variant).toBeUndefined();
     expect(image.querySelector('img')?.getAttribute('src')).toBe('one.png');
     expect(image.querySelector('.nodel-image-label')).toBeNull();
     expect(image.getAttribute('aria-label')).toBe('Input');
@@ -81,7 +81,7 @@ describe('control media components', () => {
     expect(icon.dataset.name).toBe('power');
     expect(icon.dataset.tone).toBe('accent');
     expect(icon.dataset.size).toBe('xl');
-    expect(icon.dataset.variant).toBe('bordered');
+    expect(icon.dataset.variant).toBeUndefined();
     expect(icon.getAttribute('aria-label')).toBe('Power');
 
     emitSignal('IconName', 'volume');

@@ -1014,9 +1014,9 @@
                 <nodel-column md="8">
                   <nodel-control-grid columns="2" md="4" data-catalogue-example="media-standalone-media">
                     <nodel-image src="./v2/img/logo.png" alt="Nodel logo" size="lg"></nodel-image>
-                    <nodel-icon name="power" alt="Power" tone="accent" variant="soft"></nodel-icon>
-                    <nodel-group label="Volume">
-                      <nodel-icon name="volume" tone="success" size="lg" variant="bordered"></nodel-icon>
+                    <nodel-icon name="power" alt="Power" tone="accent"></nodel-icon>
+                    <nodel-group label="Volume" surface="panel" padding="compact">
+                      <nodel-icon name="volume" tone="success" size="lg"></nodel-icon>
                     </nodel-group>
                     <nodel-group label="Warning">
                       <nodel-icon name="warning" tone="warning" size="xl"></nodel-icon>
@@ -1028,9 +1028,9 @@
 
             <pre class="nodel-catalogue-code" data-catalogue-code-for="media-standalone-media"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel logo&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
-  &lt;nodel-icon name=&quot;power&quot; alt=&quot;Power&quot; tone=&quot;accent&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
-  &lt;nodel-group label=&quot;Volume&quot;&gt;
-    &lt;nodel-icon name=&quot;volume&quot; tone=&quot;success&quot; size=&quot;lg&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-icon name=&quot;power&quot; alt=&quot;Power&quot; tone=&quot;accent&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-group label=&quot;Volume&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
+    &lt;nodel-icon name=&quot;volume&quot; tone=&quot;success&quot; size=&quot;lg&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;Warning&quot;&gt;
     &lt;nodel-icon name=&quot;warning&quot; tone=&quot;warning&quot; size=&quot;xl&quot;&gt;&lt;/nodel-icon&gt;
@@ -1042,7 +1042,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Image Options</h2>
               <p class="nodel-catalogue-description">
-                Images can use constrained sizes, choose shape, and opt into soft or bordered standalone treatments; visible captions come from <code>nodel-group</code>.
+                Images can use constrained sizes and choose shape. Use <code>nodel-group</code> for visible captions, card surfaces, and panel treatments.
               </p>
             </header>
 
@@ -1050,17 +1050,17 @@
               <nodel-row>
                 <nodel-column md="8">
                   <nodel-control-grid columns="2" md="4" data-catalogue-example="media-image-options">
-                    <nodel-group label="Rounded">
-                      <nodel-image src="./v2/img/logo.png" fit="contain" shape="rounded" variant="bordered" size="lg"></nodel-image>
+                    <nodel-group label="Rounded" surface="card">
+                      <nodel-image src="./v2/img/logo.png" fit="contain" shape="rounded" size="lg"></nodel-image>
                     </nodel-group>
-                    <nodel-group label="Circle">
-                      <nodel-image src="./v2/img/logo.png" fit="cover" shape="circle" variant="soft" size="lg"></nodel-image>
+                    <nodel-group label="Circle" surface="panel" padding="compact">
+                      <nodel-image src="./v2/img/logo.png" fit="cover" shape="circle" size="lg"></nodel-image>
                     </nodel-group>
-                    <nodel-group label="Info">
-                      <nodel-icon name="info" tone="info" variant="soft"></nodel-icon>
+                    <nodel-group label="Info" surface="panel" padding="compact">
+                      <nodel-icon name="info" tone="info"></nodel-icon>
                     </nodel-group>
-                    <nodel-group label="Danger">
-                      <nodel-icon name="warning" tone="danger" variant="bordered"></nodel-icon>
+                    <nodel-group label="Danger" surface="card">
+                      <nodel-icon name="warning" tone="danger"></nodel-icon>
                     </nodel-group>
                   </nodel-control-grid>
                 </nodel-column>
@@ -1068,17 +1068,17 @@
             </div>
 
             <pre class="nodel-catalogue-code" data-catalogue-code-for="media-image-options"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
-  &lt;nodel-group label=&quot;Rounded&quot;&gt;
-    &lt;nodel-image src=&quot;./v2/img/logo.png&quot; fit=&quot;contain&quot; shape=&quot;rounded&quot; variant=&quot;bordered&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;nodel-group label=&quot;Rounded&quot; surface=&quot;card&quot;&gt;
+    &lt;nodel-image src=&quot;./v2/img/logo.png&quot; fit=&quot;contain&quot; shape=&quot;rounded&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;/nodel-group&gt;
-  &lt;nodel-group label=&quot;Circle&quot;&gt;
-    &lt;nodel-image src=&quot;./v2/img/logo.png&quot; fit=&quot;cover&quot; shape=&quot;circle&quot; variant=&quot;soft&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
+  &lt;nodel-group label=&quot;Circle&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
+    &lt;nodel-image src=&quot;./v2/img/logo.png&quot; fit=&quot;cover&quot; shape=&quot;circle&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
   &lt;/nodel-group&gt;
-  &lt;nodel-group label=&quot;Info&quot;&gt;
-    &lt;nodel-icon name=&quot;info&quot; tone=&quot;info&quot; variant=&quot;soft&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-group label=&quot;Info&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
+    &lt;nodel-icon name=&quot;info&quot; tone=&quot;info&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
-  &lt;nodel-group label=&quot;Danger&quot;&gt;
-    &lt;nodel-icon name=&quot;warning&quot; tone=&quot;danger&quot; variant=&quot;bordered&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-group label=&quot;Danger&quot; surface=&quot;card&quot;&gt;
+    &lt;nodel-icon name=&quot;warning&quot; tone=&quot;danger&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>

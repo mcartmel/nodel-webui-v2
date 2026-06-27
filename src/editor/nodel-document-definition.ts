@@ -364,7 +364,6 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'fit', description: 'Image fit mode.', values: ['contain', 'cover'] },
       { name: 'shape', description: 'Image shape.', values: ['none', 'rounded', 'circle'] },
       { name: 'size', description: 'Image size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
-      { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
       { name: 'signal', description: signalBindingDescription('src') },
       { name: 'signals', description: signalsBindingDescription('src, alt, label') }
     ],
@@ -379,7 +378,6 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'alt', description: 'Accessible label without visible text.' },
       { name: 'tone', description: 'Icon tone.', values: ['default', 'muted', 'accent', 'success', 'info', 'warning', 'danger'] },
       { name: 'size', description: 'Icon size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
-      { name: 'variant', description: 'Standalone media treatment.', values: ['plain', 'soft', 'bordered'] },
       { name: 'signal', description: signalBindingDescription('name') },
       { name: 'signals', description: signalsBindingDescription('name, alt, label, tone') }
     ],

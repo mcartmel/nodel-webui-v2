@@ -3,7 +3,6 @@ import { iconForName, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesom
 
 type NodelIconTone = 'default' | 'muted' | 'accent' | 'success' | 'info' | 'warning' | 'danger';
 type NodelIconSize = 'auto' | 'sm' | 'md' | 'lg' | 'xl';
-type NodelIconVariant = 'plain' | 'soft' | 'bordered';
 
 function normalizeTone(value: string | null): NodelIconTone {
   return value === 'muted' || value === 'accent' || value === 'success' || value === 'info' || value === 'warning' || value === 'danger' ? value : 'default';
@@ -13,12 +12,8 @@ function normalizeSize(value: string | null): NodelIconSize {
   return value === 'sm' || value === 'md' || value === 'lg' || value === 'xl' ? value : 'auto';
 }
 
-function normalizeVariant(value: string | null): NodelIconVariant {
-  return value === 'soft' || value === 'bordered' ? value : 'plain';
-}
-
 export class NodelIcon extends HTMLElement {
-  static observedAttributes = ['name', 'label', 'alt', 'aria-label', 'aria-labelledby', 'tone', 'size', 'variant', 'signal', 'signals'];
+  static observedAttributes = ['name', 'label', 'alt', 'aria-label', 'aria-labelledby', 'tone', 'size', 'signal', 'signals'];
 
   private signalBindings = createSignalBindingController(this);
 
@@ -44,7 +39,6 @@ export class NodelIcon extends HTMLElement {
     const alt = this.getAttribute('alt') ?? '';
     const tone = normalizeTone(this.getAttribute('tone'));
     const size = normalizeSize(this.getAttribute('size'));
-    const variant = normalizeVariant(this.getAttribute('variant'));
     const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
     const explicitAria = autoAria ? null : this.getAttribute('aria-label');
     const accessibleLabel = explicitAria || alt || label;
@@ -52,7 +46,6 @@ export class NodelIcon extends HTMLElement {
     this.dataset.name = name;
     this.dataset.tone = tone;
     this.dataset.size = size;
-    this.dataset.variant = variant;
     this.setAttribute('role', accessibleLabel ? 'img' : 'presentation');
     if (this.hasAttribute('aria-labelledby')) {
       this.setAttribute('role', 'img');
