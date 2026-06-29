@@ -399,6 +399,24 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-status-indicator signal="${}" label="Status"></nodel-status-indicator>'
   },
   {
+    name: 'nodel-status',
+    description: 'Signal-driven status block with group-like surfaces and flexible state mapping.',
+    attributes: [
+      { name: 'label', description: 'Visible status title and group accessible label.' },
+      { name: 'value', description: 'Raw status value used for message text and state inference.' },
+      { name: 'state', description: 'Explicit normalized state or inferable state text.', values: ['unknown', 'success', 'info', 'warning', 'danger', 'muted'] },
+      { name: 'level', description: 'V1-style numeric status level. 0=success, 1=warning, 2-4=danger, 5=info.' },
+      { name: 'message', description: 'Explicit visible status message.' },
+      { name: 'state-map', description: 'Custom value-to-state map, e.g. ready:success; standby:muted; fault:danger.' },
+      { name: 'surface', description: 'Status block surface.', values: ['card', 'panel', 'none'] },
+      { name: 'padding', description: 'Status block interior padding.', values: ['default', 'compact', 'none'] },
+      { name: 'tone', description: 'Status block emphasis.', values: ['soft', 'outline', 'solid'] },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, state, level, message, label') }
+    ],
+    snippet: '<nodel-status label="Projector" signal="ProjectorStatus">\n  ${}\n</nodel-status>'
+  },
+  {
     name: 'nodel-collapse',
     description: 'Collapsible section, closed by default.',
     attributes: [

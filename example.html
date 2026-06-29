@@ -307,7 +307,7 @@
                       <nodel-button variant="primary">Primary action</nodel-button>
                     </nodel-group>
                     <nodel-group label="Panel Compact" surface="panel" padding="compact">
-                      <nodel-readout value="Ready" variant="success"></nodel-readout>
+                      <nodel-readout value="Ready"></nodel-readout>
                     </nodel-group>
                     <nodel-group label="No Surface" surface="none" padding="none">
                       <nodel-button tone="outline">Outline action</nodel-button>
@@ -322,7 +322,7 @@
     &lt;nodel-button variant=&quot;primary&quot;&gt;Primary action&lt;/nodel-button&gt;
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;Panel Compact&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
-    &lt;nodel-readout value=&quot;Ready&quot; variant=&quot;success&quot;&gt;&lt;/nodel-readout&gt;
+    &lt;nodel-readout value=&quot;Ready&quot;&gt;&lt;/nodel-readout&gt;
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;No Surface&quot; surface=&quot;none&quot; padding=&quot;none&quot;&gt;
     &lt;nodel-button tone=&quot;outline&quot;&gt;Outline action&lt;/nodel-button&gt;
@@ -380,6 +380,8 @@
             <p class="nodel-catalogue-description">
               Use <code>nodel-template</code> with a native <code>&lt;template&gt;</code> child to render repeated controls from one inert source block.
               Placeholders are replaced in text and attributes, so action and signal names can be generated consistently.
+              Built-in placeholders include <code>{{name}}</code>, <code>{{number}}</code>, <code>{{index}}</code>, <code>{{repeat}}</code>, and <code>{{item}}</code>, where <code>{{item}}</code> is <code>{{name}}{{number}}</code>.
+              Custom <code>data-*</code> attributes are also available as placeholders, for example <code>data-action-prefix</code> becomes <code>{{actionPrefix}}</code>.
             </p>
           </header>
 
@@ -1109,6 +1111,45 @@
   &lt;nodel-button&gt;Muted Off &lt;nodel-status-indicator value=&quot;absent&quot; off-tone=&quot;muted&quot; label=&quot;Absent&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Fault &lt;nodel-status-indicator value=&quot;fault&quot; on-value=&quot;fault&quot; tone=&quot;danger&quot; label=&quot;Fault&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Signal &lt;nodel-status-indicator signal=&quot;DeviceOnline&quot; label=&quot;Device online&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Status Blocks</h2>
+              <p class="nodel-catalogue-description">
+                Use <code>nodel-status</code> when the surrounding block represents equipment, area, or service state. These examples show the default soft tone, solid tone, and outline tone.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples">
+              <nodel-row>
+                <nodel-column md="10">
+                  <nodel-control-grid columns="1" md="3" data-catalogue-example="media-status-blocks">
+                    <nodel-status label="Projector" value="ready">
+                      <nodel-button action="ProjectorPowerCycle">Power cycle</nodel-button>
+                    </nodel-status>
+                    <nodel-status label="Amplifier" value="warming" state-map="standby:muted; warming:info; ready:success; protect:danger" tone="solid">
+                      <nodel-readout value="Warming"></nodel-readout>
+                    </nodel-status>
+                    <nodel-status label="Network" signals="NetworkStatus.level:level; NetworkStatus.message:message" level="1" message="Packet loss warning" tone="outline">
+                      <nodel-button action="RestartNetwork" tone="outline">Restart</nodel-button>
+                    </nodel-status>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-status-blocks"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;3&quot;&gt;
+  &lt;nodel-status label=&quot;Projector&quot; value=&quot;ready&quot;&gt;
+    &lt;nodel-button action=&quot;ProjectorPowerCycle&quot;&gt;Power cycle&lt;/nodel-button&gt;
+  &lt;/nodel-status&gt;
+  &lt;nodel-status label=&quot;Amplifier&quot; value=&quot;warming&quot; state-map=&quot;standby:muted; warming:info; ready:success; protect:danger&quot; tone=&quot;solid&quot;&gt;
+    &lt;nodel-readout value=&quot;Warming&quot;&gt;&lt;/nodel-readout&gt;
+  &lt;/nodel-status&gt;
+  &lt;nodel-status label=&quot;Network&quot; signals=&quot;NetworkStatus.level:level; NetworkStatus.message:message&quot; level=&quot;1&quot; message=&quot;Packet loss warning&quot; tone=&quot;outline&quot;&gt;
+    &lt;nodel-button action=&quot;RestartNetwork&quot; tone=&quot;outline&quot;&gt;Restart&lt;/nodel-button&gt;
+  &lt;/nodel-status&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
         </nodel-page>

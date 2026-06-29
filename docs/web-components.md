@@ -37,6 +37,7 @@ Examples:
 - `nodel-image`
 - `nodel-icon`
 - `nodel-status-indicator`
+- `nodel-status`
 - `nodel-collapse`
 - `nodel-description`
 - `nodel-title`
@@ -266,7 +267,7 @@ Supported `nodel-group` attributes:
     <nodel-button variant="primary">Primary action</nodel-button>
   </nodel-group>
   <nodel-group label="Panel Compact" surface="panel" padding="compact">
-    <nodel-readout value="Ready" variant="success"></nodel-readout>
+    <nodel-readout value="Ready"></nodel-readout>
   </nodel-group>
   <nodel-group label="No Surface" surface="none" padding="none">
     <nodel-button tone="outline">Outline action</nodel-button>
@@ -670,6 +671,47 @@ Use `nodel-group` when visible text or passive card/panel surfaces should appear
   <nodel-icon name="info" tone="info" size="lg"></nodel-icon>
 </nodel-group>
 ```
+
+`nodel-status` renders a stateful status block for equipment, areas, services, or other runtime health/state summaries. It is intentionally separate from `nodel-group`: use `nodel-group` for passive labelled surfaces, and `nodel-status` when the surrounding block itself represents a status. It preserves arbitrary child content such as buttons, images, text, and nested grids.
+
+Supported attributes:
+
+- `label`: visible status title and group accessible label.
+- `signal="SignalName"` as shorthand for `value`.
+- `signals="SignalName:target"` with targets `value`, `state`, `level`, `message`, and `label`.
+- `value`: raw status value used for state inference and auto message text.
+- `state="unknown|success|info|warning|danger|muted"`.
+- `level`: v1-style numeric level. `0` is success, `1` is warning, `2`-`4` are danger, and `5` is info.
+- `message`: explicit visible status message.
+- `state-map="value:state; other:state"`: case-insensitive exact value mapping for local state words.
+- `surface="card|panel|none"`: group-like surface. Defaults to `card`.
+- `padding="default|compact|none"`: group-like interior padding. Defaults to `default`.
+- `tone="soft|outline|solid"`: status emphasis. Defaults to `soft`.
+
+State inference is conservative. Obvious values such as `ready`, `online`, `ok`, `true`, and `1` map to `success`; `offline`, `inactive`, `false`, and `0` map to `muted`; `warning` maps to `warning`; `fault`, `error`, and `alarm` map to `danger`; unmatched values remain `unknown`. Use `state-map` for local semantics such as `standby`.
+
+The logical states are `unknown`, `muted`, `danger`, `warning`, `info`, and `success`. The visual status scale uses five vertical pills arranged horizontally for `muted`, `danger`, `warning`, `info`, and `success`, with `success` as the rightmost green OK position; `unknown` leaves the scale inactive.
+
+```html
+<nodel-status label="Projector" signal="ProjectorState">
+  <nodel-button action="ProjectorPowerCycle">Power cycle</nodel-button>
+</nodel-status>
+
+<nodel-status
+  label="Amplifier"
+  signal="AmpMode"
+  state-map="standby:muted; warming:info; ready:success; protect:danger">
+  <nodel-readout signal="AmpTemp" suffix="C"></nodel-readout>
+</nodel-status>
+
+<nodel-status
+  label="Network"
+  signals="NetworkStatus.level:level; NetworkStatus.message:message">
+  <nodel-button action="RestartNetwork">Restart</nodel-button>
+</nodel-status>
+```
+
+Whole `signal` values that are JSON objects with v1-style `level` and optional `message` fields are also understood, but explicit path bindings are preferred for structured status values.
 
 `nodel-status-indicator` supports:
 
