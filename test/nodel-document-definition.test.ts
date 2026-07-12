@@ -145,12 +145,10 @@ describe('nodel document definition', () => {
     expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
   });
 
-  it('includes the node menu in the default node UI only', async () => {
+  it('includes the node menu in the default node UI', async () => {
     const nodeUi = await readFile(resolve(process.cwd(), 'nodel.html'), 'utf8');
-    const elementsUi = await readFile(resolve(process.cwd(), 'elements.html'), 'utf8');
 
     expect(nodeUi).toContain('<nodel-node-menu></nodel-node-menu>');
-    expect(elementsUi).not.toContain('<nodel-node-menu');
   });
 
   it('keeps the toolkit reference on a standalone page', async () => {
@@ -169,8 +167,8 @@ describe('nodel document definition', () => {
     expect(nodesUi).toContain('<nodel-diagnostic-charts></nodel-diagnostic-charts>');
   });
 
-  it('keeps the component example document covering the public components', async () => {
-    const exampleUi = await readFile(resolve(process.cwd(), 'example.html'), 'utf8');
+  it('keeps the component catalogue covering the public components', async () => {
+    const componentsUi = await readFile(resolve(process.cwd(), 'components.html'), 'utf8');
     const expectedComponents = [
       'nodel-app',
       'nodel-toolbar',
@@ -203,7 +201,7 @@ describe('nodel document definition', () => {
     ];
 
     for (const component of expectedComponents) {
-      expect(exampleUi).toContain(`<${component}`);
+      expect(componentsUi).toContain(`<${component}`);
     }
 
     const runtimeComponents = [
@@ -226,15 +224,15 @@ describe('nodel document definition', () => {
     ];
 
     for (const component of runtimeComponents) {
-      expect(exampleUi).not.toContain(`<${component}`);
-      expect(exampleUi).not.toContain(`&lt;${component}`);
+      expect(componentsUi).not.toContain(`<${component}`);
+      expect(componentsUi).not.toContain(`&lt;${component}`);
     }
   });
 
   it('keeps marked catalogue examples matched to their code snippets', async () => {
-    const exampleUi = await readFile(resolve(process.cwd(), 'example.html'), 'utf8');
+    const componentsUi = await readFile(resolve(process.cwd(), 'components.html'), 'utf8');
     const template = document.createElement('template');
-    template.innerHTML = exampleUi;
+    template.innerHTML = componentsUi;
     const examples = Array.from(template.content.querySelectorAll('[data-catalogue-example]'));
     const codeElements = Array.from(template.content.querySelectorAll<HTMLElement>('pre.nodel-catalogue-code'));
     const codeIds = codeElements.map((code) => code.dataset.catalogueCodeFor ?? '');

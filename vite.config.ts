@@ -32,8 +32,7 @@ export default defineConfig({
     cssCodeSplit: false,
     rollupOptions: {
       input: {
-        elements: resolve(projectRoot, 'elements.html'),
-        example: resolve(projectRoot, 'example.html'),
+        components: resolve(projectRoot, 'components.html'),
         nodes: resolve(projectRoot, 'nodes.html'),
         nodel: resolve(projectRoot, 'nodel.html'),
         toolkit: resolve(projectRoot, 'toolkit.html')

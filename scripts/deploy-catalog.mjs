@@ -7,7 +7,7 @@ const projectRoot = resolve(moduleRoot, '..');
 
 function parseArgs(argv) {
   const result = {
-    page: 'example.html',
+    page: 'components.html',
     source: resolve(projectRoot, 'dist'),
     target: '/opt/nodel/nodes/Nodel Components Catalog/content'
   };

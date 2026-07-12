@@ -89,7 +89,7 @@ The deploy script follows the v1 convention of a root page plus versioned suppor
 Both deployment commands write:
 
 - `index.htm` into the target content root as the non-visual redirector.
-- visual pages such as `nodes.html`, `nodel.html`, and `elements.html` into the target content root.
+- visual pages such as `nodes.html`, `nodel.html`, `toolkit.html`, and the user-facing `components.html` catalogue into the target content root.
 - built JavaScript and CSS under the `v2/` support folder in that same target.
 
 This lets the custom content root override the built-in default document and visual pages for testing without replacing the built-in v1 support files. The support folder can be changed with `--support-subdir`, but `v2` is the default convention for this UI.

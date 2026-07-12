@@ -46,7 +46,7 @@ npm run deploy
 
 The production deploy command clears its target before copying the built site. Use `--target` through `scripts/deploy.mjs` when deploying elsewhere.
 
-Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for implementation and authoring details.
+Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths. The built `components.html` page is the user-facing catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
 
 ## License
 
