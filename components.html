@@ -353,16 +353,19 @@
                     <button class="nodel-button" data-boundary-control="button">Button</button>
                     <input class="nodel-field" data-boundary-control="field" value="Field" />
                     <button class="nodel-list-item" data-boundary-control="list-item">List item</button>
-                    <button class="nodel-select-trigger" data-boundary-control="select-trigger">Select</button>
+                    <nodel-select value="One" data-boundary-control="select">
+                      <nodel-button value="One">One</nodel-button>
+                      <nodel-button value="Two">Two</nodel-button>
+                    </nodel-select>
                   </div>
                 </section>
                 <section class="nodel-card space-y-3 p-5" data-boundary-surface="card">
                   <h3 class="text-sm font-semibold text-nodel-fg">Card</h3>
-                  <div class="grid gap-2">
-                    <button class="nodel-stepper-button" data-boundary-control="stepper">Step</button>
-                    <button class="nodel-pad-button" data-boundary-control="pad">Pad</button>
-                    <button class="nodel-fader-nudge" data-boundary-control="fader-nudge" aria-label="Nudge">+</button>
-                    <button class="nodel-theme-toggle-button" data-boundary-control="theme-switch">Theme</button>
+                  <div class="grid gap-3 md:grid-cols-2">
+                    <nodel-stepper value="1" data-boundary-control="stepper"></nodel-stepper>
+                    <nodel-pad center="show" data-boundary-control="pad"></nodel-pad>
+                    <nodel-fader orientation="horizontal" value="50" increment nudge="10" data-boundary-control="fader"></nodel-fader>
+                    <nodel-theme-toggle data-boundary-control="theme-toggle"></nodel-theme-toggle>
                   </div>
                 </section>
                 <section class="nodel-panel space-y-3 p-5" data-boundary-surface="panel">
@@ -388,16 +391,19 @@
       &lt;button class=&quot;nodel-button&quot; data-boundary-control=&quot;button&quot;&gt;Button&lt;/button&gt;
       &lt;input class=&quot;nodel-field&quot; data-boundary-control=&quot;field&quot; value=&quot;Field&quot; /&gt;
       &lt;button class=&quot;nodel-list-item&quot; data-boundary-control=&quot;list-item&quot;&gt;List item&lt;/button&gt;
-      &lt;button class=&quot;nodel-select-trigger&quot; data-boundary-control=&quot;select-trigger&quot;&gt;Select&lt;/button&gt;
+      &lt;nodel-select value=&quot;One&quot; data-boundary-control=&quot;select&quot;&gt;
+        &lt;nodel-button value=&quot;One&quot;&gt;One&lt;/nodel-button&gt;
+        &lt;nodel-button value=&quot;Two&quot;&gt;Two&lt;/nodel-button&gt;
+      &lt;/nodel-select&gt;
     &lt;/div&gt;
   &lt;/section&gt;
   &lt;section class=&quot;nodel-card space-y-3 p-5&quot; data-boundary-surface=&quot;card&quot;&gt;
     &lt;h3 class=&quot;text-sm font-semibold text-nodel-fg&quot;&gt;Card&lt;/h3&gt;
-    &lt;div class=&quot;grid gap-2&quot;&gt;
-      &lt;button class=&quot;nodel-stepper-button&quot; data-boundary-control=&quot;stepper&quot;&gt;Step&lt;/button&gt;
-      &lt;button class=&quot;nodel-pad-button&quot; data-boundary-control=&quot;pad&quot;&gt;Pad&lt;/button&gt;
-      &lt;button class=&quot;nodel-fader-nudge&quot; data-boundary-control=&quot;fader-nudge&quot; aria-label=&quot;Nudge&quot;&gt;+&lt;/button&gt;
-      &lt;button class=&quot;nodel-theme-toggle-button&quot; data-boundary-control=&quot;theme-switch&quot;&gt;Theme&lt;/button&gt;
+    &lt;div class=&quot;grid gap-3 md:grid-cols-2&quot;&gt;
+      &lt;nodel-stepper value=&quot;1&quot; data-boundary-control=&quot;stepper&quot;&gt;&lt;/nodel-stepper&gt;
+      &lt;nodel-pad center=&quot;show&quot; data-boundary-control=&quot;pad&quot;&gt;&lt;/nodel-pad&gt;
+      &lt;nodel-fader orientation=&quot;horizontal&quot; value=&quot;50&quot; increment nudge=&quot;10&quot; data-boundary-control=&quot;fader&quot;&gt;&lt;/nodel-fader&gt;
+      &lt;nodel-theme-toggle data-boundary-control=&quot;theme-toggle&quot;&gt;&lt;/nodel-theme-toggle&gt;
     &lt;/div&gt;
   &lt;/section&gt;
   &lt;section class=&quot;nodel-panel space-y-3 p-5&quot; data-boundary-surface=&quot;panel&quot;&gt;

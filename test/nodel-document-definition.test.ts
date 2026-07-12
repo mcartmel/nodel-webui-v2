@@ -204,6 +204,20 @@ describe('nodel document definition', () => {
       expect(componentsUi).toContain(`<${component}`);
     }
 
+    const internalControlClasses = [
+      'nodel-select-trigger',
+      'nodel-stepper-button',
+      'nodel-pad-button',
+      'nodel-fader-nudge',
+      'nodel-theme-toggle-button',
+      'nodel-theme-switch'
+    ];
+
+    for (const className of internalControlClasses) {
+      expect(componentsUi).not.toContain(`class="${className}`);
+      expect(componentsUi).not.toContain(`class=&quot;${className}`);
+    }
+
     const runtimeComponents = [
       'nodel-node-list',
       'nodel-add-node',
