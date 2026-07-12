@@ -2,7 +2,7 @@
 
 ## Scope
 
-- This guidance applies to the `nodel-webui-ts` subproject.
+- This guidance applies to the `nodel-webui-v2` project.
 - Treat `docs/architecture.md` and `docs/web-components.md` as the canonical human-facing design guidance.
 
 ## Web Component Markup

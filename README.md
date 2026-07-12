@@ -1,0 +1,53 @@
+# Nodel Web UI v2
+
+Nodel Web UI v2 is the next-generation browser interface for [Nodel](https://github.com/museumsvictoria/nodel). It replaces the legacy `nodel-webui-js` interface with a TypeScript, Vite, Tailwind CSS, JsViews, and custom-elements implementation.
+
+The project is under active development. It remains Nodel-specific: host pages call Nodel REST endpoints, and node pages expect to be served beneath `/nodes/<node>/`.
+
+## Requirements
+
+- Node.js 20.12 or later in the Node 20 release line
+- npm
+- A Nodel host for testing host and node API behavior
+
+## Development
+
+```sh
+npm ci
+npm run dev
+```
+
+The Vite development server exposes the source page entries. Features that call Nodel APIs require a compatible host and routing context.
+
+## Validation
+
+```sh
+npm run typecheck
+npm run check:jsviews
+npm test
+npm run build
+```
+
+`npm run build` runs all validation steps before writing the production site to `dist/`.
+
+## Deployment
+
+Create a local deployment preview without changing a running Nodel host:
+
+```sh
+npm run deploy:preview
+```
+
+The preview is written to `build/deploy-preview/`. Production deployment defaults to `/opt/nodel/custom/content/`:
+
+```sh
+npm run deploy
+```
+
+The production deploy command clears its target before copying the built site. Use `--target` through `scripts/deploy.mjs` when deploying elsewhere.
+
+Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for implementation and authoring details.
+
+## License
+
+Nodel Web UI v2 is licensed under the [Mozilla Public License 2.0](LICENSE).

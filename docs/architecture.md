@@ -2,7 +2,7 @@
 
 ## Scope
 
-`nodel-webui-ts` is the new UI. `nodel-webui-js` is v1 and is reference-only for future work.
+`nodel-webui-v2` is the new UI. `nodel-webui-js` is v1 and is reference-only for future work.
 
 Do not modify v1 code for new UI work. Legacy-loader remains the compatibility path for old pages and XML/custom UI content.
 
@@ -82,7 +82,7 @@ Vite source pages may reference `/src/main.ts` during local dev. Built/deployed 
 
 The deploy script follows the v1 convention of a root page plus versioned support files.
 
-`npm run deploy:preview` writes the same structure inside the project at `nodel-webui-ts/build/deploy-preview/`. Use this for local smoke tests that should not touch a running Nodel content directory.
+`npm run deploy:preview` writes the same structure inside the project at `build/deploy-preview/`. Use this for local smoke tests that should not touch a running Nodel content directory.
 
 `npm run deploy` writes to the Nodel custom content root, defaulting to `/opt/nodel/custom/content/`.
 
