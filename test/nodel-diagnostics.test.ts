@@ -68,6 +68,7 @@ describe('nodel-diagnostics', () => {
       'https://example.com/nodel/tree/main',
       'https://example.com/nodel/commit/abc123'
     ]));
+    expect(Array.from(links).every((link) => link.classList.contains('nodel-link'))).toBe(true);
   });
 
   it('renders diagnostics when build metadata is unavailable', async () => {

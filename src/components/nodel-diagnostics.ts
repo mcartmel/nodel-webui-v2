@@ -79,7 +79,7 @@ function buildRelease(build: NodelBuildInfo | null) {
     return 'Unavailable';
   }
 
-  return `Open-source build <a href="/build.json"><strong>${escapeHtml(build.version)}</strong></a>`;
+  return `Open-source build <a class="nodel-link" href="/build.json"><strong>${escapeHtml(build.version)}</strong></a>`;
 }
 
 function buildLinks(build: NodelBuildInfo | null) {
@@ -93,7 +93,7 @@ function buildLinks(build: NodelBuildInfo | null) {
   const buildDate = build.date ? escapeHtml(formatDateTime(build.date)) : 'Unavailable';
   const host = build.host ? escapeHtml(build.host) : 'Unavailable';
 
-  return `Built ${buildDate} on ${host}<br />Origin <a href="${origin}">${origin}</a><br />Branch <a href="${origin}/tree/${branch}">${branch}</a>${id ? `, last commit <a href="${origin}/commit/${id}">${id}</a>` : ''}`;
+  return `Built ${buildDate} on ${host}<br />Origin <a class="nodel-link" href="${origin}">${origin}</a><br />Branch <a class="nodel-link" href="${origin}/tree/${branch}">${branch}</a>${id ? `, last commit <a class="nodel-link" href="${origin}/commit/${id}">${id}</a>` : ''}`;
 }
 
 export class NodelDiagnostics extends HTMLElement {

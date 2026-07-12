@@ -75,7 +75,7 @@ const template = `
                   {^{for recipeResults}}
                     <li>
                       <button type="button" class="nodel-menu-item" data-template-result-index="{{:index}}">
-                        {^{>primary}}<br><span>{^{>secondary}}</span>
+                        {^{>primary}}<br><span class="nodel-add-node-result-secondary">{^{>secondary}}</span>
                       </button>
                     </li>
                   {{/for}}
@@ -85,7 +85,7 @@ const template = `
                   {^{for nodeResults}}
                     <li>
                       <button type="button" class="nodel-menu-item" data-template-result-index="{{:index}}">
-                        {^{>primary}}<br><span>{^{>secondary}}</span>
+                        {^{>primary}}<br><span class="nodel-add-node-result-secondary">{^{>secondary}}</span>
                       </button>
                     </li>
                   {{/for}}

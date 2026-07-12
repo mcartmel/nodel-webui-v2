@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 const activityMock = vi.hoisted(() => ({
   listeners: [] as Array<(state: any) => void>,
   dispose: vi.fn()
@@ -68,6 +71,14 @@ describe('nodel-readout', () => {
     expect(readout.getAttribute('role')).toBe('meter');
     expect(readout.getAttribute('aria-label')).toBe('Brightness: 75%');
     expect(readout.getAttribute('aria-valuenow')).toBe('75');
+  });
+
+  it('keeps a local-surface ring fallback when CSS masks are unavailable', async () => {
+    const styles = await readFile(resolve(process.cwd(), 'src/styles.css'), 'utf8');
+
+    expect(styles).toContain("nodel-readout[data-visual='ring'] .nodel-readout-visual::after");
+    expect(styles).toContain('background: rgb(var(--nodel-surface));');
+    expect(styles).toContain('@supports ((mask: radial-gradient');
   });
 
   it('updates value, label, variant, suffix, and prefix from signals', async () => {

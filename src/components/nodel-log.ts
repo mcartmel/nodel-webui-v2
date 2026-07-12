@@ -24,6 +24,8 @@ interface ActivityRowView {
 }
 
 interface LogViewModel {
+  empty: boolean;
+  emptyLabel: string;
   filter: string;
   hold: boolean;
   limit: RowLimit;
@@ -37,11 +39,11 @@ const template = `
     <div class="nodel-log-panel">
       <div class="nodel-log-toolbar">
         <label class="block min-w-0 text-sm font-medium text-nodel-fg">
-          <input data-log-filter class="nodel-field w-full" type="search" placeholder="Alias" data-link="filter trigger=true" />
+          <input data-log-filter class="nodel-field w-full" type="search" placeholder="Filter activity" data-link="filter trigger=true" />
         </label>
         <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm text-nodel-muted md:justify-end">
           <label class="inline-flex shrink-0 items-center gap-2">
-            <input data-log-hold type="checkbox" data-link="hold" />
+            <input class="nodel-choice" data-log-hold type="checkbox" data-link="hold" />
             Hold
           </label>
           <label class="inline-flex shrink-0 items-center gap-2">
@@ -56,20 +58,24 @@ const template = `
         </div>
       </div>
       <div data-log-output class="nodel-log-output space-y-1">
-        {^{for visibleRows}}
-          <div data-link="class{:rowClass} data-log-source{:source} data-log-type{:type}">
-            <span data-link="class{:iconClass} data-log-source{:source} data-log-type{:type}" aria-hidden="true">{^{:iconMarkup}}</span>
-            <span class="nodel-log-main">
-              <span class="nodel-log-titleline">
-                <span class="nodel-log-alias">{^{>alias}}</span>
-                <span class="nodel-log-time"> - {^{>displayTime}}</span>
+        {^{if empty}}
+          <div class="nodel-log-empty text-sm text-nodel-muted" role="status">{^{>emptyLabel}}</div>
+        {{else}}
+          {^{for visibleRows}}
+            <div data-link="class{:rowClass} data-log-source{:source} data-log-type{:type}">
+              <span data-link="class{:iconClass} data-log-source{:source} data-log-type{:type}" aria-hidden="true">{^{:iconMarkup}}</span>
+              <span class="nodel-log-main">
+                <span class="nodel-log-titleline">
+                  <span class="nodel-log-alias">{^{>alias}}</span>
+                  <span class="nodel-log-time"> - {^{>displayTime}}</span>
+                </span>
+                {^{if showArg}}
+                  <span data-link="class{:highlightArg ? 'nodel-log-arg is-highlighted' : 'nodel-log-arg'}">{^{:argMarkup}}</span>
+                {{/if}}
               </span>
-              {^{if showArg}}
-                <span data-link="class{:highlightArg ? 'nodel-log-arg is-highlighted' : 'nodel-log-arg'}">{^{:argMarkup}}</span>
-              {{/if}}
-            </span>
-          </div>
-        {{/for}}
+            </div>
+          {{/for}}
+        {{/if}}
       </div>
     </div>
   </div>
@@ -145,6 +151,8 @@ export class NodelLog extends HTMLElement {
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private linked = false;
   private state: LogViewModel = {
+    empty: false,
+    emptyLabel: 'No activity entries yet.',
     filter: '',
     hold: false,
     limit: '10',
@@ -219,6 +227,7 @@ export class NodelLog extends HTMLElement {
       statusLabel: label,
       statusState
     });
+    this.syncEmptyState(statusState);
     this.dataset.state = statusState;
     this.setAttribute('aria-label', label);
     this.title = label;
@@ -345,7 +354,18 @@ export class NodelLog extends HTMLElement {
       this.updateRow(row, row.entry, row.pulse);
     }
 
-    getJQuery().observable(this.state.visibleRows).refresh(this.visibleRows());
+    const visibleRows = this.visibleRows();
+    getJQuery().observable(this.state.visibleRows).refresh(visibleRows);
+    this.syncEmptyState(this.state.statusState, visibleRows);
+  }
+
+  private syncEmptyState(statusState: LogViewModel['statusState'], visibleRows = this.visibleRows()) {
+    const filter = this.state.filter.trim();
+    const empty = statusState !== 'loading' && statusState !== 'error' && visibleRows.length === 0;
+    getJQuery().observable(this.state).setProperty({
+      empty,
+      emptyLabel: filter ? 'No activity matches this filter.' : 'No activity entries yet.'
+    });
   }
 }
 

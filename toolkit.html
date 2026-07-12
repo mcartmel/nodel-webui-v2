@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toolkit</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = root.dataset.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            const stored = window.localStorage.getItem('nodel.theme');
+            theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+          } catch {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        root.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -12,7 +32,8 @@
       <nodel-toolbar title="Toolkit" icon-src="./v2/img/logo.png">
         <nodel-theme-toggle></nodel-theme-toggle>
       </nodel-toolbar>
-      <main class="nodel-shell space-y-6 pb-6 pt-1">
+      <main class="nodel-shell space-y-6 pb-6 pt-6">
+        <nodel-title level="1">Toolkit</nodel-title>
         <nodel-row>
           <nodel-column>
             <nodel-toolkit></nodel-toolkit>

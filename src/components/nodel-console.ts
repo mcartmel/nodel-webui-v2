@@ -13,6 +13,7 @@ interface ConsoleEntryView {
 
 interface ConsoleViewModel {
   commandText: string;
+  empty: boolean;
   entries: ConsoleEntryView[];
   statusLabel: string;
   statusState: 'loading' | 'active' | 'paused' | 'error';
@@ -22,12 +23,16 @@ const template = `
   <div class="nodel-console relative space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
     <div class="nodel-console-frame nodel-card">
       <div data-console-output class="nodel-console-output h-full overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg">
-        {^{for entries}}
-          <div data-link="class{:lineClass}">
-            <span class="nodel-console-timestamp">{^{>displayTime}}</span>
-            <span class="nodel-console-comment">{^{>comment}}</span>
-          </div>
-        {{/for}}
+        {^{if empty}}
+          <div class="nodel-console-empty text-nodel-muted" role="status">No console output yet.</div>
+        {{else}}
+          {^{for entries}}
+            <div data-link="class{:lineClass}">
+              <span class="nodel-console-timestamp">{^{>displayTime}}</span>
+              <span class="nodel-console-comment">{^{>comment}}</span>
+            </div>
+          {{/for}}
+        {{/if}}
       </div>
     </div>
     <div class="space-y-2">
@@ -64,6 +69,7 @@ export class NodelConsole extends HTMLElement {
   private source: ReturnType<typeof subscribeNodeConsole> | null = null;
   private state: ConsoleViewModel = {
     commandText: '',
+    empty: false,
     entries: [],
     statusLabel: 'Loading console history',
     statusState: 'loading'
@@ -126,6 +132,7 @@ export class NodelConsole extends HTMLElement {
       statusLabel: label,
       statusState
     });
+    this.syncEmptyState(statusState);
     this.dataset.state = statusState;
     this.setAttribute('aria-label', label);
     this.title = label;
@@ -139,6 +146,7 @@ export class NodelConsole extends HTMLElement {
     const $ = getJQuery();
 
     $.observable(this.state.entries).refresh(nextEntries);
+    this.syncEmptyState(this.state.statusState, nextEntries);
     this.emitCollapsePreview(nextEntries[nextEntries.length - 1]);
 
     if (shouldScroll && output) {
@@ -158,6 +166,13 @@ export class NodelConsole extends HTMLElement {
         text: consolePreviewText(entry)
       }
     }));
+  }
+
+  private syncEmptyState(statusState: ConsoleViewModel['statusState'], entries = this.state.entries) {
+    getJQuery().observable(this.state).setProperty(
+      'empty',
+      statusState !== 'loading' && statusState !== 'error' && entries.length === 0
+    );
   }
 
   private handleKeydownEvent = (event: Event) => {

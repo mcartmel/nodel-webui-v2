@@ -124,7 +124,7 @@ const template = `
         {{/if}}
         {^{if hasSignals}}
           <label class="inline-flex items-center gap-2 text-sm text-nodel-muted">
-            <input type="checkbox" data-actsig-override data-link="overrideSignals" />
+            <input class="nodel-choice" type="checkbox" data-actsig-override data-link="overrideSignals" />
             Override signals
           </label>
         {{/if}}

@@ -187,7 +187,7 @@ const template = `
                       {^{for visibleRows}}
                         <div class="nodel-bindings-row" role="row" data-link="data-bindings-row-id{:id}">
                           <label class="inline-flex h-8 items-center justify-center">
-                            <input type="checkbox" data-bindings-row-select data-link="selected" aria-label="Select binding" />
+                            <input class="nodel-choice" type="checkbox" data-bindings-row-select data-link="selected" aria-label="Select binding" />
                           </label>
                           <span class="nodel-bindings-status" data-link="class{:statusClass}">{^{>status}}</span>
                           <span class="min-w-0">

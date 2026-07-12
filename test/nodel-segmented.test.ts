@@ -118,6 +118,54 @@ describe('nodel-segmented', () => {
     expect(option.getAttribute('tone')).toBe('outline');
   });
 
+  it('removes group styling from an option that is no longer active', async () => {
+    document.body.innerHTML = `
+      <nodel-segmented value="Auto" variant="warning" tone="outline">
+        <nodel-button value="Auto">Auto</nodel-button>
+        <nodel-button value="Manual">Manual</nodel-button>
+      </nodel-segmented>
+    `;
+    await customElements.whenDefined('nodel-segmented');
+    await flush();
+
+    const host = document.querySelector('nodel-segmented') as HTMLElement;
+    const [auto, manual] = Array.from(document.querySelectorAll('nodel-button')) as HTMLElement[];
+    expect(auto.getAttribute('variant')).toBe('warning');
+    expect(auto.getAttribute('tone')).toBe('outline');
+
+    host.setAttribute('value', 'Manual');
+    await flush();
+
+    expect(auto.hasAttribute('active')).toBe(false);
+    expect(auto.hasAttribute('variant')).toBe(false);
+    expect(auto.hasAttribute('tone')).toBe(false);
+    expect(manual.hasAttribute('active')).toBe(true);
+    expect(manual.getAttribute('variant')).toBe('warning');
+    expect(manual.getAttribute('tone')).toBe('outline');
+  });
+
+  it('preserves an explicit option variant and tone after selection changes', async () => {
+    document.body.innerHTML = `
+      <nodel-segmented value="Auto" variant="warning" tone="outline">
+        <nodel-button value="Auto">Auto</nodel-button>
+        <nodel-button value="Manual" variant="info" tone="soft">Manual</nodel-button>
+      </nodel-segmented>
+    `;
+    await customElements.whenDefined('nodel-segmented');
+    await flush();
+
+    const host = document.querySelector('nodel-segmented') as HTMLElement;
+    const [, manual] = Array.from(document.querySelectorAll('nodel-button')) as HTMLElement[];
+    host.setAttribute('value', 'Manual');
+    await flush();
+    host.setAttribute('value', 'Auto');
+    await flush();
+
+    expect(manual.hasAttribute('active')).toBe(false);
+    expect(manual.getAttribute('variant')).toBe('info');
+    expect(manual.getAttribute('tone')).toBe('soft');
+  });
+
   it('supports allow-deselect without an action', async () => {
     document.body.innerHTML = `
       <nodel-segmented value="Auto" allow-deselect>

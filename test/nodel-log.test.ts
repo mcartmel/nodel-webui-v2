@@ -83,8 +83,24 @@ describe('nodel-log', () => {
     expect(document.body.textContent).not.toContain('Level');
   });
 
-  it('does not render placeholder text when there are no visible rows', async () => {
+  it('renders an empty state only after a successful empty activity load', async () => {
     await mountLog();
+
+    expect(document.querySelector('.nodel-log-empty')).toBeNull();
+
+    activityMock.listeners[0]?.({
+      loading: true,
+      connected: false,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 0,
+        items: []
+      }
+    });
+
+    expect(document.querySelector('.nodel-log-empty')).toBeNull();
 
     activityMock.listeners[0]?.({
       loading: false,
@@ -101,7 +117,41 @@ describe('nodel-log', () => {
     });
 
     expect(document.querySelectorAll('.nodel-log-row').length).toBe(0);
-    expect(document.querySelector('[data-log-output]')?.textContent?.trim()).toBe('');
+    expect(document.querySelector('.nodel-log-empty')?.textContent).toBe('No activity entries yet.');
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: false,
+      error: 'Activity request failed',
+      batch: undefined
+    });
+
+    expect(document.querySelector('.nodel-log-empty')).toBeNull();
+  });
+
+  it('renders filter-specific empty activity copy', async () => {
+    await mountLog();
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [
+          { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Power' }, changed: false, live: false }
+        ]
+      }
+    });
+
+    const filter = document.querySelector<HTMLInputElement>('[data-log-filter]');
+    filter!.value = 'missing';
+    filter!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => document.querySelector('.nodel-log-empty') !== null);
+
+    expect(document.querySelector('.nodel-log-empty')?.textContent).toBe('No activity matches this filter.');
   });
 
   it('defaults to showing 10 rows', async () => {

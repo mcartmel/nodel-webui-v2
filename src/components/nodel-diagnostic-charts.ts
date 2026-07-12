@@ -42,7 +42,7 @@ const template = `
         <fieldset class="nodel-diagnostic-category-picker" aria-label="Categories" data-link="disabled{:loading || !!error}">
           {^{for categories}}
             <label class="nodel-diagnostic-category-option">
-              <input data-diagnostic-chart-category type="checkbox" data-link="value{:name} checked{:selected}" />
+              <input class="nodel-choice" data-diagnostic-chart-category type="checkbox" data-link="value{:name} checked{:selected}" />
               <span class="truncate">{^{>name}}</span>
             </label>
           {{/for}}

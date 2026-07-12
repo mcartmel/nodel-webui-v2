@@ -80,6 +80,49 @@ describe('nodel-console', () => {
     expect(input!.value).toBe('');
   });
 
+  it('renders an empty state only after successful empty console history loads', async () => {
+    document.body.innerHTML = '<nodel-console></nodel-console>';
+    await customElements.whenDefined('nodel-console');
+    await waitFor(() => consoleMock.listeners.length === 1);
+
+    expect(document.querySelector('.nodel-console-empty')).toBeNull();
+
+    consoleMock.listeners[0]?.({
+      loading: true,
+      active: false,
+      error: '',
+      data: {
+        entries: [],
+        replace: true,
+        nextSeq: 0
+      }
+    });
+
+    expect(document.querySelector('.nodel-console-empty')).toBeNull();
+
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: {
+        entries: [],
+        replace: true,
+        nextSeq: 0
+      }
+    });
+
+    expect(document.querySelector('.nodel-console-empty')?.textContent).toBe('No console output yet.');
+
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: false,
+      error: 'Console request failed',
+      data: undefined
+    });
+
+    expect(document.querySelector('.nodel-console-empty')).toBeNull();
+  });
+
   it('emits the latest console line as an opt-in collapse preview', async () => {
     document.body.innerHTML = '<nodel-console collapse-preview="last-line"></nodel-console>';
     await customElements.whenDefined('nodel-console');

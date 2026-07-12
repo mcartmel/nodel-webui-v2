@@ -19,6 +19,7 @@ export class NodelToolbar extends HTMLElement {
   private activePageId = '';
   private navItems: NodelNavItem[] = [];
   private navNode: HTMLElement | null = null;
+  private navContainerNode: HTMLElement | null = null;
   private openGroupId = '';
   private shellReady = false;
   private autoTitle = '';
@@ -36,6 +37,8 @@ export class NodelToolbar extends HTMLElement {
     this.appNode?.addEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     document.addEventListener('click', this.handleDocumentClick);
     document.addEventListener('keydown', this.handleDocumentKeydown);
+    window.addEventListener('resize', this.positionOpenGroupMenu);
+    window.addEventListener('scroll', this.positionOpenGroupMenu, true);
     this.syncNavigationFromApp();
   }
 
@@ -45,6 +48,8 @@ export class NodelToolbar extends HTMLElement {
     this.appNode?.removeEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     document.removeEventListener('click', this.handleDocumentClick);
     document.removeEventListener('keydown', this.handleDocumentKeydown);
+    window.removeEventListener('resize', this.positionOpenGroupMenu);
+    window.removeEventListener('scroll', this.positionOpenGroupMenu, true);
     this.appNode = null;
   }
 
@@ -64,20 +69,23 @@ export class NodelToolbar extends HTMLElement {
 
     if (!this.shellReady) {
       this.innerHTML = `
-        <div class="nodel-shell flex min-h-16 flex-wrap items-center gap-3 py-2">
-          <div class="flex min-w-0 items-center gap-2">
+        <div class="nodel-shell nodel-toolbar-shell">
+          <div data-toolbar-brand class="nodel-toolbar-brand">
             <img data-toolbar-icon class="hidden h-12 w-24 shrink-0 object-contain" alt="" />
             <nodel-host-icon data-toolbar-host-icon class="nodel-toolbar-host-icon" href="" title="Browse this host"></nodel-host-icon>
             <span data-toolbar-title class="truncate text-base font-semibold tracking-wide"></span>
           </div>
-          <nav data-toolbar-nav class="flex min-w-0 flex-1 flex-wrap items-center gap-1" aria-label="Page navigation"></nav>
-          <div data-toolbar-actions class="flex flex-wrap items-center justify-end gap-2"></div>
+          <nav data-toolbar-nav class="nodel-toolbar-nav" aria-label="Page navigation">
+            <div data-toolbar-nav-list class="nodel-toolbar-nav-list"></div>
+          </nav>
+          <div data-toolbar-actions class="nodel-toolbar-actions"></div>
         </div>
       `;
       this.iconNode = this.querySelector('[data-toolbar-icon]');
       this.hostIconNode = this.querySelector('[data-toolbar-host-icon]');
       this.titleNode = this.querySelector('[data-toolbar-title]');
-      this.navNode = this.querySelector('[data-toolbar-nav]');
+      this.navContainerNode = this.querySelector('[data-toolbar-nav]');
+      this.navNode = this.querySelector('[data-toolbar-nav-list]');
       this.actionsNode = this.querySelector('[data-toolbar-actions]');
       this.shellReady = true;
       if (this.actionsNode) {
@@ -218,19 +226,39 @@ export class NodelToolbar extends HTMLElement {
     this.renderNavigation();
   }
 
+  private positionOpenGroupMenu = () => {
+    if (!this.openGroupId || window.innerWidth >= 640) {
+      return;
+    }
+
+    const groupButton = Array.from(this.querySelectorAll<HTMLElement>('[data-nav-group-id]')).find(
+      (button) => button.dataset.navGroupId === this.openGroupId
+    );
+    const menu = Array.from(this.querySelectorAll<HTMLElement>('[data-nav-group-menu-id]')).find(
+      (element) => element.dataset.navGroupMenuId === this.openGroupId
+    );
+    if (!groupButton || !menu) {
+      return;
+    }
+
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const top = Math.max(0, Math.min(groupButton.getBoundingClientRect().bottom + 8, Math.max(0, viewportHeight - 48)));
+    menu.style.setProperty('--nodel-toolbar-menu-top', `${top}px`);
+  };
+
   private renderNavigation() {
-    if (!this.navNode) {
+    if (!this.navNode || !this.navContainerNode) {
       return;
     }
 
     this.navNode.innerHTML = '';
 
     if (this.navItems.length === 0) {
-      this.navNode.hidden = true;
+      this.navContainerNode.hidden = true;
       return;
     }
 
-    this.navNode.hidden = false;
+    this.navContainerNode.hidden = false;
 
     for (const item of this.navItems) {
       if (item.type === 'group') {
@@ -239,6 +267,8 @@ export class NodelToolbar extends HTMLElement {
         this.navNode.appendChild(this.createPageButton(item));
       }
     }
+
+    this.positionOpenGroupMenu();
   }
 
   private createPageButton(item: NodelNavItem) {
@@ -265,7 +295,7 @@ export class NodelToolbar extends HTMLElement {
     const menuId = `nodel-menu-${item.id}`;
     const open = this.openGroupId === item.id;
     const active = item.children.some((child) => child.type === 'page' && child.id === this.activePageId);
-    group.className = 'relative';
+    group.className = 'nodel-toolbar-nav-group';
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -288,9 +318,10 @@ export class NodelToolbar extends HTMLElement {
 
     const menu = document.createElement('div');
     menu.id = menuId;
+    menu.dataset.navGroupMenuId = item.id;
     menu.hidden = !open;
     menu.role = 'menu';
-    menu.className = 'nodel-popover absolute left-0 top-full z-20 mt-2 min-w-48 p-1';
+    menu.className = 'nodel-popover nodel-toolbar-group-menu';
 
     for (const child of item.children) {
       if (child.type !== 'page') {

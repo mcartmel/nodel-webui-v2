@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nodel</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = root.dataset.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            const stored = window.localStorage.getItem('nodel.theme');
+            theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+          } catch {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        root.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -14,6 +34,7 @@
       </nodel-toolbar>
 
       <nodel-page title="Activity">
+        <nodel-title level="1">Activity</nodel-title>
         <nodel-row>
           <nodel-column>
             <nodel-description></nodel-description>
@@ -35,17 +56,18 @@
         </nodel-row>
         <nodel-row>
           <nodel-column md="8">
-            <nodel-text><b>Actions &amp; Signals</b></nodel-text>
+            <nodel-title level="2">Actions &amp; Signals</nodel-title>
             <nodel-actsig></nodel-actsig>
           </nodel-column>
           <nodel-column md="4">
-            <nodel-text><b>Log</b></nodel-text>
+            <nodel-title level="2">Log</nodel-title>
             <nodel-log></nodel-log>
           </nodel-column>
         </nodel-row>
       </nodel-page>
 
       <nodel-page title="Config">
+        <nodel-title level="1">Config</nodel-title>
         <nodel-row>
           <nodel-column>
             <nodel-collapse label="Parameters">
@@ -55,7 +77,7 @@
         </nodel-row>
         <nodel-row>
           <nodel-column>
-            <nodel-text><b>Bindings</b></nodel-text>
+            <nodel-title level="2">Bindings</nodel-title>
             <nodel-bindings></nodel-bindings>
           </nodel-column>
         </nodel-row>

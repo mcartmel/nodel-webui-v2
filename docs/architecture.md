@@ -57,22 +57,46 @@ Node editor behavior intentionally preserves the v1 file endpoints while using C
 
 Tailwind is the primary styling layer. Use utilities directly for local layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use the Nodel token utilities from `tailwind.config.ts`, such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel`, instead of repeated arbitrary CSS-variable utilities.
 
-Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, and `.nodel-alert` for repeated controls, surfaces, and user-authored page primitives. Treat `.nodel-card` as a passive display surface and `.nodel-list-item` as a tappable row surface.
+Common UI primitives still live in `src/styles.css` as semantic classes backed by Tailwind tokens. Use `.nodel-button`, `.nodel-field`, `.nodel-card`, `.nodel-panel`, `.nodel-popover`, `.nodel-list-item`, `.nodel-menu-item`, `.nodel-alert`, `.nodel-link`, and `.nodel-choice` for repeated controls, surfaces, and user-authored page primitives. Treat `.nodel-card` as a passive display surface and `.nodel-list-item` as a tappable row surface.
 
-Light and dark themes use shared glass surface tokens for page gradients, translucent cards, panels, popovers, controls, borders, and shadows. Interactive controls have separate control tokens for resting, active, and pressed states so touch users can identify tappable elements without hover. Prefer those semantic primitives over hard-coded gradient or alpha backgrounds so user-authored pages inherit future theme updates.
+Light and dark themes use shared glass surface tokens for page gradients, translucent cards, panels, popovers, controls, borders, and shadows. Cards are passive, panels have a clearer surface step, and only floating UI uses the strongest elevation. Interactive controls have separate control tokens for resting, active, and pressed states so touch users can identify tappable elements without hover. Prefer those semantic primitives over hard-coded gradient or alpha backgrounds so user-authored pages inherit future theme updates.
 
 Control authoring is composition-first. `nodel-group` owns visible labels, passive card/panel backgrounds, and padding. `nodel-status` owns stateful status block semantics and should be used when the surrounding surface itself represents runtime health/state. Individual controls own behavior, state, accessible names, and the tactile styling of actual interactive parts. Component `label` attributes are accessibility-only fallback labels; use `nodel-group label="..."` when text should be visible. Keep `variant` and `tone` scoped to the interactive/status part of a control, not to component-owned wrapper cards. `nodel-control-grid` remains the only equal-cell grid primitive, so groups and status blocks should be placed inside grids or contain grids rather than growing their own column API.
 
 Use variant and state classes such as `.nodel-button-primary`, `.nodel-button-danger`, `.nodel-button-ghost`, `.nodel-menu-item-active`, `.nodel-alert-danger`, `.is-disabled`, and `.is-unreachable` when behavior or public API drives appearance. Keep raw CSS for theme variable definitions, custom-element defaults, generated markdown content, CodeMirror/editor styling, CSS-variable-driven layout, third-party widgets, and complex runtime selectors.
+
+The sans stack is native-system only so deployed pages do not depend on an unavailable webfont. Shared styling provides `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast`, and forced-colours fallbacks; do not replace semantic controls with arbitrary translucent surfaces that bypass those modes.
 
 ## Stable Head Contract
 
 User-authored pages should reference the stable v2 entry files, not the Vite source entry:
 
 ```html
+<script>
+  (() => {
+    const root = document.documentElement;
+    let theme = root.dataset.theme;
+    if (theme !== 'light' && theme !== 'dark') {
+      try {
+        const stored = window.localStorage.getItem('nodel.theme');
+        theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+      } catch {}
+    }
+    if (theme !== 'light' && theme !== 'dark') {
+      try {
+        theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch {
+        theme = 'light';
+      }
+    }
+    root.dataset.theme = theme;
+  })();
+</script>
 <link rel="stylesheet" href="./v2/nodel-webui.css" />
 <script type="module" src="./v2/nodel-webui.js"></script>
 ```
+
+Place this synchronous bootstrap before the stylesheet to set the initial theme from a valid root theme, then the stored preference, then the system preference. It tolerates unavailable storage and media queries. The connected `nodel-app` remains authoritative: explicit `theme="light"` or `theme="dark"` wins, otherwise it keeps the root synchronized with stored and system preferences. Pages with a fixed app theme should set the same root `data-theme` value (for example, `<html data-theme="dark">` with `<nodel-app theme="dark">`) so the first paint cannot differ from the app theme.
 
 The page title can then be controlled by `nodel-app title="..."`.
 

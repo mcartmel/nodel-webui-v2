@@ -78,6 +78,8 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-button-compact` for smaller buttons inside dense toolbars.
 - `.nodel-field` for text inputs, search inputs, and selects.
 - `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
+- `.nodel-link` for theme-aware ordinary links outside rendered markdown.
+- `.nodel-choice` for native checkbox and radio controls.
 - `.nodel-card` for passive bordered surfaces and display content.
 - `.nodel-panel` for larger section containers.
 - `.nodel-popover` for dropdowns, autocomplete panels, and floating menus.
@@ -108,6 +110,8 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 
 Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, glass surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
+Cards are passive surfaces, panels add stronger grouping, and popovers/dialogs carry the strongest elevation. The default font uses the native system stack. Theme styles include reduced-motion, reduced-transparency, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours.
+
 ## Toast Notifications
 
 `nodel-app` creates a `nodel-toast-host` automatically. Components can request app-level notifications by dispatching a bubbled `nodel-toast` event with `{ message, detail?, tone?, durationMs?, persistent?, id? }`.
@@ -134,6 +138,8 @@ Use the stable v2 asset path when authoring pages:
 ```
 
 The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
+
+The toolbar remains in normal document flow. Below `640px`, its branding/actions occupy the first row and page navigation moves to a horizontally scrollable second row. Nested page menus remain keyboard accessible and use a viewport-clamped overlay on small screens so they are not clipped by the navigation strip.
 
 `nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, custom UI links, and host reference links.
 
@@ -171,6 +177,34 @@ Prefer omitting `nav-id` on core pages unless the generated title-based ID is no
 `nodel-app` owns theme resolution. The theme is controlled with the `theme` attribute and mirrored to `document.documentElement.dataset.theme`.
 
 Omit `theme` to use the stored preference, then the system color scheme. Explicit `theme="light"` or `theme="dark"` overrides both.
+
+Add the following synchronous bootstrap before the stylesheet in authored pages to avoid a first-paint mismatch. It accepts only `light` and `dark`, uses a valid root theme first, then storage, then the system preference, and falls back safely when storage or media queries are unavailable.
+
+```html
+<script>
+  (() => {
+    const root = document.documentElement;
+    let theme = root.dataset.theme;
+    if (theme !== 'light' && theme !== 'dark') {
+      try {
+        const stored = window.localStorage.getItem('nodel.theme');
+        theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+      } catch {}
+    }
+    if (theme !== 'light' && theme !== 'dark') {
+      try {
+        theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch {
+        theme = 'light';
+      }
+    }
+    root.dataset.theme = theme;
+  })();
+</script>
+<link rel="stylesheet" href="./v2/nodel-webui.css" />
+```
+
+An app with no explicit or stored preference follows live system changes. An app without an explicit theme also follows valid preference changes from other tabs. For a fixed app theme, set the same root value before the bootstrap, for example `<html data-theme="dark">` and `<nodel-app theme="dark">`, to keep the first paint aligned with the app.
 
 `nodel-theme-toggle` renders an accessible slider switch and persists the selected light/dark preference. It is included in `nodel-node-menu` by default on node pages. It uses Font Awesome's free solid `sun` and `moon` icons by default. The icon imports are isolated in `src/icons/fontawesome.ts` so a licensed Font Awesome Pro package can be enabled later by changing that wrapper rather than the component API.
 

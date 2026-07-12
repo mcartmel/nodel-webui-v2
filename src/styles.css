@@ -14,8 +14,8 @@
     --nodel-accent: 3 105 161;
     --nodel-accent-fill: 3 105 161;
     --nodel-on-accent: 255 255 255;
-    --nodel-info: 14 116 144;
-    --nodel-info-fill: 14 116 144;
+    --nodel-info: 15 118 110;
+    --nodel-info-fill: 15 118 110;
     --nodel-on-info: 255 255 255;
     --nodel-backdrop: 2 6 23;
     --nodel-success: 21 128 61;
@@ -31,30 +31,34 @@
     --nodel-danger-border: 248 113 113;
     --nodel-focus: 3 105 161;
     --nodel-status-off: 15 23 42;
+    --nodel-status-track-background: 226 232 240;
+    --nodel-status-track-border: 100 116 139;
     --nodel-body-background:
       radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.12), transparent 26rem),
       radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.09), transparent 28rem),
       linear-gradient(180deg, rgb(248 250 252), rgb(var(--nodel-bg)) 34rem);
     --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.52));
-    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(248 250 252 / 0.72));
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 255 255 / 0.66));
+    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.84));
     --nodel-popover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.9));
+    --nodel-toolbar-background: rgb(255 255 255 / 0.54);
+    --nodel-toolbar-border: rgb(148 163 184 / 0.34);
     --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.82));
     --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(var(--nodel-accent) / 0.08));
     --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.13), rgb(var(--nodel-accent) / 0.08));
-    --nodel-control-border: rgb(100 116 139 / 0.52);
+    --nodel-control-border: rgb(91 106 124);
     --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.72);
     --nodel-control-active-border: rgb(var(--nodel-accent) / 0.88);
     --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(var(--nodel-border) / 0.18);
     --nodel-subtle-hover-background: rgb(var(--nodel-border) / 0.3);
-    --nodel-card-border: rgb(148 163 184 / 0.30);
-    --nodel-panel-border: rgb(148 163 184 / 0.44);
+    --nodel-card-border: rgb(148 163 184 / 0.38);
+    --nodel-panel-border: rgb(100 116 139 / 0.48);
     --nodel-divider: rgb(148 163 184 / 0.28);
     --nodel-shadow-card: 0 1px 2px rgb(15 23 42 / 0.035), 0 8px 24px rgb(15 23 42 / 0.045);
     --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.09), 0 0 0 1px var(--nodel-control-highlight) inset;
     --nodel-shadow-control-active: 0 1px 1px rgb(15 23 42 / 0.08), 0 0 0 1px rgb(255 255 255 / 0.045) inset;
-    --nodel-shadow-panel: 0 18px 60px rgb(15 23 42 / 0.12), 0 1px 0 rgb(255 255 255 / 0.65) inset;
+    --nodel-shadow-panel: 0 10px 32px rgb(15 23 42 / 0.09), 0 1px 0 rgb(255 255 255 / 0.7) inset;
     --nodel-shadow-popover: 0 24px 70px -24px rgb(15 23 42 / 0.36), 0 8px 24px -16px rgb(15 23 42 / 0.22);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
     --nodel-radius-control: 0.5rem;
@@ -96,8 +100,8 @@
     --nodel-accent: 56 189 248;
     --nodel-accent-fill: 14 165 233;
     --nodel-on-accent: 2 6 23;
-    --nodel-info: 103 232 249;
-    --nodel-info-fill: 6 182 212;
+    --nodel-info: 94 234 212;
+    --nodel-info-fill: 20 184 166;
     --nodel-on-info: 2 6 23;
     --nodel-success: 74 222 128;
     --nodel-success-fill: 34 197 94;
@@ -112,30 +116,34 @@
     --nodel-danger-border: 153 27 27;
     --nodel-focus: 125 211 252;
     --nodel-status-off: 148 163 184;
+    --nodel-status-track-background: 30 41 59;
+    --nodel-status-track-border: 100 116 139;
     --nodel-body-background:
       radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.14), transparent 28rem),
       radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.1), transparent 28rem),
       linear-gradient(180deg, rgb(7 11 24), rgb(var(--nodel-bg)) 32rem);
     --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.052), rgb(255 255 255 / 0.024));
-    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.032));
+    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.082), rgb(255 255 255 / 0.042));
+    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.066));
     --nodel-popover-background: linear-gradient(180deg, rgb(20 27 42 / 0.98), rgb(15 23 42 / 0.94));
+    --nodel-toolbar-background: rgb(7 11 24 / 0.62);
+    --nodel-toolbar-border: rgb(255 255 255 / 0.13);
     --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.065));
     --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(var(--nodel-accent) / 0.08));
     --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.18), rgb(var(--nodel-accent) / 0.1));
-    --nodel-control-border: rgb(255 255 255 / 0.2);
+    --nodel-control-border: rgb(139 153 171);
     --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.62);
     --nodel-control-active-border: rgb(var(--nodel-accent) / 0.78);
     --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(255 255 255 / 0.045);
     --nodel-subtle-hover-background: rgb(255 255 255 / 0.08);
-    --nodel-card-border: rgb(255 255 255 / 0.095);
-    --nodel-panel-border: rgb(255 255 255 / 0.14);
+    --nodel-card-border: rgb(255 255 255 / 0.14);
+    --nodel-panel-border: rgb(255 255 255 / 0.2);
     --nodel-divider: rgb(255 255 255 / 0.08);
     --nodel-shadow-card: 0 10px 36px rgb(0 0 0 / 0.16), 0 1px 0 rgb(255 255 255 / 0.025) inset;
     --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.38), 0 1px 0 var(--nodel-control-highlight) inset;
     --nodel-shadow-control-active: 0 1px 1px rgb(0 0 0 / 0.36), 0 1px 0 rgb(255 255 255 / 0.045) inset;
-    --nodel-shadow-panel: 0 22px 70px rgb(0 0 0 / 0.32), 0 1px 0 rgb(255 255 255 / 0.05) inset;
+    --nodel-shadow-panel: 0 14px 42px rgb(0 0 0 / 0.24), 0 1px 0 rgb(255 255 255 / 0.065) inset;
     --nodel-shadow-popover: 0 24px 70px rgb(0 0 0 / 0.48), 0 8px 24px rgb(0 0 0 / 0.32);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(0 0 0 / 0.55);
     --nodel-editor-selection: rgb(var(--nodel-accent) / 0.28);
@@ -260,7 +268,7 @@
     .nodel-log-icon,
     .nodel-editor-status
   ) {
-    transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke, transform, translate;
+    transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke;
     transition-duration: var(--nodel-theme-transition-duration, 200ms);
     transition-timing-function: var(--nodel-theme-transition-easing, ease);
   }
@@ -539,13 +547,8 @@
 
   .nodel-status-scale span {
     @apply block h-4 w-1.5 rounded-full border shadow-sm;
-    background: rgb(255 255 255 / 0.82);
-    border-color: rgb(var(--nodel-border) / 0.58);
-  }
-
-  :root[data-theme='dark'] .nodel-status-scale span {
-    background: rgb(var(--nodel-bg) / 0.78);
-    border-color: rgb(255 255 255 / 0.11);
+    background: rgb(var(--nodel-status-track-background));
+    border-color: rgb(var(--nodel-status-track-border));
   }
 
   .nodel-status-shell[data-state='muted'] .nodel-status-scale span[data-status-step='muted'] {
@@ -704,6 +707,113 @@
 @layer components {
   .nodel-shell {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  nodel-toolbar {
+    position: static;
+    border-bottom: 1px solid var(--nodel-toolbar-border, rgb(var(--nodel-border)));
+    background: var(--nodel-toolbar-background, rgb(var(--nodel-surface)));
+  }
+
+  .nodel-toolbar-shell {
+    @apply grid min-h-16 items-center gap-x-3 gap-y-2 py-2;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nodel-toolbar-brand {
+    @apply flex min-w-0 items-center gap-2;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .nodel-toolbar-nav {
+    @apply min-w-0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .nodel-toolbar-nav-list {
+    @apply flex min-w-0 items-center gap-1 overflow-x-auto pb-1;
+    overscroll-behavior-x: contain;
+  }
+
+  .nodel-toolbar-nav-list > .nodel-button,
+  .nodel-toolbar-nav-group {
+    @apply shrink-0;
+  }
+
+  .nodel-toolbar-actions {
+    @apply flex shrink-0 flex-wrap items-center justify-end gap-2;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nodel-toolbar-nav-group {
+    @apply relative;
+  }
+
+  .nodel-toolbar-group-menu {
+    @apply absolute left-0 top-full z-20 mt-2 min-w-48 p-1;
+  }
+
+  @media (max-width: 639px) {
+    .nodel-toolbar-shell {
+      @apply min-h-14 gap-x-2 gap-y-1 py-1.5;
+    }
+
+    .nodel-toolbar-brand {
+      @apply gap-1.5;
+    }
+
+    .nodel-toolbar-brand [data-toolbar-icon] {
+      @apply h-9 w-16;
+    }
+
+    .nodel-toolbar-brand .nodel-toolbar-host-icon {
+      scale: 0.84;
+    }
+
+    .nodel-toolbar-brand [data-toolbar-title] {
+      @apply text-sm;
+    }
+
+    .nodel-toolbar-actions {
+      @apply gap-1;
+    }
+
+    .nodel-toolbar-group-menu {
+      position: fixed;
+      top: var(--nodel-toolbar-menu-top, 0px);
+      right: max(1rem, env(safe-area-inset-right));
+      left: max(1rem, env(safe-area-inset-left));
+      max-height: calc(100dvh - var(--nodel-toolbar-menu-top, 0px) - 1rem);
+      overflow-y: auto;
+    }
+  }
+
+  @media (max-width: 399px) {
+    .nodel-toolbar-brand [data-toolbar-icon] {
+      display: none;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .nodel-toolbar-shell {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .nodel-toolbar-nav {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .nodel-toolbar-nav-list {
+      @apply flex-wrap overflow-visible pb-0;
+    }
+
+    .nodel-toolbar-actions {
+      grid-column: 3;
+    }
   }
 
   .nodel-section-heading {
@@ -1141,9 +1251,9 @@
   }
 
   .nodel-segmented {
-    @apply flex h-full min-h-14 min-w-0 rounded-control border border-nodel-border bg-nodel-surface p-1;
-    background: transparent;
-    border-color: transparent;
+    @apply flex h-full min-h-14 min-w-0 rounded-control border border-nodel-border p-1;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.18));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
     box-shadow: none;
   }
 
@@ -1512,19 +1622,32 @@
   }
 
   nodel-readout[data-visual='ring'] .nodel-readout-visual {
-    @apply static mx-auto aspect-square h-16 flex-none translate-x-0 translate-y-0 rounded-full opacity-100;
+    @apply relative mx-auto aspect-square h-16 flex-none translate-x-0 translate-y-0 rounded-full opacity-100;
     background: conic-gradient(rgb(var(--nodel-touch-fill-rgb)) calc(var(--nodel-readout-fraction, 0) * 1turn), rgb(var(--nodel-border) / 0.35) 0);
+  }
+
+  /* Keep a local solid centre when CSS masks are unavailable. */
+  nodel-readout[data-visual='ring'] .nodel-readout-visual::after {
+    @apply absolute inset-3 rounded-full border border-nodel-border;
+    content: '';
+    background: rgb(var(--nodel-surface));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+  }
+
+  @supports ((mask: radial-gradient(circle, transparent 0 52%, #000 54%)) or (-webkit-mask: radial-gradient(circle, transparent 0 52%, #000 54%))) {
+    nodel-readout[data-visual='ring'] .nodel-readout-visual {
+      -webkit-mask: radial-gradient(circle, transparent 0 52%, #000 54%);
+      mask: radial-gradient(circle, transparent 0 52%, #000 54%);
+    }
+
+    nodel-readout[data-visual='ring'] .nodel-readout-visual::after {
+      display: none;
+    }
   }
 
   nodel-readout[data-tone='soft'][data-visual='ring'] .nodel-readout-visual,
   nodel-readout[data-tone='outline'][data-visual='ring'] .nodel-readout-visual {
     box-shadow: 0 0 0 1px rgb(var(--nodel-touch-tone-rgb) / 0.28);
-  }
-
-  nodel-readout[data-visual='ring'] .nodel-readout-visual::after {
-    @apply absolute inset-3 rounded-full border border-nodel-border/40;
-    content: '';
-    background: var(--nodel-body-background, rgb(var(--nodel-bg)));
   }
 
   nodel-readout[data-visual='ring'] .nodel-readout-content {
@@ -2166,6 +2289,26 @@
     @apply px-2 py-1;
   }
 
+  .nodel-link {
+    @apply text-nodel-accent underline decoration-nodel-accent/45 underline-offset-[0.1875rem];
+  }
+
+  .nodel-link:hover {
+    @apply decoration-nodel-accent;
+  }
+
+  .nodel-link:focus-visible {
+    @apply rounded-control outline-none ring-2 ring-nodel-focus ring-offset-2 ring-offset-nodel-surface;
+  }
+
+  .nodel-choice {
+    @apply h-4 w-4 shrink-0 accent-nodel-accent;
+  }
+
+  .nodel-choice:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus ring-offset-2 ring-offset-nodel-surface;
+  }
+
   .nodel-card {
     @apply rounded-card border border-nodel-border bg-nodel-surface;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
@@ -2187,6 +2330,10 @@
     box-shadow: var(--nodel-shadow-popover, none);
     -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
     backdrop-filter: blur(var(--nodel-glass-blur, 0));
+  }
+
+  .nodel-template-autocomplete .nodel-add-node-result-secondary {
+    @apply mt-0.5 block truncate text-xs leading-5 text-nodel-muted;
   }
 
   .nodel-list-item {
@@ -2839,7 +2986,7 @@
   }
 
   .nodel-diagnostic-category-option input {
-    @apply h-4 w-4 shrink-0 accent-nodel-accent;
+    @apply nodel-choice;
   }
 
   .nodel-diagnostic-chart-card {
@@ -3319,5 +3466,149 @@
 
   .nodel-toolkit-editor {
     --nodel-editor-height: min(72vh, 44rem);
+  }
+
+  @media (prefers-contrast: more) {
+    :root {
+      --nodel-control-border: rgb(var(--nodel-fg) / 0.8);
+      --nodel-card-border: rgb(var(--nodel-fg) / 0.58);
+      --nodel-panel-border: rgb(var(--nodel-fg) / 0.72);
+      --nodel-divider: rgb(var(--nodel-fg) / 0.45);
+    }
+
+    .nodel-button,
+    .nodel-field,
+    .nodel-list-item,
+    .nodel-menu-item,
+    .nodel-select-trigger,
+    .nodel-toggle-track,
+    .nodel-stepper-button,
+    .nodel-pad-button,
+    .nodel-fader-track,
+    .nodel-fader-nudge,
+    .nodel-meter-track,
+    .nodel-readout-visual,
+    .nodel-palette-custom-button,
+    .nodel-palette-custom-input,
+    .nodel-theme-switch,
+    .nodel-collapse-summary,
+    .nodel-status-shell {
+      border-color: rgb(var(--nodel-fg) / 0.78) !important;
+    }
+
+    .nodel-button:focus-visible,
+    .nodel-field:focus-visible,
+    .nodel-list-item:focus-visible,
+    .nodel-menu-item:focus-visible,
+    .nodel-select-trigger:focus-visible,
+    .nodel-toggle:focus-visible,
+    .nodel-fader-track:focus-visible,
+    .nodel-stepper-button:focus-visible,
+    .nodel-pad-button:focus-visible,
+    .nodel-palette-custom-button:focus-visible,
+    .nodel-palette-custom-input:focus-visible,
+    .nodel-theme-switch:focus-visible,
+    .nodel-collapse-summary:focus-visible,
+    .nodel-link:focus-visible,
+    .nodel-choice:focus-visible {
+      outline: 3px solid rgb(var(--nodel-focus)) !important;
+      outline-offset: 2px !important;
+    }
+
+    .nodel-collapse-summary:focus-visible {
+      outline-offset: -3px !important;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    :root,
+    :root[data-theme='dark'] {
+      --nodel-glass-blur: 0px;
+      --nodel-body-background: rgb(var(--nodel-bg));
+      --nodel-card-background: rgb(var(--nodel-surface));
+      --nodel-panel-background: rgb(var(--nodel-surface-raised));
+      --nodel-popover-background: rgb(var(--nodel-surface-raised));
+      --nodel-control-background: rgb(var(--nodel-surface));
+      --nodel-control-hover-background: rgb(var(--nodel-surface-raised));
+      --nodel-toolbar-background: rgb(var(--nodel-surface));
+    }
+  }
+
+  @media (forced-colors: active) {
+    body,
+    nodel-toolbar,
+    .nodel-card,
+    .nodel-panel,
+    .nodel-popover,
+    .nodel-button,
+    .nodel-field,
+    .nodel-list-item,
+    .nodel-alert,
+    .nodel-toast,
+    .nodel-select-trigger,
+    .nodel-toggle-track,
+    .nodel-stepper-button,
+    .nodel-pad-button,
+    .nodel-fader-track,
+    .nodel-fader-nudge,
+    .nodel-meter-track,
+    .nodel-readout-visual,
+    .nodel-palette-custom-button,
+    .nodel-palette-custom-input,
+    .nodel-theme-switch,
+    .nodel-collapse-summary,
+    .nodel-status-shell {
+      background: Canvas !important;
+      border-color: CanvasText !important;
+      box-shadow: none !important;
+      color: CanvasText !important;
+    }
+
+    .nodel-button.nodel-button-primary,
+    .nodel-button.nodel-button-success,
+    .nodel-button.nodel-button-info,
+    .nodel-button.nodel-button-warning,
+    .nodel-button.nodel-button-danger,
+    .nodel-menu-item.nodel-menu-item-active,
+    .nodel-button.is-active,
+    .nodel-segmented > nodel-button[active] .nodel-button-touch,
+    .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
+      background: Highlight !important;
+      border-color: Highlight !important;
+      color: HighlightText !important;
+      forced-color-adjust: none;
+    }
+
+    .nodel-button:focus-visible,
+    .nodel-field:focus-visible,
+    .nodel-list-item:focus-visible,
+    .nodel-menu-item:focus-visible,
+    .nodel-select-trigger:focus-visible,
+    .nodel-toggle:focus-visible,
+    .nodel-fader-track:focus-visible,
+    .nodel-stepper-button:focus-visible,
+    .nodel-pad-button:focus-visible,
+    .nodel-palette-custom-button:focus-visible,
+    .nodel-palette-custom-input:focus-visible,
+    .nodel-theme-switch:focus-visible,
+    .nodel-collapse-summary:focus-visible,
+    .nodel-link:focus-visible,
+    .nodel-choice:focus-visible {
+      outline: 3px solid Highlight !important;
+      outline-offset: 2px !important;
+    }
+
+    .nodel-collapse-summary:focus-visible {
+      outline-offset: -3px !important;
+    }
+
+    .nodel-status-indicator-dot,
+    .nodel-status-scale span,
+    .nodel-meter-fill,
+    .nodel-readout-visual-inner {
+      forced-color-adjust: none;
+      background: Highlight !important;
+      border-color: HighlightText !important;
+    }
   }
 }

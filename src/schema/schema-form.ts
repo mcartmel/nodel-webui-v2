@@ -131,9 +131,9 @@ const schemaFieldTemplate = `
     {{else kind === 'boolean'}}
       <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg">
         {^{if ~controlsDisabled}}
-          <input type="checkbox" data-link="value" disabled />
+          <input class="nodel-choice" type="checkbox" data-link="value" disabled />
         {{else}}
-          <input type="checkbox" data-link="value" />
+          <input class="nodel-choice" type="checkbox" data-link="value" />
         {{/if}}
         <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}

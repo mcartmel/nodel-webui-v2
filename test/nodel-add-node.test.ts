@@ -101,6 +101,7 @@ describe('nodel-add-node', () => {
       attempts: 80,
       intervalMs: 5
     });
+    expect(document.querySelector('.nodel-template-autocomplete .nodel-add-node-result-secondary')?.textContent).toBeTruthy();
 
     await pressKey(templateInput, 'ArrowDown');
     expect(document.querySelector('.nodel-template-autocomplete .nodel-menu-item')?.classList.contains('nodel-menu-item-active')).toBe(true);

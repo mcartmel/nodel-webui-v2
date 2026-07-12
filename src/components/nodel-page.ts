@@ -27,7 +27,7 @@ export class NodelPage extends HTMLElement {
       this.innerHTML = this.groupPage
         ? `<div data-page-content class="contents"></div>`
         : `
-          <section data-page-content class="nodel-shell space-y-6 pb-6 pt-1">
+          <section data-page-content class="nodel-shell space-y-6 pb-6 pt-6">
           </section>
         `;
       this.contentNode = this.querySelector('[data-page-content]');

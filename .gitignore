@@ -3,3 +3,6 @@ build/
 node_modules/
 coverage/
 .vite/
+playwright-report/
+test-results/
+blob-report/

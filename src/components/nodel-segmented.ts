@@ -122,10 +122,12 @@ export class NodelSegmented extends HTMLElement {
       option.setAttribute('size', option.getAttribute('size') ?? 'md');
       if (active) {
         option.setAttribute('active', '');
-        option.setAttribute('variant', option.getAttribute('variant') ?? variant);
-        option.setAttribute('tone', option.getAttribute('tone') ?? tone);
+        this.syncInheritedOptionAttribute(option, 'variant', variant, true);
+        this.syncInheritedOptionAttribute(option, 'tone', tone, true);
       } else {
         option.removeAttribute('active');
+        this.syncInheritedOptionAttribute(option, 'variant', variant, false);
+        this.syncInheritedOptionAttribute(option, 'tone', tone, false);
       }
       if (disabled) {
         option.setAttribute('aria-disabled', 'true');
@@ -137,6 +139,30 @@ export class NodelSegmented extends HTMLElement {
 
   private options() {
     return Array.from(this.children).filter((child): child is HTMLElement => child.localName === 'nodel-button');
+  }
+
+  private syncInheritedOptionAttribute(option: HTMLElement, name: 'variant' | 'tone', value: string, active: boolean) {
+    const marker = `data-nodel-segmented-inherited-${name}`;
+    const inheritedValue = option.getAttribute(marker);
+
+    if (!active) {
+      if (inheritedValue !== null && option.getAttribute(name) === inheritedValue) {
+        option.removeAttribute(name);
+      }
+      option.removeAttribute(marker);
+      return;
+    }
+
+    if (inheritedValue !== null && option.getAttribute(name) !== inheritedValue) {
+      // An author update supersedes a value previously provided by the group.
+      option.removeAttribute(marker);
+      return;
+    }
+
+    if (!option.hasAttribute(name) || inheritedValue !== null) {
+      option.setAttribute(name, value);
+      option.setAttribute(marker, value);
+    }
   }
 
   private optionFromEvent(event: Event) {

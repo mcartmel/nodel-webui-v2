@@ -91,7 +91,12 @@ describe('nodel page navigation', () => {
 
     const menu = document.querySelector('#nodel-menu-Areas') as HTMLElement;
     const downstairsButton = document.querySelector('[data-nav-page-id="Downstairs"]') as HTMLButtonElement;
+    const openGroupButton = document.querySelector('[data-nav-group-id="Areas"]') as HTMLButtonElement;
     expect(menu.hidden).toBe(false);
+    expect(openGroupButton.getAttribute('aria-expanded')).toBe('true');
+    expect(openGroupButton.getAttribute('aria-controls')).toBe(menu.id);
+    expect(menu.getAttribute('role')).toBe('menu');
+    expect(document.querySelector('[data-toolbar-nav-list]')).not.toBeNull();
 
     downstairsButton.click();
     await waitForNavigation();

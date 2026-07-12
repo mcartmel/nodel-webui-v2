@@ -49,6 +49,8 @@ describe('nodel-node-list', () => {
     );
 
     const filter = document.querySelector('.nodel-node-list-filter') as HTMLInputElement;
+    expect(filter.placeholder).toBe('Filter nodes');
+    expect(document.querySelector('.nodel-node-list-total')?.textContent).toContain('2 nodes');
     filter.value = 'beta';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     expect(document.body.textContent).not.toContain('Loading...');
@@ -61,8 +63,36 @@ describe('nodel-node-list', () => {
     expect(document.body.textContent).not.toContain('Loading...');
     expect(document.body.textContent).toContain('Beta Node');
 
+    filter.value = 'missing';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    await delay(250);
+    await flush();
+    await flush();
+
+    expect(document.querySelectorAll('nodel-node-list a.nodel-list-item')).toHaveLength(0);
+    expect(document.querySelector('.nodel-node-list-empty')?.textContent).toBe('No nodes match this filter.');
+    expect(document.querySelector('.nodel-node-list-total')?.textContent).toContain('0 nodes');
+
     document.querySelector('nodel-node-list')?.remove();
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it('renders a no-nodes state after an empty successful load', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => (
+      new Response(JSON.stringify({ nodes: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }) as never
+    )) as unknown as typeof fetch);
+
+    document.body.innerHTML = '<nodel-node-list scope="local" poll-interval="999999"></nodel-node-list>';
+    await customElements.whenDefined('nodel-node-list');
+
+    await waitFor(() => document.querySelector('.nodel-node-list-empty') !== null);
+
+    expect(document.querySelector('.nodel-node-list-empty')?.textContent).toBe('No nodes available.');
+    expect(document.querySelector('.nodel-node-list-total')?.textContent).toContain('0 nodes');
+    expect(document.body.textContent).not.toContain('Loading...');
   });
 
   it('renders the network list and marks reachability', async () => {

@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nodel UI Components</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = root.dataset.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            const stored = window.localStorage.getItem('nodel.theme');
+            theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+          } catch {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        root.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -260,27 +280,103 @@
 
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">
-              <h2 class="nodel-catalogue-subtitle">Wrap</h2>
+              <h2 class="nodel-catalogue-subtitle">Links And Native Choices</h2>
               <p class="nodel-catalogue-description">
-                Additional controls wrap naturally into later rows while keeping equal cell widths.
+                Use <code>nodel-link</code> for ordinary theme-aware links and <code>nodel-choice</code> for native checkbox or radio inputs.
               </p>
             </header>
 
-            <div class="nodel-catalogue-examples">
+            <nodel-row>
+              <nodel-column md="6">
+                <div class="nodel-card flex items-center gap-3 p-4">
+                  <a class="nodel-link" href="#Text">Theme-aware link</a>
+                  <label class="inline-flex items-center gap-2 text-sm text-nodel-fg">
+                    <input class="nodel-choice" type="checkbox" checked />
+                    Native choice
+                  </label>
+                </div>
+              </nodel-column>
+            </nodel-row>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Feedback States</h2>
+              <p class="nodel-catalogue-description">
+                Use shared alert and muted text treatments for loading, empty, filtered-empty, and error feedback.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples" data-catalogue-example="feedback-states">
               <nodel-row>
-                <nodel-column md="8">
-                  <nodel-control-grid columns="3" data-catalogue-example="control-grid-wrap">
-                    <nodel-button>One</nodel-button>
-                    <nodel-button>Two</nodel-button>
-                    <nodel-button>Three</nodel-button>
-                    <nodel-button>Four</nodel-button>
-                    <nodel-button>Five</nodel-button>
-                    <nodel-button>Six</nodel-button>
-                  </nodel-control-grid>
+                <nodel-column md="6">
+                  <div class="nodel-panel space-y-3 p-4">
+                    <p class="nodel-alert nodel-alert-sm" role="status">Loading nodes...</p>
+                    <p class="text-sm text-nodel-muted" role="status">No nodes available.</p>
+                  </div>
+                </nodel-column>
+                <nodel-column md="6">
+                  <div class="nodel-panel space-y-3 p-4">
+                    <p class="text-sm text-nodel-muted" role="status">No nodes match this filter.</p>
+                    <p class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert">Unable to load nodes.</p>
+                  </div>
                 </nodel-column>
               </nodel-row>
             </div>
 
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="feedback-states"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;div class=&quot;nodel-panel space-y-3 p-4&quot;&gt;
+      &lt;p class=&quot;nodel-alert nodel-alert-sm&quot; role=&quot;status&quot;&gt;Loading nodes...&lt;/p&gt;
+      &lt;p class=&quot;text-sm text-nodel-muted&quot; role=&quot;status&quot;&gt;No nodes available.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;div class=&quot;nodel-panel space-y-3 p-4&quot;&gt;
+      &lt;p class=&quot;text-sm text-nodel-muted&quot; role=&quot;status&quot;&gt;No nodes match this filter.&lt;/p&gt;
+      &lt;p class=&quot;nodel-alert nodel-alert-danger nodel-alert-sm&quot; role=&quot;alert&quot;&gt;Unable to load nodes.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Control Boundaries</h2>
+              <p class="nodel-catalogue-description">Resting controls keep a visible boundary over the page, card, panel, and popover surfaces.</p>
+            </header>
+            <div class="nodel-catalogue-examples space-y-4" data-catalogue-example="control-boundary-matrix">
+              <div class="grid gap-4 md:grid-cols-2">
+                <section class="space-y-3 p-5" data-boundary-surface="body"><h3 class="text-sm font-semibold text-nodel-fg">Body</h3><div class="grid gap-2"><button class="nodel-button" data-boundary-control="button">Button</button><input class="nodel-field" data-boundary-control="field" value="Field" /><button class="nodel-list-item" data-boundary-control="list-item">List item</button><button class="nodel-select-trigger" data-boundary-control="select-trigger">Select</button></div></section>
+                <section class="nodel-card space-y-3 p-5" data-boundary-surface="card"><h3 class="text-sm font-semibold text-nodel-fg">Card</h3><div class="grid gap-2"><button class="nodel-stepper-button" data-boundary-control="stepper">Step</button><button class="nodel-pad-button" data-boundary-control="pad">Pad</button><button class="nodel-fader-nudge" data-boundary-control="fader-nudge">Nudge</button><button class="nodel-theme-toggle-button" data-boundary-control="theme-switch">Theme</button></div></section>
+                <section class="nodel-panel space-y-3 p-5" data-boundary-surface="panel"><h3 class="text-sm font-semibold text-nodel-fg">Panel</h3><div class="grid gap-2"><nodel-toggle value="off" data-boundary-control="toggle-track"></nodel-toggle><button class="nodel-button">Panel button</button></div></section>
+                <section class="nodel-popover space-y-3 p-5" data-boundary-surface="popover"><h3 class="text-sm font-semibold text-nodel-fg">Popover</h3><div class="grid gap-2"><button class="nodel-button">Popover button</button><input class="nodel-field" value="Popover field" /></div></section>
+              </div>
+            </div>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="control-boundary-matrix"><code>&lt;div class=&quot;grid gap-4 md:grid-cols-2&quot;&gt;&lt;section class=&quot;space-y-3 p-5&quot; data-boundary-surface=&quot;body&quot;&gt;&lt;h3 class=&quot;text-sm font-semibold text-nodel-fg&quot;&gt;Body&lt;/h3&gt;&lt;div class=&quot;grid gap-2&quot;&gt;&lt;button class=&quot;nodel-button&quot; data-boundary-control=&quot;button&quot;&gt;Button&lt;/button&gt;&lt;input class=&quot;nodel-field&quot; data-boundary-control=&quot;field&quot; value=&quot;Field&quot; /&gt;&lt;button class=&quot;nodel-list-item&quot; data-boundary-control=&quot;list-item&quot;&gt;List item&lt;/button&gt;&lt;button class=&quot;nodel-select-trigger&quot; data-boundary-control=&quot;select-trigger&quot;&gt;Select&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;nodel-card space-y-3 p-5&quot; data-boundary-surface=&quot;card&quot;&gt;&lt;h3 class=&quot;text-sm font-semibold text-nodel-fg&quot;&gt;Card&lt;/h3&gt;&lt;div class=&quot;grid gap-2&quot;&gt;&lt;button class=&quot;nodel-stepper-button&quot; data-boundary-control=&quot;stepper&quot;&gt;Step&lt;/button&gt;&lt;button class=&quot;nodel-pad-button&quot; data-boundary-control=&quot;pad&quot;&gt;Pad&lt;/button&gt;&lt;button class=&quot;nodel-fader-nudge&quot; data-boundary-control=&quot;fader-nudge&quot;&gt;Nudge&lt;/button&gt;&lt;button class=&quot;nodel-theme-toggle-button&quot; data-boundary-control=&quot;theme-switch&quot;&gt;Theme&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;nodel-panel space-y-3 p-5&quot; data-boundary-surface=&quot;panel&quot;&gt;&lt;h3 class=&quot;text-sm font-semibold text-nodel-fg&quot;&gt;Panel&lt;/h3&gt;&lt;div class=&quot;grid gap-2&quot;&gt;&lt;nodel-toggle value=&quot;off&quot; data-boundary-control=&quot;toggle-track&quot;&gt;&lt;/nodel-toggle&gt;&lt;button class=&quot;nodel-button&quot;&gt;Panel button&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;nodel-popover space-y-3 p-5&quot; data-boundary-surface=&quot;popover&quot;&gt;&lt;h3 class=&quot;text-sm font-semibold text-nodel-fg&quot;&gt;Popover&lt;/h3&gt;&lt;div class=&quot;grid gap-2&quot;&gt;&lt;button class=&quot;nodel-button&quot;&gt;Popover button&lt;/button&gt;&lt;input class=&quot;nodel-field&quot; value=&quot;Popover field&quot; /&gt;&lt;/div&gt;&lt;/section&gt;&lt;/div&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header"><h2 class="nodel-catalogue-subtitle">Control And Data States</h2></header>
+            <div class="nodel-catalogue-examples" data-catalogue-example="control-data-states">
+              <div class="grid gap-4 md:grid-cols-2"><div class="nodel-card space-y-3 p-4"><nodel-button disabled>Disabled control</nodel-button><nodel-button action="CatalogueBusy" data-catalogue-busy>Busy control</nodel-button><nodel-toggle value="partially-on" data-catalogue-partial-toggle></nodel-toggle></div><div class="nodel-panel space-y-3 p-4"><div class="nodel-editor-status is-error" role="status">Unable to save script.py.</div></div></div>
+              <div class="grid gap-4 md:grid-cols-2"><div class="nodel-console" data-catalogue-console-empty><div class="nodel-console-frame nodel-card"><div class="nodel-console-output"><div class="nodel-console-empty text-nodel-muted" role="status">No console output yet.</div></div></div></div><div class="nodel-log" data-catalogue-log-empty><div class="nodel-log-panel"><div class="nodel-log-output"><div class="nodel-log-empty text-sm text-nodel-muted" role="status">No activity yet.</div></div></div></div></div>
+            </div>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="control-data-states"><code>&lt;div class=&quot;grid gap-4 md:grid-cols-2&quot;&gt;&lt;div class=&quot;nodel-card space-y-3 p-4&quot;&gt;&lt;nodel-button disabled&gt;Disabled control&lt;/nodel-button&gt;&lt;nodel-button action=&quot;CatalogueBusy&quot; data-catalogue-busy&gt;Busy control&lt;/nodel-button&gt;&lt;nodel-toggle value=&quot;partially-on&quot; data-catalogue-partial-toggle&gt;&lt;/nodel-toggle&gt;&lt;/div&gt;&lt;div class=&quot;nodel-panel space-y-3 p-4&quot;&gt;&lt;div class=&quot;nodel-editor-status is-error&quot; role=&quot;status&quot;&gt;Unable to save script.py.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;grid gap-4 md:grid-cols-2&quot;&gt;&lt;div class=&quot;nodel-console&quot; data-catalogue-console-empty&gt;&lt;div class=&quot;nodel-console-frame nodel-card&quot;&gt;&lt;div class=&quot;nodel-console-output&quot;&gt;&lt;div class=&quot;nodel-console-empty text-nodel-muted&quot; role=&quot;status&quot;&gt;No console output yet.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;nodel-log&quot; data-catalogue-log-empty&gt;&lt;div class=&quot;nodel-log-panel&quot;&gt;&lt;div class=&quot;nodel-log-output&quot;&gt;&lt;div class=&quot;nodel-log-empty text-sm text-nodel-muted&quot; role=&quot;status&quot;&gt;No activity yet.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header"><h2 class="nodel-catalogue-subtitle">Surface Hierarchy</h2></header>
+            <div class="nodel-catalogue-examples" data-catalogue-example="surface-hierarchy"><div class="nodel-card p-5"><p class="mb-3 text-sm text-nodel-muted">Card</p><div class="nodel-panel p-4"><p class="mb-3 text-sm text-nodel-muted">Panel</p><div class="nodel-popover p-4"><p class="text-sm font-medium text-nodel-fg">Popover</p></div></div></div></div>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="surface-hierarchy"><code>&lt;div class=&quot;nodel-card p-5&quot;&gt;&lt;p class=&quot;mb-3 text-sm text-nodel-muted&quot;&gt;Card&lt;/p&gt;&lt;div class=&quot;nodel-panel p-4&quot;&gt;&lt;p class=&quot;mb-3 text-sm text-nodel-muted&quot;&gt;Panel&lt;/p&gt;&lt;div class=&quot;nodel-popover p-4&quot;&gt;&lt;p class=&quot;text-sm font-medium text-nodel-fg&quot;&gt;Popover&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Wrap</h2>
+              <p class="nodel-catalogue-description">Additional controls wrap naturally into later rows while keeping equal cell widths.</p>
+            </header>
+            <div class="nodel-catalogue-examples"><nodel-row><nodel-column md="8"><nodel-control-grid columns="3" data-catalogue-example="control-grid-wrap"><nodel-button>One</nodel-button><nodel-button>Two</nodel-button><nodel-button>Three</nodel-button><nodel-button>Four</nodel-button><nodel-button>Five</nodel-button><nodel-button>Six</nodel-button></nodel-control-grid></nodel-column></nodel-row></div>
             <pre class="nodel-catalogue-code" data-catalogue-code-for="control-grid-wrap"><code>&lt;nodel-control-grid columns=&quot;3&quot;&gt;
   &lt;nodel-button&gt;One&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Two&lt;/nodel-button&gt;

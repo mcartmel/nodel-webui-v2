@@ -1,6 +1,6 @@
 import { getNodeDetails } from '../api/nodel-host-client';
 import { NODEL_CONFIRM, type NodelConfirmDetail } from '../data/confirm';
-import { resolveTheme } from '../theme/theme';
+import { getStoredTheme, getSystemThemeMediaQuery, isNodelTheme, resolveTheme, THEME_STORAGE_KEY } from '../theme/theme';
 import { refreshNodeActivity } from '../data/node-activity-source';
 import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
 import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartWatcher } from '../data/node-restart-source';
@@ -82,6 +82,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
+  private systemThemeMediaQuery: MediaQueryList | null = null;
   private titleLoadToken = 0;
   private confirmHost: NodelConfirmHostElement | null = null;
   private toastHost: NodelToastHost | null = null;
@@ -91,6 +92,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.ensureConfirmHost();
     this.ensureToastHost();
     this.syncTheme();
+    this.startThemeSynchronization();
     this.syncTitle();
     this.addEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
     this.addEventListener(NODEL_CONFIRM, this.handleConfirmRequest as EventListener);
@@ -126,6 +128,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.mutationObserver = null;
     this.restartWatcher?.dispose();
     this.restartWatcher = null;
+    this.stopThemeSynchronization();
     this.confirmHost = null;
     this.toastHost = null;
   }
@@ -158,6 +161,18 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     const pageId = this.getHashPageId();
     if (pageId && this.pageById.has(pageId)) {
       this.setActivePage(pageId, false);
+    }
+  };
+
+  private handleSystemThemeChange = () => {
+    if (!this.hasExplicitTheme() && getStoredTheme() === null) {
+      this.syncTheme();
+    }
+  };
+
+  private handleThemeStorageChange = (event: StorageEvent) => {
+    if ((event.key === THEME_STORAGE_KEY || event.key === null) && !this.hasExplicitTheme()) {
+      this.syncTheme();
     }
   };
 
@@ -407,6 +422,34 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private getHashPageId() {
     return window.location.hash.replace(/^#/, '');
+  }
+
+  private hasExplicitTheme() {
+    return isNodelTheme(this.getAttribute('theme'));
+  }
+
+  private startThemeSynchronization() {
+    this.systemThemeMediaQuery = getSystemThemeMediaQuery();
+    if (this.systemThemeMediaQuery) {
+      if (typeof this.systemThemeMediaQuery.addEventListener === 'function') {
+        this.systemThemeMediaQuery.addEventListener('change', this.handleSystemThemeChange);
+      } else {
+        this.systemThemeMediaQuery.addListener(this.handleSystemThemeChange);
+      }
+    }
+    window.addEventListener('storage', this.handleThemeStorageChange);
+  }
+
+  private stopThemeSynchronization() {
+    if (this.systemThemeMediaQuery) {
+      if (typeof this.systemThemeMediaQuery.removeEventListener === 'function') {
+        this.systemThemeMediaQuery.removeEventListener('change', this.handleSystemThemeChange);
+      } else {
+        this.systemThemeMediaQuery.removeListener(this.handleSystemThemeChange);
+      }
+      this.systemThemeMediaQuery = null;
+    }
+    window.removeEventListener('storage', this.handleThemeStorageChange);
   }
 
   private syncTheme() {
