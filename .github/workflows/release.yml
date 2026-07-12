@@ -1,0 +1,104 @@
+name: Publish Release Bundle
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          package_version="$(node --print "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?(\+[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+            echo "Tag must use a SemVer-compatible v-prefixed version; received ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          if [[ "$version" != "$package_version" ]]; then
+            echo "Tag version ${version} does not match package.json version ${package_version}" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: npm run build
+
+      - name: Prepare release content
+        run: >-
+          node ./scripts/prepare-release.mjs
+          --version "${{ steps.version.outputs.version }}"
+          --commit "$GITHUB_SHA"
+
+      - name: Create release archive
+        id: archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="nodel-webui-v2-${{ steps.version.outputs.version }}.zip"
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
+          find build/release -exec touch --date="@${source_date_epoch}" {} +
+          (
+            cd build/release
+            find . -type f -print | LC_ALL=C sort | zip -X "../${archive}" -@
+          )
+          (
+            cd build
+            sha256sum "${archive}" > "${archive}.sha256"
+          )
+          echo "archive=build/${archive}" >> "$GITHUB_OUTPUT"
+          echo "checksum=build/${archive}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodel-webui-v2-${{ steps.version.outputs.version }}
+          path: |
+            ${{ steps.archive.outputs.archive }}
+            ${{ steps.archive.outputs.checksum }}
+          if-no-files-found: error
+
+      - name: Attest release bundle
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.archive.outputs.archive }}
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.archive.outputs.archive }}#Deployable Nodel Web UI bundle" \
+            "${{ steps.archive.outputs.checksum }}#SHA-256 checksum" \
+            --verify-tag \
+            --generate-notes \
+            --title "Nodel Web UI v2 ${GITHUB_REF_NAME}"

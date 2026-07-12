@@ -48,6 +48,12 @@ The production deploy command clears its target before copying the built site. U
 
 Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths. The built `components.html` page is the user-facing catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
 
+## Releases
+
+Pushing a `v`-prefixed version tag that matches `package.json`, such as `v0.2.0`, builds and tests the project before publishing a GitHub Release. Each release includes a versioned ZIP containing the deployable pages and complete `v2/` support directory, plus a SHA-256 checksum and build provenance attestation.
+
+Consumers should pin a specific release version and verify its checksum before unpacking the archive. The archive contents can be used directly as Nodel web content; consumers do not need Node.js or the source project.
+
 ## License
 
 Nodel Web UI v2 is licensed under the [Mozilla Public License 2.0](LICENSE).

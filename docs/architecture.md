@@ -94,6 +94,12 @@ Both deployment commands write:
 
 This lets the custom content root override the built-in default document and visual pages for testing without replacing the built-in v1 support files. The support folder can be changed with `--support-subdir`, but `v2` is the default convention for this UI.
 
+## Release Bundle
+
+Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, and `release.json`. The manifest identifies the package version and source commit used by CI.
+
+The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, and the user-facing `components.html` catalogue. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
+
 ## JsViews
 
 JsViews stays in the stack for schema-driven forms.
