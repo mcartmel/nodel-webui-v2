@@ -249,6 +249,15 @@ describe('nodel document definition', () => {
 
     expect(codeElements).toHaveLength(examples.length);
 
+    for (const code of codeElements) {
+      const markup = code.querySelector('code')?.textContent ?? '';
+      const openingTags = markup.match(/<[^/!][^>]*>/g) ?? [];
+
+      if (openingTags.length > 1) {
+        expect(markup, `${code.dataset.catalogueCodeFor} should format nested markup across lines`).toContain('\n');
+      }
+    }
+
     for (const example of examples) {
       const id = (example as HTMLElement).dataset.catalogueExample;
       expect(codeBlocks.has(id)).toBe(true);
