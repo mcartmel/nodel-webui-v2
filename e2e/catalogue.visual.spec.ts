@@ -140,7 +140,7 @@ test.describe('catalogue visual regressions', () => {
     const toast = page.locator('.nodel-toast');
     await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Dismiss notification' }).focus();
-    await expect(page).toHaveScreenshot('toast.png');
+    await expect(toast).toHaveScreenshot('toast.png');
   });
 
   test('renders the readout ring fallback without masks', async ({ page }, testInfo) => {
