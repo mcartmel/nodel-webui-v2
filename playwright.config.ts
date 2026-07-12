@@ -15,6 +15,8 @@ export default defineConfig({
     toHaveScreenshot: {
       animations: 'disabled',
       caret: 'hide',
+      // Native system font rasterization differs slightly between Linux images.
+      maxDiffPixels: 100,
       scale: 'css'
     }
   },
