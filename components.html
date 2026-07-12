@@ -437,9 +437,11 @@
               <nodel-row>
                 <nodel-column md="6">
                   <nodel-group label="Controls">
-                    <nodel-button disabled>Disabled control</nodel-button>
-                    <nodel-button action="CatalogueBusy" data-catalogue-busy>Busy control</nodel-button>
-                    <nodel-toggle value="partially-on" data-catalogue-partial-toggle></nodel-toggle>
+                    <nodel-control-grid columns="1">
+                      <nodel-button disabled>Disabled control</nodel-button>
+                      <nodel-button action="CatalogueBusy" data-catalogue-busy>Busy control</nodel-button>
+                      <nodel-toggle value="partially-on" data-catalogue-partial-toggle></nodel-toggle>
+                    </nodel-control-grid>
                   </nodel-group>
                 </nodel-column>
                 <nodel-column md="6">
@@ -458,9 +460,11 @@
             <pre class="nodel-catalogue-code" data-catalogue-code-for="control-data-states"><code>&lt;nodel-row&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
     &lt;nodel-group label=&quot;Controls&quot;&gt;
-      &lt;nodel-button disabled&gt;Disabled control&lt;/nodel-button&gt;
-      &lt;nodel-button action=&quot;CatalogueBusy&quot; data-catalogue-busy&gt;Busy control&lt;/nodel-button&gt;
-      &lt;nodel-toggle value=&quot;partially-on&quot; data-catalogue-partial-toggle&gt;&lt;/nodel-toggle&gt;
+      &lt;nodel-control-grid columns=&quot;1&quot;&gt;
+        &lt;nodel-button disabled&gt;Disabled control&lt;/nodel-button&gt;
+        &lt;nodel-button action=&quot;CatalogueBusy&quot; data-catalogue-busy&gt;Busy control&lt;/nodel-button&gt;
+        &lt;nodel-toggle value=&quot;partially-on&quot; data-catalogue-partial-toggle&gt;&lt;/nodel-toggle&gt;
+      &lt;/nodel-control-grid&gt;
     &lt;/nodel-group&gt;
   &lt;/nodel-column&gt;
   &lt;nodel-column md=&quot;6&quot;&gt;
