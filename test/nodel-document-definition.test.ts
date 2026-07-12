@@ -210,7 +210,10 @@ describe('nodel document definition', () => {
       'nodel-pad-button',
       'nodel-fader-nudge',
       'nodel-theme-toggle-button',
-      'nodel-theme-switch'
+      'nodel-theme-switch',
+      'nodel-card',
+      'nodel-panel',
+      'nodel-popover'
     ];
 
     for (const className of internalControlClasses) {

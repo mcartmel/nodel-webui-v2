@@ -176,6 +176,9 @@ test.describe('catalogue accessibility', () => {
         element.removeAttribute('data-status-track-sample');
       });
       for (const surface of matrix.querySelectorAll<HTMLElement>('[data-boundary-surface]')) {
+        if (surface.localName === 'nodel-select') {
+          surface.setAttribute('open', '');
+        }
         const samples = document.createElement('div');
         samples.className = 'grid gap-3';
         samples.dataset.generatedBoundarySamples = '';
@@ -200,7 +203,18 @@ test.describe('catalogue accessibility', () => {
           status.style.borderWidth = '2px';
           status.style.boxShadow = 'none';
         }
-        surface.append(samples);
+        const sampleHost = surface.localName === 'nodel-select'
+          ? surface.querySelector<HTMLElement>('.nodel-select-panel')
+          : surface.querySelector<HTMLElement>('.nodel-group-body');
+        if (!sampleHost) {
+          throw new Error(`Missing rendered sample host for ${surface.dataset.boundarySurface}.`);
+        }
+        if (surface.localName === 'nodel-select') {
+          sampleHost.style.maxHeight = 'none';
+          sampleHost.style.overflow = 'visible';
+          samples.style.margin = '1rem';
+        }
+        sampleHost.append(samples);
       }
 
       const asBox = (element: Element): Box => {

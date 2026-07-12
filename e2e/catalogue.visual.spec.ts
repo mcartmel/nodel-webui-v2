@@ -111,9 +111,9 @@ test.describe('catalogue visual regressions', () => {
     await states.locator('[data-catalogue-busy] button').click();
     await expect(states.locator('[data-catalogue-busy] button')).toHaveClass(/is-busy/);
     await expect(states.locator('[data-catalogue-partial-toggle] button')).toHaveAttribute('aria-checked', 'mixed');
-    await expect(states.locator('.nodel-editor-status')).toBeVisible();
-    await expect(states.locator('[data-catalogue-console-empty] .nodel-console-empty')).toBeVisible();
-    await expect(states.locator('[data-catalogue-log-empty] .nodel-log-empty')).toBeVisible();
+    await expect(states.locator('[data-catalogue-editor-error]')).toBeVisible();
+    await expect(states.locator('[data-catalogue-console-empty]')).toBeVisible();
+    await expect(states.locator('[data-catalogue-log-empty]')).toBeVisible();
     await expect(states).toHaveScreenshot('control-data-states.png');
 
     await captureCatalogueExample(page, 'ControlGrid', 'surface-hierarchy', 'surface-hierarchy.png');
