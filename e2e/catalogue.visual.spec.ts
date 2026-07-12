@@ -102,21 +102,15 @@ test.describe('catalogue visual regressions', () => {
     expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(320);
   });
 
-  test('captures the remaining catalogue states and public overlays', async ({ page }, testInfo) => {
+  test('captures the busy button state and public overlays', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Focused state baselines run for the desktop themes.');
 
     await page.route('**/REST/actions/CatalogueBusy/call', () => new Promise<void>(() => {}));
-    await openCatalogue(page, 'ControlGrid');
-    const states = page.locator('[data-catalogue-example="control-data-states"]');
+    await openCatalogue(page, 'Buttons');
+    const states = page.locator('[data-catalogue-example="buttons-sizes-states"]');
     await states.locator('[data-catalogue-busy] button').click();
     await expect(states.locator('[data-catalogue-busy] button')).toHaveClass(/is-busy/);
-    await expect(states.locator('[data-catalogue-partial-toggle] button')).toHaveAttribute('aria-checked', 'mixed');
-    await expect(states.locator('[data-catalogue-editor-error]')).toBeVisible();
-    await expect(states.locator('[data-catalogue-console-empty]')).toBeVisible();
-    await expect(states.locator('[data-catalogue-log-empty]')).toBeVisible();
-    await expect(states).toHaveScreenshot('control-data-states.png');
-
-    await captureCatalogueExample(page, 'ControlGrid', 'surface-hierarchy', 'surface-hierarchy.png');
+    await expect(states).toHaveScreenshot('button-states.png');
 
     await page.locator('nodel-app').evaluate((app) => {
       app.dispatchEvent(new CustomEvent('nodel-confirm', {

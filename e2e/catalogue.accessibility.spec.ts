@@ -155,30 +155,29 @@ test.describe('catalogue accessibility', () => {
   test('measures marked control and inactive-status boundaries in rendered surface fixtures', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Pixel checks run once for each desktop colour theme at 1x scale.');
 
-    await page.goto('/components.html', { waitUntil: 'domcontentloaded' });
-    const matrix = page.locator('[data-catalogue-example="control-boundary-matrix"]');
-    await expect(matrix, 'The control boundary matrix fixture must be present.').toHaveCount(1);
-    const fixturePageId = await matrix.evaluate((element) => element.closest('nodel-page')?.getAttribute('data-page-id'));
-    if (!fixturePageId) {
-      throw new Error('The control boundary matrix fixture must be inside a catalogue page.');
-    }
-
-    await openCatalogue(page, fixturePageId);
+    await openCatalogue(page, 'Buttons');
 
     const fixture = await page.evaluate(() => {
-      const matrix = document.querySelector<HTMLElement>('[data-catalogue-example="control-boundary-matrix"]');
-      if (!matrix) {
-        throw new Error('Missing control boundary matrix fixture.');
+      const pageContent = document.querySelector<HTMLElement>('nodel-page[data-page-id="Buttons"][active] [data-page-content]');
+      if (!pageContent) {
+        throw new Error('Missing active Buttons catalogue page.');
       }
 
-      matrix.querySelectorAll('[data-boundary-control], [data-status-track-sample]').forEach((element) => {
-        element.removeAttribute('data-boundary-control');
-        element.removeAttribute('data-status-track-sample');
-      });
-      for (const surface of matrix.querySelectorAll<HTMLElement>('[data-boundary-surface]')) {
-        if (surface.localName === 'nodel-select') {
-          surface.setAttribute('open', '');
-        }
+      const matrix = document.createElement('div');
+      matrix.className = 'grid gap-4 md:grid-cols-2';
+      matrix.dataset.generatedBoundaryMatrix = '';
+
+      const surfaces = [
+        { className: 'p-5', name: 'body' },
+        { className: 'nodel-card p-5', name: 'card' },
+        { className: 'nodel-panel p-5', name: 'panel' },
+        { className: 'nodel-popover p-5', name: 'popover' }
+      ];
+
+      for (const definition of surfaces) {
+        const surface = document.createElement('section');
+        surface.className = definition.className;
+        surface.dataset.boundarySurface = definition.name;
         const samples = document.createElement('div');
         samples.className = 'grid gap-3';
         samples.dataset.generatedBoundarySamples = '';
@@ -203,19 +202,10 @@ test.describe('catalogue accessibility', () => {
           status.style.borderWidth = '2px';
           status.style.boxShadow = 'none';
         }
-        const sampleHost = surface.localName === 'nodel-select'
-          ? surface.querySelector<HTMLElement>('.nodel-select-panel')
-          : surface.querySelector<HTMLElement>('.nodel-group-body');
-        if (!sampleHost) {
-          throw new Error(`Missing rendered sample host for ${surface.dataset.boundarySurface}.`);
-        }
-        if (surface.localName === 'nodel-select') {
-          sampleHost.style.maxHeight = 'none';
-          sampleHost.style.overflow = 'visible';
-          samples.style.margin = '1rem';
-        }
-        sampleHost.append(samples);
+        surface.append(samples);
+        matrix.append(surface);
       }
+      pageContent.prepend(matrix);
 
       const asBox = (element: Element): Box => {
         const { height, width, x, y } = element.getBoundingClientRect();
