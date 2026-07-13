@@ -2278,6 +2278,11 @@
     touch-action: manipulation;
   }
 
+  select.nodel-field option {
+    background-color: rgb(var(--nodel-surface));
+    color: rgb(var(--nodel-fg));
+  }
+
   .nodel-field:focus-visible {
     @apply ring-2 ring-nodel-focus;
     border-color: rgb(var(--nodel-focus) / 0.65);

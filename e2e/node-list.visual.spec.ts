@@ -270,6 +270,17 @@ test.describe('grouped node list', () => {
     await expectContainedFocus(row, list);
   });
 
+  test('keeps the row-count options readable in colour themes', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Native option colour checks run in desktop colour themes.');
+    await openLocalNodeList(page);
+    const colours = await page.locator('.nodel-node-list-show option').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, foreground: style.color };
+    });
+
+    expect(contrast(parseRgb(colours.foreground), parseRgb(colours.background))).toBeGreaterThanOrEqual(4.5);
+  });
+
   test('uses quiet hover and pressed feedback without raising a row', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Pointer-state checks run in desktop colour themes.');
     const list = await openLocalNodeList(page);
