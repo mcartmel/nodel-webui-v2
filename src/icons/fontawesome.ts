@@ -2,6 +2,7 @@ import {
   faArrowRight,
   faBars,
   faChevronDown,
+  faChevronRight,
   faChevronUp,
   faCircleCheck,
   faCircleInfo,
@@ -44,6 +45,7 @@ export const logIcons = {
 export const uiIcons = {
   bars: faBars,
   chevronDown: faChevronDown,
+  chevronRight: faChevronRight,
   chevronUp: faChevronUp,
   image: faImage,
   pause: faPause,

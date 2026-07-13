@@ -102,6 +102,7 @@ describe('nodel-node-menu', () => {
     openMenu();
 
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nodel-node-menu-link-list a'));
+    const collection = document.querySelector('.nodel-node-menu-link-list ul.nodel-list');
     expect(links.map((link) => link.textContent?.trim())).toEqual([
       'custom.html',
       'panel.xml',
@@ -114,6 +115,9 @@ describe('nodel-node-menu', () => {
       '/toolkit.html',
       '/nodes.html#Diagnostics'
     ]);
+    expect(collection?.children).toHaveLength(4);
+    expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(4);
+    expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(4);
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
   });
 
@@ -141,7 +145,10 @@ describe('nodel-node-menu', () => {
     await mountMenu();
     openMenu();
 
-    expect(document.body.textContent).toContain('No custom UIs.');
+    const empty = Array.from(document.querySelectorAll('.nodel-alert')).find((element) => element.textContent?.includes('No custom UIs.'));
+    expect(empty).not.toBeUndefined();
+    expect(empty?.closest('.nodel-list')).toBeNull();
+    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list > li')).toHaveLength(2);
   });
 
   it('renames the node, shows a toast, waits for readiness, and redirects', async () => {

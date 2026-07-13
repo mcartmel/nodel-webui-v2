@@ -83,7 +83,8 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-card` for passive bordered surfaces and display content.
 - `.nodel-panel` for larger section containers.
 - `.nodel-popover` for dropdowns, autocomplete panels, and floating menus.
-- `.nodel-list-item` for linked rows or selectable rows that should read as tappable at rest.
+- `.nodel-list` for one card-level collection surface around dense related navigation rows.
+- `.nodel-list-item` for linked or selectable rows; standalone items are raised, while items inside `.nodel-list` are flat and divided.
 - `.nodel-menu-item` for menu and autocomplete result buttons.
 - `.nodel-menu-item-active` for the active menu item.
 - `.nodel-section-heading` for small uppercase section/table headings.
@@ -94,7 +95,7 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 
 Prefer semantic state classes over raw visual utility classes when state or public component API drives appearance. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
 
-The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
+The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. For dense navigation, combine a visible trailing affordance with the grouped list structure so the collection has one raised boundary and each row retains a clear touch target. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
 
 One-off Tailwind utilities are appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, `text-nodel-muted`, `bg-nodel-surface`, or responsive column classes.
 
@@ -106,11 +107,16 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 <div class="nodel-panel p-4">
   <p class="nodel-alert px-4 py-3 text-sm">Loading...</p>
 </div>
+
+<ul class="nodel-list">
+  <li><a class="nodel-list-item px-3 py-2" href="first.html">First item</a></li>
+  <li><a class="nodel-list-item px-3 py-2" href="second.html">Second item</a></li>
+</ul>
 ```
 
 Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, glass surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
-Cards are passive surfaces, panels add stronger grouping, and popovers/dialogs carry the strongest elevation. The default font uses the native system stack. Theme styles include reduced-motion, reduced-transparency, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours.
+Cards are passive surfaces, grouped lists use the card surface as one collection boundary, panels add stronger grouping, and popovers/dialogs carry the strongest elevation. The default font uses the native system stack. Theme styles include reduced-motion, reduced-transparency, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours.
 
 ## Toast Notifications
 

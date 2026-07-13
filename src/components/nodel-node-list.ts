@@ -4,6 +4,7 @@ import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscri
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { getHostFromAddress, getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { escapeHtml } from '../utils/html';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
@@ -32,12 +33,13 @@ interface NodeListState {
 const pageSizes = [10, 20, 50, 100, 99999];
 const refreshIntervalMs = 2000;
 const searchDebounceMs = 200;
+const rowAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-list-item-affordance');
 
 const template = `
   <div class="nodel-node-list space-y-4">
     <form class="nodel-node-list-controls flex flex-wrap items-center gap-3">
       <input class="nodel-node-list-filter nodel-field flex-1" type="text" placeholder="Filter nodes" data-link="value{:flt}" />
-      <select class="nodel-node-list-show nodel-field" data-link="value{:end}">
+      <select class="nodel-node-list-show nodel-field" aria-label="Rows per page" data-link="value{:end}">
         <option value="10">10</option>
         <option value="20">20</option>
         <option value="50">50</option>
@@ -53,17 +55,22 @@ const template = `
       {^{if error}}
         <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{:error}}</div>
       {{else}}
-        <div class="nodel-node-list-items space-y-1">
+        <div class="nodel-node-list-results space-y-3">
           {^{if lst.length}}
-            {^{for lst}}
-              <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
-                <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
-                  <span class="truncate text-xs text-nodel-muted">{^{:host}}</span>
-                </span>
-              </a>
-            {{/for}}
+            <ul class="nodel-node-list-items nodel-list">
+              {^{for lst}}
+                <li>
+                  <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
+                    <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
+                      <span class="truncate text-xs text-nodel-muted">{^{:host}}</span>
+                    </span>
+                    ${rowAffordanceMarkup}
+                  </a>
+                </li>
+              {{/for}}
+            </ul>
             {^{if moreAvailable}}
               <button type="button" class="nodel-node-list-more nodel-button nodel-button-ghost" data-node-list-more>Load more</button>
             {{/if}}

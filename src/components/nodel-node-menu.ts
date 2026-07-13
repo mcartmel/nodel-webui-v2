@@ -30,6 +30,7 @@ interface NodeMenuState {
 const deleteRedirectDelayMs = 2500;
 const menuIconMarkup = renderFontAwesomeIcon(uiIcons.bars, 'h-4 w-4');
 const closeIconMarkup = renderFontAwesomeIcon(uiIcons.xmark, 'h-3.5 w-3.5');
+const linkAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-list-item-affordance');
 const scrollLockClass = 'nodel-node-menu-scroll-lock';
 
 const template = `
@@ -84,13 +85,31 @@ const template = `
               <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>uiError}}</div>
             {{else customUis.length === 0}}
               <div class="nodel-alert nodel-alert-sm">No custom UIs.</div>
-            {{else}}
-              {^{for customUis}}
-                <a class="nodel-list-item px-3 py-2 text-sm" data-link="href{:href} title{:path}">{^{>title}}</a>
-              {{/for}}
             {{/if}}
-            <a class="nodel-list-item px-3 py-2 text-sm" href="/toolkit.html">Toolkit</a>
-            <a class="nodel-list-item px-3 py-2 text-sm" href="/nodes.html#Diagnostics">Diagnostics</a>
+            <ul class="nodel-list">
+              {^{if !loading && !uiError && customUis.length}}
+                {^{for customUis}}
+                  <li>
+                    <a class="nodel-list-item gap-3 px-3 py-2 text-sm" data-link="href{:href} title{:path}">
+                      <span class="min-w-0 flex-1 truncate">{^{>title}}</span>
+                      ${linkAffordanceMarkup}
+                    </a>
+                  </li>
+                {{/for}}
+              {{/if}}
+              <li>
+                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/toolkit.html">
+                  <span class="min-w-0 flex-1 truncate">Toolkit</span>
+                  ${linkAffordanceMarkup}
+                </a>
+              </li>
+              <li>
+                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/nodes.html#Diagnostics">
+                  <span class="min-w-0 flex-1 truncate">Diagnostics</span>
+                  ${linkAffordanceMarkup}
+                </a>
+              </li>
+            </ul>
           </div>
         </section>
       </div>
