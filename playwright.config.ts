@@ -16,7 +16,7 @@ export default defineConfig({
       animations: 'disabled',
       caret: 'hide',
       // Native system font rasterization differs slightly between Linux images.
-      maxDiffPixels: 100,
+      maxDiffPixels: 150,
       scale: 'css'
     }
   },

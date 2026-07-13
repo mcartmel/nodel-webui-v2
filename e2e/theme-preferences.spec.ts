@@ -135,8 +135,9 @@ test.describe('theme first paint and preferences', () => {
     test.skip(!supported, 'This Chromium build cannot emulate prefers-reduced-transparency.');
     await openCatalogue(page, 'ControlGrid');
     await page.locator('[data-nav-group-id="Controls"]').click();
-    const card = page.locator('.nodel-card').first();
-    const panel = page.locator('.nodel-panel').first();
+    const groupSurfaces = page.locator('[data-catalogue-example="control-grid-group-surfaces"]');
+    const card = groupSurfaces.locator('.nodel-group-shell[data-surface="card"]');
+    const panel = groupSurfaces.locator('.nodel-group-shell[data-surface="panel"]');
     const toolbar = page.locator('nodel-toolbar');
     const popover = page.locator('#nodel-menu-Controls');
     const control = page.locator('[data-catalogue-example="control-grid-fixed-columns"] button');
