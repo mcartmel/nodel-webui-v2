@@ -187,12 +187,16 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'disabled', description: 'Disable the group.' },
       { name: 'allow-deselect', description: 'Allow tapping the active option to clear selection.' },
       { name: 'label', description: 'Accessible group label.' },
+      { name: 'options-signal', description: 'SignalName[.path] source for dynamic option arrays. Accepts scalars, { value, label }, and v1 { key, value } entries.' },
+      { name: 'options-loading-label', description: 'Status text while dynamic options are loading. Default: Loading options...' },
+      { name: 'options-empty-label', description: 'Status text for a valid empty dynamic option list. Default: No options.' },
+      { name: 'options-error-label', description: 'Status text when dynamic options are unavailable or malformed. Default: Options unavailable.' },
       { name: 'confirm', description: 'Require confirmation before applying a selection.' },
       { name: 'confirm-title', description: 'Confirmation dialog title.' },
       { name: 'confirm-text', description: 'Confirmation dialog body text.' },
       { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
       { name: 'signal', description: signalBindingDescription('value') },
-      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
+      { name: 'signals', description: `${signalsBindingDescription('value, label, disabled, options')} The options target only supports last-value bindings; options(any) and options(all) are invalid.` }
     ],
     snippet: '<nodel-group label="Source">\n  <nodel-segmented action="SetSource" signal="Source">\n    <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n    <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n  </nodel-segmented>\n</nodel-group>'
   },
@@ -212,8 +216,12 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'disabled', description: 'Disable the picker.' },
       { name: 'allow-deselect', description: 'Allow selecting the active option to clear value.' },
       { name: 'open', description: 'Start with the option panel open.' },
+      { name: 'options-signal', description: 'SignalName[.path] source for dynamic option arrays. Accepts scalars, { value, label }, and v1 { key, value } entries.' },
+      { name: 'options-loading-label', description: 'Status text while dynamic options are loading. Default: Loading options...' },
+      { name: 'options-empty-label', description: 'Status text for a valid empty dynamic option list. Default: No options.' },
+      { name: 'options-error-label', description: 'Status text when dynamic options are unavailable or malformed. Default: Options unavailable.' },
       { name: 'signal', description: signalBindingDescription('value') },
-      { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
+      { name: 'signals', description: `${signalsBindingDescription('value, label, disabled, options')} The options target only supports last-value bindings; options(any) and options(all) are invalid.` }
     ],
     snippet: '<nodel-group label="Source">\n  <nodel-select action="SetSource" signal="Source">\n    <nodel-button value="HDMI 1">HDMI 1</nodel-button>\n    <nodel-button value="HDMI 2">HDMI 2</nodel-button>\n  </nodel-select>\n</nodel-group>'
   },

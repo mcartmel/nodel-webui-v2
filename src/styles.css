@@ -1267,6 +1267,11 @@
     @apply opacity-disabled;
   }
 
+  nodel-segmented[data-options-state='empty'],
+  nodel-segmented[data-options-state='error'] {
+    @apply min-h-14 items-center;
+  }
+
   .nodel-segmented > nodel-button {
     @apply min-w-0 flex-1;
   }
@@ -1282,6 +1287,10 @@
     @apply border-nodel-border bg-nodel-border/25;
     background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.25));
     border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
+  }
+
+  nodel-segmented > .nodel-options-status {
+    @apply min-w-0 flex-none;
   }
 
   .nodel-segmented > nodel-button[active] .nodel-button-touch,
@@ -1385,11 +1394,15 @@
     translate: 0 0;
   }
 
-  .nodel-select-trigger:not(:disabled) {
+  .nodel-select-trigger:not(:disabled):not([aria-disabled='true']) {
     @apply cursor-pointer;
   }
 
-  .nodel-select-trigger:active:not(:disabled) {
+  .nodel-select-trigger[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-disabled;
+  }
+
+  .nodel-select-trigger:active:not(:disabled):not([aria-disabled='true']) {
     border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
     background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
     box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
@@ -1436,6 +1449,20 @@
 
   .nodel-select-panel nodel-button .nodel-button-touch {
     @apply h-auto min-h-10 justify-start px-3 py-2 text-sm leading-5;
+  }
+
+  .nodel-options-status {
+    @apply rounded-control px-3 py-2 text-sm font-medium text-nodel-muted;
+  }
+
+  .nodel-options-status[data-state='error'] {
+    @apply text-nodel-danger;
+  }
+
+  nodel-select > .nodel-options-status {
+    @apply absolute left-0 right-0 top-[calc(100%+0.375rem)] z-20 border border-nodel-border bg-nodel-surfaceRaised shadow-nodel-popover;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
+    border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
   }
 
   .nodel-stepper-shell {
@@ -3609,6 +3636,7 @@
     .nodel-card,
     .nodel-panel,
     .nodel-popover,
+    .nodel-options-status,
     .nodel-list,
     .nodel-button,
     .nodel-field,

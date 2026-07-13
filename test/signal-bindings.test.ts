@@ -83,6 +83,46 @@ describe('signal bindings', () => {
     expect(values).toEqual(['1', 'Lamp warning', 'second']);
   });
 
+  it('passes raw extracted values to target handlers without changing formatted values', () => {
+    const values: string[] = [];
+    const rawValues: unknown[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings(null, 'Status.items:value'),
+      { value: (value, rawValue) => { values.push(value); rawValues.push(rawValue); } }
+    );
+
+    const items = [{ value: 'A', label: 'A' }];
+    emitSignal('Status', { items });
+
+    expect(values).toEqual([JSON.stringify(items, null, 2)]);
+    expect(rawValues).toEqual([items]);
+  });
+
+  it('includes options-signal bindings and ignores duplicate options targets', () => {
+    expect(parseSignalBindings(null, 'Available.items:options; Other:options(any)', undefined, null, 'Available.items')).toEqual([
+      { signal: 'Available', path: ['items'], target: 'options', mode: 'last' },
+      { signal: 'Other', target: 'options', mode: 'any' }
+    ]);
+  });
+
+  it('reports activity source state to subscribers', () => {
+    const states: any[] = [];
+    subscribeSignalBindings(
+      document.createElement('div'),
+      parseSignalBindings('Status', null, 'value'),
+      { value: vi.fn() },
+      {},
+      (state) => states.push(state)
+    );
+
+    for (const listener of activityMock.listeners) {
+      listener({ loading: true, connected: false, error: 'offline', batch: null });
+    }
+
+    expect(states).toEqual([{ loading: true, connected: false, error: 'offline' }]);
+  });
+
   it('formats missing, object, and array path values consistently with whole signal values', () => {
     const values: string[] = [];
     subscribeSignalBindings(

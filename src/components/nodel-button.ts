@@ -98,7 +98,9 @@ export class NodelButton extends HTMLElement {
   static observedAttributes = [
     'variant', 'tone', 'layout', 'size', 'action', 'actions', 'action-on', 'action-off', 'join', 'arg', 'arg-type',
     'disabled', 'active', 'active-value', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text',
-    'confirm-label', 'cancel-label', 'confirm-tone', 'aria-label', 'aria-labelledby', 'title'
+    'confirm-label', 'cancel-label', 'confirm-tone', 'aria-label', 'aria-labelledby', 'title',
+    'data-nodel-native-role', 'data-nodel-native-aria-selected', 'data-nodel-native-aria-checked',
+    'data-nodel-native-aria-disabled', 'data-nodel-native-tabindex'
   ];
 
   private shellReady = false;
@@ -167,7 +169,8 @@ export class NodelButton extends HTMLElement {
     this.buttonNode!.disabled = disabled;
     this.syncNativeButtonMetadata();
 
-    if (active) {
+    const nativeRole = this.getAttribute('data-nodel-native-role');
+    if (active && nativeRole !== 'option' && nativeRole !== 'radio') {
       this.buttonNode!.setAttribute('aria-pressed', 'true');
     } else {
       this.buttonNode!.removeAttribute('aria-pressed');
@@ -185,6 +188,23 @@ export class NodelButton extends HTMLElement {
         this.buttonNode?.setAttribute(attribute, value);
       } else {
         this.buttonNode?.removeAttribute(attribute);
+      }
+    }
+
+    const nativeMappings = [
+      ['data-nodel-native-role', 'role'],
+      ['data-nodel-native-aria-selected', 'aria-selected'],
+      ['data-nodel-native-aria-checked', 'aria-checked'],
+      ['data-nodel-native-aria-disabled', 'aria-disabled'],
+      ['data-nodel-native-tabindex', 'tabindex']
+    ] as const;
+
+    for (const [source, target] of nativeMappings) {
+      const value = this.getAttribute(source);
+      if (value !== null) {
+        this.buttonNode?.setAttribute(target, value);
+      } else {
+        this.buttonNode?.removeAttribute(target);
       }
     }
   }

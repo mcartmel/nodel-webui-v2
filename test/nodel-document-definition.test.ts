@@ -122,6 +122,11 @@ describe('nodel document definition', () => {
     expect(button?.attributes.find((attribute) => attribute.name === 'variant')?.values).toEqual(['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link']);
     expect(button?.attributes.find((attribute) => attribute.name === 'layout')?.values).toEqual(['inline', 'stack']);
 
+    const select = nodelDocumentElements.find((element) => element.name === 'nodel-select');
+    const segmented = nodelDocumentElements.find((element) => element.name === 'nodel-segmented');
+    expect(select?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
+    expect(segmented?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
+
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);
     expect(text?.attributes.find((attribute) => attribute.name === 'size')?.values).toEqual(['xs', 'sm', 'md', 'lg', 'xl']);

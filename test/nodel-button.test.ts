@@ -159,6 +159,18 @@ describe('nodel-button', () => {
     expect(button.className).toContain('is-active');
   });
 
+  it('forwards contextual option metadata to the native button without pressed semantics', async () => {
+    document.body.innerHTML = '<nodel-button active data-nodel-native-role="radio" data-nodel-native-aria-checked="true" data-nodel-native-tabindex="0">Selected</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const button = document.querySelector('nodel-button button') as HTMLButtonElement;
+    expect(button.getAttribute('role')).toBe('radio');
+    expect(button.getAttribute('aria-checked')).toBe('true');
+    expect(button.getAttribute('tabindex')).toBe('0');
+    expect(button.hasAttribute('aria-pressed')).toBe(false);
+  });
+
   it('calls an action with an empty payload when no arg is set', async () => {
     document.body.innerHTML = '<nodel-button action="Power">Power</nodel-button>';
     await customElements.whenDefined('nodel-button');

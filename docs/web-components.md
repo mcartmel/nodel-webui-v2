@@ -23,41 +23,57 @@ Examples:
 
 ## Current Elements
 
-- `nodel-app`
-- `nodel-toolbar`
-- `nodel-page`
-- `nodel-row`
-- `nodel-column`
-- `nodel-control-grid`
-- `nodel-control-space`
-- `nodel-template`
-- `nodel-button`
-- `nodel-fader`
-- `nodel-meter`
-- `nodel-image`
-- `nodel-icon`
-- `nodel-status-indicator`
-- `nodel-status`
-- `nodel-collapse`
-- `nodel-description`
-- `nodel-title`
-- `nodel-text`
-- `nodel-host-icon`
-- `nodel-node-list`
-- `nodel-add-node`
-- `nodel-node-menu`
-- `nodel-diagnostics`
-- `nodel-toolkit`
-- `nodel-console`
-- `nodel-log`
-- `nodel-host-log`
-- `nodel-diagnostic-charts`
-- `nodel-actsig`
-- `nodel-params`
-- `nodel-bindings`
-- `nodel-editor`
-- `nodel-theme-toggle`
-- `nodel-toast-host`
+The component set has two audiences. Custom UI components are public authoring primitives intended for node-specific pages and are demonstrated in `components.html`. Core Nodel components implement the standard host and node administration pages. They are documented here because they share the same runtime and may be useful when replacing a core page, but they are intentionally not part of the visual component catalogue.
+
+### Custom UI Components
+
+- `nodel-app`: top-level application shell, theme owner, and page navigation coordinator.
+- `nodel-toolbar`: responsive application toolbar with generated page navigation and an actions slot.
+- `nodel-page`: selectable page or nested navigation group.
+- `nodel-row`: responsive 12-column page-layout row.
+- `nodel-column`: responsive page-layout column.
+- `nodel-control-grid`: equal-cell grid for touch controls.
+- `nodel-control-space`: deliberate empty cell inside a control grid.
+- `nodel-group`: labelled composition group with optional card or panel surface.
+- `nodel-template`: safe repeated-markup authoring helper using native HTML templates.
+- `nodel-button`: touch-sized action and signal-state button.
+- `nodel-toggle`: boolean switch with full and partial feedback states.
+- `nodel-segmented`: mutually exclusive horizontal or vertical button choices.
+- `nodel-select`: touch-friendly picker for larger sets of choices.
+- `nodel-fader`: touch-first vertical or horizontal level control.
+- `nodel-meter`: read-only percent, numeric, or dB level display.
+- `nodel-stepper`: precise numeric increment and decrement control.
+- `nodel-pad`: directional control with click or momentary actions.
+- `nodel-readout`: read-only text, numeric, status, bar, or ring value tile.
+- `nodel-palette`: swatch and optional native custom-colour picker.
+- `nodel-image`: standalone or inline signal-aware image.
+- `nodel-icon`: standalone or inline signal-aware icon.
+- `nodel-status-indicator`: compact signal-state indicator for control content.
+- `nodel-status`: stateful equipment, area, or service status block.
+- `nodel-collapse`: reusable native disclosure section.
+- `nodel-title`: visible page or section heading.
+- `nodel-text`: theme-aware body text and callout content.
+- `nodel-host-icon`: generated host identicon with an optional link.
+- `nodel-theme-toggle`: persistent light/dark theme control for the nearest app.
+
+### Core Nodel Components
+
+- `nodel-description`: current-node description rendered from Markdown.
+- `nodel-node-list`: local or network-wide node list.
+- `nodel-add-node`: node creation, recipe selection, and duplication flow.
+- `nodel-node-menu`: current-node navigation and management drawer.
+- `nodel-diagnostics`: host diagnostics table.
+- `nodel-host-log`: host/server log viewer.
+- `nodel-diagnostic-charts`: host diagnostic measurement charts.
+- `nodel-toolkit`: host scripting toolkit reference.
+- `nodel-console`: current-node console history and command prompt.
+- `nodel-log`: current-node action and signal activity stream.
+- `nodel-actsig`: schema-driven current-node actions and signals interface.
+- `nodel-params`: schema-driven current-node parameter editor.
+- `nodel-bindings`: current-node remote binding workbench.
+- `nodel-editor`: current-node file and recipe editor.
+- `nodel-toast-host`: app-level notification host, created automatically by `nodel-app`.
+- `nodel-confirm-host`: app-level confirmation dialog host, created automatically by `nodel-app`.
 
 ## Shared Styling Classes
 
@@ -496,9 +512,19 @@ Supported `nodel-segmented` attributes:
 - `label` as an accessibility-only fallback label
 - `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
 - `signal="SignalName"` as shorthand for `value`
-- `signals="SignalName:target"` with targets `value`, `label`, and `disabled`
+- `signals="SignalName:target"` with targets `value`, `label`, `disabled`, and `options`
+- `options-signal="SignalName[.path]"` as shorthand for `signals="SignalName[.path]:options"`
+- `options-loading-label`, `options-empty-label`, and `options-error-label` for dynamic option state text. Defaults are `Loading options...`, `No options`, and `Options unavailable`.
 
 Child `nodel-button` options use `value` first, then `arg`, then their text content as the selection value. Option-level confirm attributes override the group confirm settings for that option.
+
+Dynamic options replace the active child options after the first valid options signal payload. Authored child buttons remain usable while options are loading and are restored if the options binding is removed. Payloads must be arrays with at most 200 entries. Entries may be scalar strings, finite numbers, booleans, `{ value, label }`, or v1 `{ key, value }` objects where `key` is the action value and `value` is the label. For v1 objects, an empty or missing `key` falls back to the scalar `value`; nested, array, or otherwise non-scalar keys are invalid. Signal-provided labels are assigned as text, not HTML. Malformed, duplicate, nested, blank, non-array, or oversized payloads are rejected atomically; the last valid option set remains visible and the host reflects `data-options-state="error"`. A valid empty array reflects `data-options-state="empty"`. Dynamic option data cannot define actions, confirmation, variants, tones, icons, or arbitrary attributes.
+
+Dynamic option controls dispatch `nodel-options-updated` after a valid payload with `{ count, state }`, and `nodel-options-error` after a rejected payload with `{ message, issues }`. Raw signal payloads are not included in error events. Signal-data errors use inline status text rather than toasts; action failures still use the existing control error events and toast behavior.
+
+Use `options-signal="Name"` or `signals="Name:options"` for collection bindings. Aggregated collection targets such as `signals="Name:options(any)"` and `signals="Name:options(all)"` are invalid because option arrays cannot be boolean-aggregated.
+
+`nodel-segmented` exposes a native radiogroup model: the host has `role="radiogroup"`, each inner native option button has `role="radio"`, and the selected option has `aria-checked="true"`. The selected enabled option is the roving tab stop; otherwise the first enabled option is tabbable. Horizontal groups use Left/Right arrows with wrapping, vertical groups use Up/Down arrows with wrapping, and Home/End jump to the first/last option. Arrow navigation follows the normal selection path, including confirmation, shared action calls, typed argument parsing, busy state, and action failure behavior.
 
 ```html
 <nodel-group label="Source">
@@ -508,9 +534,18 @@ Child `nodel-button` options use `value` first, then `arg`, then their text cont
     <nodel-button value="USB-C">USB-C</nodel-button>
   </nodel-segmented>
 </nodel-group>
+<nodel-group label="Mode">
+  <nodel-segmented orientation="vertical" signals="AvailableModes:options; CurrentMode:value" action="SetMode">
+    <nodel-button value="Auto">Auto</nodel-button>
+  </nodel-segmented>
+</nodel-group>
 ```
 
-`nodel-select` renders a touch-friendly picker for larger option sets. Use direct `nodel-button` children as options; the selected value is taken from `value`, then `arg`, then text content. It supports `action`, `actions="Action:select"`, `join`, `arg-type`, `variant`, `tone`, `disabled`, `allow-deselect`, `signal`, `signals="Name:value; Lock:disabled"`, and the standard confirmation attributes.
+`nodel-select` renders a touch-friendly picker for larger option sets. Use direct `nodel-button` children as options; the selected value is taken from `value`, then `arg`, then text content. It supports `action`, `actions="Action:select"`, `join`, `arg-type`, `variant`, `tone`, `disabled`, `allow-deselect`, `signal`, `signals="Name:value; Lock:disabled"`, dynamic `options` bindings, and the standard confirmation attributes.
+
+`nodel-select` uses the same dynamic option payload contract as `nodel-segmented`. Bind options with `options-signal="AvailableSources"` or `signals="AvailableSources:options"`. The selected value is preserved when it disappears from a dynamic list; the trigger displays the raw selected value until a matching option returns or the user selects a different option. Loading, empty, and error state labels are exposed through `data-options-state` and inline `aria-live` status text rather than toasts. The default labels are `Loading options...`, `No options`, and `Options unavailable`.
+
+`nodel-select` exposes a native listbox model while open: the panel has `role="listbox"` and an accessible name, each inner native option button has `role="option"`, and the selected option has `aria-selected="true"`. Enter/Space toggles the trigger. ArrowDown opens and focuses the selected or first option; ArrowUp opens and focuses the selected or last option. In the open list, ArrowUp/ArrowDown wrap, Home/End jump, Enter/Space selects, Escape closes and returns focus to the trigger, and Tab closes without trapping focus. Only one option is in the native tab sequence while the list is open.
 
 ```html
 <nodel-group label="Source">
@@ -520,7 +555,17 @@ Child `nodel-button` options use `value` first, then `arg`, then their text cont
     <nodel-button value="USB-C">USB-C</nodel-button>
   </nodel-select>
 </nodel-group>
+<nodel-group label="Dynamic source">
+  <nodel-select options-signal="AvailableSources" signal="CurrentSource" action="SetSource" value="Fallback">
+    <nodel-button value="Fallback">Fallback source</nodel-button>
+  </nodel-select>
+</nodel-group>
 ```
+
+v1 migration examples:
+
+- `dynamicselect data="List" event="Selected" action="Selected"` becomes `nodel-select options-signal="List" signal="Selected" action="Selected"`.
+- `dynamicbuttongroup data="List" join="Selected"` becomes `nodel-segmented orientation="vertical" options-signal="List" join="Selected"`.
 
 `nodel-stepper` renders large `-` and `+` controls with a central readout for precise numeric changes. It supports `min`, `max`, `step`, `value`, `unit="percent|db|none"`, `prefix`, `suffix`, `precision`, `repeat="hold|off"`, `action`, `actions` with phases `change`, `live`, `commit`, `increase`, and `decrease`, `join`, `arg-type="number|string|json"`, `variant`, `tone`, `disabled`, `readout`, `signal`, and `signals` targets `value`, `label`, and `disabled`.
 
@@ -800,6 +845,25 @@ Behavior:
 `nodel-toolkit` fetches the host `/REST/toolkit` endpoint and renders the scripting toolkit reference in a read-only CodeMirror view. The default UI exposes it on the standalone `toolkit.html` page rather than inside each node page.
 
 Components that support collapse previews should emit plain-text `nodel-collapse-preview` events for meaningful state changes. Keep preview text short and never depend on a direct import or reference to `nodel-collapse`.
+
+## Host Diagnostics
+
+The standard host Diagnostics page uses three core components. They use absolute host REST endpoints and are intended for host-level pages such as `nodes.html`, not node-relative custom control pages.
+
+- `nodel-diagnostics` reads `/REST/diagnostics` and renders the current host diagnostic values.
+- `nodel-host-log` polls `/REST/logs` while visible, keeps the newest 200 entries, and follows new output when the viewer is already at the bottom.
+- `nodel-diagnostic-charts` reads `/REST/diagnostics/measurements` and renders selectable measurement histories.
+
+```html
+<nodel-title level="1">Diagnostics</nodel-title>
+<nodel-diagnostics></nodel-diagnostics>
+<nodel-collapse label="Host log">
+  <nodel-host-log></nodel-host-log>
+</nodel-collapse>
+<nodel-collapse label="Charts">
+  <nodel-diagnostic-charts></nodel-diagnostic-charts>
+</nodel-collapse>
+```
 
 ## Text
 
