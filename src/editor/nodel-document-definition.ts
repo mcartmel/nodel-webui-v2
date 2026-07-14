@@ -392,6 +392,21 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-icon name="power"></nodel-icon>'
   },
   {
+    name: 'nodel-qrcode',
+    description: 'Scan-safe signal-aware QR code with a fixed black-on-white high-correction symbol.',
+    attributes: [
+      { name: 'value', description: 'Exact text encoded into the QR code.' },
+      { name: 'size', description: 'Square QR size in pixels. Defaults to 128 and clamps to 64..1024.' },
+      { name: 'help', description: 'Optional visible text below the QR code.' },
+      { name: 'label', description: 'Accessible QR code label.' },
+      { name: 'aria-label', description: 'Explicit accessible QR code label.' },
+      { name: 'aria-labelledby', description: 'External accessible QR code label reference.' },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value, help, label') }
+    ],
+    snippet: '<nodel-qrcode value="https://example.org" label="Visitor link"></nodel-qrcode>'
+  },
+  {
     name: 'nodel-status-indicator',
     description: 'Small signal-driven status indicator for control children.',
     attributes: [

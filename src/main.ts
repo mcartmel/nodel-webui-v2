@@ -19,6 +19,7 @@ import './components/nodel-readout';
 import './components/nodel-palette';
 import './components/nodel-image';
 import './components/nodel-icon';
+import './components/nodel-qrcode';
 import './components/nodel-status-indicator';
 import './components/nodel-status';
 import './components/nodel-collapse';

@@ -48,6 +48,7 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-palette`: swatch and optional native custom-colour picker.
 - `nodel-image`: standalone or inline signal-aware image.
 - `nodel-icon`: standalone or inline signal-aware icon.
+- `nodel-qrcode`: fixed black-on-white signal-aware QR code.
 - `nodel-status-indicator`: compact signal-state indicator for control content.
 - `nodel-status`: stateful equipment, area, or service status block.
 - `nodel-collapse`: reusable native disclosure section.
@@ -611,6 +612,26 @@ v1 migration examples:
   </nodel-palette>
 </nodel-group>
 ```
+
+`nodel-qrcode` renders a square QR code from `value` or a signal-bound value. It keeps the v1 scan-safe defaults: black modules on white, high (`H`) error correction, and a four-module quiet zone. The default `size` is 128 px; values are clamped to 64..1024 px and the symbol remains responsive when its container is narrower. The size includes the quiet zone.
+
+Supported attributes:
+
+- `value`: exact text to encode. Leading and trailing whitespace is preserved.
+- `size`: requested square size in pixels. Invalid values use 128; valid values clamp to 64..1024.
+- `help`: optional visible caption below the symbol.
+- `label`, `aria-label`, and `aria-labelledby`: accessible naming attributes.
+- `signal="SignalName[.path]"` as shorthand for `value`.
+- `signals="SignalName[.path]:target"` with targets `value`, `help`, and `label`.
+
+The host reflects `data-state="empty|ready|error"` and the normalized `data-size`. Empty values render a white placeholder. Encoding failures clear the symbol, show `QR code unavailable`, and emit a bubbled `nodel-qrcode-error` event with `{ message: 'QR code unavailable', reason: 'encoding-failed' }`; the encoded value is never included in visible text or event details. Signal values use the shared formatter, so structured values encode as their existing JSON string representation.
+
+```html
+<nodel-qrcode value="https://example.org" label="Visitor link" help="Scan to open the visitor guide"></nodel-qrcode>
+<nodel-qrcode signal="VisitorLink" label="Current visitor link"></nodel-qrcode>
+```
+
+The v1 form `qrcode text="..." event="..." height="128"` migrates to `nodel-qrcode value="..." signal="..." size="128"`. V2 intentionally does not accept the v1 attribute aliases.
 
 Faders preserve compound children and place them in a compact rail in source order. The rail has no separate card or border treatment by default; it relies on proximity to keep related status, meter, and button controls visually grouped while allowing each child component to keep its own signal/action behavior. The rail defaults to bottom/end alignment; set `compound-align="top"`, `compound-align="center"`, or `compound-align="bottom"` when a vertical fader needs different placement.
 

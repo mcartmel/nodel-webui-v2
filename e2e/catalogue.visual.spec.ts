@@ -42,6 +42,7 @@ test.describe('catalogue visual regressions', () => {
     await captureCatalogueExample(page, 'PickersPrecision', 'select-stepper', 'pickers-and-stepper.png');
     await captureCatalogueExample(page, 'PickersPrecision', 'readouts', 'readouts.png');
     await captureCatalogueExample(page, 'FadersMeters', 'faders-compound-fader', 'faders-and-meters.png');
+    await captureCatalogueExample(page, 'Media', 'media-qr-codes', 'qr-codes.png');
     await captureCatalogueExample(page, 'Media', 'media-status-blocks', 'status-variants.png');
     await captureCatalogueExample(page, 'Text', 'content-text-surface', 'content-surfaces.png');
     await captureCatalogueExample(page, 'ControlGrid', 'feedback-states', 'feedback-states.png');
@@ -102,6 +103,31 @@ test.describe('catalogue visual regressions', () => {
     expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(320);
   });
 
+  test('keeps QR codes square and responsive on mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to narrow viewports.');
+
+    await openCatalogue(page, 'Media');
+    const example = page.locator('[data-catalogue-example="media-qr-codes"]');
+    const metrics = await example.locator('nodel-qrcode').first().evaluate((element) => {
+      const frame = element.querySelector<HTMLElement>('.nodel-qrcode-frame');
+      const svg = element.querySelector<SVGSVGElement>('svg');
+      const frameBox = frame?.getBoundingClientRect();
+      const svgBox = svg?.getBoundingClientRect();
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        frameWidth: frameBox?.width ?? 0,
+        svgWidth: svgBox?.width ?? 0,
+        svgHeight: svgBox?.height ?? 0
+      };
+    });
+
+    expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth);
+    expect(metrics.frameWidth).toBeLessThanOrEqual(metrics.viewportWidth);
+    expect(metrics.svgWidth).toBeGreaterThan(0);
+    expect(metrics.svgWidth).toBeCloseTo(metrics.svgHeight, 0);
+  });
+
   test('captures the busy button state and public overlays', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Focused state baselines run for the desktop themes.');
 
@@ -135,6 +161,36 @@ test.describe('catalogue visual regressions', () => {
     await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Dismiss notification' }).focus();
     await expect(toast).toHaveScreenshot('toast.png');
+  });
+
+  test('centres readout content and visuals consistently', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Readout geometry runs for the desktop themes.');
+
+    await openCatalogue(page, 'PickersPrecision');
+    const readouts = page.locator('[data-catalogue-example="readouts"] nodel-readout');
+    await expect(readouts).toHaveCount(3);
+
+    const offsets = await readouts.evaluateAll((elements) => elements.flatMap((element) => {
+      const shell = element.querySelector<HTMLElement>('.nodel-readout-shell');
+      const visual = element.querySelector<HTMLElement>('.nodel-readout-visual');
+      const content = element.querySelector<HTMLElement>('.nodel-readout-content');
+      const shellBox = shell?.getBoundingClientRect();
+      if (!shellBox) {
+        return [];
+      }
+      const shellCenter = shellBox.left + shellBox.width / 2;
+      return [visual, content]
+        .filter((node): node is HTMLElement => Boolean(node) && !node!.hidden)
+        .map((node) => {
+          const box = node.getBoundingClientRect();
+          return Math.abs(box.left + box.width / 2 - shellCenter);
+        });
+    }));
+
+    expect(offsets.length).toBeGreaterThan(0);
+    for (const offset of offsets) {
+      expect(offset).toBeLessThanOrEqual(1);
+    }
   });
 
   test('renders the readout ring fallback without masks', async ({ page }, testInfo) => {
@@ -203,5 +259,11 @@ test.describe('catalogue visual regressions', () => {
     const activeMenuItem = page.locator('#nodel-menu-Controls .nodel-menu-item-active');
     await expect(activeMenuItem).toBeVisible();
     await expect(activeMenuItem).toHaveCSS('background-color', highlight);
+
+    await openCatalogue(page, 'Media');
+    const qr = page.locator('[data-catalogue-example="media-qr-codes"] nodel-qrcode').first();
+    await expect(qr.locator('svg')).toBeVisible();
+    await expect(qr.locator('svg rect')).toHaveAttribute('fill', 'white');
+    await expect(qr.locator('svg path')).toHaveAttribute('fill', 'black');
   });
 });

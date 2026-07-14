@@ -210,6 +210,7 @@
     nodel-palette,
     nodel-image,
     nodel-icon,
+    nodel-qrcode,
     nodel-status-indicator,
     nodel-status,
     nodel-collapse,
@@ -302,6 +303,7 @@
   nodel-palette,
   nodel-image,
   nodel-icon,
+  nodel-qrcode,
   nodel-status-indicator,
   nodel-status,
   nodel-collapse,
@@ -348,6 +350,7 @@
   nodel-palette:not(:defined),
     nodel-image:not(:defined),
     nodel-icon:not(:defined),
+    nodel-qrcode:not(:defined),
     nodel-status-indicator:not(:defined),
     nodel-status:not(:defined),
     nodel-collapse:not(:defined),
@@ -390,7 +393,8 @@
   nodel-readout,
   nodel-palette,
   nodel-image,
-  nodel-icon {
+  nodel-icon,
+  nodel-qrcode {
     @apply w-full;
   }
 
@@ -474,8 +478,8 @@
     @apply flex min-h-0 min-w-0 flex-1 flex-col;
   }
 
-  .nodel-group-body > :where(nodel-control-grid, nodel-button, nodel-toggle, nodel-segmented, nodel-select, nodel-meter, nodel-fader, nodel-stepper, nodel-pad, nodel-readout, nodel-palette, nodel-image, nodel-icon),
-  .nodel-status-body > :where(nodel-control-grid, nodel-button, nodel-toggle, nodel-segmented, nodel-select, nodel-meter, nodel-fader, nodel-stepper, nodel-pad, nodel-readout, nodel-palette, nodel-image, nodel-icon) {
+  .nodel-group-body > :where(nodel-control-grid, nodel-button, nodel-toggle, nodel-segmented, nodel-select, nodel-meter, nodel-fader, nodel-stepper, nodel-pad, nodel-readout, nodel-palette, nodel-image, nodel-icon, nodel-qrcode),
+  .nodel-status-body > :where(nodel-control-grid, nodel-button, nodel-toggle, nodel-segmented, nodel-select, nodel-meter, nodel-fader, nodel-stepper, nodel-pad, nodel-readout, nodel-palette, nodel-image, nodel-icon, nodel-qrcode) {
     @apply flex-1;
   }
 
@@ -574,7 +578,8 @@
   }
 
   nodel-image,
-  nodel-icon {
+  nodel-icon,
+  nodel-qrcode {
     @apply flex min-w-0 items-center justify-center;
     min-height: var(--nodel-control-min-height, 3.5rem);
   }
@@ -1660,6 +1665,7 @@
 
   nodel-readout[data-visual='ring'] .nodel-readout-visual {
     @apply relative mx-auto aspect-square h-16 flex-none translate-x-0 translate-y-0 rounded-full opacity-100;
+    inset: auto;
     background: conic-gradient(rgb(var(--nodel-touch-fill-rgb)) calc(var(--nodel-readout-fraction, 0) * 1turn), rgb(var(--nodel-border) / 0.35) 0);
   }
 
@@ -1772,6 +1778,43 @@
 
   nodel-image {
     @apply flex-col gap-2 bg-transparent text-sm font-medium text-nodel-fg;
+  }
+
+  nodel-qrcode {
+    @apply flex-col gap-2 bg-transparent text-sm font-medium text-nodel-fg;
+    --nodel-qrcode-size: 128px;
+  }
+
+  .nodel-qrcode-frame {
+    @apply flex min-w-0 items-center justify-center;
+    width: min(100%, var(--nodel-qrcode-size));
+    aspect-ratio: 1;
+    background: white;
+    forced-color-adjust: none;
+  }
+
+  .nodel-qrcode-svg {
+    @apply block h-full w-full;
+    background: white;
+    forced-color-adjust: none;
+  }
+
+  .nodel-qrcode-help,
+  .nodel-qrcode-error {
+    @apply max-w-full text-center text-xs leading-4;
+    width: min(100%, var(--nodel-qrcode-size));
+  }
+
+  .nodel-qrcode-help {
+    @apply text-nodel-muted;
+  }
+
+  .nodel-qrcode-error {
+    @apply font-medium text-nodel-danger;
+  }
+
+  nodel-qrcode[data-state='error'] .nodel-qrcode-frame {
+    @apply border border-nodel-danger/50;
   }
 
   .nodel-image-frame {

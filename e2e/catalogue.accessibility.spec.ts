@@ -12,6 +12,7 @@ const representativeViews = [
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },
   { pageId: 'FadersMeters', selector: '[data-catalogue-example="faders-compound-fader"]' },
   { pageId: 'Media', selector: '[data-catalogue-example="media-status-blocks"]' },
+  { pageId: 'Media', selector: '[data-catalogue-example="media-qr-codes"]' },
   { pageId: 'Text', selector: '[data-catalogue-example="content-text-surface"]' }
 ];
 
