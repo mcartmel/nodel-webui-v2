@@ -1301,6 +1301,14 @@
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
+  .nodel-segmented > nodel-button[active] .nodel-button-touch:hover:not(:disabled):not(.is-disabled),
+  .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch:hover:not(:disabled):not(.is-disabled) {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.9);
+    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.26), rgb(var(--nodel-button-tone-rgb) / 0.16));
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
   nodel-select,
   nodel-stepper,
   nodel-pad,

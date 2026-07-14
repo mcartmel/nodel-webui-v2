@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 type ActivityEntry = { alias: string; arg: unknown; seq: number };
 const animationReset = `
@@ -20,6 +20,18 @@ function isDesktopOrForcedColoursProject(testInfo: TestInfo) {
 
 function isForcedColoursProject(testInfo: TestInfo) {
   return testInfo.project.name === 'chromium-forced-colors';
+}
+
+async function readButtonPaint(button: Locator) {
+  return button.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backgroundImage: style.backgroundImage,
+      borderTopColor: style.borderTopColor,
+      color: style.color,
+      filter: style.filter
+    };
+  });
 }
 
 async function openNodeBackedCatalogue(page: Page, activityEntries: ActivityEntry[], liveEntries: ActivityEntry[] = []) {
@@ -127,6 +139,35 @@ test.describe('dynamic options', () => {
 
     await select.locator('nodel-button[value="hdmi1"] button').click();
     await expect.poll(() => sourcePayload).toEqual({ arg: 'hdmi1' });
+  });
+
+  test('preserves active segmented contrast on hover in light mode', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-light-desktop', 'Regression targets light desktop hover contrast.');
+
+    await openNodeBackedCatalogue(page, [
+      { seq: 1, alias: 'AvailableModes', arg: ['Auto', 'Manual'] },
+      { seq: 2, alias: 'CurrentMode', arg: 'Auto' }
+    ]);
+    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+      const fixture = document.createElement('section');
+      fixture.dataset.segmentedHoverFixture = '';
+      fixture.innerHTML = '<nodel-segmented options-signal="AvailableModes" signal="CurrentMode"></nodel-segmented>';
+      pageContent.prepend(fixture);
+    });
+
+    const activeButton = page.locator('[data-segmented-hover-fixture] nodel-segmented nodel-button[value="Auto"] button');
+    await expect(activeButton).toBeVisible();
+    await expect(activeButton).toHaveAttribute('aria-checked', 'true');
+    const rest = await readButtonPaint(activeButton);
+
+    await activeButton.hover();
+    const hovered = await readButtonPaint(activeButton);
+
+    expect(hovered.backgroundImage).not.toBe(rest.backgroundImage);
+    expect(hovered.backgroundImage).toContain('linear-gradient');
+    expect(hovered.borderTopColor).not.toBe(rest.borderTopColor);
+    expect(hovered.color).toBe(rest.color);
+    expect(hovered.filter).toBe('none');
   });
 
   test('keeps loading, fallback, empty, and error states accessible', async ({ page }, testInfo) => {
