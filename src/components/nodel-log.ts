@@ -1,5 +1,5 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
-import { subscribeNodeActivity, type NodeActivityBatch } from '../data/node-activity-source';
+import { subscribeNodeActivity, type NodeActivityBatch, type NodeActivityTransport } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon } from '../icons/fontawesome';
 import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { escapeHtml } from '../utils/html';
@@ -192,7 +192,7 @@ export class NodelLog extends HTMLElement {
       if (state.batch) {
         this.applyBatch(state.batch);
       }
-      this.updateStatus(state.loading, state.error, state.connected, state.batch?.transport);
+      this.updateStatus(state.loading, state.error, state.connected, state.transport);
     });
   }
 
@@ -218,7 +218,7 @@ export class NodelLog extends HTMLElement {
     this.refreshVisibleRows();
   };
 
-  private updateStatus(loading: boolean, error: string, connected: boolean, transport?: string) {
+  private updateStatus(loading: boolean, error: string, connected: boolean, transport: NodeActivityTransport | null) {
     const label = error || (loading ? 'Loading activity' : connected ? 'Activity stream connected' : transport === 'poll' ? 'Activity polling active' : 'Activity stream paused');
     const statusState = error ? 'error' : loading ? 'loading' : connected || transport === 'poll' ? 'active' : 'paused';
     const $ = getJQuery();

@@ -7,15 +7,18 @@ import { observeNodelVisibility } from './visibility-scope';
 export interface NodeActivityBatch {
   items: Array<{ entry: NodelActivityLogEntry; changed: boolean; live: boolean }>;
   replace: boolean;
-  transport: 'websocket' | 'poll';
+  transport: NodeActivityTransport;
   nextSeq: number;
 }
+
+export type NodeActivityTransport = 'websocket' | 'poll';
 
 type Listener = (state: {
   loading: boolean;
   connected: boolean;
   error: string;
   batch: NodeActivityBatch | null;
+  transport: NodeActivityTransport | null;
 }) => void;
 
 interface Subscriber {
@@ -125,7 +128,8 @@ function emit(batch: NodeActivityBatch | null, nextError = error) {
       loading,
       connected,
       error,
-      batch
+      batch,
+      transport: activeMode === 'idle' ? null : activeMode
     });
   }
 }
@@ -299,14 +303,15 @@ async function openWebSocket() {
   ws.onclose = () => {
     ws = null;
     connected = false;
-    emit(null);
 
     if (!shouldRun()) {
       activeMode = 'idle';
+      emit(null);
       return;
     }
 
     activeMode = 'poll';
+    emit(null);
     void runPoll();
   };
 }
@@ -346,7 +351,7 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
   });
 
   subscribers.add(subscriber);
-  listener({ loading, connected, error, batch: currentBatch });
+  listener({ loading, connected, error, batch: currentBatch, transport: activeMode === 'idle' ? null : activeMode });
   evaluate();
 
   return {

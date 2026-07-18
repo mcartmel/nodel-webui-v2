@@ -1,6 +1,6 @@
 import { flushMicrotasks } from './helpers';
 import type { NodelActivityLogEntry } from '../src/api/nodel-types';
-import type { NodeActivityBatch } from '../src/data/node-activity-source';
+import type { NodeActivityBatch, NodeActivityTransport } from '../src/data/node-activity-source';
 
 const activityMock = vi.hoisted(() => ({
   disposeVisibility: vi.fn(),
@@ -26,6 +26,7 @@ interface ActivityState {
   connected: boolean;
   error: string;
   batch: NodeActivityBatch | null;
+  transport: NodeActivityTransport | null;
 }
 
 class MockWebSocket {
@@ -208,7 +209,33 @@ describe('node-activity-source', () => {
       nextSeq: 12
     });
     expect(states.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
+    expect(states.at(-1)?.transport).toBe('poll');
 
+    subscription.dispose();
+  });
+
+  it('keeps polling transport active between requests', async () => {
+    let resolveNextPoll: ((entries: NodelActivityLogEntry[]) => void) | undefined;
+    activityMock.getNodeActivity
+      .mockResolvedValueOnce([activityEntry({ seq: 10 })])
+      .mockImplementationOnce(() => new Promise<NodelActivityLogEntry[]>((resolve) => {
+        resolveNextPoll = resolve;
+      }));
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+
+    MockWebSocket.instances[0].closeFromServer();
+    await flushMicrotasks();
+    expect(states.at(-1)).toMatchObject({ loading: false, connected: false, error: '', transport: 'poll' });
+
+    vi.advanceTimersByTime(1000);
+    await flushMicrotasks();
+    expect(activityMock.getNodeActivity).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)).toMatchObject({ loading: false, connected: false, error: '', batch: null, transport: 'poll' });
+
+    resolveNextPoll?.([]);
+    await flushMicrotasks();
     subscription.dispose();
   });
 

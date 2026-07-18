@@ -287,6 +287,41 @@ describe('nodel-log', () => {
     expect(rows[0].textContent).toContain('Level');
     expect(rows[1].textContent).toContain('Power');
     expect(rows[1].textContent).toContain('on');
+    expect(rows[1].classList.contains('is-pulsing')).toBe(true);
+    expect((document.querySelector('nodel-log') as HTMLElement).dataset.state).toBe('active');
+  });
+
+  it('stays active while a polling request is in progress', async () => {
+    await mountLog();
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: false,
+      error: '',
+      transport: 'poll',
+      batch: {
+        replace: true,
+        transport: 'poll',
+        nextSeq: 2,
+        items: [
+          { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Power', arg: 'on' }, changed: false, live: false }
+        ]
+      }
+    });
+
+    const log = document.querySelector('nodel-log') as HTMLElement;
+    expect(log.dataset.state).toBe('active');
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: false,
+      error: '',
+      transport: 'poll',
+      batch: null
+    });
+
+    expect(log.dataset.state).toBe('active');
+    expect(log.title).toBe('Activity polling active');
   });
 
   it('renders incomplete activity entries without crashing', async () => {
