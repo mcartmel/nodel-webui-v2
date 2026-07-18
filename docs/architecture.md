@@ -124,9 +124,11 @@ This lets the custom content root override the built-in default document and vis
 
 ## Release Bundle
 
-Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, and `release.json`. The manifest identifies the package version and source commit used by CI.
+Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `release.json`. The manifest identifies the package version, source commit, and generic Nodel API compatibility range used by the release.
 
 The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, and the user-facing `components.html` catalogue. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
+
+The optional `GET /REST/capabilities` endpoint is additive. Missing, failing, non-JSON, or malformed responses preserve legacy Nodel behavior. Only explicit valid feature booleans in a well-formed capabilities response change UI behavior.
 
 ## JsViews
 

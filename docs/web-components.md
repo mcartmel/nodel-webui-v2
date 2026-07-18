@@ -1048,8 +1048,9 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 
 - Reads console output from relative `REST/console`.
 - Keeps the newest 200 console entries.
-- Posts entered commands to relative `REST/exec` as `{ "code": "..." }`.
-- Supports Enter to submit and Up/Down to move through local command history.
+- Posts entered commands to relative `REST/exec` as `{ "code": "..." }` when console execution is available.
+- Hides the command input when generic host capabilities explicitly report `consoleExec: false`; missing or invalid capability responses preserve legacy command execution behavior.
+- Supports Enter to submit and Up/Down to move through local command history while command execution is available.
 - Pauses polling while its page or browser tab is hidden.
 - Set `collapse-preview="last-line"` to emit the newest console line through `nodel-collapse-preview` for a parent `nodel-collapse`.
 

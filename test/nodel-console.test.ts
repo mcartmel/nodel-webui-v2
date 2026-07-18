@@ -1,6 +1,14 @@
 const consoleMock = vi.hoisted(() => ({
+  capabilitiesListeners: [] as Array<(state: unknown) => void>,
   listeners: [] as Array<(state: unknown) => void>,
   execute: vi.fn(async () => ({}))
+}));
+
+vi.mock('../src/data/host-capabilities-source', () => ({
+  subscribeHostCapabilities: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
+    consoleMock.capabilitiesListeners.push(listener);
+    return { dispose: vi.fn(), refresh: vi.fn(), getState: vi.fn() };
+  })
 }));
 
 vi.mock('../src/data/node-console-source', () => ({
@@ -21,6 +29,7 @@ import '../src/components/nodel-console';
 describe('nodel-console', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    consoleMock.capabilitiesListeners = [];
     consoleMock.listeners = [];
     consoleMock.execute.mockClear();
   });
@@ -78,6 +87,56 @@ describe('nodel-console', () => {
     input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     await flush();
     expect(input!.value).toBe('');
+  });
+
+  it('hides command input and disables execution when capabilities disable console execution', async () => {
+    document.body.innerHTML = '<nodel-console></nodel-console>';
+    await customElements.whenDefined('nodel-console');
+    await waitFor(() => consoleMock.listeners.length === 1 && consoleMock.capabilitiesListeners.length === 1);
+
+    const input = document.querySelector<HTMLInputElement>('[data-console-input]');
+    expect(input).toBeTruthy();
+    input!.value = 'print("blocked")';
+    input!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flush();
+
+    consoleMock.capabilitiesListeners[0]?.({
+      loading: false,
+      active: false,
+      error: '',
+      data: {
+        schemaVersion: 1,
+        apiVersion: '1.0',
+        features: {
+          consoleHistory: true,
+          consoleExec: false
+        }
+      }
+    });
+    await flush();
+
+    expect(document.querySelector('[data-console-input]')).toBeNull();
+
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await flush();
+    expect(consoleMock.execute).not.toHaveBeenCalled();
+
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: {
+        entries: [
+          { seq: 1, timestamp: '2026-01-01T00:00:00Z', console: 'out', comment: 'history still loads' }
+        ],
+        replace: true,
+        nextSeq: 2
+      }
+    });
+    await flush();
+
+    expect(document.body.textContent).toContain('history still loads');
   });
 
   it('renders an empty state only after successful empty console history loads', async () => {

@@ -19,6 +19,30 @@ export interface NodelLocalRestResponse {
   [key: string]: unknown;
 }
 
+export interface NodelCapabilityFeatures {
+  consoleHistory?: boolean;
+  consoleExec?: boolean;
+  activityWebSocket?: boolean;
+  nodeCreate?: boolean;
+  nodeDuplicate?: boolean;
+  fileEdit?: boolean;
+  eventEmit?: boolean;
+  [key: string]: unknown;
+}
+
+export interface NodelCapabilitiesResponse {
+  schemaVersion?: number;
+  apiVersion?: string;
+  features?: NodelCapabilityFeatures;
+  [key: string]: unknown;
+}
+
+export interface NodelCapabilities {
+  schemaVersion: number | null;
+  apiVersion: string | null;
+  features: NodelCapabilityFeatures;
+}
+
 export interface NodelNodeRestResponse {
   name?: string;
   desc?: string;

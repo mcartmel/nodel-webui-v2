@@ -1,4 +1,10 @@
-import { getDiagnosticMeasurements, getHostLogs, getNodeRestartStatus } from '../src/api/nodel-host-client';
+import {
+  getDiagnosticMeasurements,
+  getHostCapabilities,
+  getHostLogs,
+  getNodeRestartStatus,
+  normalizeNodelCapabilities
+} from '../src/api/nodel-host-client';
 
 describe('nodel host client', () => {
   beforeEach(() => {
@@ -31,5 +37,62 @@ describe('nodel host client', () => {
 
     expect(fetch).toHaveBeenCalledWith('/REST/logs?from=-1&max=200', init);
     expect(fetch).toHaveBeenCalledWith('/REST/diagnostics/measurements', init);
+  });
+
+  it('reads generic host capabilities when a valid feature is explicit', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        schemaVersion: 1,
+        apiVersion: '1.0',
+        features: {
+          consoleHistory: true,
+          consoleExec: false
+        }
+      })
+    })));
+
+    await expect(getHostCapabilities()).resolves.toEqual({
+      schemaVersion: 1,
+      apiVersion: '1.0',
+      features: {
+        consoleHistory: true,
+        consoleExec: false
+      }
+    });
+
+    expect(fetch).toHaveBeenCalledWith('/REST/capabilities', undefined);
+  });
+
+  it('preserves legacy execution defaults for missing, failing, or malformed capabilities', async () => {
+    expect(normalizeNodelCapabilities({ schemaVersion: 1, apiVersion: '1.0', features: { consoleExec: false } }).features.consoleExec).toBe(false);
+    expect(normalizeNodelCapabilities({ apiVersion: '1.0', features: { consoleExec: false } }).features.consoleExec).toBe(true);
+    expect(normalizeNodelCapabilities({ features: { consoleExec: 'false' } }).features.consoleExec).toBe(true);
+    expect(normalizeNodelCapabilities({ features: {} }).features.consoleExec).toBe(true);
+    expect(normalizeNodelCapabilities('not an object').features.consoleExec).toBe(true);
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      json: async () => ({})
+    })));
+
+    await expect(getHostCapabilities()).resolves.toMatchObject({
+      features: {
+        consoleExec: true
+      }
+    });
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('not json');
+      }
+    })));
+
+    await expect(getHostCapabilities()).resolves.toMatchObject({
+      features: {
+        consoleExec: true
+      }
+    });
   });
 });

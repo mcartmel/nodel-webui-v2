@@ -4,8 +4,27 @@ import { fileURLToPath } from 'node:url';
 
 const moduleRoot = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(moduleRoot, '..');
-const requiredFiles = ['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html'];
+const sourceRequiredFiles = [
+  'components.html',
+  'index.htm',
+  'nodel.html',
+  'nodes.html',
+  'toolkit.html',
+  'v2/nodel-webui.css',
+  'v2/nodel-webui.js'
+];
+const bundleRequiredFiles = [
+  ...sourceRequiredFiles,
+  'LICENSE',
+  'THIRD-PARTY-NOTICES.md',
+  'release.json'
+];
 const retiredFiles = ['elements.html', 'example.html'];
+const nodelApiRange = Object.freeze({
+  min: '1.0',
+  maxExclusive: '2.0',
+  requiredFeatures: []
+});
 
 function parseArgs(argv) {
   const result = {
@@ -51,16 +70,85 @@ async function readPackageMetadata() {
 }
 
 async function validateSource(source) {
-  for (const file of requiredFiles) {
+  for (const file of sourceRequiredFiles) {
     await access(join(source, file));
   }
-  await access(join(source, 'v2'));
 
   const topLevelEntries = new Set(await readdir(source));
   const retiredEntry = retiredFiles.find((file) => topLevelEntries.has(file));
   if (retiredEntry) {
     throw new Error(`Release source still contains retired page: ${retiredEntry}`);
   }
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidVersion(value) {
+  return typeof value === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(value);
+}
+
+function isValidCommit(value) {
+  return typeof value === 'string' && (value === 'local' || /^[0-9a-f]{40}$/i.test(value));
+}
+
+function parseApiVersion(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const match = /^(\d+)\.(\d+)$/.exec(value);
+  return match ? [Number(match[1]), Number(match[2])] : null;
+}
+
+function compareApiVersions(left, right) {
+  return left[0] === right[0] ? left[1] - right[1] : left[0] - right[0];
+}
+
+function validateReleaseManifest(manifest, expected) {
+  if (!isRecord(manifest)) {
+    throw new Error('release.json must contain an object');
+  }
+
+  if (manifest.schemaVersion !== 1) {
+    throw new Error('release.json schemaVersion must be 1');
+  }
+
+  if (manifest.name !== expected.name) {
+    throw new Error(`release.json name ${manifest.name} does not match ${expected.name}`);
+  }
+
+  if (!isValidVersion(manifest.version) || manifest.version !== expected.version) {
+    throw new Error(`release.json version ${manifest.version} does not match ${expected.version}`);
+  }
+
+  if (!isValidCommit(manifest.commit) || manifest.commit !== expected.commit) {
+    throw new Error(`release.json commit ${manifest.commit} does not match ${expected.commit}`);
+  }
+
+  if (!isRecord(manifest.nodelApi)) {
+    throw new Error('release.json nodelApi must contain an object');
+  }
+
+  const min = parseApiVersion(manifest.nodelApi.min);
+  const maxExclusive = parseApiVersion(manifest.nodelApi.maxExclusive);
+  if (!min || !maxExclusive || compareApiVersions(min, maxExclusive) >= 0) {
+    throw new Error('release.json nodelApi range is invalid');
+  }
+
+  if (!Array.isArray(manifest.nodelApi.requiredFeatures) || !manifest.nodelApi.requiredFeatures.every((feature) => typeof feature === 'string')) {
+    throw new Error('release.json nodelApi requiredFeatures must be a string array');
+  }
+}
+
+async function validateBundle(target, expected) {
+  for (const file of bundleRequiredFiles) {
+    await access(join(target, file));
+  }
+
+  const manifest = JSON.parse(await readFile(join(target, 'release.json'), 'utf8'));
+  validateReleaseManifest(manifest, expected);
 }
 
 async function main() {
@@ -72,6 +160,10 @@ async function main() {
     throw new Error(`Release version ${version} does not match package.json version ${packageMetadata.version}`);
   }
 
+  if (!isValidCommit(options.commit)) {
+    throw new Error(`Release commit must be a 40-character hexadecimal value or local: ${options.commit}`);
+  }
+
   assertSafeTarget(options.source, options.target);
   await validateSource(options.source);
 
@@ -79,20 +171,29 @@ async function main() {
   await mkdir(options.target, { recursive: true });
   await cp(options.source, options.target, { recursive: true });
   await cp(join(projectRoot, 'LICENSE'), join(options.target, 'LICENSE'));
+  await cp(join(projectRoot, 'THIRD-PARTY-NOTICES.md'), join(options.target, 'THIRD-PARTY-NOTICES.md'));
+  const manifest = {
+    schemaVersion: 1,
+    name: packageMetadata.name,
+    version,
+    commit: options.commit,
+    nodelApi: nodelApiRange
+  };
+  validateReleaseManifest(manifest, {
+    name: packageMetadata.name,
+    version,
+    commit: options.commit
+  });
   await writeFile(
     join(options.target, 'release.json'),
-    `${JSON.stringify(
-      {
-        schemaVersion: 1,
-        name: packageMetadata.name,
-        version,
-        commit: options.commit
-      },
-      null,
-      2
-    )}\n`,
+    `${JSON.stringify(manifest, null, 2)}\n`,
     'utf8'
   );
+  await validateBundle(options.target, {
+    name: packageMetadata.name,
+    version,
+    commit: options.commit
+  });
 
   console.log(`Prepared Nodel Web UI ${version} release at ${options.target}`);
 }

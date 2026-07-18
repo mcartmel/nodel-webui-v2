@@ -1,6 +1,6 @@
 {
   "name": "nodel-webui-v2",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The next-generation web interface for Nodel",
   "license": "MPL-2.0",
   "repository": "github:mcartmel/nodel-webui-v2",

@@ -72,8 +72,14 @@ describe('nodel-editor', () => {
   async function mountEditor(markup = '<nodel-editor></nodel-editor>') {
     document.body.innerHTML = markup;
     await customElements.whenDefined('nodel-editor');
-    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.length > 0);
-    await waitFor(() => document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.disabled === false);
+    await waitFor(
+      () => codeEditorMock.instance.setDocument.mock.calls.some((call) => call[1] === 'script.py'),
+      { attempts: 100, message: 'Timed out opening script.py' }
+    );
+    await waitFor(
+      () => document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.disabled === false,
+      { attempts: 100, message: 'Timed out enabling editor actions' }
+    );
     return document.querySelector('nodel-editor')!;
   }
 
@@ -102,8 +108,8 @@ describe('nodel-editor', () => {
 
     codeEditorMock.currentDoc = 'print("updated")';
     codeEditorMock.options?.onChange?.('print("updated")');
-    await flush();
 
+    await waitFor(() => document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled === false);
     expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);

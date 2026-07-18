@@ -210,13 +210,13 @@ export class NodelEditor extends HTMLElement {
     try {
       const files = sortFiles((await listNodeFiles({ signal: this.abortController.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
       this.refreshFileViews(files);
-      this.setState({ loading: false, status: files.length ? 'Files loaded.' : 'No editable node files found.' });
       const nextPath = preferredPath ?? this.defaultFilePath(files);
       if (nextPath) {
         await this.openFile(nextPath, { skipDirtyPrompt: true });
       } else {
         this.editor?.setDocument('', '');
         this.editor?.setReadOnly(true);
+        this.setState({ loading: false, status: files.length ? 'Files loaded.' : 'No editable node files found.' });
         this.setSelectedState('', '', false, false, '');
       }
     } catch (error) {
