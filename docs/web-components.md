@@ -1062,6 +1062,9 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Coalesces rapid live activity by source/type/alias before rendering.
 - Provides filter, Hold, and row-limit controls.
 - Pauses streaming/polling while its page or browser tab is hidden.
+- Uses compact base icons with overlaid arrow badges for remote actions/signals and link badges for action/event binding status entries.
+- Preserves the local/remote activity colour mapping, keeps unbound activity muted, and uses a traffic-light fallback for incomplete entries.
+- Exposes each icon’s meaning through a tooltip and accessible label without adding a visible legend.
 
 `nodel-actsig` behavior:
 

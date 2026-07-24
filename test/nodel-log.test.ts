@@ -83,6 +83,63 @@ describe('nodel-log', () => {
     expect(document.body.textContent).not.toContain('Level');
   });
 
+  it('classifies activity icons with compact badges and accessible labels', async () => {
+    await mountLog();
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 10,
+        items: [
+          { entry: { seq: 1, source: 'local', type: 'action', alias: 'LocalAction' }, changed: false, live: false },
+          { entry: { seq: 2, source: 'remote', type: 'action', alias: 'RemoteAction' }, changed: false, live: false },
+          { entry: { seq: 3, source: 'unbound', type: 'action', alias: 'UnboundAction' }, changed: false, live: false },
+          { entry: { seq: 4, source: 'local', type: 'event', alias: 'LocalSignal' }, changed: false, live: false },
+          { entry: { seq: 5, source: 'remote', type: 'event', alias: 'RemoteSignal' }, changed: false, live: false },
+          { entry: { seq: 6, source: 'unbound', type: 'event', alias: 'UnboundSignal' }, changed: false, live: false },
+          { entry: { seq: 7, source: 'remote', type: 'actionBinding', alias: 'ActionBinding' }, changed: false, live: false },
+          { entry: { seq: 8, source: 'remote', type: 'eventBinding', alias: 'EventBinding' }, changed: false, live: false },
+          { entry: { seq: 9 } as any, changed: false, live: false },
+          { entry: { seq: 10, source: 'remote', type: 'unknown', alias: 'UnknownRemote' } as any, changed: false, live: false }
+        ]
+      }
+    });
+
+    const rowFor = (alias: string) => Array.from(document.querySelectorAll<HTMLElement>('.nodel-log-row'))
+      .find((row) => row.querySelector('.nodel-log-alias')?.textContent === alias)!;
+    const assertIcon = (alias: string, label: string, base: string, badge: string | undefined, source?: string, type?: string) => {
+      const row = rowFor(alias);
+      const icon = row.querySelector<HTMLElement>('.nodel-log-icon')!;
+      expect(row.dataset.logSource).toBe(source);
+      expect(row.dataset.logType).toBe(type);
+      expect(icon.getAttribute('role')).toBe('img');
+      expect(icon.getAttribute('aria-label')).toBe(label);
+      expect(icon.getAttribute('title')).toBe(label);
+      expect(icon.querySelector('.nodel-log-icon-primary')?.getAttribute('data-icon')).toBe(base);
+      expect(icon.querySelector('.nodel-log-icon-badge')?.getAttribute('data-icon')).toBe(badge);
+    };
+
+    assertIcon('LocalAction', 'Local action', 'person-running', undefined, 'local', 'action');
+    assertIcon('RemoteAction', 'Remote action', 'person-running', 'arrow-right', 'remote', 'action');
+    assertIcon('UnboundAction', 'Unbound action', 'person-running', undefined, 'unbound', 'action');
+    assertIcon('LocalSignal', 'Local signal', 'traffic-light', undefined, 'local', 'event');
+    assertIcon('RemoteSignal', 'Remote signal', 'traffic-light', 'arrow-right', 'remote', 'event');
+    assertIcon('UnboundSignal', 'Unbound signal', 'traffic-light', undefined, 'unbound', 'event');
+    assertIcon('ActionBinding', 'Remote action binding status', 'person-running', 'link', 'remote', 'actionBinding');
+    assertIcon('EventBinding', 'Remote signal binding status', 'traffic-light', 'link', 'remote', 'eventBinding');
+    assertIcon('', 'Activity', 'traffic-light', undefined);
+    assertIcon('UnknownRemote', 'Activity', 'traffic-light', 'arrow-right', 'remote', 'unknown');
+
+    const remoteAction = rowFor('RemoteAction').querySelector('.nodel-log-icon')!;
+    expect(remoteAction.querySelector('[data-icon="link"]')).toBeNull();
+    const actionBinding = rowFor('ActionBinding').querySelector('.nodel-log-icon')!;
+    expect(actionBinding.querySelector('[data-icon="arrow-right"]')).toBeNull();
+  });
+
   it('renders an empty state only after a successful empty activity load', async () => {
     await mountLog();
 

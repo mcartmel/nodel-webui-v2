@@ -10,6 +10,7 @@ interface ActivityRowView {
   alias: string;
   argMarkup: string;
   argText: string;
+  iconLabel: string;
   displayTime: string;
   entry: NodelActivityLogEntry;
   highlightArg: boolean;
@@ -63,7 +64,7 @@ const template = `
         {{else}}
           {^{for visibleRows}}
             <div data-link="class{:rowClass} data-log-source{:source} data-log-type{:type}">
-              <span data-link="class{:iconClass} data-log-source{:source} data-log-type{:type}" aria-hidden="true">{^{:iconMarkup}}</span>
+              <span data-link="class{:iconClass} data-log-source{:source} data-log-type{:type} aria-label{:iconLabel} title{:iconLabel}" role="img">{^{:iconMarkup}}</span>
               <span class="nodel-log-main">
                 <span class="nodel-log-titleline">
                   <span class="nodel-log-alias">{^{>alias}}</span>
@@ -126,14 +127,60 @@ function highlightJson(json: string) {
   return `${markup}${escapeHtml(json.slice(lastIndex))}`;
 }
 
-function logIcon(entry: NodelActivityLogEntry) {
-  const icon = logIcons[entry.type] ?? logIcons.event;
-  const baseIcon = renderFontAwesomeIcon(icon, 'h-3.5 w-3.5');
-  const remoteIcon = entry.source === 'remote'
-    ? renderFontAwesomeIcon(logIcons.remote, 'h-2.5 w-2.5')
+interface LogIconDescriptor {
+  badge: typeof logIcons.remote | typeof logIcons.actionBinding | null;
+  base: typeof logIcons.action | typeof logIcons.event;
+  label: string;
+}
+
+function logIconDescriptor(entry: NodelActivityLogEntry): LogIconDescriptor {
+  if (entry.type === 'actionBinding') {
+    return { base: logIcons.action, badge: logIcons.actionBinding, label: 'Remote action binding status' };
+  }
+
+  if (entry.type === 'eventBinding') {
+    return { base: logIcons.event, badge: logIcons.eventBinding, label: 'Remote signal binding status' };
+  }
+
+  if (entry.type === 'action' && entry.source === 'local') {
+    return { base: logIcons.action, badge: null, label: 'Local action' };
+  }
+
+  if (entry.type === 'action' && entry.source === 'remote') {
+    return { base: logIcons.action, badge: logIcons.remote, label: 'Remote action' };
+  }
+
+  if (entry.type === 'action' && entry.source === 'unbound') {
+    return { base: logIcons.action, badge: null, label: 'Unbound action' };
+  }
+
+  if (entry.type === 'event' && entry.source === 'local') {
+    return { base: logIcons.event, badge: null, label: 'Local signal' };
+  }
+
+  if (entry.type === 'event' && entry.source === 'remote') {
+    return { base: logIcons.event, badge: logIcons.remote, label: 'Remote signal' };
+  }
+
+  if (entry.type === 'event' && entry.source === 'unbound') {
+    return { base: logIcons.event, badge: null, label: 'Unbound signal' };
+  }
+
+  return {
+    base: logIcons.event,
+    badge: entry.source === 'remote' ? logIcons.remote : null,
+    label: 'Activity'
+  };
+}
+
+function logIconMarkup(entry: NodelActivityLogEntry) {
+  const descriptor = logIconDescriptor(entry);
+  const baseIcon = renderFontAwesomeIcon(descriptor.base, 'nodel-log-icon-primary');
+  const badgeIcon = descriptor.badge
+    ? renderFontAwesomeIcon(descriptor.badge, 'nodel-log-icon-badge')
     : '';
 
-  return `${baseIcon}${remoteIcon}`;
+  return { markup: `${baseIcon}${badgeIcon}`, label: descriptor.label };
 }
 
 function rowClass(entry: NodelActivityLogEntry, pulse: boolean) {
@@ -282,16 +329,18 @@ export class NodelLog extends HTMLElement {
   private createRow(key: string, entry: NodelActivityLogEntry, pulse: boolean): ActivityRowView {
     const argText = formatArg(entry.arg);
     const highlightArg = Boolean(this.state.hold || this.state.filter);
+    const icon = logIconMarkup(entry);
 
     return {
       alias: String(entry.alias ?? ''),
       argMarkup: entry.arg === undefined ? '' : highlightArg ? highlightJson(argText) : escapeHtml(argText),
       argText,
+      iconLabel: icon.label,
       displayTime: formatTimestamp(entry.timestamp),
       entry,
       highlightArg,
       iconClass: 'nodel-log-icon',
-      iconMarkup: logIcon(entry),
+      iconMarkup: icon.markup,
       key,
       pulse,
       rowClass: rowClass(entry, pulse),
@@ -307,6 +356,7 @@ export class NodelLog extends HTMLElement {
       alias: next.alias,
       argMarkup: next.argMarkup,
       argText: next.argText,
+      iconLabel: next.iconLabel,
       displayTime: next.displayTime,
       entry: next.entry,
       highlightArg: next.highlightArg,

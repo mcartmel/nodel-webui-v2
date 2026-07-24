@@ -3384,11 +3384,19 @@
   }
 
   .nodel-log-icon {
-    @apply inline-flex w-3.5 flex-col items-center justify-center gap-0.5 pt-0.5 text-nodel-muted opacity-faint;
+    @apply relative inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center overflow-visible text-nodel-muted opacity-faint;
   }
 
-  .nodel-log-icon svg {
-    flex: none;
+  .nodel-log-icon-primary {
+    @apply relative z-0 h-3.5 w-3.5;
+  }
+
+  .nodel-log-icon-badge {
+    @apply absolute z-10 h-2.5 w-2.5 rounded-full;
+    right: -0.3rem;
+    bottom: -0.15rem;
+    padding: 1px;
+    background: rgb(var(--nodel-surface));
   }
 
   .nodel-log-icon[data-log-type='action'][data-log-source='local'] {
@@ -3415,6 +3423,17 @@
   .nodel-log-row.is-pulsing .nodel-log-icon {
     opacity: 1;
     filter: drop-shadow(0 0 0.35rem rgb(var(--nodel-accent) / 0.45));
+  }
+
+  @media (forced-colors: active) {
+    .nodel-log-icon {
+      opacity: 1;
+    }
+
+    .nodel-log-icon-badge {
+      background: Canvas;
+      border: 1px solid CanvasText;
+    }
   }
 
   .nodel-log-time {
