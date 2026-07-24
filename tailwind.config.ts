@@ -41,8 +41,7 @@ export default {
         }
       },
       fontSize: {
-        13: ['0.8125rem', { lineHeight: '1.25rem' }],
-        15: ['0.9375rem', { lineHeight: '1.625rem' }]
+        13: ['0.8125rem', { lineHeight: '1.25rem' }]
       },
       opacity: {
         disabled: '0.55',

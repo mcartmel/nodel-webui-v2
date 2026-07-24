@@ -311,9 +311,13 @@ test.describe('grouped node list', () => {
     await row.evaluate((element) => element.addEventListener('click', (event) => event.preventDefault(), { once: true }));
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
     await page.mouse.down();
-    await expect.poll(async () => (await readStyle()).backgroundImage).not.toBe(rest.backgroundImage);
+    await expect.poll(async () => {
+      const style = await readStyle();
+      return `${style.backgroundColor}|${style.backgroundImage}`;
+    }).not.toBe(`${rest.backgroundColor}|${rest.backgroundImage}`);
     const active = await readStyle();
-    expect(active.backgroundImage).not.toBe(rest.backgroundImage);
+    expect(active.backgroundColor).not.toBe(rest.backgroundColor);
+    expect(active.backgroundImage).toBe('none');
     expect(active.railOpacity).toBe('1');
     expect(active.borderWidth).toBe('0px');
     expect(active.boxShadow).toBe('none');
@@ -334,11 +338,8 @@ test.describe('grouped node list', () => {
     await expectContainedFocus(row, list);
   });
 
-  test('uses a solid collection surface with reduced transparency', async ({ page }, testInfo) => {
-    test.skip(!isDesktopThemeProject(testInfo), 'Reduced-transparency checks run in desktop colour themes.');
-    await setMediaFeature(page, 'prefers-reduced-transparency', 'reduce');
-    const supported = await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches);
-    test.skip(!supported, 'This Chromium build cannot emulate prefers-reduced-transparency.');
+  test('uses a solid collection surface by default', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Collection surface checks run in desktop colour themes.');
     const list = await openLocalNodeList(page);
     await expect(list).toHaveCSS('background-image', 'none');
   });

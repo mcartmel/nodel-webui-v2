@@ -26,6 +26,7 @@ async function readButtonPaint(button: Locator) {
   return button.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
+      backgroundColor: style.backgroundColor,
       backgroundImage: style.backgroundImage,
       borderTopColor: style.borderTopColor,
       color: style.color,
@@ -163,8 +164,8 @@ test.describe('dynamic options', () => {
     await activeButton.hover();
     const hovered = await readButtonPaint(activeButton);
 
-    expect(hovered.backgroundImage).not.toBe(rest.backgroundImage);
-    expect(hovered.backgroundImage).toContain('linear-gradient');
+    expect(hovered.backgroundColor).not.toBe(rest.backgroundColor);
+    expect(hovered.backgroundImage).toBe('none');
     expect(hovered.borderTopColor).not.toBe(rest.borderTopColor);
     expect(hovered.color).toBe(rest.color);
     expect(hovered.filter).toBe('none');

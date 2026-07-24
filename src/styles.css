@@ -11,7 +11,7 @@
     --nodel-surface-raised: 255 255 255;
     --nodel-muted: 51 65 85;
     --nodel-border: 203 213 225;
-    --nodel-accent: 3 105 161;
+    --nodel-accent: 7 89 133;
     --nodel-accent-fill: 3 105 161;
     --nodel-on-accent: 255 255 255;
     --nodel-info: 15 118 110;
@@ -21,10 +21,10 @@
     --nodel-success: 21 128 61;
     --nodel-success-fill: 21 128 61;
     --nodel-on-success: 255 255 255;
-    --nodel-warning: 180 83 9;
+    --nodel-warning: 146 64 14;
     --nodel-warning-fill: 180 83 9;
     --nodel-on-warning: 255 255 255;
-    --nodel-danger: 220 38 38;
+    --nodel-danger: 185 28 28;
     --nodel-danger-fill: 220 38 38;
     --nodel-on-danger: 255 255 255;
     --nodel-danger-bg: 254 242 242;
@@ -33,32 +33,28 @@
     --nodel-status-off: 15 23 42;
     --nodel-status-track-background: 226 232 240;
     --nodel-status-track-border: 100 116 139;
-    --nodel-body-background:
-      radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.12), transparent 26rem),
-      radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.09), transparent 28rem),
-      linear-gradient(180deg, rgb(248 250 252), rgb(var(--nodel-bg)) 34rem);
-    --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(255 255 255 / 0.66));
-    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.84));
-    --nodel-popover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.9));
-    --nodel-toolbar-background: rgb(255 255 255 / 0.54);
+    --nodel-body-background: rgb(var(--nodel-bg));
+    --nodel-card-background: rgb(var(--nodel-surface));
+    --nodel-panel-background: rgb(var(--nodel-surface-raised));
+    --nodel-popover-background: rgb(var(--nodel-surface-raised));
+    --nodel-toolbar-background: rgb(var(--nodel-surface));
     --nodel-toolbar-border: rgb(148 163 184 / 0.34);
-    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(248 250 252 / 0.82));
-    --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(var(--nodel-accent) / 0.08));
-    --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.13), rgb(var(--nodel-accent) / 0.08));
-    --nodel-control-border: rgb(91 106 124);
+    --nodel-control-background: rgb(var(--nodel-surface));
+    --nodel-control-hover-background: rgb(var(--nodel-accent) / 0.07);
+    --nodel-control-active-background: rgb(var(--nodel-accent) / 0.12);
+    /* Preserve a 3:1 resting boundary on every supported light surface. */
+    --nodel-control-border: rgb(108 124 145);
     --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.72);
     --nodel-control-active-border: rgb(var(--nodel-accent) / 0.88);
-    --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(var(--nodel-border) / 0.18);
     --nodel-subtle-hover-background: rgb(var(--nodel-border) / 0.3);
     --nodel-card-border: rgb(148 163 184 / 0.38);
     --nodel-panel-border: rgb(100 116 139 / 0.48);
     --nodel-divider: rgb(148 163 184 / 0.28);
     --nodel-shadow-card: 0 1px 2px rgb(15 23 42 / 0.035), 0 8px 24px rgb(15 23 42 / 0.045);
-    --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.09), 0 0 0 1px var(--nodel-control-highlight) inset;
-    --nodel-shadow-control-active: 0 1px 1px rgb(15 23 42 / 0.08), 0 0 0 1px rgb(255 255 255 / 0.045) inset;
-    --nodel-shadow-panel: 0 10px 32px rgb(15 23 42 / 0.09), 0 1px 0 rgb(255 255 255 / 0.7) inset;
+    --nodel-shadow-control: 0 1px 2px rgb(15 23 42 / 0.06);
+    --nodel-shadow-control-active: 0 1px 1px rgb(15 23 42 / 0.07);
+    --nodel-shadow-panel: 0 10px 32px rgb(15 23 42 / 0.09);
     --nodel-shadow-popover: 0 24px 70px -24px rgb(15 23 42 / 0.36), 0 8px 24px -16px rgb(15 23 42 / 0.22);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(15 23 42 / 0.14);
     --nodel-radius-control: 0.5rem;
@@ -118,32 +114,27 @@
     --nodel-status-off: 148 163 184;
     --nodel-status-track-background: 30 41 59;
     --nodel-status-track-border: 100 116 139;
-    --nodel-body-background:
-      radial-gradient(circle at top left, rgb(var(--nodel-accent) / 0.14), transparent 28rem),
-      radial-gradient(circle at bottom right, rgb(var(--nodel-success) / 0.1), transparent 28rem),
-      linear-gradient(180deg, rgb(7 11 24), rgb(var(--nodel-bg)) 32rem);
-    --nodel-glass-blur: 18px;
-    --nodel-card-background: linear-gradient(180deg, rgb(255 255 255 / 0.082), rgb(255 255 255 / 0.042));
-    --nodel-panel-background: linear-gradient(180deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.066));
-    --nodel-popover-background: linear-gradient(180deg, rgb(20 27 42 / 0.98), rgb(15 23 42 / 0.94));
-    --nodel-toolbar-background: rgb(7 11 24 / 0.62);
+    --nodel-body-background: rgb(var(--nodel-bg));
+    --nodel-card-background: rgb(var(--nodel-surface));
+    --nodel-panel-background: rgb(var(--nodel-surface-raised));
+    --nodel-popover-background: rgb(var(--nodel-surface-raised));
+    --nodel-toolbar-background: rgb(var(--nodel-surface));
     --nodel-toolbar-border: rgb(255 255 255 / 0.13);
-    --nodel-control-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.065));
-    --nodel-control-hover-background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(var(--nodel-accent) / 0.08));
-    --nodel-control-active-background: linear-gradient(180deg, rgb(var(--nodel-accent) / 0.18), rgb(var(--nodel-accent) / 0.1));
+    --nodel-control-background: rgb(255 255 255 / 0.07);
+    --nodel-control-hover-background: rgb(var(--nodel-accent) / 0.1);
+    --nodel-control-active-background: rgb(var(--nodel-accent) / 0.16);
     --nodel-control-border: rgb(139 153 171);
     --nodel-control-hover-border: rgb(var(--nodel-accent) / 0.62);
     --nodel-control-active-border: rgb(var(--nodel-accent) / 0.78);
-    --nodel-control-highlight: rgb(255 255 255 / 0.08);
     --nodel-subtle-background: rgb(255 255 255 / 0.045);
     --nodel-subtle-hover-background: rgb(255 255 255 / 0.08);
     --nodel-card-border: rgb(255 255 255 / 0.14);
     --nodel-panel-border: rgb(255 255 255 / 0.2);
     --nodel-divider: rgb(255 255 255 / 0.08);
-    --nodel-shadow-card: 0 10px 36px rgb(0 0 0 / 0.16), 0 1px 0 rgb(255 255 255 / 0.025) inset;
-    --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.38), 0 1px 0 var(--nodel-control-highlight) inset;
-    --nodel-shadow-control-active: 0 1px 1px rgb(0 0 0 / 0.36), 0 1px 0 rgb(255 255 255 / 0.045) inset;
-    --nodel-shadow-panel: 0 14px 42px rgb(0 0 0 / 0.24), 0 1px 0 rgb(255 255 255 / 0.065) inset;
+    --nodel-shadow-card: 0 10px 36px rgb(0 0 0 / 0.16);
+    --nodel-shadow-control: 0 1px 2px rgb(0 0 0 / 0.38);
+    --nodel-shadow-control-active: 0 1px 1px rgb(0 0 0 / 0.36);
+    --nodel-shadow-panel: 0 14px 42px rgb(0 0 0 / 0.24);
     --nodel-shadow-popover: 0 24px 70px rgb(0 0 0 / 0.48), 0 8px 24px rgb(0 0 0 / 0.32);
     --nodel-shadow-editor-status: 0 0.5rem 1.5rem rgb(0 0 0 / 0.55);
     --nodel-editor-selection: rgb(var(--nodel-accent) / 0.28);
@@ -488,19 +479,19 @@
     --nodel-status-base-background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     --nodel-status-tone-rgb: var(--nodel-muted);
     --nodel-status-fill-rgb: var(--nodel-muted);
-    background: linear-gradient(180deg, rgb(var(--nodel-status-tone-rgb) / 0.1), rgb(var(--nodel-status-tone-rgb) / 0.035)), var(--nodel-status-base-background);
-    border-width: 2px;
-    border-color: rgb(var(--nodel-status-tone-rgb) / 0.34);
+    background: linear-gradient(rgb(var(--nodel-status-tone-rgb) / 0.06), rgb(var(--nodel-status-tone-rgb) / 0.06)), var(--nodel-status-base-background);
+    border-width: 1px;
+    border-color: rgb(var(--nodel-status-tone-rgb) / 0.3);
   }
 
   .nodel-status-shell[data-tone='solid'] {
-    background: linear-gradient(180deg, rgb(var(--nodel-status-tone-rgb) / 0.18), rgb(var(--nodel-status-tone-rgb) / 0.08)), var(--nodel-status-base-background);
-    border-color: rgb(var(--nodel-status-tone-rgb) / 0.46);
+    background: linear-gradient(rgb(var(--nodel-status-tone-rgb) / 0.12), rgb(var(--nodel-status-tone-rgb) / 0.12)), var(--nodel-status-base-background);
+    border-color: rgb(var(--nodel-status-tone-rgb) / 0.4);
   }
 
   .nodel-status-shell[data-tone='outline'] {
-    background: linear-gradient(180deg, rgb(var(--nodel-status-tone-rgb) / 0.06), rgb(var(--nodel-status-tone-rgb) / 0.02)), var(--nodel-status-base-background);
-    border-color: rgb(var(--nodel-status-tone-rgb) / 0.78);
+    background: linear-gradient(rgb(var(--nodel-status-tone-rgb) / 0.03), rgb(var(--nodel-status-tone-rgb) / 0.03)), var(--nodel-status-base-background);
+    border-color: rgb(var(--nodel-status-tone-rgb) / 0.6);
   }
 
   .nodel-status-shell[data-surface='none'] {
@@ -647,11 +638,13 @@
 
   nodel-title[data-level='1'] {
     font-size: 1.5rem;
+    letter-spacing: -0.02em;
     line-height: 2rem;
   }
 
   nodel-title[data-level='2'] {
     font-size: 1.125rem;
+    letter-spacing: -0.01em;
     line-height: 1.75rem;
   }
 
@@ -832,15 +825,16 @@
   }
 
   .nodel-catalogue-title {
-    @apply m-0 text-2xl font-semibold leading-8 text-nodel-fg;
+    @apply m-0 text-2xl font-semibold leading-8 tracking-tight text-nodel-fg;
   }
 
   .nodel-catalogue-subtitle {
     @apply m-0 text-lg font-semibold leading-7 text-nodel-fg;
+    letter-spacing: -0.01em;
   }
 
   .nodel-catalogue-description {
-    @apply m-0 text-15 text-nodel-muted;
+    @apply m-0 text-sm leading-6 text-nodel-muted;
   }
 
   .nodel-catalogue-examples {
@@ -1006,13 +1000,13 @@
 
   .nodel-button-soft:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.28);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.14), rgb(var(--nodel-button-tone-rgb) / 0.08));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.1);
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-button-soft:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.42);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.15);
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
@@ -1020,13 +1014,13 @@
   .nodel-button-outline:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-width: 2px;
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.65);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.07), rgb(var(--nodel-button-tone-rgb) / 0.035));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.05);
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-button-outline:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.16), rgb(var(--nodel-button-tone-rgb) / 0.09));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.12);
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
@@ -1066,14 +1060,14 @@
   .nodel-button-soft:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link),
   .nodel-button-outline:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.24), rgb(var(--nodel-button-tone-rgb) / 0.14));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.18);
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
 
   .nodel-button.is-active {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.15);
     color: rgb(var(--nodel-button-tone-rgb));
     box-shadow: var(--nodel-shadow-control, none);
   }
@@ -1081,7 +1075,7 @@
   .nodel-button-soft.is-active:not(.nodel-button-ghost):not(.nodel-button-link),
   .nodel-button-outline.is-active:not(.nodel-button-ghost):not(.nodel-button-link) {
     border-color: rgb(var(--nodel-button-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.22), rgb(var(--nodel-button-tone-rgb) / 0.12));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.16);
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
@@ -1302,14 +1296,14 @@
   .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
     @apply shadow-nodel-control;
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.2), rgb(var(--nodel-button-tone-rgb) / 0.12));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.15);
     color: rgb(var(--nodel-button-tone-rgb));
   }
 
   .nodel-segmented > nodel-button[active] .nodel-button-touch:hover:not(:disabled):not(.is-disabled),
   .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch:hover:not(:disabled):not(.is-disabled) {
     border-color: rgb(var(--nodel-button-tone-rgb) / 0.9);
-    background: linear-gradient(180deg, rgb(var(--nodel-button-tone-rgb) / 0.26), rgb(var(--nodel-button-tone-rgb) / 0.16));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.2);
     color: rgb(var(--nodel-button-tone-rgb));
     filter: none;
   }
@@ -1372,24 +1366,24 @@
 
   nodel-select[data-tone='soft'] .nodel-select-trigger {
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.28);
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.12), rgb(var(--nodel-touch-tone-rgb) / 0.06));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.09);
   }
 
   nodel-select[data-tone='outline'] .nodel-select-trigger {
     border-width: 2px;
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.58);
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.06), rgb(var(--nodel-touch-tone-rgb) / 0.025));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.04);
   }
 
   :where(nodel-stepper, nodel-pad, nodel-palette)[data-tone='soft'] :where(.nodel-stepper-button, .nodel-pad-button, .nodel-palette-custom-button, .nodel-palette-custom-input) {
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.28);
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.12), rgb(var(--nodel-touch-tone-rgb) / 0.06));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.09);
   }
 
   :where(nodel-stepper, nodel-pad, nodel-palette)[data-tone='outline'] :where(.nodel-stepper-button, .nodel-pad-button, .nodel-palette-custom-button, .nodel-palette-custom-input) {
     border-width: 2px;
     border-color: rgb(var(--nodel-touch-tone-rgb) / 0.58);
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.06), rgb(var(--nodel-touch-tone-rgb) / 0.025));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.04);
   }
 
   .nodel-select-trigger:focus-visible,
@@ -1514,7 +1508,7 @@
   .nodel-pad-button:active:not(:disabled),
   .nodel-palette-custom-button:active:not(:disabled) {
     border-color: rgb(var(--nodel-touch-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.22), rgb(var(--nodel-touch-tone-rgb) / 0.13));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.16);
     box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
     color: rgb(var(--nodel-touch-tone-rgb));
     translate: 0 1px;
@@ -1561,7 +1555,7 @@
     @apply flex h-full min-h-0 w-full items-center justify-center border p-0 text-xl;
     border-radius: 0.45rem;
     border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
-    background: linear-gradient(180deg, rgb(var(--nodel-surface-raised) / 0.75), rgb(var(--nodel-border) / 0.22));
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
     box-shadow: var(--nodel-shadow-control, none);
   }
 
@@ -1572,12 +1566,12 @@
   .nodel-pad-button:hover:not(:disabled) {
     border-color: rgb(var(--nodel-touch-tone-rgb));
     color: rgb(var(--nodel-touch-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.18), rgb(var(--nodel-touch-tone-rgb) / 0.1));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.13);
   }
 
   .nodel-pad-button.is-active {
     border-color: rgb(var(--nodel-touch-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-touch-tone-rgb) / 0.24), rgb(var(--nodel-touch-tone-rgb) / 0.14));
+    background: rgb(var(--nodel-touch-tone-rgb) / 0.18);
     color: rgb(var(--nodel-touch-tone-rgb));
     box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
   }
@@ -2174,20 +2168,20 @@
   .nodel-fader-track {
     @apply relative overflow-hidden touch-none rounded-full border bg-nodel-statusOff/65 outline-none;
     border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
-    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.18), 0 1px 0 var(--nodel-control-highlight, transparent);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.18);
   }
 
   nodel-fader[data-tone='soft'] .nodel-fader-track,
   nodel-fader[data-tone='soft'] .nodel-fader-nudge {
     border-color: rgb(var(--nodel-fader-tone-rgb) / 0.28);
-    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.12), rgb(var(--nodel-fader-tone-rgb) / 0.06));
+    background: rgb(var(--nodel-fader-tone-rgb) / 0.09);
   }
 
   nodel-fader[data-tone='outline'] .nodel-fader-track,
   nodel-fader[data-tone='outline'] .nodel-fader-nudge {
     border-width: 2px;
     border-color: rgb(var(--nodel-fader-tone-rgb) / 0.58);
-    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.06), rgb(var(--nodel-fader-tone-rgb) / 0.025));
+    background: rgb(var(--nodel-fader-tone-rgb) / 0.04);
   }
 
   nodel-fader:not([data-disabled='true']) .nodel-fader-track {
@@ -2275,7 +2269,7 @@
 
   .nodel-fader-nudge:active:not(:disabled) {
     border-color: rgb(var(--nodel-fader-tone-rgb));
-    background: linear-gradient(180deg, rgb(var(--nodel-fader-tone-rgb) / 0.22), rgb(var(--nodel-fader-tone-rgb) / 0.13));
+    background: rgb(var(--nodel-fader-tone-rgb) / 0.16);
     box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
     color: rgb(var(--nodel-fader-tone-rgb));
     translate: 0 1px;
@@ -2413,8 +2407,6 @@
     background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
     border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-popover, none);
-    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
-    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-template-autocomplete .nodel-add-node-result-secondary {
@@ -2600,8 +2592,6 @@
     @apply pointer-events-auto relative flex min-w-0 items-start gap-3 overflow-hidden rounded-card border bg-nodel-surfaceRaised px-4 py-3 text-sm leading-5 shadow-nodel-popover;
     background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
     border-color: var(--nodel-panel-border, rgb(var(--nodel-border)));
-    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
-    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-toast::before {
@@ -2829,7 +2819,7 @@
   }
 
   .nodel-description-content {
-    @apply text-15 text-nodel-muted;
+    @apply text-sm leading-6 text-nodel-muted;
   }
 
   .nodel-description-content > :first-child {
@@ -3169,8 +3159,6 @@
   .nodel-node-menu-drawer {
     @apply fixed inset-0 flex min-w-0 flex-col bg-nodel-surface text-nodel-fg shadow-nodel-popover;
     background: var(--nodel-popover-background, rgb(var(--nodel-surface)));
-    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
-    backdrop-filter: blur(var(--nodel-glass-blur, 0));
   }
 
   .nodel-node-menu-header {
@@ -3574,8 +3562,6 @@
     @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surfaceRaised/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
     background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised) / 0.94));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    -webkit-backdrop-filter: blur(var(--nodel-glass-blur, 0));
-    backdrop-filter: blur(var(--nodel-glass-blur, 0));
     max-width: min(28rem, calc(100% - 1.5rem));
   }
 
@@ -3664,20 +3650,6 @@
 
     .nodel-list > li > .nodel-list-item:focus-visible {
       outline-offset: -3px !important;
-    }
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    :root,
-    :root[data-theme='dark'] {
-      --nodel-glass-blur: 0px;
-      --nodel-body-background: rgb(var(--nodel-bg));
-      --nodel-card-background: rgb(var(--nodel-surface));
-      --nodel-panel-background: rgb(var(--nodel-surface-raised));
-      --nodel-popover-background: rgb(var(--nodel-surface-raised));
-      --nodel-control-background: rgb(var(--nodel-surface));
-      --nodel-control-hover-background: rgb(var(--nodel-surface-raised));
-      --nodel-toolbar-background: rgb(var(--nodel-surface));
     }
   }
 

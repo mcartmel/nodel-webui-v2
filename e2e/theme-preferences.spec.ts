@@ -127,12 +127,9 @@ test.describe('theme first paint and preferences', () => {
     });
   }
 
-  test('uses solid surfaces for reduced transparency when Chromium emulation supports it', async ({ page }, testInfo) => {
+  test('uses solid surfaces without transparency effects', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
 
-    await setMediaFeature(page, 'prefers-reduced-transparency', 'reduce');
-    const supported = await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches);
-    test.skip(!supported, 'This Chromium build cannot emulate prefers-reduced-transparency.');
     await openCatalogue(page, 'ControlGrid');
     await page.locator('[data-nav-group-id="Controls"]').click();
     const groupSurfaces = page.locator('[data-catalogue-example="control-grid-group-surfaces"]');
@@ -144,7 +141,7 @@ test.describe('theme first paint and preferences', () => {
     for (const surface of [card, panel, toolbar, popover, control]) {
       await expect(surface).toHaveCSS('background-image', 'none');
     }
-    await expect(popover).toHaveCSS('backdrop-filter', 'blur(0px)');
+    await expect(popover).toHaveCSS('backdrop-filter', 'none');
     await tabTo(page, control);
     await expectFocusIsNotClipped(control);
   });
