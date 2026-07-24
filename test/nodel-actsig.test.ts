@@ -151,6 +151,60 @@ describe('nodel-actsig', () => {
     });
   });
 
+  it('keeps button labels stable and replaces type icons while submitting', async () => {
+    let resolveAction!: () => void;
+    let resolveSignal!: () => void;
+    actsigMock.callNodeAction.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveAction = resolve;
+    }));
+    actsigMock.emitNodeSignal.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveSignal = resolve;
+    }));
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'Run', title: 'Run Action', schema: { type: 'null' } }
+    });
+    actsigMock.getNodeSignals.mockResolvedValue({
+      State: { name: 'State', title: 'State Signal', schema: { type: 'null' } }
+    });
+
+    await mountActSig();
+    await waitFor(() => Boolean(formByTitle('Run Action')) && Boolean(formByTitle('State Signal')));
+
+    const actionForm = formByTitle('Run Action')!;
+    const actionButton = actionForm.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(actionButton.textContent?.trim()).toBe('Call');
+    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('person-running');
+
+    submitForm(actionForm);
+    await waitFor(() => actionButton.getAttribute('aria-busy') === 'true');
+
+    expect(actionButton.textContent?.trim()).toBe('Call');
+    expect(actionButton.disabled).toBe(true);
+    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('spinner');
+    expect(actionForm.querySelector('svg')?.classList.contains('animate-spin')).toBe(true);
+
+    resolveAction();
+    await waitFor(() => actionButton.getAttribute('aria-busy') === 'false');
+    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('person-running');
+
+    await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
+    const signalForm = formByTitle('State Signal')!;
+    const signalButton = signalForm.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(signalButton.textContent?.trim()).toBe('Emit');
+    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('traffic-light');
+
+    submitForm(signalForm);
+    await waitFor(() => signalButton.getAttribute('aria-busy') === 'true');
+
+    expect(signalButton.textContent?.trim()).toBe('Emit');
+    expect(signalButton.disabled).toBe(true);
+    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('spinner');
+
+    resolveSignal();
+    await waitFor(() => signalButton.getAttribute('aria-busy') === 'false');
+    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('traffic-light');
+  });
+
   it('renders root object action args as a collapsible group while keeping nested arrays collapsible', async () => {
     actsigMock.getNodeActions.mockResolvedValue({
       WledSetState: {

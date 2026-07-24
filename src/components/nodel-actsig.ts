@@ -69,6 +69,7 @@ interface ActSigViewModel {
 const ungroupedSectionTitle = '';
 const materializeChunkSize = 8;
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
+const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-spin');
 let registered = false;
 let nextId = 0;
 
@@ -82,9 +83,9 @@ const actSigFormTemplate = `
           {^{if caution}}<p class="mt-1 text-xs leading-5 text-nodel-warning">{^{>caution}}</p>{{/if}}
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <span class="nodel-actsig-form-icon" aria-hidden="true">{^{:iconMarkup}}</span>
-          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} title{:name}">
-            {^{if busy}}Sending...{{else}}{^{>pointType === 'action' ? 'Call' : 'Emit'}}{{/if}}
+          <span class="nodel-actsig-form-icon" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
+          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
+            {^{>pointType === 'action' ? 'Call' : 'Emit'}}
           </button>
         </div>
       </div>
