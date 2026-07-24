@@ -173,6 +173,13 @@ describe('nodel document definition', () => {
     expect(nodesUi).toContain('<nodel-diagnostic-charts></nodel-diagnostic-charts>');
   });
 
+  it('redirects to newly created nodes by default', async () => {
+    const nodesUi = await readFile(resolve(process.cwd(), 'nodes.html'), 'utf8');
+
+    expect(nodesUi).toContain('<nodel-add-node></nodel-add-node>');
+    expect(nodesUi).not.toContain('<nodel-add-node redirect="false"');
+  });
+
   it('keeps the component catalogue covering the public components', async () => {
     const componentsUi = await readFile(resolve(process.cwd(), 'components.html'), 'utf8');
     const expectedComponents = [

@@ -1,4 +1,4 @@
-import { createNode, duplicateNode, listRecipes, searchNodeUrls } from '../api/nodel-host-client';
+import { createNode, duplicateNode, listRecipes, searchNodeUrls, waitForNodeReady } from '../api/nodel-host-client';
 import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
 import { linkTemplate, unlinkTemplate, getJQuery } from '../jsviews/jsviews-runtime';
 import { getVerySimpleName } from '../utils/node-name';
@@ -484,6 +484,8 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ status: 'Creating node...' });
         await createNode(name, base || undefined);
         url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
+        this.setState({ status: 'Waiting for node to become available...' });
+        await waitForNodeReady(url);
       }
 
       this.dispatchEvent(new CustomEvent('nodel-node-created', { bubbles: true, detail: { url } }));

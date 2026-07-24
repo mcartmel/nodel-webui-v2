@@ -52,6 +52,10 @@ describe('nodel-add-node', () => {
         return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
 
+      if (url === '/nodes/MyTestNode/REST/') {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
 
@@ -74,6 +78,7 @@ describe('nodel-add-node', () => {
     expect(postCall?.init?.method).toBe('POST');
     expect(String(postCall?.init?.body)).toContain('My Test Node');
     expect(String(postCall?.init?.body)).toContain('Recipes/Starter');
+    expect(calls.some((call) => call.url === '/nodes/MyTestNode/REST/')).toBe(true);
     expect(document.body.textContent).toContain('Node created');
   });
 

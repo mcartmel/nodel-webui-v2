@@ -985,12 +985,12 @@ Behavior:
 `nodel-add-node` provides the locals page add-node flow.
 
 ```html
-<nodel-add-node redirect="false"></nodel-add-node>
+<nodel-add-node></nodel-add-node>
 ```
 
 Supported attributes:
 
-- `redirect="true|false"`
+- `redirect="true|false"` (defaults to `true`)
 - `recipes="true|false"`
 - `duplicate="true|false"`
 
@@ -1000,6 +1000,7 @@ Behavior:
 - Searches recipes from `/REST/recipes/list`.
 - Searches existing nodes from `/REST/nodeURLs`.
 - Creates from a recipe path or duplicates an existing node.
+- Waits for the new node to become available before redirecting.
 - Dispatches `nodel-node-created` after success.
 
 The add-node panel is intentionally native HTML and does not depend on Bootstrap.

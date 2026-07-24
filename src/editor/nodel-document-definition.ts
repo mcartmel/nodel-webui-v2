@@ -515,11 +515,11 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     name: 'nodel-add-node',
     description: 'Create or duplicate a node.',
     attributes: [
-      { name: 'redirect', description: 'Redirect after creating node.', values: ['true', 'false'] },
+      { name: 'redirect', description: 'Redirect after creating node; defaults to true.', values: ['true', 'false'] },
       { name: 'recipes', description: 'Enable recipe selection.', values: ['true', 'false'] },
       { name: 'duplicate', description: 'Enable duplicate-from-existing-node.', values: ['true', 'false'] }
     ],
-    snippet: '<nodel-add-node redirect="false"></nodel-add-node>'
+    snippet: '<nodel-add-node></nodel-add-node>'
   },
   {
     name: 'nodel-node-menu',
