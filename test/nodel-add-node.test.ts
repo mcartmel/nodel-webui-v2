@@ -82,6 +82,50 @@ describe('nodel-add-node', () => {
     expect(document.body.textContent).toContain('Node created');
   });
 
+  it('shows the server message when a node name already exists', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+
+      if (url === '/REST/newNode') {
+        return new Response(JSON.stringify({ message: "A node with the name 'Existing Node' already exists." }), {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { 'Content-Type': 'application/json' }
+        }) as never;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel();
+
+    const errorListener = vi.fn();
+    document.querySelector('nodel-add-node')?.addEventListener('nodel-add-node-error', errorListener);
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    await setInputValue(nameInput, 'Existing Node');
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-error')));
+
+    const error = document.querySelector('.nodel-add-node-error');
+    expect(error?.getAttribute('role')).toBe('alert');
+    expect(error?.textContent).toContain("A node with the name 'Existing Node' already exists.");
+    expect(error?.textContent).not.toContain('500');
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+    expect((document.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
+    expect(errorListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: {
+        error: "A node with the name 'Existing Node' already exists.",
+        name: 'Existing Node'
+      }
+    }));
+  });
+
   it('selects a recipe template autocomplete result with the keyboard', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

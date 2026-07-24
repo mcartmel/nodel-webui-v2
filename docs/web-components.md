@@ -1001,7 +1001,7 @@ Behavior:
 - Searches existing nodes from `/REST/nodeURLs`.
 - Creates from a recipe path or duplicates an existing node.
 - Waits for the new node to become available before redirecting.
-- Dispatches `nodel-node-created` after success.
+- Dispatches `nodel-node-created` after success and `nodel-add-node-error` after failure.
 
 The add-node panel is intentionally native HTML and does not depend on Bootstrap.
 

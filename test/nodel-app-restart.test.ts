@@ -136,6 +136,13 @@ describe('nodel-app restart coordination', () => {
     }));
     expect(document.body.textContent).toContain('Failed to save parameters');
     expect(document.body.textContent).toContain('Save failed');
+
+    source.dispatchEvent(new CustomEvent('nodel-add-node-error', {
+      bubbles: true,
+      detail: { error: 'A node with that name already exists.' }
+    }));
+    expect(document.body.textContent).toContain('Failed to add node');
+    expect(document.body.textContent).toContain('A node with that name already exists.');
   });
 
   it('does not start the restart watcher outside node pages', async () => {

@@ -32,10 +32,40 @@ export interface NodelCustomUiEntry {
   title: string;
 }
 
+async function responseError(response: Response) {
+  const status = `${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  let detail = '';
+
+  try {
+    const body = (await response.text()).trim();
+    if (body) {
+      try {
+        const parsed = JSON.parse(body) as unknown;
+        if (typeof parsed === 'string') {
+          detail = parsed;
+        } else if (parsed !== null && typeof parsed === 'object') {
+          const record = parsed as Record<string, unknown>;
+          const value = record.message ?? record.error;
+          detail = typeof value === 'string' ? value : body;
+        } else {
+          detail = body;
+        }
+      } catch {
+        detail = body;
+      }
+    }
+  } catch {
+    // Fall back to the HTTP status when the response body cannot be read.
+  }
+
+  detail = detail.replace(/\s+/g, ' ').trim().slice(0, 500);
+  return new Error(detail || status);
+}
+
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    throw await responseError(response);
   }
   return (await response.json()) as T;
 }
@@ -55,7 +85,7 @@ async function postJson<T>(input: RequestInfo | URL, body: unknown, init?: Reque
 async function fetchOk(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
   const response = await fetch(input, init);
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    throw await responseError(response);
   }
 
   const contentType = response.headers.get('Content-Type') ?? '';

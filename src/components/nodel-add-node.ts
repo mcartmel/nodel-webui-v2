@@ -27,6 +27,7 @@ type TemplateResultView = TemplateResult & {
 
 interface AddNodeViewModel {
   duplicateEnabled: boolean;
+  error: string;
   hasNodeResults: boolean;
   hasRecipeResults: boolean;
   nodeName: string;
@@ -96,7 +97,13 @@ const template = `
         </div>
 
         <div class="flex items-center justify-between gap-3">
-          <p class="nodel-add-node-status text-sm text-nodel-muted">{^{>status}}</p>
+          <div class="min-w-0 flex-1">
+            {^{if error}}
+              <div class="nodel-add-node-error nodel-alert nodel-alert-danger nodel-alert-sm" role="alert">{^{>error}}</div>
+            {{else}}
+              <p class="nodel-add-node-status text-sm text-nodel-muted" role="status">{^{>status}}</p>
+            {{/if}}
+          </div>
           <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
         </div>
       </form>
@@ -138,6 +145,7 @@ export class NodelAddNode extends HTMLElement {
   private templateResults: TemplateResult[] = [];
   private state: AddNodeViewModel = {
     duplicateEnabled: true,
+    error: '',
     hasNodeResults: false,
     hasRecipeResults: false,
     nodeName: '',
@@ -337,6 +345,7 @@ export class NodelAddNode extends HTMLElement {
       this.selection = null;
       this.templateResults = [];
       this.setState({
+        error: '',
         nodeName: '',
         hasNodeResults: false,
         hasRecipeResults: false,
@@ -467,11 +476,11 @@ export class NodelAddNode extends HTMLElement {
     const templateValue = this.state.templateQuery.trim();
 
     if (!name) {
-      this.setState({ status: 'Please enter a node name' });
+      this.setState({ error: 'Please enter a node name', status: '' });
       return;
     }
 
-    this.setState({ submitting: true });
+    this.setState({ error: '', status: '', submitting: true });
 
     try {
       let url = '';
@@ -497,7 +506,15 @@ export class NodelAddNode extends HTMLElement {
 
       this.closePanel();
     } catch (error) {
-      this.setState({ status: error instanceof Error ? error.message : 'Node add failed' });
+      const message = error instanceof Error ? error.message : 'Node add failed';
+      this.setState({
+        error: message,
+        status: ''
+      });
+      this.dispatchEvent(new CustomEvent('nodel-add-node-error', {
+        bubbles: true,
+        detail: { error: message, name }
+      }));
     } finally {
       this.setState({ submitting: false });
     }

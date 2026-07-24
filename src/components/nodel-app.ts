@@ -100,6 +100,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.addEventListener('nodel-params-saved', this.handleParamsSaved);
     this.addEventListener('nodel-bindings-saved', this.handleBindingsSaved);
     this.addEventListener('nodel-editor-file-saved', this.handleEditorFileSaved);
+    this.addEventListener('nodel-add-node-error', this.handleAddNodeError);
     this.addEventListener('nodel-params-error', this.handleParamsError);
     this.addEventListener('nodel-bindings-error', this.handleBindingsError);
     this.addEventListener('nodel-editor-error', this.handleEditorError);
@@ -120,6 +121,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.removeEventListener('nodel-params-saved', this.handleParamsSaved);
     this.removeEventListener('nodel-bindings-saved', this.handleBindingsSaved);
     this.removeEventListener('nodel-editor-file-saved', this.handleEditorFileSaved);
+    this.removeEventListener('nodel-add-node-error', this.handleAddNodeError);
     this.removeEventListener('nodel-params-error', this.handleParamsError);
     this.removeEventListener('nodel-bindings-error', this.handleBindingsError);
     this.removeEventListener('nodel-editor-error', this.handleEditorError);
@@ -204,6 +206,15 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private handleParamsError = (event: Event) => {
     this.showToast({
       message: 'Failed to save parameters',
+      detail: eventDetailValue(event, 'error'),
+      tone: 'danger',
+      durationMs: 7000
+    });
+  };
+
+  private handleAddNodeError = (event: Event) => {
+    this.showToast({
+      message: 'Failed to add node',
       detail: eventDetailValue(event, 'error'),
       tone: 'danger',
       durationMs: 7000
