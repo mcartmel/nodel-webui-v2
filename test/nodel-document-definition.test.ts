@@ -258,6 +258,14 @@ describe('nodel document definition', () => {
       expect(componentsUi).not.toContain(`<${component}`);
       expect(componentsUi).not.toContain(`&lt;${component}`);
     }
+
+    expect(componentsUi).toContain('data-nodel-runtime="memory"');
+    expect(componentsUi).toContain('The catalogue marker installs the page-only in-memory action/signal runtime');
+
+    for (const page of ['nodel.html', 'nodes.html', 'toolkit.html']) {
+      const pageUi = await readFile(resolve(process.cwd(), page), 'utf8');
+      expect(pageUi).not.toContain('data-nodel-runtime="memory"');
+    }
   });
 
   it('keeps marked catalogue examples matched to their code snippets', async () => {

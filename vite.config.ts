@@ -11,9 +11,18 @@ function cssBeforeEntryScriptPlugin(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html) {
-        return html.replace(
+        const orderedHtml = html.replace(
           /^([\t ]*<script\b[^>]*\bsrc="\.\/v2\/nodel-webui\.js"[^>]*><\/script>\r?\n)([\t ]*<link\b[^>]*\bhref="\.\/v2\/nodel-webui\.css"[^>]*>\r?\n?)/m,
           '$2$1'
+        );
+
+        if (!orderedHtml.includes('<title>Nodel UI Components</title>')) {
+          return orderedHtml;
+        }
+
+        return orderedHtml.replace(
+          /(<script\b[^>]*\bsrc="\.\/v2\/nodel-webui\.js")/,
+          '$1 data-nodel-runtime="memory"'
         );
       }
     }

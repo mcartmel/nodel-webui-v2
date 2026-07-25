@@ -1,3 +1,5 @@
+import './catalogue/runtime-bootstrap';
+
 import './components/nodel-app';
 import './components/nodel-toolbar';
 import './components/nodel-page';

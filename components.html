@@ -25,7 +25,8 @@
       })();
     </script>
     <link rel="stylesheet" href="/src/styles.css" />
-    <script type="module" src="/src/main.ts"></script>
+    <!-- The catalogue marker installs the page-only in-memory action/signal runtime before components upgrade. Do not copy it to node pages. -->
+    <script type="module" src="/src/main.ts" data-nodel-runtime="memory"></script>
   </head>
   <body>
     <nodel-app title="Nodel UI Components">

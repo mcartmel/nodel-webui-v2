@@ -25,6 +25,8 @@ Examples:
 
 The component set has two audiences. Custom UI components are public authoring primitives intended for node-specific pages and are demonstrated in `components.html`. Core Nodel components implement the standard host and node administration pages. They are documented here because they share the same runtime and may be useful when replacing a core page, but they are intentionally not part of the visual component catalogue.
 
+`components.html` is a self-contained demonstration catalogue. Its page loader installs an internal in-memory runtime that seeds the signal examples and handles catalogue actions as closed-loop state changes, so the page remains useful without a running node and does not report missing action or event errors. The copied component markup remains ordinary `action`, `signal`, `signals`, `join`, and `options-signal` markup. When that markup is used on a node-specific page, it uses the normal current-node REST action and activity-signal runtime instead; the catalogue-only loader marker must not be copied to those pages.
+
 ### Custom UI Components
 
 - `nodel-app`: top-level application shell, theme owner, and page navigation coordinator.

@@ -106,6 +106,8 @@ The page title can then be controlled by `nodel-app title="..."`.
 
 Vite source pages may reference `/src/main.ts` during local dev. Built/deployed pages should reference the stable v2 support files.
 
+The public `components.html` catalogue is the one intentional exception to the normal node-backed control path. Its module script carries the internal `data-nodel-runtime="memory"` marker, which the first import in `src/main.ts` detects before custom elements are registered. That import installs a page-local, closed-loop in-memory action/signal runtime for catalogue demonstrations. The runtime seeds the signal examples and resolves catalogue actions without calling `REST/actions/*/call` or opening the node activity stream; mapped actions publish synthetic local signal entries so related examples stay synchronized. Other pages omit the marker and retain the default REST/WebSocket adapters. The marker is an implementation detail of the catalogue page, not a public custom-page attribute.
+
 ## Test Deployment
 
 The deploy script follows the v1 convention of a root page plus versioned support files.

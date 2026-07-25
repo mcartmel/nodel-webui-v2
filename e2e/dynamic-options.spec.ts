@@ -46,6 +46,20 @@ async function openNodeBackedCatalogue(page: Page, activityEntries: ActivityEntr
     window.WebSocket = BlockedWebSocket as never;
   });
 
+  await page.route('**/nodes/Demo/components.html*', async (route) => {
+    const sourceUrl = new URL('/components.html', route.request().url());
+    const response = await page.request.get(sourceUrl.toString());
+    const body = (await response.text()).replaceAll(' data-nodel-runtime="memory"', '');
+    await route.fulfill({ response, body });
+  });
+
+  await page.route('**/nodes/Demo/v2/**', async (route) => {
+    const sourceUrl = new URL(route.request().url());
+    sourceUrl.pathname = sourceUrl.pathname.replace(/^\/nodes\/Demo/, '');
+    const response = await page.request.get(sourceUrl.toString());
+    await route.fulfill({ response });
+  });
+
   await page.route('**/nodes/Demo/REST/activity?from=*', async (route) => {
     const url = new URL(route.request().url());
     const from = url.searchParams.get('from');
@@ -64,10 +78,7 @@ async function openNodeBackedCatalogue(page: Page, activityEntries: ActivityEntr
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(responseEntries) });
   });
 
-  await page.goto('/components.html#PickersPrecision', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    window.history.replaceState(null, '', '/nodes/Demo/components.html#PickersPrecision');
-  });
+  await page.goto('/nodes/Demo/components.html#PickersPrecision', { waitUntil: 'domcontentloaded' });
   await page.locator('nodel-page[data-page-id="PickersPrecision"][active]').waitFor();
   await page.addStyleTag({ content: animationReset });
 }

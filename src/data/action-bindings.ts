@@ -1,4 +1,4 @@
-import { callNodeAction } from '../api/nodel-host-client';
+import { getControlRuntime } from './control-runtime';
 
 export interface ActionBinding {
   action: string;
@@ -86,7 +86,7 @@ export async function callActionBindings(bindings: ActionBinding[], phase: strin
 
   for (const binding of actionBindingsForPhase(bindings, phase)) {
     try {
-      await callNodeAction(binding.action, payload);
+      await getControlRuntime().callAction(binding.action, payload);
       results.push({ action: binding.action, phase, ok: true });
     } catch (error) {
       results.push({

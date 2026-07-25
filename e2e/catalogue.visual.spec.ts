@@ -131,12 +131,13 @@ test.describe('catalogue visual regressions', () => {
   test('captures the busy button state and public overlays', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Focused state baselines run for the desktop themes.');
 
-    await page.route('**/REST/actions/CatalogueBusy/call', () => new Promise<void>(() => {}));
     await openCatalogue(page, 'Buttons');
+    await page.clock.install();
     const states = page.locator('[data-catalogue-example="buttons-sizes-states"]');
     await states.locator('[data-catalogue-busy] button').click();
     await expect(states.locator('[data-catalogue-busy] button')).toHaveClass(/is-busy/);
     await expect(states).toHaveScreenshot('button-states.png');
+    await page.clock.runFor(1000);
 
     await page.locator('nodel-app').evaluate((app) => {
       app.dispatchEvent(new CustomEvent('nodel-confirm', {
@@ -251,7 +252,7 @@ test.describe('catalogue visual regressions', () => {
     expect(primaryBackground).toBe(highlight);
 
     await openCatalogue(page, 'TogglesSegmented');
-    const segmentedActive = page.locator('nodel-segmented nodel-button[active] button').first();
+    const segmentedActive = page.locator('nodel-page[data-page-id="TogglesSegmented"][active] nodel-segmented nodel-button[active] button').first();
     await expect(segmentedActive).toBeVisible();
     await expect(segmentedActive).toHaveCSS('background-color', highlight);
 

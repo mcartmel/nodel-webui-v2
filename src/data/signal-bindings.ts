@@ -1,5 +1,5 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
-import { subscribeNodeActivity } from './node-activity-source';
+import { getControlRuntime } from './control-runtime';
 
 export interface SignalBinding {
   signal: string;
@@ -235,9 +235,9 @@ export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBi
     aggregateGroups.set(key, group);
   }
 
-  return subscribeNodeActivity(element, (state) => {
+  return getControlRuntime().subscribeSignals(element, (state) => {
     onSourceState?.({ loading: state.loading, connected: state.connected, error: state.error });
-    const entries = state.batch?.items.map((item) => item.entry) ?? [];
+    const entries = state.entries;
 
     for (const entry of entries) {
       for (const binding of bindings) {
