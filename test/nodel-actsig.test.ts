@@ -3,6 +3,7 @@ import { flush, waitFor } from './helpers';
 const actsigMock = vi.hoisted(() => ({
   activityListeners: [] as Array<(state: any) => void>,
   callNodeAction: vi.fn(),
+  clipboardWriteText: vi.fn(),
   emitNodeSignal: vi.fn(),
   getNodeActions: vi.fn(),
   getNodeSignals: vi.fn()
@@ -23,6 +24,27 @@ vi.mock('../src/data/node-activity-source', () => ({
 }));
 
 import '../src/components/nodel-actsig';
+
+const nativeClipboard = navigator.clipboard;
+const nativeExecCommand = document.execCommand;
+
+function installClipboard() {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: actsigMock.clipboardWriteText }
+  });
+}
+
+function restoreClipboard() {
+  if (nativeClipboard) {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: nativeClipboard
+    });
+  } else {
+    Reflect.deleteProperty(navigator, 'clipboard');
+  }
+}
 
 function submitForm(form: HTMLFormElement) {
   form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -71,13 +93,24 @@ describe('nodel-actsig', () => {
     document.body.innerHTML = '';
     actsigMock.activityListeners = [];
     actsigMock.callNodeAction.mockReset().mockResolvedValue({});
+    actsigMock.clipboardWriteText.mockReset().mockResolvedValue(undefined);
     actsigMock.emitNodeSignal.mockReset().mockResolvedValue({});
     actsigMock.getNodeActions.mockReset().mockResolvedValue({});
     actsigMock.getNodeSignals.mockReset().mockResolvedValue({});
+    installClipboard();
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
+    restoreClipboard();
+    if (nativeExecCommand) {
+      Object.defineProperty(document, 'execCommand', {
+        configurable: true,
+        value: nativeExecCommand
+      });
+    } else {
+      Reflect.deleteProperty(document, 'execCommand');
+    }
     vi.restoreAllMocks();
   });
 
@@ -151,6 +184,123 @@ describe('nodel-actsig', () => {
     });
   });
 
+  it('renders accessible copy icons and copies the technical action name', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'RunCommand', title: 'Run Command', schema: { type: 'null' } }
+    });
+
+    await mountActSig();
+    const form = formByTitle('Run Command')!;
+    const copyButton = form.querySelector<HTMLButtonElement>('[data-actsig-copy-id]')!;
+    const toast = vi.fn();
+    document.querySelector('nodel-actsig')?.addEventListener('nodel-toast', toast);
+
+    expect(copyButton.type).toBe('button');
+    expect(copyButton.classList.contains('nodel-actsig-copy')).toBe(true);
+    expect(copyButton.classList.contains('nodel-button-ghost')).toBe(false);
+    expect(copyButton.querySelector('[data-icon="copy"]')).not.toBeNull();
+    expect(copyButton.title).toBe('Copy action name');
+    expect(copyButton.getAttribute('aria-label')).toBe('Copy action name RunCommand');
+
+    copyButton.click();
+    await waitFor(() => actsigMock.clipboardWriteText.mock.calls.length === 1);
+    await waitFor(() => toast.mock.calls.length === 1);
+
+    expect(actsigMock.clipboardWriteText).toHaveBeenCalledWith('RunCommand');
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        id: 'nodel-actsig-copy-name',
+        message: 'Action name copied',
+        detail: 'RunCommand',
+        tone: 'success'
+      })
+    }));
+  });
+
+  it('keeps signal copy icons enabled while signal override is off', async () => {
+    actsigMock.getNodeSignals.mockResolvedValue({
+      Power: { name: 'PowerState', title: 'Power State', schema: { type: 'boolean' } }
+    });
+
+    await mountActSig();
+    const form = formByTitle('Power State')!;
+    const copyButton = form.querySelector<HTMLButtonElement>('[data-actsig-copy-id]')!;
+    const emitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const signalInput = form.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+
+    expect(copyButton.disabled).toBe(false);
+    expect(emitButton.disabled).toBe(true);
+    expect(signalInput.disabled).toBe(true);
+    expect(form.querySelector('fieldset')?.getAttribute('aria-disabled')).toBe('true');
+
+    copyButton.click();
+    await waitFor(() => actsigMock.clipboardWriteText.mock.calls.length === 1);
+
+    expect(actsigMock.clipboardWriteText).toHaveBeenCalledWith('PowerState');
+    expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a temporary textarea when the modern clipboard rejects', async () => {
+    actsigMock.clipboardWriteText.mockRejectedValue(new Error('Clipboard unavailable'));
+    const execCommand = vi.fn().mockReturnValue(true);
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: execCommand
+    });
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'RunCommand', title: 'Run Command', schema: { type: 'null' } }
+    });
+
+    await mountActSig();
+    const toast = vi.fn();
+    document.querySelector('nodel-actsig')?.addEventListener('nodel-toast', toast);
+    formByTitle('Run Command')?.querySelector<HTMLButtonElement>('[data-actsig-copy-id]')?.click();
+    await waitFor(() => execCommand.mock.calls.length === 1);
+    await waitFor(() => toast.mock.calls.length === 1);
+
+    expect(execCommand).toHaveBeenCalledWith('copy');
+    expect(document.querySelectorAll('textarea')).toHaveLength(0);
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        message: 'Action name copied',
+        detail: 'RunCommand',
+        tone: 'success'
+      })
+    }));
+  });
+
+  it('reports a copy failure when both clipboard paths fail', async () => {
+    actsigMock.clipboardWriteText.mockRejectedValue(new Error('Clipboard unavailable'));
+    const execCommand = vi.fn().mockReturnValue(false);
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: execCommand
+    });
+    actsigMock.getNodeSignals.mockResolvedValue({
+      State: { name: 'StateChanged', title: 'State', schema: { type: 'string' } }
+    });
+
+    await mountActSig();
+    const toast = vi.fn();
+    const element = document.querySelector('nodel-actsig')!;
+    element.addEventListener('nodel-toast', toast);
+    formByTitle('State')?.querySelector<HTMLButtonElement>('[data-actsig-copy-id]')?.click();
+    await waitFor(() => toast.mock.calls.length === 1);
+
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        id: 'nodel-actsig-copy-name',
+        message: 'Failed to copy signal name',
+        detail: 'Clipboard unavailable',
+        tone: 'danger',
+        durationMs: 7000
+      })
+    }));
+    expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
+  });
+
   it('keeps button labels stable and replaces type icons while submitting', async () => {
     let resolveAction!: () => void;
     let resolveSignal!: () => void;
@@ -173,36 +323,118 @@ describe('nodel-actsig', () => {
     const actionForm = formByTitle('Run Action')!;
     const actionButton = actionForm.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(actionButton.textContent?.trim()).toBe('Call');
-    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('person-running');
+    expect(actionForm.querySelector<HTMLElement>('.nodel-actsig-form-icon')?.dataset.actsigPointType).toBe('action');
+    expect(actionForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('person-running');
 
     submitForm(actionForm);
     await waitFor(() => actionButton.getAttribute('aria-busy') === 'true');
 
     expect(actionButton.textContent?.trim()).toBe('Call');
     expect(actionButton.disabled).toBe(true);
-    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('spinner');
-    expect(actionForm.querySelector('svg')?.classList.contains('animate-spin')).toBe(true);
+    expect(actionForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('spinner');
+    expect(actionForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.classList.contains('animate-spin')).toBe(true);
 
     resolveAction();
     await waitFor(() => actionButton.getAttribute('aria-busy') === 'false');
-    expect(actionForm.querySelector('svg')?.dataset.icon).toBe('person-running');
+    expect(actionForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('person-running');
 
     await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
     const signalForm = formByTitle('State Signal')!;
     const signalButton = signalForm.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(signalButton.textContent?.trim()).toBe('Emit');
-    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('traffic-light');
+    expect(signalForm.querySelector<HTMLElement>('.nodel-actsig-form-icon')?.dataset.actsigPointType).toBe('event');
+    expect(signalForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('traffic-light');
 
     submitForm(signalForm);
     await waitFor(() => signalButton.getAttribute('aria-busy') === 'true');
 
     expect(signalButton.textContent?.trim()).toBe('Emit');
     expect(signalButton.disabled).toBe(true);
-    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('spinner');
+    expect(signalForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('spinner');
 
     resolveSignal();
     await waitFor(() => signalButton.getAttribute('aria-busy') === 'false');
-    expect(signalForm.querySelector('svg')?.dataset.icon).toBe('traffic-light');
+    expect(signalForm.querySelector<SVGElement>('.nodel-actsig-form-icon svg')?.dataset.icon).toBe('traffic-light');
+  });
+
+  it('pulses only the matching action or signal form for local activity', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'Run', title: 'Run Action', schema: { type: 'null' } }
+    });
+    actsigMock.getNodeSignals.mockResolvedValue({
+      State: { name: 'State', title: 'State Signal', schema: { type: 'null' } }
+    });
+
+    await mountActSig();
+    await waitFor(() => actsigMock.activityListeners.length === 1);
+    const actionForm = formByTitle('Run Action')!;
+    const signalForm = formByTitle('State Signal')!;
+
+    vi.useFakeTimers();
+    try {
+      actsigMock.activityListeners[0]?.({
+        loading: false,
+        connected: true,
+        error: '',
+        batch: {
+          replace: false,
+          transport: 'websocket',
+          nextSeq: 2,
+          items: [
+            {
+              entry: {
+                seq: 1,
+                timestamp: '2026-01-01T00:00:00Z',
+                source: 'local',
+                type: 'action',
+                alias: 'Run'
+              },
+              changed: true,
+              live: true
+            }
+          ]
+        }
+      });
+
+      expect(actionForm.classList.contains('is-pulsing')).toBe(true);
+      expect(signalForm.classList.contains('is-pulsing')).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(699);
+      expect(actionForm.classList.contains('is-pulsing')).toBe(true);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(actionForm.classList.contains('is-pulsing')).toBe(false);
+
+      actsigMock.activityListeners[0]?.({
+        loading: false,
+        connected: true,
+        error: '',
+        batch: {
+          replace: false,
+          transport: 'websocket',
+          nextSeq: 3,
+          items: [
+            {
+              entry: {
+                seq: 2,
+                timestamp: '2026-01-01T00:00:01Z',
+                source: 'local',
+                type: 'event',
+                alias: 'State'
+              },
+              changed: true,
+              live: true
+            }
+          ]
+        }
+      });
+
+      expect(actionForm.classList.contains('is-pulsing')).toBe(false);
+      expect(signalForm.classList.contains('is-pulsing')).toBe(true);
+      await vi.advanceTimersByTimeAsync(700);
+      expect(signalForm.classList.contains('is-pulsing')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders root object action args as a collapsible group while keeping nested arrays collapsible', async () => {

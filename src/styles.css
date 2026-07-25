@@ -260,6 +260,7 @@
     .nodel-bindings-suggestion,
     .nodel-log-row,
     .nodel-log-icon,
+    .nodel-actsig-form-icon,
     .nodel-editor-status
   ) {
     transition-property: background, background-color, border-color, box-shadow, color, fill, filter, outline-color, stroke;
@@ -996,6 +997,25 @@
   .nodel-button-link:hover:not(:disabled):not(.is-disabled) {
     @apply border-transparent bg-transparent text-nodel-accent underline;
     background: transparent;
+  }
+
+  .nodel-actsig-copy {
+    @apply border-transparent bg-transparent text-nodel-muted opacity-faint shadow-none no-underline;
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nodel-actsig-copy:hover:not(:disabled):not(.is-disabled),
+  .nodel-actsig-copy:focus-visible {
+    @apply border-transparent bg-transparent text-nodel-accent opacity-100 no-underline;
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nodel-actsig-copy:active:not(:disabled):not(.is-disabled) {
+    @apply border-transparent bg-transparent text-nodel-accent no-underline;
+    background: transparent;
+    border-color: transparent;
   }
 
   .nodel-button-soft:not(.nodel-button-ghost):not(.nodel-button-link) {
@@ -3472,15 +3492,32 @@
   }
 
   .nodel-actsig-form {
-    @apply min-w-0 transition-shadow;
-  }
-
-  .nodel-actsig-form.is-pulsing {
-    box-shadow: 0 0 0 2px rgb(var(--nodel-accent) / 0.25), 0 0 1rem rgb(var(--nodel-accent) / 0.18);
+    @apply min-w-0;
   }
 
   .nodel-actsig-form-icon {
     @apply inline-flex shrink-0 text-nodel-muted opacity-faint;
+  }
+
+  .nodel-actsig-form-icon[data-actsig-point-type='action']:not(:has([data-icon='spinner'])) {
+    @apply text-nodel-success;
+  }
+
+  .nodel-actsig-form-icon[data-actsig-point-type='event']:not(:has([data-icon='spinner'])) {
+    @apply text-nodel-danger;
+  }
+
+  .nodel-log-row.is-pulsing .nodel-log-icon,
+  .nodel-actsig-form.is-pulsing .nodel-actsig-form-icon:not(:has([data-icon='spinner'])) {
+    opacity: 1;
+    filter: drop-shadow(0 0 0.35rem rgb(var(--nodel-accent) / 0.45));
+  }
+
+  @media (forced-colors: active) {
+    .nodel-actsig-form-icon,
+    .nodel-actsig-copy {
+      opacity: 1;
+    }
   }
 
   .nodel-actsig-form fieldset {

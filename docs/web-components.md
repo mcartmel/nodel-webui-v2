@@ -1072,6 +1072,8 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Pairs actions and signals by matching name, groups them by metadata `group`, and sorts by metadata `order`, matching v1 behavior.
 - Builds form controls from each action/signal JSON schema using JsViews live bindings.
 - Posts action payloads to relative `REST/actions/<name>/call` and signal override payloads to relative `REST/events/<name>/emit`.
+- Provides a low-emphasis icon-only copy control for each action or signal that copies the exact technical name; it remains available for read-only signals when override mode is off.
+- Uses the local log colours for action and signal type icons and briefly pulses the matching icon when local activity arrives, without glowing the whole card.
 - Keeps signals read-only by default; enable `Override signals` in the component to emit signal values manually.
 - Lazily materializes grouped schema forms when a section is expanded and caches hidden activity updates until forms are visible.
 

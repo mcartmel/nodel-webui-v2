@@ -8,6 +8,8 @@ import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, Nod
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { copyTextToClipboard } from '../utils/clipboard';
+import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
   createSchemaForm,
   findSchemaField,
@@ -37,6 +39,8 @@ interface ActSigFormModel {
   error: string;
   pulse: boolean;
   iconMarkup: string;
+  copyLabel: string;
+  copyTitle: string;
 }
 
 interface ActSigRowModel {
@@ -70,25 +74,28 @@ const ungroupedSectionTitle = '';
 const materializeChunkSize = 8;
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-spin');
+const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
+const copyToastId = 'nodel-actsig-copy-name';
 let registered = false;
 let nextId = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
-    <fieldset class="min-w-0" data-link="disabled{:busy} aria-disabled{:pointType === 'event' && !~root.overrideSignals}">
-      <div class="mb-2.5 flex min-w-0 items-start justify-between gap-2">
-        <div class="min-w-0">
-          <h3 class="truncate text-sm font-semibold text-nodel-fg" data-link="title{:name}">{^{>title}}</h3>
-          {^{if description}}<p class="mt-1 text-xs leading-5 text-nodel-muted">{^{>description}}</p>{{/if}}
-          {^{if caution}}<p class="mt-1 text-xs leading-5 text-nodel-warning">{^{>caution}}</p>{{/if}}
-        </div>
-        <div class="flex shrink-0 items-center gap-2">
-          <span class="nodel-actsig-form-icon" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
-          <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
-            {^{>pointType === 'action' ? 'Call' : 'Emit'}}
-          </button>
-        </div>
+    <div class="mb-2.5 flex min-w-0 items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="truncate text-sm font-semibold text-nodel-fg" data-link="title{:name}">{^{>title}}</h3>
+        {^{if description}}<p class="mt-1 text-xs leading-5 text-nodel-muted">{^{>description}}</p>{{/if}}
+        {^{if caution}}<p class="mt-1 text-xs leading-5 text-nodel-warning">{^{>caution}}</p>{{/if}}
       </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <span class="nodel-actsig-form-icon" data-link="data-actsig-point-type{:pointType}" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
+        <button type="button" class="nodel-button nodel-actsig-copy nodel-button-compact" data-link="data-actsig-copy-id{:id} title{:copyTitle} aria-label{:copyLabel}">${copyIconMarkup}</button>
+        <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
+          {^{>pointType === 'action' ? 'Call' : 'Emit'}}
+        </button>
+      </div>
+    </div>
+    <fieldset class="min-w-0" data-link="disabled{:busy} aria-disabled{:pointType === 'event' && !~root.overrideSignals}">
       {^{if materialized && schemaForm}}
         {{include schemaForm tmpl="nodelSchemaForm"/}}
       {{else}}
@@ -222,7 +229,9 @@ function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition 
     busy: false,
     error: '',
     pulse: false,
-    iconMarkup: iconFor(pointType)
+    iconMarkup: iconFor(pointType),
+    copyLabel: `Copy ${pointType === 'action' ? 'action' : 'signal'} name ${name}`,
+    copyTitle: `Copy ${pointType === 'action' ? 'action' : 'signal'} name`
   };
 }
 
@@ -628,6 +637,19 @@ export class NodelActSig extends HTMLElement {
   };
 
   private handleClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (target instanceof Element) {
+      const copyButton = target.closest<HTMLButtonElement>('[data-actsig-copy-id]');
+      if (copyButton && this.contains(copyButton)) {
+        event.preventDefault();
+        const form = this.findFormById(copyButton.dataset.actsigCopyId ?? '');
+        if (form) {
+          void this.copyFormName(form);
+        }
+        return;
+      }
+    }
+
     handleSchemaFormClick(event, this, (fieldId) => this.findField(fieldId));
   };
 
@@ -689,6 +711,33 @@ export class NodelActSig extends HTMLElement {
     }
   }
 
+  private async copyFormName(form: ActSigFormModel) {
+    const pointLabel = form.pointType === 'action' ? 'action' : 'signal';
+    try {
+      await copyTextToClipboard(form.name);
+      this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
+        bubbles: true,
+        detail: {
+          id: copyToastId,
+          message: `${pointLabel[0].toUpperCase()}${pointLabel.slice(1)} name copied`,
+          detail: form.name,
+          tone: 'success'
+        }
+      }));
+    } catch (error) {
+      this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
+        bubbles: true,
+        detail: {
+          id: copyToastId,
+          message: `Failed to copy ${pointLabel} name`,
+          detail: apiErrorMessage(error, 'Clipboard access unavailable'),
+          tone: 'danger',
+          durationMs: 7000
+        }
+      }));
+    }
+  }
+
   private pulseForm(form: ActSigFormModel) {
     const $ = getJQuery();
     $.observable(form).setProperty('pulse', true);
@@ -699,7 +748,7 @@ export class NodelActSig extends HTMLElement {
     const timer = window.setTimeout(() => {
       $.observable(form).setProperty('pulse', false);
       this.pulseTimers.delete(form.id);
-    }, 1000);
+    }, 700);
     this.pulseTimers.set(form.id, timer);
   }
 
