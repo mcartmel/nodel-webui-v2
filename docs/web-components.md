@@ -1001,6 +1001,8 @@ Behavior:
 - Searches existing nodes from `/REST/nodeURLs`.
 - Creates from a recipe path or duplicates an existing node.
 - Waits for the new node to become available before redirecting.
+- Renders recipe and existing-node suggestions as an overlay popover below the template field.
+- Closes with Cancel, by clicking outside the Add node button or panel, or with Escape. Escape first dismisses open suggestions and then closes the panel.
 - Dispatches `nodel-node-created` after success and `nodel-add-node-error` after failure.
 
 The add-node panel is intentionally native HTML and does not depend on Bootstrap.

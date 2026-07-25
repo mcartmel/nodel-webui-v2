@@ -66,10 +66,10 @@ const template = `
 
         <div class="space-y-2">
           <label class="text-sm font-medium text-nodel-fg" for="nodel-add-node-template">Template <small class="text-nodel-muted">(optional)</small></label>
-          <div class="relative">
+          <div class="nodel-add-node-combobox relative">
             <input id="nodel-add-node-template" class="nodel-add-node-template nodel-field w-full" type="text" placeholder="Search recipes or nodes..." autocomplete="off" data-link="templateQuery trigger=true" />
             <div class="nodel-template-selected nodel-card mt-2 px-3 py-2 text-sm text-nodel-muted" data-link="class{:showSelection ? 'nodel-template-selected nodel-card mt-2 px-3 py-2 text-sm text-nodel-muted' : 'nodel-template-selected nodel-card mt-2 hidden px-3 py-2 text-sm text-nodel-muted'}">{^{>selectionText}}</div>
-            <div class="nodel-template-autocomplete nodel-popover mt-2" data-link="class{:showAutocomplete ? 'nodel-template-autocomplete nodel-popover mt-2' : 'nodel-template-autocomplete nodel-popover mt-2 hidden'}">
+            <div class="nodel-template-autocomplete nodel-popover" data-link="class{:showAutocomplete ? 'nodel-template-autocomplete nodel-popover' : 'nodel-template-autocomplete nodel-popover hidden'}">
               <ul class="divide-y divide-nodel-border">
                 {^{if hasRecipeResults}}
                   <li class="nodel-section-heading px-3 py-2">Recipes</li>
@@ -104,7 +104,10 @@ const template = `
               <p class="nodel-add-node-status text-sm text-nodel-muted" role="status">{^{>status}}</p>
             {{/if}}
           </div>
-          <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
+          <div class="flex items-center gap-2">
+            <button type="button" class="nodel-add-node-cancel nodel-button" data-link="disabled{:submitting}">Cancel</button>
+            <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
+          </div>
         </div>
       </form>
     </div>
@@ -251,10 +254,21 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
+    if (target.closest('.nodel-add-node-cancel')) {
+      event.preventDefault();
+      this.closePanel();
+      return;
+    }
+
     const result = target.closest<HTMLElement>('[data-template-result-index]');
     if (result && this.contains(result)) {
       event.preventDefault();
       this.selectResult(Number(result.dataset.templateResultIndex));
+      return;
+    }
+
+    if (this.state.showAutocomplete && !target.closest('.nodel-add-node-combobox')) {
+      this.setState({ showAutocomplete: false });
     }
   };
 
@@ -294,6 +308,21 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
+    if (event.key === 'Escape') {
+      const autocomplete = target.matches('.nodel-add-node-template')
+        ? this.querySelector<HTMLElement>('.nodel-template-autocomplete')
+        : null;
+      if (autocomplete && !autocomplete.classList.contains('hidden') && getPopoverOptions(autocomplete, '.nodel-menu-item').length > 0) {
+        event.preventDefault();
+        clearActivePopoverOption(autocomplete, '.nodel-menu-item');
+        this.setState({ showAutocomplete: false });
+        return;
+      }
+
+      this.closePanel();
+      return;
+    }
+
     if (!target.matches('.nodel-add-node-template')) {
       return;
     }
@@ -315,22 +344,15 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
-    if (event.key === 'Escape') {
-      const autocomplete = this.querySelector<HTMLElement>('.nodel-template-autocomplete');
-      if (autocomplete && !autocomplete.classList.contains('hidden') && getPopoverOptions(autocomplete, '.nodel-menu-item').length > 0) {
-        event.preventDefault();
-        clearActivePopoverOption(autocomplete, '.nodel-menu-item');
-        this.setState({ showAutocomplete: false });
-        return;
-      }
-
-      this.closePanel();
-    }
   };
 
   private handleDocumentClick = (event: MouseEvent) => {
     const target = event.target;
-    if (!(target instanceof Node) || this.contains(target)) {
+    if (!this.state.open || !(target instanceof Element) || !target.isConnected) {
+      return;
+    }
+
+    if (target.closest('.nodel-add-node-toggle, .nodel-add-node-panel') && this.contains(target)) {
       return;
     }
 

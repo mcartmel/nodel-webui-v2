@@ -3233,7 +3233,10 @@
     @apply h-5 w-5;
   }
 
-  .nodel-template-autocomplete,
+  .nodel-template-autocomplete {
+    @apply absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-auto;
+  }
+
   .nodel-template-selected {
     @apply z-10;
   }

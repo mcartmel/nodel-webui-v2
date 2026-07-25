@@ -20,11 +20,17 @@ test.describe('add-node autocomplete', () => {
     await page.goto('/nodes.html#Locals', { waitUntil: 'domcontentloaded' });
     const addNode = page.locator('nodel-add-node');
     await addNode.locator('.nodel-add-node-toggle').click();
+    const panel = addNode.locator('.nodel-add-node-panel');
+    const panelHeightBefore = (await panel.boundingBox())?.height;
 
     const input = addNode.locator('.nodel-add-node-template');
     await input.fill('Projector');
     const autocomplete = addNode.locator('.nodel-template-autocomplete');
     await expect(autocomplete).toBeVisible();
+    await expect.poll(() => autocomplete.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+    await expect.poll(() => autocomplete.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
+    const panelHeightAfter = (await panel.boundingBox())?.height;
+    expect(panelHeightAfter).toBeCloseTo(panelHeightBefore ?? 0, 1);
     await expect(autocomplete.getByText('Recipes', { exact: true })).toBeVisible();
     await expect(autocomplete.getByText('Existing Nodes', { exact: true })).toBeVisible();
     await expect(autocomplete.locator('.nodel-add-node-result-secondary')).toHaveCount(2);

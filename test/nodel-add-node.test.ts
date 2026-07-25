@@ -22,6 +22,24 @@ async function pressKey(input: HTMLInputElement, key: string) {
   await flush();
 }
 
+function stubAddNodeLookups(recipes: unknown[] = [], nodes: unknown[] = []) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+
+    if (url === '/REST/recipes/list') {
+      return new Response(JSON.stringify(recipes), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+    }
+
+    if (url === '/REST/nodeURLs') {
+      return new Response(JSON.stringify(nodes), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  }) as unknown as typeof fetch;
+
+  vi.stubGlobal('fetch', fetchMock);
+}
+
 describe('nodel-add-node', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -221,6 +239,55 @@ describe('nodel-add-node', () => {
 
     expect(calls).toContain('http://host/nodes/Existing%20Node/REST/files');
     expect(calls).toContain('/REST/newNode');
+  });
+
+  it('closes the add-node panel with Cancel', async () => {
+    stubAddNodeLookups();
+    await openAddNodePanel();
+
+    document.querySelector<HTMLButtonElement>('.nodel-add-node-cancel')?.click();
+
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('closes when clicking the host whitespace or outside the component', async () => {
+    stubAddNodeLookups();
+    await openAddNodePanel();
+
+    document.querySelector('nodel-add-node')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(true);
+
+    document.querySelector<HTMLButtonElement>('.nodel-add-node-toggle')?.click();
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('closes autocomplete when clicking another control in the panel', async () => {
+    stubAddNodeLookups([{ path: 'Recipes/Starter' }]);
+    await openAddNodePanel();
+
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(templateInput, 'Starter');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, {
+      attempts: 80,
+      intervalMs: 5
+    });
+
+    document.querySelector<HTMLInputElement>('.nodel-add-node-name')?.click();
+
+    expect(document.querySelector('.nodel-template-autocomplete')?.classList.contains('hidden')).toBe(true);
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+  });
+
+  it('closes the panel with Escape from the node name field', async () => {
+    stubAddNodeLookups();
+    await openAddNodePanel();
+
+    await pressKey(document.querySelector('.nodel-add-node-name') as HTMLInputElement, 'Escape');
+
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(true);
   });
 
   it('closes template autocomplete with Escape without closing the add-node panel', async () => {
