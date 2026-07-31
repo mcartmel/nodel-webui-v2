@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const releaseEngineProjects = new Set(['chromium-light-desktop', 'firefox-light-desktop', 'webkit-light-desktop']);
+
 test.afterEach(async ({ context }) => {
   await context.setOffline(false);
 });
@@ -90,5 +92,21 @@ test.describe('shared host connectivity', () => {
     await context.setOffline(false);
     await expect(host).toBeHidden();
     await expect(page.locator('#overlay-state-input')).toHaveValue('retained');
+  });
+
+  test('keeps every core entry page on the recoverable overlay path', async ({ page, context }, testInfo) => {
+    test.skip(!releaseEngineProjects.has(testInfo.project.name), 'Core-page release smoke runs once per browser engine.');
+    await page.route('**/REST', (route) => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+
+    for (const entry of ['/nodes.html#Locals', '/nodel.html#Activity', '/toolkit.html']) {
+      await page.goto(entry, { waitUntil: 'domcontentloaded' });
+      const app = page.locator('nodel-app');
+      await expect(app).toHaveAttribute('offline-mode', 'overlay');
+      await context.setOffline(true);
+      await expect(page.locator('nodel-connectivity-host [role="alert"]')).toBeVisible();
+      await expect(app).not.toHaveAttribute('inert', '');
+      await context.setOffline(false);
+      await expect(page.locator('nodel-connectivity-host')).toBeHidden();
+    }
   });
 });

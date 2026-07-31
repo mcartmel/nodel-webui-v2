@@ -83,6 +83,43 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-connectivity-host`: app-level host-connectivity presentation, created automatically by `nodel-app`.
 - `nodel-link`: safe static, node-discovered, or event-binding-derived link.
 
+## V1 Migration
+
+V2 keeps the legacy V1 loader available for pages that have not migrated. New and migrated pages should use the explicit V2 components and attributes below rather than relying on V1 XML/XSL inference or magic aliases.
+
+| V1 | V2 |
+| --- | --- |
+| `showevent` + `showeventarg` | `visibility="Signal.path"` |
+| `showvalue` | `visible-value` / `visible-values` |
+| `confirm="code"` | `confirm-mode="code"` with optional `confirm-code-signal` |
+| `<link url>` | `<nodel-link href>` |
+| `<link node>` | `<nodel-link node>` |
+| Parent status event link | `<nodel-link event-binding>` |
+| `<page action>` | `nodel-page action` / `actions` |
+| `<status page>` | Composed `<nodel-link href="#PageId">` |
+| `<footer>` | `nodel-footer`, with `fixed` only when required |
+| `<panel event>` | `nodel-markdown signal` |
+| Magic `Title` | `nodel-app signal` / `signals` |
+| Magic `Clock` | `nodel-clock signal` |
+| `range type="mute"` | Compose `nodel-fader` and `nodel-toggle` |
+| Bootstrap push/pull | Responsive `order`, `sm-order`, `md-order`, `lg-order`, `xl-order`, or `2xl-order`, or redesign source order |
+
+Exact visibility values are trimmed when authored and matched case-sensitively. Use semicolon-separated `visible-values`, such as `visible-values="Presentation; Preview"`. Code confirmation is client-side operator protection and is not an authorization boundary.
+
+### Intentional Differences
+
+| V1 behavior | V2 direction |
+| --- | --- |
+| Node search inside the node drawer | Use the dedicated Network page. `nodel-link` uses a prefiltered Network-page fallback when direct node discovery is unavailable. |
+| Integrated range mute | Compose a fader with a toggle or button so level and mute remain explicit controls. |
+| Arbitrary Font Awesome or Glyphicon class names | Use `nodel-icon` and the curated V2 icon registry; add reusable named icons centrally. |
+| Smart-panel detection, forced zoom, and touch workarounds | Retired. V2 uses responsive layout, viewport metadata, touch-sized controls, and current browser capabilities. |
+| Native V1 XML/XSL rendering in V2 | Keep unmigrated pages on the existing legacy-loader compatibility path. |
+| Automatic `pages/@css` and `pages/@js` loading | Use standard HTML `<link>` and `<script>` resources in authored pages. |
+| Blocking offline UI on core pages | Authored pages default to a blocking modal; core administration pages explicitly use the non-layout-shifting overlay. |
+
+Migration is additive: the V2 work does not remove the legacy V1 path.
+
 ## Shared Styling Classes
 
 Tailwind utilities are preferred for local component layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use named Nodel token utilities such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel` instead of repeated arbitrary utilities such as `text-[rgb(var(--nodel-muted))]`.

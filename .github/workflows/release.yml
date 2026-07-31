@@ -17,7 +17,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -31,6 +31,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Validate release version
         id: version
@@ -51,6 +54,9 @@ jobs:
 
       - name: Build and test
         run: npm run build
+
+      - name: Run browser visual and accessibility tests
+        run: npm run test:browser
 
       - name: Prepare release content
         run: >-
@@ -100,5 +106,5 @@ jobs:
             "${{ steps.archive.outputs.archive }}#Deployable Nodel Web UI bundle" \
             "${{ steps.archive.outputs.checksum }}#SHA-256 checksum" \
             --verify-tag \
-            --generate-notes \
+            --notes-file RELEASE_NOTES.md \
             --title "Nodel Web UI v2 ${GITHUB_REF_NAME}"

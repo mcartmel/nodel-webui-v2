@@ -67,6 +67,7 @@ describe('prepare-release', () => {
     });
 
     await expect(readFile(join(target, 'THIRD-PARTY-NOTICES.md'), 'utf8')).resolves.toContain('Third-Party Notices');
+    await expect(readFile(join(target, 'RELEASE_NOTES.md'), 'utf8')).resolves.toContain('V1 Parity Refinements');
   });
 
   it('rejects malformed release commits before writing metadata', async () => {

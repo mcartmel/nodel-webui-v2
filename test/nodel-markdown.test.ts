@@ -94,6 +94,10 @@ describe('nodel-markdown', () => {
 
     expect(document.querySelector('nodel-markdown h2')?.textContent).toBe('Ready now');
     expect(document.querySelector('.nodel-markdown-region')?.getAttribute('aria-busy')).toBe('false');
+
+    (document.querySelector('nodel-markdown') as unknown as { connectedCallback(): void }).connectedCallback();
+    expect(document.querySelector('nodel-markdown h2')?.textContent).toBe('Ready now');
+    expect(document.querySelector('.nodel-markdown-region')?.getAttribute('aria-busy')).toBe('false');
   });
 
   it('disposes its signal subscription on disconnect', async () => {

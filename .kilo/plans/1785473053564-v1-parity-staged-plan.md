@@ -1,6 +1,6 @@
 # V1 Feature-Parity Refinement Plan
 
-Implementation status: Stages 1 through 8 complete and reviewed; paused before Stage 9.
+Implementation status: Stages 1 through 9 implementation complete and reviewed. Automated release gates pass; final live-node duplication validation remains required before release because the current runtime has node deletion disabled and cannot clean up disposable validation nodes.
 
 ## Goal
 

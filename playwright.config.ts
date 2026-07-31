@@ -66,6 +66,14 @@ export default defineConfig({
         contextOptions: { forcedColors: 'active' },
         viewport: { width: 1440, height: 1000 }
       }
+    },
+    {
+      name: 'firefox-light-desktop',
+      use: { browserName: 'firefox', colorScheme: 'light', viewport: { width: 1440, height: 1000 } }
+    },
+    {
+      name: 'webkit-light-desktop',
+      use: { browserName: 'webkit', colorScheme: 'light', viewport: { width: 1440, height: 1000 } }
     }
   ]
 });

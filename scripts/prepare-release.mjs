@@ -16,6 +16,7 @@ const sourceRequiredFiles = [
 const bundleRequiredFiles = [
   ...sourceRequiredFiles,
   'LICENSE',
+  'RELEASE_NOTES.md',
   'THIRD-PARTY-NOTICES.md',
   'release.json'
 ];
@@ -171,6 +172,7 @@ async function main() {
   await mkdir(options.target, { recursive: true });
   await cp(options.source, options.target, { recursive: true });
   await cp(join(projectRoot, 'LICENSE'), join(options.target, 'LICENSE'));
+  await cp(join(projectRoot, 'RELEASE_NOTES.md'), join(options.target, 'RELEASE_NOTES.md'));
   await cp(join(projectRoot, 'THIRD-PARTY-NOTICES.md'), join(options.target, 'THIRD-PARTY-NOTICES.md'));
   const manifest = {
     schemaVersion: 1,

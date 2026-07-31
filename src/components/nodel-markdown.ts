@@ -80,7 +80,7 @@ export class NodelMarkdown extends HTMLElement {
 
   private syncSignalSubscription() {
     const hasBindings = Boolean(this.getAttribute('signal')?.trim() || this.getAttribute('signals')?.trim());
-    this.sourceLoading = hasBindings;
+    this.sourceLoading = hasBindings && !this.hasAttribute('value');
     this.sourceError = '';
     this.render();
     this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'value', {

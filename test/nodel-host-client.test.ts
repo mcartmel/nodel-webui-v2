@@ -142,7 +142,7 @@ describe('nodel host client', () => {
   it('duplicates files byte-for-byte, filters unsafe files, and saves script.py last', async () => {
     const source = 'http://source/nodes/Original/';
     const payloads = new Map<string, number[]>([
-      ['docs/readme.txt', [0, 1, 2, 255]],
+      ['docs/readme.txt', Array.from(new TextEncoder().encode('Stage 9 text file\n'))],
       ['assets/image.png', [137, 80, 78, 71, 0, 255]],
       ['bundles/archive.zip', [80, 75, 3, 4, 254]],
       ['script.py', [35, 32, 114, 101, 99, 105, 112, 101]]

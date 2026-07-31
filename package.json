@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "build:preview": "vite build",
     "test:browser": "npm run build:preview && playwright test",
-    "build": "npm run typecheck && npm run check:jsviews && npm run test && vite build",
+    "build": "npm run typecheck && npm run check:jsviews && npm run test && vite build && node ./scripts/verify-release-gate.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:preview": "npm run build && node ./scripts/deploy.mjs --target ./build/deploy-preview",
     "deploy:catalog:preview": "npm run build && node ./scripts/deploy-catalog.mjs --target ./build/deploy-catalog-preview",

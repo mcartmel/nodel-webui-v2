@@ -128,9 +128,19 @@ This lets the custom content root override the built-in default document and vis
 
 Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `release.json`. The manifest identifies the package version, source commit, and generic Nodel API compatibility range used by the release.
 
-The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, and the user-facing `components.html` catalogue. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
+The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, the user-facing `components.html` catalogue, and `RELEASE_NOTES.md`. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
 
 The optional `GET /REST/capabilities` endpoint is additive. Missing, failing, non-JSON, or malformed responses preserve legacy Nodel behavior. Only explicit valid feature booleans in a well-formed capabilities response change UI behavior.
+
+### Release Validation
+
+- `npm run build` runs type checking, JsViews compliance, all Vitest tests, the production build, and the built-entry release gate. The gate verifies every entry page, stable assets, the catalogue's single in-memory runtime marker, authored-page modal defaults, and explicit core-page overlays.
+- `npm run test:browser` runs the exhaustive Chromium theme/device/forced-colours matrix plus focused Firefox and WebKit functional and visual release projects. Browser hosts must install Playwright's declared dependencies; the version-matched official Playwright container is the reproducible fallback when host package installation is unavailable.
+- Catalogue runtime tests must report no action/activity backend calls or node WebSockets.
+- Before a tagged release, duplicate a disposable live node containing text, image, archive, nested, configuration, backup, and generated files. Verify byte preservation, nested paths, generated/backup filtering, opt-in configuration copying, transparent partial results, and `script.py` last. Remove the disposable nodes after validation.
+- Exercise modal offline recovery on a representative authored touch page and overlay recovery on `nodes.html`, `nodel.html`, and `toolkit.html` without losing page state or shifting layout.
+- Exercise `nodel-link` on same-host discovery, remote-host discovery, missing-node fallback, and unreachable-node fallback.
+- Review light, dark, narrow mobile, wide desktop, reduced-motion, and forced-colours baselines before publishing.
 
 ## JsViews
 
