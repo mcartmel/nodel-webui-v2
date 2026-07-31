@@ -111,6 +111,10 @@ describe('node file api and utilities', () => {
     expect(languageKindForPath('script.py')).toBe('python');
     expect(languageKindForPath('content/index.html')).toBe('html');
     expect(languageKindForPath('content/icon.svg')).toBe('xml');
+    expect(languageKindForPath('src/Example.java')).toBe('java');
+    expect(languageKindForPath('scripts/build.groovy')).toBe('groovy');
+    expect(languageKindForPath('db/query.sql')).toBe('sql');
+    expect(languageKindForPath('scripts/deploy.sh')).toBe('shell');
     expect(languageKindForPath('config/settings.yaml')).toBe('plain');
     expect(isEditableFile('content/icon.svg')).toBe(true);
     expect(isBinaryFile('content/icon.svg')).toBe(false);

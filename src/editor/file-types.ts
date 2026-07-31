@@ -4,7 +4,7 @@ export const allowedBinaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ic
 const textExtensionSet = new Set<string>(allowedTextExtensions);
 const binaryExtensionSet = new Set<string>(allowedBinaryExtensions);
 
-export type EditorLanguageKind = 'python' | 'html' | 'xml' | 'javascript' | 'json' | 'css' | 'markdown' | 'plain';
+export type EditorLanguageKind = 'python' | 'html' | 'xml' | 'javascript' | 'json' | 'css' | 'markdown' | 'java' | 'groovy' | 'sql' | 'shell' | 'plain';
 
 export function getFileExtension(path: string) {
   const name = path.split('/').pop() ?? '';
@@ -68,6 +68,14 @@ export function languageKindForPath(path: string): EditorLanguageKind {
       return 'css';
     case 'md':
       return 'markdown';
+    case 'java':
+      return 'java';
+    case 'groovy':
+      return 'groovy';
+    case 'sql':
+      return 'sql';
+    case 'sh':
+      return 'shell';
     default:
       return 'plain';
   }

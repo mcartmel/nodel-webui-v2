@@ -78,6 +78,7 @@ export class NodelToolkit extends HTMLElement {
 
     this.editor = createNodelCodeEditor({
       parent: this.editorHost,
+      ariaLabel: 'Toolkit source',
       path: 'nodetoolkit.py',
       readOnly: true
     });

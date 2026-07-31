@@ -83,6 +83,26 @@ describe('nodel-editor', () => {
     return document.querySelector('nodel-editor')!;
   }
 
+  function dispatchFileDrag(element: Element, type: string, files: File[], relatedTarget: EventTarget | null = null) {
+    const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+    const dataTransfer = {
+      dropEffect: 'none',
+      files,
+      items: files.map((file) => ({ getAsFile: () => file, kind: 'file', type: file.type })),
+      types: ['Files']
+    };
+    Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+    Object.defineProperty(event, 'relatedTarget', { value: relatedTarget });
+    element.dispatchEvent(event);
+    return { dataTransfer, event };
+  }
+
+  function textFile(content: string, name: string, type = 'text/plain') {
+    const file = new File([content], name, { type });
+    Object.defineProperty(file, 'text', { value: vi.fn().mockResolvedValue(content) });
+    return file;
+  }
+
   it('renders linked file dropdown and opens script.py by default', async () => {
     await mountEditor();
 
@@ -139,6 +159,122 @@ describe('nodel-editor', () => {
 
     expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/new.html', '');
     expect(created).toHaveBeenCalledWith(expect.objectContaining({ detail: { path: 'content/new.html' } }));
+  });
+
+  it('stages one dropped text file for path editing before using the existing create flow', async () => {
+    const element = await mountEditor();
+    const file = textFile('<nodel-app></nodel-app>', 'panel.html', 'text/html');
+    const entered = dispatchFileDrag(element, 'dragenter', [file]);
+    expect(entered.event.defaultPrevented).toBe(true);
+    expect(document.querySelector<HTMLElement>('[data-editor-drop-target]')?.hidden).toBe(false);
+
+    const dropped = dispatchFileDrag(element, 'drop', [file]);
+    expect(dropped.event.defaultPrevented).toBe(true);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    expect(document.querySelector<HTMLElement>('[data-editor-drop-target]')?.hidden).toBe(true);
+    expect(document.querySelector<HTMLInputElement>('[data-editor-add-path]')?.value).toBe('panel.html');
+    expect(document.body.textContent).toContain('Selected local file: panel.html');
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+
+    const pathInput = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    pathInput.value = 'content/panel.html';
+    pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/panel.html', '<nodel-app></nodel-app>');
+  });
+
+  it('routes dropped binary files through the same binary upload path', async () => {
+    const element = await mountEditor();
+    const file = new File([new Uint8Array([1, 2, 3])], 'image.png', { type: 'image/png' });
+    dispatchFileDrag(element, 'drop', [file]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('image.png', file);
+  });
+
+  it('rejects multiple dropped files without navigating or selecting one', async () => {
+    const element = await mountEditor();
+    const errored = vi.fn();
+    element.addEventListener('nodel-editor-error', errored);
+    dispatchFileDrag(element, 'drop', [new File(['staged'], 'staged.txt')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const dropped = dispatchFileDrag(element, 'drop', [new File(['a'], 'a.txt'), new File(['b'], 'b.txt')]);
+    await flush();
+
+    expect(dropped.event.defaultPrevented).toBe(true);
+    expect(document.body.textContent).toContain('Drop one file at a time.');
+    expect(document.querySelector('[data-editor-add-path]')).toBeNull();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    expect(errored).toHaveBeenCalledWith(expect.objectContaining({ detail: { message: 'Drop one file at a time.' } }));
+  });
+
+  it('shows drag affordance only for valid file drags and clears it on leave and disconnect', async () => {
+    const element = await mountEditor();
+    const target = document.querySelector<HTMLElement>('[data-editor-drop-target]')!;
+    const textDrag = new Event('dragenter', { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(textDrag, 'dataTransfer', { value: { dropEffect: 'none', files: [], items: [], types: ['text/plain'] } });
+    element.dispatchEvent(textDrag);
+    expect(textDrag.defaultPrevented).toBe(false);
+    expect(target.hidden).toBe(true);
+
+    dispatchFileDrag(element, 'dragenter', [new File(['a'], 'a.txt')]);
+    expect(target.hidden).toBe(false);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(target.hidden).toBe(true);
+    dispatchFileDrag(element, 'dragenter', [new File(['a'], 'a.txt')]);
+    dispatchFileDrag(element, 'dragleave', [new File(['a'], 'a.txt')]);
+    expect(target.hidden).toBe(true);
+    dispatchFileDrag(element, 'dragenter', [new File(['a'], 'a.txt')]);
+    element.remove();
+    expect(target.hidden).toBe(true);
+  });
+
+  it('uses the dirty-state confirmation before staging a dropped upload', async () => {
+    const element = await mountEditor();
+    codeEditorMock.currentDoc = 'print("dirty")';
+    codeEditorMock.options?.onChange?.('print("dirty")');
+    await flush();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    dispatchFileDrag(element, 'drop', [new File(['next'], 'next.txt')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    expect(confirm).not.toHaveBeenCalled();
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await flush();
+    expect(confirm).toHaveBeenCalledWith('Discard unsaved changes?');
+    expect(document.querySelector('[data-editor-add-path]')).not.toBeNull();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the accessible upload input and stages its selected file', async () => {
+    await mountEditor();
+    const input = document.querySelector<HTMLInputElement>('[data-editor-upload]')!;
+    const file = textFile('local', 'local.txt');
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+
+    expect(input.type).toBe('file');
+    expect(document.querySelector<HTMLInputElement>('[data-editor-add-path]')?.value).toBe('local.txt');
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('clears staged upload state across cancellation and reconnection', async () => {
+    const element = await mountEditor();
+    dispatchFileDrag(element, 'drop', [new File(['staged'], 'staged.txt')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    document.querySelector<HTMLButtonElement>('[data-editor-cancel-add]')?.click();
+    expect(document.querySelector('[data-editor-add-path]')).toBeNull();
+
+    dispatchFileDrag(element, 'drop', [new File(['staged'], 'staged.txt')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    element.remove();
+    await flush();
+    document.body.append(element);
+    await waitFor(() => document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.disabled === false);
+    expect(document.querySelector('[data-editor-add-path]')).toBeNull();
   });
 
   it('opens binary files as read-only and protects script.py deletion', async () => {

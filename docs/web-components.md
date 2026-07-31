@@ -1301,12 +1301,16 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Opens text files from relative `REST/files/contents`.
 - Saves `script.py` through relative `REST/script/save`, preserving v1 script behavior.
 - Saves other files through relative `REST/files/save`.
-- Creates empty text files or uploads local files.
+- Creates empty text files or uploads local files through the accessible file input or single-file drag and drop.
+- Stages a selected or dropped file in the add-file form, using its filename as the initial editable path; the file is not saved until the operator activates Upload.
+- Rejects multiple dropped files, preserves path validation and binary handling, and confirms before replacing dirty editor content.
 - Deletes files through relative `REST/files/delete`, except `script.py` is protected.
-- Uses CodeMirror 6 for editing and Python highlighting for `.py` files.
+- Uses CodeMirror 6 for editing with Python, HTML, XML, JavaScript, JSON, CSS, Markdown, Java, Groovy, SQL, and shell highlighting. Unsupported editable extensions remain plain text.
 - Uses theme-aware editor colours for the cursor, selection, matching brackets, active line, search matches, and syntax highlighting.
 - Starts at a sensible editor height and supports vertical drag-resize.
 - Provides custom layout hints from `src/editor/nodel-document-definition.ts` for v2 `nodel-*` markup.
+
+Language support is loaded only when a matching file is selected. Java and SQL use maintained CodeMirror 6 language packages; Groovy and shell use the legacy-mode package because maintained CodeMirror 6 language packages are not available for those modes. In the Stage 8 production build, moving language packages out of the base editor chunk reduced that chunk from 705.17 kB / 242.57 kB gzip to 445.76 kB / 141.69 kB gzip. Matching selections load Java at 40.77 kB / 16.77 kB gzip, SQL at 14.03 kB / 6.10 kB gzip, Groovy at 4.14 kB / 1.77 kB gzip, or shell at 2.57 kB / 1.21 kB gzip, plus a shared 26.53 kB / 8.82 kB gzip parser chunk when required.
 
 Supported attributes:
 

@@ -3,6 +3,7 @@ import { deleteNodeFile, getNodeFileContents, listNodeFiles, saveNodeFile } from
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
 import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { resetFileInput } from '../utils/file-input';
 
 interface EditorFileView extends NodelFileEntry {
   active: boolean;
@@ -19,6 +20,7 @@ interface EditorViewModel {
   canSave: boolean;
   deleting: boolean;
   dirty: boolean;
+  dragActive: boolean;
   error: string;
   files: EditorFileView[];
   loading: boolean;
@@ -59,8 +61,9 @@ const template = `
             File path
             <input data-editor-add-path class="nodel-field mt-1 w-full" type="text" placeholder="e.g. content/index.html" data-link="addFilePath trigger=true" />
           </label>
-          <button data-editor-create-empty type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">Create</button>
+          <button data-editor-create-empty type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">{^{if uploadFileName}}Upload{{else}}Create{{/if}}</button>
           <button data-editor-cancel-add type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Cancel</button>
+          {^{if uploadFileName}}<p class="text-xs text-nodel-muted md:col-span-3">Selected local file: {^{>uploadFileName}}</p>{{/if}}
         </form>
       </div>
     {{/if}}
@@ -76,6 +79,9 @@ const template = `
       <section class="nodel-editor-main min-w-0">
         <div data-editor-host class="nodel-editor-host"></div>
       </section>
+      <div data-editor-drop-target class="nodel-editor-drop-target" data-link="hidden{:!dragActive}" aria-hidden="true">
+        <span>Drop one file to upload</span>
+      </div>
     </div>
   </div>
 `;
@@ -107,6 +113,7 @@ export class NodelEditor extends HTMLElement {
   private linked = false;
   private originalContent = '';
   private selectedUpload: File | null = null;
+  private dragCancellationListenersActive = false;
   private state: EditorViewModel = {
     addFilePath: '',
     adding: false,
@@ -115,6 +122,7 @@ export class NodelEditor extends HTMLElement {
     canSave: false,
     deleting: false,
     dirty: false,
+    dragActive: false,
     error: '',
     files: [],
     loading: false,
@@ -133,6 +141,10 @@ export class NodelEditor extends HTMLElement {
     this.abortController?.abort();
     this.abortController = null;
     this.removeEventListeners();
+    this.clearSelectedUpload();
+    if (this.linked) {
+      this.setState({ addFilePath: '', adding: false, uploadFileName: '' });
+    }
     this.editor?.destroy();
     this.editor = null;
     void unlinkTemplate(this);
@@ -159,6 +171,7 @@ export class NodelEditor extends HTMLElement {
         const { createNodelCodeEditor } = await import('../editor/codemirror-editor');
         this.editor = createNodelCodeEditor({
           parent: host,
+          ariaLabel: 'File contents',
           readOnly: true,
           onChange: this.handleEditorChange,
           onSave: () => {
@@ -175,12 +188,23 @@ export class NodelEditor extends HTMLElement {
     this.addEventListener('click', this.handleClick);
     this.addEventListener('submit', this.handleSubmit);
     this.addEventListener('change', this.handleChange);
+    this.addEventListener('dragenter', this.handleDragEnter);
+    this.addEventListener('dragover', this.handleDragOver);
+    this.addEventListener('dragleave', this.handleDragLeave);
+    this.addEventListener('drop', this.handleDrop);
+    this.addEventListener('dragend', this.handleDragEnd);
   }
 
   private removeEventListeners() {
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('submit', this.handleSubmit);
     this.removeEventListener('change', this.handleChange);
+    this.removeEventListener('dragenter', this.handleDragEnter);
+    this.removeEventListener('dragover', this.handleDragOver);
+    this.removeEventListener('dragleave', this.handleDragLeave);
+    this.removeEventListener('drop', this.handleDrop);
+    this.removeEventListener('dragend', this.handleDragEnd);
+    this.clearDragState();
   }
 
   private setState(values: Partial<EditorViewModel>) {
@@ -341,7 +365,8 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (target.closest('[data-editor-toggle-add]')) {
-      this.setState({ adding: !this.state.adding, error: '' });
+      this.clearSelectedUpload();
+      this.setState({ addFilePath: '', adding: !this.state.adding, error: '', uploadFileName: '' });
       return;
     }
 
@@ -361,7 +386,7 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (target.closest('[data-editor-cancel-add]')) {
-      this.selectedUpload = null;
+      this.clearSelectedUpload();
       this.setState({ addFilePath: '', adding: false, uploadFileName: '' });
       return;
     }
@@ -402,11 +427,170 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
-    this.selectedUpload = input.files[0];
-    const nextPath = this.state.addFilePath || this.selectedUpload.name;
-    this.setState({ addFilePath: nextPath, adding: true, uploadFileName: this.selectedUpload.name });
-    void this.createFileFromState();
+    const file = input.files[0];
+    this.resetUploadInput();
+    this.prepareUpload(file);
   };
+
+  private handleDragEnter = (event: DragEvent) => {
+    if (!this.hasFilePayload(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    if (this.isValidFileDrag(event.dataTransfer)) {
+      this.setDragActive(true);
+    } else {
+      this.clearDragState();
+    }
+  };
+
+  private handleDragOver = (event: DragEvent) => {
+    if (!this.hasFilePayload(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    const valid = this.isValidFileDrag(event.dataTransfer);
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = valid ? 'copy' : 'none';
+    }
+    this.setDragActive(valid);
+  };
+
+  private handleDragLeave = (event: DragEvent) => {
+    if (event.relatedTarget instanceof Node && this.contains(event.relatedTarget)) {
+      return;
+    }
+    this.clearDragState();
+  };
+
+  private handleDrop = (event: DragEvent) => {
+    if (!this.hasFilePayload(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearDragState();
+    const fileItemCount = event.dataTransfer ? Array.from(event.dataTransfer.items).filter((item) => item.kind === 'file').length : 0;
+    const files = this.filesFromTransfer(event.dataTransfer);
+    if (files.length !== 1 || fileItemCount > 1) {
+      this.clearSelectedUpload();
+      this.setState({ addFilePath: '', adding: false, uploadFileName: '' });
+      this.reportError('Drop one file at a time.');
+      return;
+    }
+    this.prepareUpload(files[0]);
+  };
+
+  private handleDragEnd = () => {
+    this.clearDragState();
+  };
+
+  private hasFilePayload(dataTransfer: DataTransfer | null) {
+    if (!dataTransfer) {
+      return false;
+    }
+    return Array.from(dataTransfer.types).includes('Files')
+      || Array.from(dataTransfer.items).some((item) => item.kind === 'file')
+      || dataTransfer.files.length > 0;
+  }
+
+  private isValidFileDrag(dataTransfer: DataTransfer | null) {
+    if (!dataTransfer || this.state.loading || this.state.saving || this.state.deleting) {
+      return false;
+    }
+    const itemCount = Array.from(dataTransfer.items).filter((item) => item.kind === 'file').length;
+    const fileCount = dataTransfer.files.length;
+    return (itemCount || fileCount) === 1;
+  }
+
+  private filesFromTransfer(dataTransfer: DataTransfer | null) {
+    if (!dataTransfer) {
+      return [];
+    }
+    const files = Array.from(dataTransfer.files);
+    if (files.length > 0) {
+      return files;
+    }
+    return Array.from(dataTransfer.items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+  }
+
+  private prepareUpload(file: File) {
+    if (this.state.loading || this.state.saving || this.state.deleting) {
+      this.reportError('Wait for the current editor operation to finish before uploading.');
+      return;
+    }
+    this.clearSelectedUpload();
+    this.selectedUpload = file;
+    this.setState({ addFilePath: file.name, adding: true, error: '', uploadFileName: file.name });
+    window.requestAnimationFrame(() => {
+      const input = this.querySelector<HTMLInputElement>('[data-editor-add-path]');
+      input?.focus();
+      input?.select();
+    });
+  }
+
+  private clearDragState() {
+    if (this.state.dragActive) {
+      this.setState({ dragActive: false });
+    }
+    this.stopDragCancellationListeners();
+  }
+
+  private setDragActive(active: boolean) {
+    if (active !== this.state.dragActive) {
+      this.setState({ dragActive: active });
+    }
+    if (active) {
+      this.startDragCancellationListeners();
+    } else {
+      this.stopDragCancellationListeners();
+    }
+  }
+
+  private startDragCancellationListeners() {
+    if (this.dragCancellationListenersActive) {
+      return;
+    }
+    this.dragCancellationListenersActive = true;
+    document.addEventListener('keydown', this.handleDragCancellationKeyDown);
+    window.addEventListener('blur', this.handleDragCancellation);
+  }
+
+  private stopDragCancellationListeners() {
+    if (!this.dragCancellationListenersActive) {
+      return;
+    }
+    this.dragCancellationListenersActive = false;
+    document.removeEventListener('keydown', this.handleDragCancellationKeyDown);
+    window.removeEventListener('blur', this.handleDragCancellation);
+  }
+
+  private handleDragCancellationKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      this.clearDragState();
+    }
+  };
+
+  private handleDragCancellation = () => {
+    this.clearDragState();
+  };
+
+  private resetUploadInput() {
+    resetFileInput(this.querySelector<HTMLInputElement>('[data-editor-upload]'));
+  }
+
+  private clearSelectedUpload() {
+    this.selectedUpload = null;
+    this.resetUploadInput();
+  }
+
+  private reportError(message: string) {
+    this.setState({ error: message });
+    this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message } }));
+  }
 
   async saveSelectedFile() {
     if (!this.state.selectedPath || this.state.binary || !this.state.dirty) {
@@ -444,12 +628,16 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
+    if (!this.confirmDiscardChanges()) {
+      return;
+    }
+
     this.setState({ error: '', saving: true, status: `Creating ${path}...` });
     this.updateAvailability();
     try {
       const content = await this.uploadContentForPath(path);
       await saveNodeFile(path, content);
-      this.selectedUpload = null;
+      this.clearSelectedUpload();
       this.setState({ addFilePath: '', adding: false, saving: false, uploadFileName: '', status: `Created ${path}.` });
       this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path } }));
       await this.loadFiles(path);

@@ -3835,6 +3835,15 @@
     background: rgb(var(--nodel-danger-bg) / 0.94);
   }
 
+  .nodel-editor-drop-target {
+    @apply pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-card border-2 border-dashed border-nodel-accent bg-nodel-surfaceRaised/95 p-6 text-center text-sm font-semibold text-nodel-accent;
+    background: rgb(var(--nodel-surface-raised) / 0.95);
+  }
+
+  .nodel-editor-drop-target[hidden] {
+    display: none;
+  }
+
   .nodel-editor-host {
     --nodel-editor-font-size: 0.8125rem;
     --nodel-editor-line-height: 1.45;

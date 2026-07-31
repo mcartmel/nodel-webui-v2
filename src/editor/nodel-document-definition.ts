@@ -668,7 +668,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
   },
   {
     name: 'nodel-editor',
-    description: 'Node file editor using CodeMirror.',
+    description: 'Node file editor with accessible upload, single-file drop, and lazy CodeMirror syntax modes.',
     attributes: [
       { name: 'default-file', description: 'File path to open by default.' }
     ],
