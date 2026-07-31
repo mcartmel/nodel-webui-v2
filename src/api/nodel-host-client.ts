@@ -449,13 +449,13 @@ function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: N
 }
 
 async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string): Promise<NodelDuplicateFileFailure | null> {
-  let contents: Blob;
+  let contents: ArrayBuffer;
   try {
     const response = await fetch(restUrlForNode(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`));
     if (!response.ok) {
       return duplicateFileFailure(path, 'read', response);
     }
-    contents = await response.blob();
+    contents = await response.arrayBuffer();
   } catch (error) {
     return networkDuplicateFileFailure(path, 'read', error);
   }

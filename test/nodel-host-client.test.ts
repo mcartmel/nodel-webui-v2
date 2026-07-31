@@ -8,15 +8,6 @@ import {
   normalizeNodelCapabilities
 } from '../src/api/nodel-host-client';
 
-function readBlobBytes(blob: Blob) {
-  return new Promise<number[]>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(Array.from(new Uint8Array(reader.result as ArrayBuffer))));
-    reader.addEventListener('error', () => reject(reader.error));
-    reader.readAsArrayBuffer(blob);
-  });
-}
-
 describe('nodel host client', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
@@ -148,9 +139,9 @@ describe('nodel host client', () => {
       }
       if (url.includes('/nodes/BinaryCopy/REST/files/save?path=')) {
         const path = decodeURIComponent(url.split('path=')[1]);
-        const body = init?.body as Blob;
+        const body = init?.body as ArrayBuffer;
         saveOrder.push(path);
-        saved.set(path, await readBlobBytes(body));
+        saved.set(path, Array.from(new Uint8Array(body)));
         expect(new Headers(init?.headers).get('Content-Type')).toBe('application/octet-stream');
         return new Response('{}', { status: 200 }) as never;
       }
@@ -193,7 +184,7 @@ describe('nodel host client', () => {
       }
       if (url.includes('/nodes/ConfiguredCopy/REST/files/save?path=')) {
         saves.push(decodeURIComponent(url.split('path=')[1]));
-        expect(init?.body).toBeInstanceOf(Blob);
+        expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
         return new Response('{}', { status: 200 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);

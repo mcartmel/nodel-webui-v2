@@ -269,7 +269,7 @@ describe('nodel-add-node', () => {
       }
       if (url.includes('/nodes/ConfiguredCopy/REST/files/save?path=')) {
         saves.push(decodeURIComponent(url.split('path=')[1]));
-        expect(init?.body).toBeInstanceOf(Blob);
+        expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
         return new Response('{}', { status: 200 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);
