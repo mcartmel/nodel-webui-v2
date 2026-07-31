@@ -16,7 +16,15 @@ export interface NodelElementDefinition {
 const commonNodelAttributes: NodelAttributeDefinition[] = [
   {
     name: 'visibility',
-    description: 'Local signal controlling component visibility. Supports SignalName.path extraction. visible/true/1 shows; hidden/false/0 hides.'
+    description: 'Local signal controlling component visibility. Supports SignalName.path extraction. Without exact values, visible/true/1 shows and hidden/false/0 hides.'
+  },
+  {
+    name: 'visible-value',
+    description: 'One exact, case-sensitive scalar visibility value. The component starts hidden until this value is received.'
+  },
+  {
+    name: 'visible-values',
+    description: 'Semicolon-separated exact, case-sensitive scalar visibility values. The component starts hidden until one value matches.'
   }
 ];
 

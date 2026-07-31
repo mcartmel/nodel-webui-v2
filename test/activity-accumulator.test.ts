@@ -26,4 +26,17 @@ describe('activity-accumulator', () => {
     ]);
     expect(accumulator.size()).toBe(0);
   });
+
+  it('orders interleaved coalesced updates by their latest occurrence', () => {
+    vi.useFakeTimers();
+    const listener = vi.fn();
+    const accumulator = createActivityAccumulator(listener, { flushIntervalMs: 100 });
+
+    accumulator.enqueue({ key: 'local_event_a', value: { seq: 1 }, changed: true, live: true });
+    accumulator.enqueue({ key: 'local_event_b', value: { seq: 2 }, changed: true, live: true });
+    accumulator.enqueue({ key: 'local_event_a', value: { seq: 3 }, changed: true, live: true });
+    vi.advanceTimersByTime(100);
+
+    expect(listener.mock.calls[0][0].map((item: { value: { seq: number } }) => item.value.seq)).toEqual([2, 3]);
+  });
 });

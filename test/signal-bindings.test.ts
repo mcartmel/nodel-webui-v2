@@ -1,44 +1,53 @@
 const activityMock = vi.hoisted(() => ({
-  listeners: [] as Array<(state: any) => void>,
-  dispose: vi.fn()
+  listeners: [] as Array<(state: any) => void>
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
     activityMock.listeners.push(listener);
-    return { dispose: activityMock.dispose };
+    return {
+      dispose: () => {
+        const index = activityMock.listeners.indexOf(listener);
+        if (index >= 0) {
+          activityMock.listeners.splice(index, 1);
+        }
+      }
+    };
   })
 }));
 
 import { bootstrapSignalVisibilityBindings, parseSignalBindings, subscribeSignalBindings } from '../src/data/signal-bindings';
+import { flush } from './helpers';
 
-function emitSignal(alias: string, arg: unknown) {
+function emitSignalBatch(entries: Array<{ alias: string; arg: unknown; seq?: number }>) {
   for (const listener of activityMock.listeners) {
     listener({
       loading: false,
       connected: true,
       error: '',
       batch: {
-        items: [
-          {
-            entry: {
-              seq: 1,
-              timestamp: '2026-05-30T00:00:00Z',
-              source: 'local',
-              type: 'event',
-              alias,
-              arg
-            },
-            changed: true,
-            live: true
-          }
-        ],
+        items: entries.map((entry, index) => ({
+          entry: {
+            seq: entry.seq ?? index + 1,
+            timestamp: '2026-05-30T00:00:00Z',
+            source: 'local',
+            type: 'event',
+            alias: entry.alias,
+            arg: entry.arg
+          },
+          changed: true,
+          live: true
+        })),
         replace: false,
         transport: 'websocket',
-        nextSeq: 2
+        nextSeq: Math.max(...entries.map((entry, index) => entry.seq ?? index + 1)) + 1
       }
     });
   }
+}
+
+function emitSignal(alias: string, arg: unknown) {
+  emitSignalBatch([{ alias, arg }]);
 }
 
 describe('signal bindings', () => {
@@ -46,7 +55,6 @@ describe('signal bindings', () => {
 
   beforeEach(() => {
     activityMock.listeners = [];
-    activityMock.dispose.mockClear();
     document.body.innerHTML = '';
   });
 
@@ -160,10 +168,10 @@ describe('signal bindings', () => {
     );
 
     emitSignal('Status', { ready: false, override: true });
+    emitSignal('Status', { ready: true, override: false });
     emitSignal('Status', { ready: false, override: false });
 
-    expect(values[values.length - 2]).toBe('true');
-    expect(values[values.length - 1]).toBe('false');
+    expect(values).toEqual(['true', 'true', 'false']);
   });
 
   it('binds visibility signal targets generically', () => {
@@ -217,5 +225,210 @@ describe('signal bindings', () => {
     emitSignal('Panel', { visible: 'visible' });
     expect(row.hidden).toBe(false);
     expect(column.hidden).toBe(false);
+  });
+
+  it('matches exact single and plural scalar visibility values from nested paths', () => {
+    document.body.innerHTML = `
+      <nodel-row id="mode" visibility="Status.mode" visible-value="Presentation"></nodel-row>
+      <nodel-row id="plural" visibility="Status.mode" visible-values=" ; Preview ; Presentation ; Presentation ; "></nodel-row>
+      <nodel-row id="combined" visibility="Status.mode" visible-value="Emergency" visible-values="Preview; Presentation"></nodel-row>
+      <nodel-row id="number" visibility="Count" visible-value="1"></nodel-row>
+      <nodel-row id="boolean" visibility="Flag" visible-value="true"></nodel-row>
+      <nodel-row id="object" visibility="Status" visible-value="Presentation"></nodel-row>
+      <nodel-row id="missing" visibility="Status.missing" visible-value="Presentation"></nodel-row>
+      <nodel-row id="array" visibility="Items" visible-value="one"></nodel-row>
+      <nodel-row id="null" visibility="NullValue" visible-value="null"></nodel-row>
+      <nodel-row id="escaped" visibility="Device\\.Status.details\\.mode" visible-value="Presentation"></nodel-row>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const element = (id: string) => document.querySelector<HTMLElement>(`#${id}`)!;
+
+    for (const id of ['mode', 'plural', 'combined', 'number', 'boolean', 'object', 'missing', 'array', 'null', 'escaped']) {
+      expect(element(id).hidden).toBe(true);
+    }
+
+    emitSignal('Status', { mode: 'Presentation' });
+    expect(element('mode').hidden).toBe(false);
+    expect(element('plural').hidden).toBe(false);
+    expect(element('combined').hidden).toBe(false);
+    expect(element('object').hidden).toBe(true);
+    expect(element('missing').hidden).toBe(true);
+
+    emitSignal('Count', 1);
+    emitSignal('Flag', true);
+    emitSignal('Items', ['one']);
+    emitSignal('NullValue', null);
+    emitSignal('Device.Status', { 'details.mode': 'Presentation' });
+    expect(element('number').hidden).toBe(false);
+    expect(element('boolean').hidden).toBe(false);
+    expect(element('array').hidden).toBe(true);
+    expect(element('null').hidden).toBe(true);
+    expect(element('escaped').hidden).toBe(false);
+
+    emitSignal('Count', ' 1 ');
+    emitSignal('Flag', 'TRUE');
+    expect(element('number').hidden).toBe(true);
+    expect(element('boolean').hidden).toBe(true);
+
+    emitSignal('Status', { mode: 'presentation' });
+    expect(element('mode').hidden).toBe(true);
+    expect(element('plural').hidden).toBe(true);
+
+    emitSignal('Status', { mode: 'Preview' });
+    expect(element('mode').hidden).toBe(true);
+    expect(element('plural').hidden).toBe(false);
+    expect(element('combined').hidden).toBe(false);
+
+    emitSignal('Status', { mode: 'Emergency' });
+    expect(element('combined').hidden).toBe(false);
+  });
+
+  it('applies exact visibility predicates to any, all, and last-event modes', () => {
+    document.body.innerHTML = `
+      <nodel-row id="any" signals="A:visibility(any); B:visibility(any)" visible-values="Ready; Standby"></nodel-row>
+      <nodel-row id="all" signals="A:visibility(all); B:visibility(all)" visible-values="Ready; Standby"></nodel-row>
+      <nodel-row id="last" signals="A:visibility; B:visibility" visible-value="Ready"></nodel-row>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const any = document.querySelector<HTMLElement>('#any')!;
+    const all = document.querySelector<HTMLElement>('#all')!;
+    const last = document.querySelector<HTMLElement>('#last')!;
+    expect(any.hidden).toBe(true);
+    expect(all.hidden).toBe(true);
+    expect(last.hidden).toBe(true);
+
+    emitSignal('B', 'Ready');
+    expect(any.hidden).toBe(false);
+    expect(all.hidden).toBe(true);
+    expect(last.hidden).toBe(false);
+
+    emitSignal('A', 'Ready');
+    expect(any.hidden).toBe(false);
+    expect(all.hidden).toBe(false);
+    expect(last.hidden).toBe(false);
+
+    emitSignal('A', 'Other');
+    expect(any.hidden).toBe(false);
+    expect(all.hidden).toBe(true);
+    expect(last.hidden).toBe(true);
+
+    emitSignal('B', 'Other');
+    expect(any.hidden).toBe(true);
+    expect(all.hidden).toBe(true);
+    expect(last.hidden).toBe(true);
+
+    emitSignal('A', 'Standby');
+    expect(any.hidden).toBe(false);
+    expect(all.hidden).toBe(true);
+    expect(last.hidden).toBe(true);
+
+    emitSignalBatch([
+      { alias: 'A', arg: 'Ready', seq: 10 },
+      { alias: 'B', arg: 'Other', seq: 11 },
+      { alias: 'A', arg: 'Other', seq: 12 }
+    ]);
+    expect(last.hidden).toBe(true);
+  });
+
+  it('rebinds changed visibility attributes and restores authored hidden state', async () => {
+    document.body.innerHTML = `
+      <nodel-row id="dynamic" visibility="Mode"></nodel-row>
+      <nodel-row id="authored-hidden" hidden visibility="Mode" visible-value="Presentation"></nodel-row>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const dynamic = document.querySelector<HTMLElement>('#dynamic')!;
+    const authoredHidden = document.querySelector<HTMLElement>('#authored-hidden')!;
+
+    expect(dynamic.hidden).toBe(false);
+    expect(authoredHidden.hidden).toBe(true);
+    emitSignal('Mode', 'visible');
+    expect(dynamic.hidden).toBe(false);
+
+    dynamic.setAttribute('visible-value', 'Presentation');
+    await flush();
+    expect(dynamic.hidden).toBe(true);
+    emitSignal('Mode', 'Presentation');
+    expect(dynamic.hidden).toBe(false);
+
+    dynamic.setAttribute('visible-values', 'Preview; Presentation');
+    dynamic.removeAttribute('visible-value');
+    await flush();
+    expect(dynamic.hidden).toBe(true);
+    emitSignal('Mode', 'Preview');
+    expect(dynamic.hidden).toBe(false);
+
+    dynamic.removeAttribute('visible-values');
+    await flush();
+    expect(dynamic.hidden).toBe(false);
+    dynamic.setAttribute('visibility', 'NewMode');
+    await flush();
+    emitSignal('Mode', 'hidden');
+    expect(dynamic.hidden).toBe(false);
+    emitSignal('NewMode', 'hidden');
+    expect(dynamic.hidden).toBe(true);
+
+    dynamic.removeAttribute('visibility');
+    dynamic.setAttribute('signals', 'ThirdMode:visibility');
+    await flush();
+    expect(dynamic.hidden).toBe(false);
+    emitSignal('NewMode', 'hidden');
+    expect(dynamic.hidden).toBe(false);
+    emitSignal('ThirdMode', 'hidden');
+    expect(dynamic.hidden).toBe(true);
+
+    dynamic.removeAttribute('signals');
+    authoredHidden.removeAttribute('visibility');
+    await flush();
+    expect(dynamic.hidden).toBe(false);
+    expect(authoredHidden.hidden).toBe(true);
+    expect(activityMock.listeners).toHaveLength(0);
+  });
+
+  it('cleans pending attribute and subtree removals when bootstrap is disposed', () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <nodel-row id="pending-attribute" visibility="Mode" visible-value="Presentation"></nodel-row>
+        <nodel-row id="pending-removal" hidden visibility="Mode" visible-value="Presentation"></nodel-row>
+      </div>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const pendingAttribute = document.querySelector<HTMLElement>('#pending-attribute')!;
+    const pendingRemoval = document.querySelector<HTMLElement>('#pending-removal')!;
+    emitSignal('Mode', 'Presentation');
+    expect(pendingAttribute.hidden).toBe(false);
+    expect(pendingRemoval.hidden).toBe(false);
+
+    pendingAttribute.removeAttribute('visibility');
+    document.querySelector('#container')?.remove();
+    bindingHost.dispose();
+    bindingHost = null;
+
+    expect(pendingAttribute.hidden).toBe(false);
+    expect(pendingRemoval.hidden).toBe(true);
+    expect(activityMock.listeners).toHaveLength(0);
+  });
+
+  it('restores authored hidden state when visibility bootstrap is disposed', () => {
+    document.body.innerHTML = `
+      <nodel-row id="visible-authored" visibility="Mode" visible-value="Presentation"></nodel-row>
+      <nodel-row id="hidden-authored" hidden visibility="Mode" visible-value="Presentation"></nodel-row>
+    `;
+
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const visibleAuthored = document.querySelector<HTMLElement>('#visible-authored')!;
+    const hiddenAuthored = document.querySelector<HTMLElement>('#hidden-authored')!;
+    emitSignal('Mode', 'Presentation');
+    expect(visibleAuthored.hidden).toBe(false);
+    expect(hiddenAuthored.hidden).toBe(false);
+
+    bindingHost.dispose();
+    bindingHost = null;
+    expect(visibleAuthored.hidden).toBe(false);
+    expect(hiddenAuthored.hidden).toBe(true);
+    expect(activityMock.listeners).toHaveLength(0);
   });
 });

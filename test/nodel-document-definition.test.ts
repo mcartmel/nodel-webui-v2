@@ -131,6 +131,8 @@ describe('nodel document definition', () => {
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);
     expect(text?.attributes.find((attribute) => attribute.name === 'size')?.values).toEqual(['xs', 'sm', 'md', 'lg', 'xl']);
+    const textAttributeCompletions = completeNodelDocument(fakeCompletionContext('<nodel-text ') as never);
+    expect(textAttributeCompletions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['visibility', 'visible-value', 'visible-values']));
 
     const image = nodelDocumentElements.find((element) => element.name === 'nodel-image');
     expect(image?.attributes.find((attribute) => attribute.name === 'variant')).toBeUndefined();

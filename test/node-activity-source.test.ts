@@ -155,8 +155,8 @@ describe('node-activity-source', () => {
     expect(batch?.replace).toBe(true);
     expect(batch?.nextSeq).toBe(4);
     expect(batch?.items).toHaveLength(2);
-    expect(batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
-    expect(batch?.items[0].entry.arg).toBe('latest');
+    expect(batch?.items.map((item) => item.entry.alias)).toEqual(['Level', 'Power']);
+    expect(batch?.items[1].entry.arg).toBe('latest');
 
     subscription.dispose();
   });

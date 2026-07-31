@@ -139,7 +139,9 @@ function normalizeEntries(entries: NodelActivityLogEntry[]) {
   const deduped = new Map<string, NodelActivityLogEntry>();
 
   for (const entry of sorted) {
-    deduped.set(`${entry.source}_${entry.type}_${entry.alias}`, entry);
+    const key = `${entry.source}_${entry.type}_${entry.alias}`;
+    deduped.delete(key);
+    deduped.set(key, entry);
   }
 
   return Array.from(deduped.values());

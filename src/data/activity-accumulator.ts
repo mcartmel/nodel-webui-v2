@@ -46,6 +46,7 @@ export function createActivityAccumulator<T>(listener: FlushListener<T>, options
 
   return {
     enqueue(item: ActivityAccumulatorItem<T>) {
+      pending.delete(item.key);
       pending.set(item.key, item);
       scheduleFlush();
     },

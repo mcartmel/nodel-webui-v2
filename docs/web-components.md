@@ -700,6 +700,38 @@ Signal targets:
 
 `signal` and `signals` use the same parser. Either may contain one binding or a `;`/`,` separated list. Bindings are `SignalName:target`, and can extract nested event argument properties before formatting with `SignalName.path:target`. Shorthand `signal="SignalName.path"` sends the extracted value to the component's default target. Missing paths resolve to an empty value. Escape literal dots in event names or property keys with `\.`, such as `signal="Device\.Status.message"`. Repeated boolean targets default to last-event-wins for v1 compatibility. Use `target(any)` for OR aggregation or `target(all)` for AND aggregation, such as `signals="ShowRunning:active(any); Override:active(any)"`.
 
+### Conditional Visibility
+
+Every `nodel-*` component supports `visibility="SignalName"`. Object paths use the normal signal syntax, such as `visibility="Panel.mode"`. Without an exact-value attribute, `visible`, `true`, and `1` show the component, while `hidden`, `false`, and `0` hide it. Other values leave the current visibility unchanged.
+
+Use `visible-value` for one exact scalar value or `visible-values` for a semicolon-separated list. Matching is trimmed on the authored attribute and case-sensitive; signal strings themselves are not trimmed. Numbers, booleans, and big integers compare using their normal text form. Missing paths, `null`, objects, and arrays do not match. Exact-value components start hidden until a matching signal arrives.
+
+```html
+<nodel-row visibility="Panel.mode" visible-value="Presentation">
+  <nodel-column>
+    <nodel-text>Presentation controls</nodel-text>
+  </nodel-column>
+</nodel-row>
+
+<nodel-row visibility="Panel.mode" visible-values="Presentation; Preview">
+  <nodel-column>
+    <nodel-text>Presentation or preview controls</nodel-text>
+  </nodel-column>
+</nodel-row>
+```
+
+For several signals, bind the `visibility` target explicitly. `visibility(any)` shows when at least one binding matches; `visibility(all)` shows only after every binding has emitted and every value matches. Without an aggregation mode, the latest matching signal event wins.
+
+```html
+<nodel-row
+  signals="Primary.mode:visibility(any); Backup.mode:visibility(any)"
+  visible-values="Presentation; Preview">
+  <nodel-column>
+    <nodel-text>At least one system is presenting or previewing.</nodel-text>
+  </nodel-column>
+</nodel-row>
+```
+
 ```html
 <nodel-text signal="Status.message">Waiting</nodel-text>
 <nodel-group label="Level">

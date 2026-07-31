@@ -226,21 +226,71 @@
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Visibility</h1>
             <p class="nodel-catalogue-description">
-              Use <code>visibility</code> on any component to show or hide it from a local signal. Values <code>visible</code>, <code>true</code>, and <code>1</code> show the component; <code>hidden</code>, <code>false</code>, and <code>0</code> hide it.
+              Use <code>visibility</code> on any component to show or hide it from a local signal. Add <code>visible-value</code> or semicolon-separated <code>visible-values</code> for exact, case-sensitive scalar matching. Signal object paths and <code>visibility(any|all)</code> use the shared binding syntax.
             </p>
           </header>
 
           <div class="nodel-catalogue-examples" data-catalogue-example="layout-visibility">
-            <nodel-row visibility="PanelVisible">
-              <nodel-column md="6">
-                <nodel-text surface="card" tone="default">Signal-controlled panel</nodel-text>
+            <nodel-row>
+              <nodel-column>
+                <nodel-control-grid columns="2" md="4">
+                  <nodel-button action="SetMode" arg="Presentation">Presentation mode</nodel-button>
+                  <nodel-button action="SetMode" arg="Auto">Auto mode</nodel-button>
+                  <nodel-button action="SetSource" arg="Signage">Signage source</nodel-button>
+                  <nodel-button action="SetSource" arg="HDMI 1">HDMI source</nodel-button>
+                </nodel-control-grid>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row visibility="CurrentMode" visible-value="Presentation">
+              <nodel-column>
+                <nodel-text surface="card" tone="success">Single exact value: Presentation</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row visibility="CurrentMode" visible-values="Presentation; Preview">
+              <nodel-column>
+                <nodel-text surface="card" tone="info">Multiple exact values: Presentation or Preview</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row signals="CurrentMode:visibility(any); Source:visibility(any)" visible-values="Presentation; Signage">
+              <nodel-column>
+                <nodel-text surface="card" tone="warning">Any: mode is Presentation or source is Signage</nodel-text>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row signals="CurrentMode:visibility(all); Source:visibility(all)" visible-values="Presentation; Signage">
+              <nodel-column>
+                <nodel-text surface="card" tone="accent">All: mode is Presentation and source is Signage</nodel-text>
               </nodel-column>
             </nodel-row>
           </div>
 
-          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-visibility"><code>&lt;nodel-row visibility=&quot;PanelVisible&quot;&gt;
-  &lt;nodel-column md=&quot;6&quot;&gt;
-    &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Signal-controlled panel&lt;/nodel-text&gt;
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-visibility"><code>&lt;nodel-row&gt;
+  &lt;nodel-column&gt;
+    &lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+      &lt;nodel-button action=&quot;SetMode&quot; arg=&quot;Presentation&quot;&gt;Presentation mode&lt;/nodel-button&gt;
+      &lt;nodel-button action=&quot;SetMode&quot; arg=&quot;Auto&quot;&gt;Auto mode&lt;/nodel-button&gt;
+      &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;Signage&quot;&gt;Signage source&lt;/nodel-button&gt;
+      &lt;nodel-button action=&quot;SetSource&quot; arg=&quot;HDMI 1&quot;&gt;HDMI source&lt;/nodel-button&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row visibility=&quot;CurrentMode&quot; visible-value=&quot;Presentation&quot;&gt;
+  &lt;nodel-column&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;success&quot;&gt;Single exact value: Presentation&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row visibility=&quot;CurrentMode&quot; visible-values=&quot;Presentation; Preview&quot;&gt;
+  &lt;nodel-column&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;info&quot;&gt;Multiple exact values: Presentation or Preview&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row signals=&quot;CurrentMode:visibility(any); Source:visibility(any)&quot; visible-values=&quot;Presentation; Signage&quot;&gt;
+  &lt;nodel-column&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;warning&quot;&gt;Any: mode is Presentation or source is Signage&lt;/nodel-text&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row signals=&quot;CurrentMode:visibility(all); Source:visibility(all)&quot; visible-values=&quot;Presentation; Signage&quot;&gt;
+  &lt;nodel-column&gt;
+    &lt;nodel-text surface=&quot;card&quot; tone=&quot;accent&quot;&gt;All: mode is Presentation and source is Signage&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
         </nodel-page>

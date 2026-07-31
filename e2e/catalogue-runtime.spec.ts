@@ -75,4 +75,42 @@ test.describe('catalogue in-memory runtime', () => {
     expect(requests.some((url) => /REST\/(actions|activity)/.test(url))).toBe(false);
     expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
   });
+
+  test('drives exact and aggregated visibility without backend requests', async ({ page }) => {
+    const requests: string[] = [];
+    const websockets: string[] = [];
+    page.on('request', (request) => requests.push(request.url()));
+    page.on('websocket', (websocket) => websockets.push(websocket.url()));
+
+    await openCatalogue(page, 'Visibility');
+    const single = page.getByText('Single exact value: Presentation', { exact: true });
+    const plural = page.getByText('Multiple exact values: Presentation or Preview', { exact: true });
+    const any = page.getByText('Any: mode is Presentation or source is Signage', { exact: true });
+    const all = page.getByText('All: mode is Presentation and source is Signage', { exact: true });
+
+    await expect(single).toBeHidden();
+    await expect(plural).toBeHidden();
+    await expect(any).toBeHidden();
+    await expect(all).toBeHidden();
+
+    await page.locator('nodel-button', { hasText: 'Presentation mode' }).locator('button').click();
+    await expect(single).toBeVisible();
+    await expect(plural).toBeVisible();
+    await expect(any).toBeVisible();
+    await expect(all).toBeHidden();
+
+    await page.locator('nodel-button', { hasText: 'Signage source' }).locator('button').click();
+    await expect(all).toBeVisible();
+
+    await page.locator('nodel-button', { hasText: 'Auto mode' }).locator('button').click();
+    await expect(single).toBeHidden();
+    await expect(plural).toBeHidden();
+    await expect(any).toBeVisible();
+    await expect(all).toBeHidden();
+
+    await page.locator('nodel-button', { hasText: 'HDMI source' }).locator('button').click();
+    await expect(any).toBeHidden();
+    expect(requests.some((url) => /REST\/(actions|activity)/.test(url))).toBe(false);
+    expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
+  });
 });

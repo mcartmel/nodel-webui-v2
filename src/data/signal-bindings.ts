@@ -8,7 +8,12 @@ export interface SignalBinding {
   mode: SignalBindingMode;
 }
 
-export type SignalTargetHandler = (value: string, rawValue?: unknown) => void;
+export interface SignalTargetContext {
+  aggregated: boolean;
+  binding: SignalBinding;
+}
+
+export type SignalTargetHandler = (value: string, rawValue?: unknown, context?: SignalTargetContext) => void;
 export type SignalTargetHandlers = Record<string, SignalTargetHandler>;
 export type SignalBindingMode = 'last' | 'any' | 'all';
 
@@ -19,7 +24,7 @@ export interface SignalBindingSourceState {
 }
 
 export interface SignalTargetAggregator {
-  evaluate(value: string): boolean;
+  evaluate(value: string, rawValue?: unknown): boolean;
   format?(value: boolean): string;
 }
 
@@ -221,13 +226,13 @@ export function signalBindingKey(bindings: SignalBinding[]) {
 }
 
 export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBinding[], handlers: SignalTargetHandlers, aggregators: SignalTargetAggregators = {}, onSourceState?: (state: SignalBindingSourceState) => void) {
-  const aggregateGroups = new Map<string, { bindings: string[]; values: Map<string, boolean>; mode: SignalBindingMode; target: string }>();
+  const aggregateGroups = new Map<string, { binding: SignalBinding; bindings: string[]; values: Map<string, boolean>; mode: SignalBindingMode; target: string }>();
   for (const binding of bindings) {
     if (binding.mode === 'last' || !aggregators[binding.target]) {
       continue;
     }
     const key = `${binding.target}:${binding.mode}`;
-    const group = aggregateGroups.get(key) ?? { bindings: [], values: new Map<string, boolean>(), mode: binding.mode, target: binding.target };
+    const group = aggregateGroups.get(key) ?? { binding, bindings: [], values: new Map<string, boolean>(), mode: binding.mode, target: binding.target };
     const identity = signalBindingIdentity(binding);
     if (!group.bindings.includes(identity)) {
       group.bindings.push(identity);
@@ -240,13 +245,14 @@ export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBi
     const entries = state.entries;
 
     for (const entry of entries) {
+      const updatedAggregateGroups = new Set<string>();
       for (const binding of bindings) {
         if (isMatchingSignal(entry, binding.signal)) {
           const rawValue = extractSignalValue(entry.arg, binding.path);
           const value = formatSignalValue(rawValue);
           const aggregator = aggregators[binding.target];
           if (binding.mode === 'last' || !aggregator) {
-            handlers[binding.target]?.(value, rawValue);
+            handlers[binding.target]?.(value, rawValue, { aggregated: false, binding });
             continue;
           }
 
@@ -254,13 +260,22 @@ export function subscribeSignalBindings(element: HTMLElement, bindings: SignalBi
           if (!group) {
             continue;
           }
-          group.values.set(signalBindingIdentity(binding), aggregator.evaluate(value));
-          const values = group.bindings.map((identity) => group.values.get(identity) ?? false);
-          const next = binding.mode === 'any'
-            ? values.some(Boolean)
-            : values.every(Boolean);
-          handlers[binding.target]?.(aggregator.format?.(next) ?? String(next), next);
+          group.values.set(signalBindingIdentity(binding), aggregator.evaluate(value, rawValue));
+          updatedAggregateGroups.add(`${binding.target}:${binding.mode}`);
         }
+      }
+
+      for (const groupKey of updatedAggregateGroups) {
+        const group = aggregateGroups.get(groupKey);
+        const aggregator = group ? aggregators[group.target] : null;
+        if (!group || !aggregator) {
+          continue;
+        }
+        const values = group.bindings.map((identity) => group.values.get(identity) ?? false);
+        const next = group.mode === 'any'
+          ? values.some(Boolean)
+          : values.every(Boolean);
+        handlers[group.target]?.(aggregator.format?.(next) ?? String(next), next, { aggregated: true, binding: group.binding });
       }
     }
   });
@@ -297,8 +312,14 @@ export function createSignalBindingController(element: HTMLElement): SignalBindi
 }
 
 interface VisibilityBindingState {
+  authoredHidden: boolean;
   key: string;
   subscription: { dispose(): void } | null;
+}
+
+interface VisibilityPredicate {
+  exact: boolean;
+  values: Set<string>;
 }
 
 const visibilityTarget = 'visibility';
@@ -318,6 +339,45 @@ function visibilityState(value: string) {
   return null;
 }
 
+function visibilityPredicate(element: HTMLElement): VisibilityPredicate {
+  const exact = element.hasAttribute('visible-value') || element.hasAttribute('visible-values');
+  const values = new Set<string>();
+  const singleValue = element.getAttribute('visible-value')?.trim();
+  if (singleValue) {
+    values.add(singleValue);
+  }
+
+  for (const value of (element.getAttribute('visible-values') ?? '').split(';')) {
+    const trimmed = value.trim();
+    if (trimmed) {
+      values.add(trimmed);
+    }
+  }
+
+  return { exact, values };
+}
+
+function scalarVisibilityValue(rawValue: unknown): string | null {
+  if (typeof rawValue === 'string') {
+    return rawValue;
+  }
+
+  if (typeof rawValue === 'number' || typeof rawValue === 'boolean' || typeof rawValue === 'bigint') {
+    return String(rawValue);
+  }
+
+  return null;
+}
+
+function evaluateVisibility(value: string, rawValue: unknown, predicate: VisibilityPredicate) {
+  if (!predicate.exact) {
+    return visibilityState(value);
+  }
+
+  const scalarValue = scalarVisibilityValue(rawValue);
+  return scalarValue !== null && predicate.values.has(scalarValue);
+}
+
 function getVisibilityBindings(element: HTMLElement) {
   return [
     ...parseSignalBindings(element.getAttribute('visibility'), null, visibilityTarget),
@@ -327,7 +387,8 @@ function getVisibilityBindings(element: HTMLElement) {
 
 function syncVisibilityBinding(element: HTMLElement) {
   const bindings = getVisibilityBindings(element);
-  const key = signalBindingKey(bindings);
+  const predicate = visibilityPredicate(element);
+  const key = JSON.stringify([signalBindingKey(bindings), predicate.exact, ...predicate.values]);
   const existing = visibilityBindings.get(element);
 
   if (existing?.key === key) {
@@ -335,62 +396,98 @@ function syncVisibilityBinding(element: HTMLElement) {
   }
 
   existing?.subscription?.dispose();
+  if (existing) {
+    element.hidden = existing.authoredHidden;
+  }
 
   if (bindings.length === 0) {
     visibilityBindings.delete(element);
     return;
   }
 
+  const authoredHidden = existing?.authoredHidden ?? element.hidden;
+  if (predicate.exact) {
+    element.hidden = true;
+  }
+
   const subscription = subscribeSignalBindings(element, bindings, {
-    visibility: (value) => {
-      const visible = visibilityState(value);
+    visibility: (value, rawValue, context) => {
+      const visible = context?.aggregated ? rawValue === true : evaluateVisibility(value, rawValue, predicate);
       if (visible !== null) {
         element.hidden = !visible;
       }
     }
+  }, {
+    visibility: {
+      evaluate: (value, rawValue) => evaluateVisibility(value, rawValue, predicate) === true
+    }
   });
 
-  visibilityBindings.set(element, { key, subscription });
+  visibilityBindings.set(element, { authoredHidden, key, subscription });
 }
 
 function disposeVisibilityBinding(element: HTMLElement) {
   const existing = visibilityBindings.get(element);
   existing?.subscription?.dispose();
+  if (existing) {
+    element.hidden = existing.authoredHidden;
+  }
   visibilityBindings.delete(element);
 }
 
 function walkElements(node: Node, callback: (element: HTMLElement) => void) {
   if (node instanceof HTMLElement) {
     callback(node);
-    for (const element of node.querySelectorAll<HTMLElement>('[visibility],[signal],[signals]')) {
+    for (const element of node.querySelectorAll<HTMLElement>('[visibility],[signal],[signals],[visible-value],[visible-values]')) {
       callback(element);
     }
   }
 }
 
 export function bootstrapSignalVisibilityBindings(root: ParentNode = document.body) {
-  for (const element of root.querySelectorAll<HTMLElement>('[visibility],[signal],[signals]')) {
+  const boundElements = new Set<HTMLElement>();
+  const syncTrackedVisibilityBinding = (element: HTMLElement) => {
     syncVisibilityBinding(element);
+    if (visibilityBindings.has(element)) {
+      boundElements.add(element);
+    } else {
+      boundElements.delete(element);
+    }
+  };
+  const disposeTrackedVisibilityBinding = (element: HTMLElement) => {
+    disposeVisibilityBinding(element);
+    boundElements.delete(element);
+  };
+
+  for (const element of root.querySelectorAll<HTMLElement>('[visibility],[signal],[signals],[visible-value],[visible-values]')) {
+    syncTrackedVisibilityBinding(element);
   }
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes' && mutation.target instanceof HTMLElement) {
-        syncVisibilityBinding(mutation.target);
+        syncTrackedVisibilityBinding(mutation.target);
       }
 
       for (const node of mutation.addedNodes) {
-        walkElements(node, syncVisibilityBinding);
+        walkElements(node, syncTrackedVisibilityBinding);
       }
 
       for (const node of mutation.removedNodes) {
-        walkElements(node, disposeVisibilityBinding);
+        if (!(node instanceof HTMLElement)) {
+          continue;
+        }
+        for (const element of Array.from(boundElements)) {
+          if (element === node || node.contains(element)) {
+            disposeTrackedVisibilityBinding(element);
+          }
+        }
       }
     }
   });
 
   observer.observe(root, {
-    attributeFilter: ['visibility', 'signal', 'signals'],
+    attributeFilter: ['visibility', 'signal', 'signals', 'visible-value', 'visible-values'],
     attributes: true,
     childList: true,
     subtree: true
@@ -399,8 +496,8 @@ export function bootstrapSignalVisibilityBindings(root: ParentNode = document.bo
   return {
     dispose() {
       observer.disconnect();
-      for (const element of root.querySelectorAll<HTMLElement>('[visibility],[signal],[signals]')) {
-        disposeVisibilityBinding(element);
+      for (const element of Array.from(boundElements)) {
+        disposeTrackedVisibilityBinding(element);
       }
     }
   };
