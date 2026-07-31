@@ -53,6 +53,38 @@ describe('nodel-select', () => {
     expect(selectedButton.getAttribute('role')).toBe('option');
     expect(selectedButton.getAttribute('aria-selected')).toBe('true');
     expect(selectedButton.hasAttribute('aria-pressed')).toBe(false);
+    const options = Array.from(select.querySelectorAll<HTMLElement>('nodel-button'));
+    expect(options[1].getAttribute('variant')).toBe('primary');
+    expect(options[1].getAttribute('tone')).toBe('soft');
+
+    select.setAttribute('value', 'HDMI 1');
+    expect(options[0].hasAttribute('active')).toBe(true);
+    expect(options[0].getAttribute('variant')).toBe('primary');
+    expect(options[0].getAttribute('tone')).toBe('soft');
+    expect(options[1].hasAttribute('active')).toBe(false);
+    expect(options[1].hasAttribute('variant')).toBe(false);
+    expect(options[1].hasAttribute('tone')).toBe(false);
+  });
+
+  it('preserves explicitly authored option appearance after selection moves', async () => {
+    document.body.innerHTML = `
+      <nodel-select value="A" variant="primary" tone="soft">
+        <nodel-button value="A" variant="danger" tone="outline">A</nodel-button>
+        <nodel-button value="B">B</nodel-button>
+      </nodel-select>
+    `;
+    await customElements.whenDefined('nodel-select');
+    await flush();
+
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    const options = Array.from(select.querySelectorAll<HTMLElement>('nodel-button'));
+    select.setAttribute('value', 'B');
+
+    expect(options[0].hasAttribute('active')).toBe(false);
+    expect(options[0].getAttribute('variant')).toBe('danger');
+    expect(options[0].getAttribute('tone')).toBe('outline');
+    expect(options[1].getAttribute('variant')).toBe('primary');
+    expect(options[1].getAttribute('tone')).toBe('soft');
   });
 
   it('makes the first native select option tabbable when opened without a selected value', async () => {

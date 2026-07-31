@@ -3,7 +3,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
-import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy } from '../utils/control-values';
+import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, syncInheritedAttributes, truthy } from '../utils/control-values';
 import './nodel-button';
 import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColor, type NodelColorFormat } from '../utils/color';
 
@@ -52,6 +52,7 @@ export class NodelPalette extends HTMLElement {
   private liveTimer: number | null = null;
   private lastLiveDispatchAt = 0;
   private pendingLiveSelection: { value: string; source: HTMLElement } | null = null;
+  private inheritedOptionAttributes = new WeakMap<HTMLElement, Map<string, string>>();
   private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
@@ -210,10 +211,9 @@ export class NodelPalette extends HTMLElement {
       if (option.getAttribute('border')) {
         option.style.setProperty('--nodel-palette-swatch-border', option.getAttribute('border') ?? '');
       }
+      syncInheritedAttributes(option, this.inheritedOptionAttributes, active, { variant, tone });
       if (active) {
         option.setAttribute('active', '');
-        option.setAttribute('variant', option.getAttribute('variant') ?? variant);
-        option.setAttribute('tone', option.getAttribute('tone') ?? tone);
       } else {
         option.removeAttribute('active');
       }

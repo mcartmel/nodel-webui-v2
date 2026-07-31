@@ -48,6 +48,23 @@ test.describe('retained control and layout parity', () => {
   test('auto-places select panels without changing keyboard or source order', async ({ page }, testInfo) => {
     const screenshotOptions = { maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150 };
     await openCatalogue(page, 'PickersPrecision');
+    const sourceSelect = page.locator('[data-catalogue-example="select-stepper"] nodel-select');
+    for (const value of ['HDMI 2', 'USB-C']) {
+      await sourceSelect.locator('.nodel-select-trigger').click();
+      await sourceSelect.locator(`nodel-button[value="${value}"] button`).click();
+    }
+    await sourceSelect.locator('.nodel-select-trigger').click();
+    const sourceOptionStates = await sourceSelect.locator('nodel-button').evaluateAll((options) => options.map((option) => ({
+      active: option.hasAttribute('active'),
+      tone: option.getAttribute('tone'),
+      variant: option.getAttribute('variant')
+    })));
+    expect(sourceOptionStates).toEqual([
+      { active: false, tone: null, variant: null },
+      { active: false, tone: null, variant: null },
+      { active: true, tone: 'soft', variant: 'primary' }
+    ]);
+    await sourceSelect.locator('.nodel-select-trigger').click();
     await page.evaluate(() => {
       const fixture = document.createElement('div');
       fixture.id = 'placement-fixture';

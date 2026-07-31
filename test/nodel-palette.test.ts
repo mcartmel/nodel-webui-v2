@@ -29,7 +29,7 @@ describe('nodel-palette', () => {
 
   it('renders swatch options and selected state', async () => {
     document.body.innerHTML = `
-      <nodel-palette label="Colour" value="#00ff00" columns="3" shape="circle" show-labels="hide">
+      <nodel-palette label="Colour" value="#00ff00" columns="3" shape="circle" show-labels="hide" variant="primary" tone="soft">
         <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>
         <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>
       </nodel-palette>
@@ -44,6 +44,32 @@ describe('nodel-palette', () => {
     expect(palette.style.getPropertyValue('--nodel-palette-columns')).toBe('3');
     expect(options[0].dataset.paletteSwatch).toBe('true');
     expect(options[1].hasAttribute('active')).toBe(true);
+    expect(options[1].getAttribute('variant')).toBe('primary');
+    expect(options[1].getAttribute('tone')).toBe('soft');
+
+    palette.setAttribute('value', '#ff0000');
+    expect(options[0].hasAttribute('active')).toBe(true);
+    expect(options[1].hasAttribute('active')).toBe(false);
+    expect(options[1].hasAttribute('variant')).toBe(false);
+    expect(options[1].hasAttribute('tone')).toBe(false);
+  });
+
+  it('preserves explicitly authored swatch appearance after selection moves', () => {
+    document.body.innerHTML = `
+      <nodel-palette value="#ff0000" variant="primary" tone="soft">
+        <nodel-button value="#ff0000" variant="danger" tone="outline">Red</nodel-button>
+        <nodel-button value="#0000ff">Blue</nodel-button>
+      </nodel-palette>
+    `;
+    const palette = document.querySelector('nodel-palette') as HTMLElement;
+    const options = Array.from(palette.querySelectorAll<HTMLElement>('nodel-button'));
+    palette.setAttribute('value', '#0000ff');
+
+    expect(options[0].hasAttribute('active')).toBe(false);
+    expect(options[0].getAttribute('variant')).toBe('danger');
+    expect(options[0].getAttribute('tone')).toBe('outline');
+    expect(options[1].getAttribute('variant')).toBe('primary');
+    expect(options[1].getAttribute('tone')).toBe('soft');
   });
 
   it('calls an action with selected colour value', async () => {

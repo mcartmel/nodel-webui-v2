@@ -63,6 +63,44 @@ export function formatBindingFailures(failures: ReadonlyArray<{ action: string; 
   return failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
 }
 
+export function syncInheritedAttributes(
+  element: HTMLElement,
+  state: WeakMap<HTMLElement, Map<string, string>>,
+  active: boolean,
+  attributes: Record<string, string>
+) {
+  const inherited = state.get(element) ?? new Map<string, string>();
+
+  for (const [name, value] of Object.entries(attributes)) {
+    const previous = inherited.get(name);
+    if (!active) {
+      if (previous !== undefined && element.getAttribute(name) === previous) {
+        element.removeAttribute(name);
+      }
+      inherited.delete(name);
+      continue;
+    }
+
+    if (previous !== undefined) {
+      if (element.getAttribute(name) === previous) {
+        element.setAttribute(name, value);
+        inherited.set(name, value);
+      } else {
+        inherited.delete(name);
+      }
+    } else if (!element.hasAttribute(name)) {
+      element.setAttribute(name, value);
+      inherited.set(name, value);
+    }
+  }
+
+  if (inherited.size > 0) {
+    state.set(element, inherited);
+  } else {
+    state.delete(element);
+  }
+}
+
 export function formatPlainNumber(value: number, precision: number | null = null) {
   if (!Number.isFinite(value)) {
     return '0';

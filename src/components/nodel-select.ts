@@ -3,7 +3,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { DynamicOptionsController, type DynamicOptionsState } from '../data/dynamic-options';
 import { createSignalBindingController, parseSignalBindings, signalBindingKey } from '../data/signal-bindings';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
-import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy, type ControlArgType } from '../utils/control-values';
+import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, syncInheritedAttributes, truthy, type ControlArgType } from '../utils/control-values';
 import './nodel-button';
 
 type SelectArgType = ControlArgType;
@@ -26,6 +26,7 @@ export class NodelSelect extends HTMLElement {
   private optionsState: DynamicOptionsState = 'static';
   private optionsBindingKey = '';
   private optionsSourceError = false;
+  private inheritedOptionAttributes = new WeakMap<HTMLElement, Map<string, string>>();
   private placementListenersActive = false;
   private placementResizeObserver: ResizeObserver | null = null;
 
@@ -168,10 +169,9 @@ export class NodelSelect extends HTMLElement {
       option.setAttribute('data-nodel-native-aria-selected', String(active));
       option.setAttribute('data-nodel-native-tabindex', open && option === tabbable ? '0' : '-1');
       option.setAttribute('size', option.getAttribute('size') ?? 'md');
+      syncInheritedAttributes(option, this.inheritedOptionAttributes, active, { variant, tone });
       if (active) {
         option.setAttribute('active', '');
-        option.setAttribute('variant', option.getAttribute('variant') ?? variant);
-        option.setAttribute('tone', option.getAttribute('tone') ?? tone);
       } else {
         option.removeAttribute('active');
       }
