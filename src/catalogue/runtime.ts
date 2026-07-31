@@ -13,6 +13,7 @@ const busyDelayMs = 1000;
 
 const initialSignals: Record<string, unknown> = {
   PanelVisible: true,
+  ConfirmCode: '0420',
   AvailableSources: [
     { value: 'HDMI 1', label: 'HDMI 1' },
     { value: 'HDMI 2', label: 'HDMI 2' },
@@ -28,6 +29,7 @@ const initialSignals: Record<string, unknown> = {
   Temp: 22,
   ZoneA: 70,
   Power: false,
+  Shutdown: false,
   VisitorLink: 'https://example.org/visitor-guide',
   DeviceOnline: true,
   NetworkStatus: { level: 1, message: 'Packet loss warning' },

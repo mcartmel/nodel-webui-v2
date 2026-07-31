@@ -190,6 +190,38 @@ describe('node-activity-source', () => {
     subscription.dispose();
   });
 
+  it('replays retained latest signal values to subscribers after unrelated live activity', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const firstStates: ActivityState[] = [];
+    const first = subscribeNodeActivity(createSubscriberHost(), (state) => firstStates.push(state));
+
+    MockWebSocket.instances[0].message({
+      activityHistory: [
+        activityEntry({ seq: 1, source: 'local', type: 'event', alias: 'ConfirmCode', arg: '0420' }),
+        activityEntry({ seq: 2, source: 'local', type: 'event', alias: 'Status', arg: 'Ready' })
+      ]
+    });
+    MockWebSocket.instances[0].message({
+      activity: activityEntry({ seq: 3, source: 'local', type: 'event', alias: 'Status', arg: 'Busy' })
+    });
+    vi.advanceTimersByTime(100);
+    await flushMicrotasks();
+    expect(firstStates.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Status']);
+
+    const secondStates: ActivityState[] = [];
+    const second = subscribeNodeActivity(createSubscriberHost(), (state) => secondStates.push(state));
+    const snapshot = secondStates[0].batch;
+    expect(snapshot?.replace).toBe(true);
+    expect(snapshot?.items.map((item) => [item.entry.alias, item.entry.arg])).toEqual([
+      ['ConfirmCode', '0420'],
+      ['Status', 'Busy']
+    ]);
+    expect(snapshot?.items.every((item) => item.changed === false && item.live === false)).toBe(true);
+
+    first.dispose();
+    second.dispose();
+  });
+
   it('falls back to activity polling when the WebSocket closes', async () => {
     activityMock.getNodeActivity.mockResolvedValue([
       activityEntry({ seq: 10, alias: 'Power' }),

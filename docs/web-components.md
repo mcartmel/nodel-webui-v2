@@ -145,9 +145,25 @@ Use `tone="success"` for completed saves, `tone="info"` for progress, `tone="war
 
 ## Confirm Dialogs
 
-`nodel-app` creates a `nodel-confirm-host` automatically. Components can request confirmation by dispatching a bubbled `nodel-confirm` event with `{ title?, text?, confirmLabel?, cancelLabel?, tone?, resolve }`; the host opens an accessible modal dialog and calls `resolve(true)` only after the user confirms.
+`nodel-app` creates a `nodel-confirm-host` automatically. Components can request confirmation by dispatching a bubbled `nodel-confirm` event with `{ title?, text?, confirmLabel?, cancelLabel?, tone?, mode?, codeSignal?, resolve }`; the host opens an accessible modal dialog and calls `resolve(true)` only after the user confirms.
 
-Touch controls that support confirmation expose `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, and `confirm-tone`. The action is called only after confirmation.
+Touch controls that support confirmation expose `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`, `confirm-mode`, and `confirm-code-signal`. The action is called only after confirmation.
+
+`confirm-mode="standard"` is the default. `confirm-mode="code"` displays a numeric keypad and compares the entered digits with the latest local signal selected by `confirm-code-signal`, which defaults to `ConfirmCode`. Code mode remains disabled while activity is loading or disconnected, when the signal is missing, or when its value is not a digit string or non-negative integer. String values preserve leading zeroes. If the expected value changes while the dialog is open, the entered digits are cleared. The expected code is never rendered by the confirmation host.
+
+```html
+<nodel-button
+  action="Shutdown"
+  confirm-mode="code"
+  confirm-code-signal="ConfirmCode"
+  confirm-title="Confirm shutdown"
+  confirm-text="Enter the operator code"
+  confirm-tone="danger">
+  Shutdown
+</nodel-button>
+```
+
+Code confirmation is a client-side accidental-action/operator interlock, not authentication or authorization. The signal value reaches the browser and may still be visible in a separately rendered activity log. Server-side permissions remain responsible for securing actions.
 
 ## Toolbar Icon
 
@@ -480,7 +496,7 @@ Supported `nodel-toggle` attributes:
 - `off-variant="default|primary|success|info|warning|danger"`
 - `tone="solid|soft|outline"`
 - `disabled`
-- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`, `confirm-mode`, `confirm-code-signal`
 - `signal="SignalName"` as shorthand for `state`
 - `signals="SignalName:target"` with targets `state`, `label`, and `disabled`
 
@@ -513,7 +529,7 @@ Supported `nodel-segmented` attributes:
 - `disabled`
 - `allow-deselect`
 - `label` as an accessibility-only fallback label
-- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`, `confirm-mode`, `confirm-code-signal`
 - `signal="SignalName"` as shorthand for `value`
 - `signals="SignalName:target"` with targets `value`, `label`, `disabled`, and `options`
 - `options-signal="SignalName[.path]"` as shorthand for `signals="SignalName[.path]:options"`
@@ -673,7 +689,7 @@ Supported `nodel-button` attributes:
 - `disabled`
 - `active`
 - `active-value="value"`
-- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`
+- `confirm`, `confirm-title`, `confirm-text`, `confirm-label`, `cancel-label`, `confirm-tone`, `confirm-mode`, `confirm-code-signal`
 - `signal="SignalName"`
 - `signals="SignalName:target"`
 

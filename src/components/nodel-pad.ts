@@ -36,7 +36,7 @@ export class NodelPad extends HTMLElement {
     'up-actions', 'down-actions', 'left-actions', 'right-actions', 'center-actions',
     'up-arg', 'down-arg', 'left-arg', 'right-arg', 'center-arg',
     'up-label', 'down-label', 'left-label', 'right-label', 'center-label',
-    'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
+    'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'
   ];
 
   private shellReady = false;
@@ -189,7 +189,7 @@ export class NodelPad extends HTMLElement {
       return false;
     }
     if (phase !== 'release' && shouldConfirm(this)) {
-      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, { title: 'Confirm action', text: `Run ${this.getAttribute(`${direction}-label`) ?? directionLabels[direction]}?`, tone: 'info' }));
+      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, { title: 'Confirm action', text: `Run ${this.getAttribute(`${direction}-label`) ?? directionLabels[direction]}?`, tone: 'info' }), this.button(direction));
       if (!confirmed) {
         return false;
       }

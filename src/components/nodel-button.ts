@@ -98,7 +98,7 @@ export class NodelButton extends HTMLElement {
   static observedAttributes = [
     'variant', 'tone', 'layout', 'size', 'action', 'actions', 'action-on', 'action-off', 'join', 'arg', 'arg-type',
     'disabled', 'active', 'active-value', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text',
-    'confirm-label', 'cancel-label', 'confirm-tone', 'aria-label', 'aria-labelledby', 'title',
+    'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal', 'aria-label', 'aria-labelledby', 'title',
     'data-nodel-native-role', 'data-nodel-native-aria-selected', 'data-nodel-native-aria-checked',
     'data-nodel-native-aria-disabled', 'data-nodel-native-tabindex'
   ];
@@ -290,7 +290,7 @@ export class NodelButton extends HTMLElement {
         title: 'Confirm action',
         text: `Run ${this.currentLabel() || 'action'}?`,
         tone: 'warning'
-      }));
+      }), this.buttonNode);
       if (!confirmed) {
         return;
       }
@@ -459,7 +459,7 @@ export class NodelButton extends HTMLElement {
         title: 'Confirm action',
         text: `Run ${this.currentLabel() || 'action'}?`,
         tone: 'warning'
-      }));
+      }), this.buttonNode);
       if (!confirmed) {
         this.clearMomentaryStart();
         return;

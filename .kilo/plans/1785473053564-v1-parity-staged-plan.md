@@ -1,6 +1,6 @@
 # V1 Feature-Parity Refinement Plan
 
-Implementation status: Stages 1 and 2 complete and reviewed; paused before Stage 3.
+Implementation status: Stages 1, 2, and 3 complete and reviewed; paused before Stage 4.
 
 ## Goal
 

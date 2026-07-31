@@ -30,7 +30,7 @@ function looksLikeColor(value: string) {
 }
 
 export class NodelPalette extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private gridNode: HTMLElement | null = null;
@@ -178,7 +178,7 @@ export class NodelPalette extends HTMLElement {
     const confirmSource = shouldConfirm(source) ? source : this;
 
     if (shouldConfirm(confirmSource)) {
-      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm colour', text: `Select ${nextValue || 'colour'}?`, tone: 'info' }));
+      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm colour', text: `Select ${nextValue || 'colour'}?`, tone: 'info' }), source.querySelector('button') ?? this.customButton);
       if (!confirmed) {
         return;
       }

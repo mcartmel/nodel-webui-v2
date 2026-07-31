@@ -31,6 +31,16 @@ const commonNodelAttributes: NodelAttributeDefinition[] = [
 const signalBindingDescription = (defaultTarget: string) => `Signal binding in SignalName[.path]:target format, or shorthand signal name/path for ${defaultTarget}.`;
 const signalsBindingDescription = (targets: string) => `Signal bindings in SignalName[.path]:target format. Supported targets: ${targets}.`;
 const commonIconValues = ['sun', 'moon', 'power', 'volume', 'volume-low', 'mute', 'warning', 'success', 'info'];
+const confirmationAttributes: NodelAttributeDefinition[] = [
+  { name: 'confirm', description: 'Require standard confirmation before calling the action.' },
+  { name: 'confirm-mode', description: 'Confirmation mode. Code mode requires the configured local signal value.', values: ['standard', 'code'] },
+  { name: 'confirm-code-signal', description: 'Local signal containing the expected operator code. Defaults to ConfirmCode in code mode.' },
+  { name: 'confirm-title', description: 'Confirmation dialog title.' },
+  { name: 'confirm-text', description: 'Confirmation dialog body text.' },
+  { name: 'confirm-label', description: 'Confirmation button label.' },
+  { name: 'cancel-label', description: 'Cancellation button label.' },
+  { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] }
+];
 
 export const nodelDocumentElements: NodelElementDefinition[] = [
   {
@@ -135,10 +145,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'disabled', description: 'Disable the button.' },
       { name: 'active', description: 'Mark the button active/pressed.' },
       { name: 'active-value', description: 'Optional active-state signal value when it differs from arg.' },
-      { name: 'confirm', description: 'Require confirmation before calling click or press actions.' },
-      { name: 'confirm-title', description: 'Confirmation dialog title.' },
-      { name: 'confirm-text', description: 'Confirmation dialog body text.' },
-      { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
+      ...confirmationAttributes,
       { name: 'aria-label', description: 'Accessible label for icon-only or image-only buttons.' },
       { name: 'title', description: 'Native button title text.' },
       { name: 'signal', description: signalBindingDescription('active') },
@@ -171,10 +178,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'off-variant', description: 'Off-state colour variant. Default keeps the off state neutral.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger'] },
       { name: 'tone', description: 'Switch track tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable the switch.' },
-      { name: 'confirm', description: 'Require confirmation before calling the action.' },
-      { name: 'confirm-title', description: 'Confirmation dialog title.' },
-      { name: 'confirm-text', description: 'Confirmation dialog body text.' },
-      { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
+      ...confirmationAttributes,
       { name: 'signal', description: signalBindingDescription('state') },
       { name: 'signals', description: signalsBindingDescription('state, label, disabled') }
     ],
@@ -199,10 +203,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'options-loading-label', description: 'Status text while dynamic options are loading. Default: Loading options...' },
       { name: 'options-empty-label', description: 'Status text for a valid empty dynamic option list. Default: No options.' },
       { name: 'options-error-label', description: 'Status text when dynamic options are unavailable or malformed. Default: Options unavailable.' },
-      { name: 'confirm', description: 'Require confirmation before applying a selection.' },
-      { name: 'confirm-title', description: 'Confirmation dialog title.' },
-      { name: 'confirm-text', description: 'Confirmation dialog body text.' },
-      { name: 'confirm-tone', description: 'Confirmation dialog tone.', values: ['info', 'success', 'warning', 'danger'] },
+      ...confirmationAttributes,
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: `${signalsBindingDescription('value, label, disabled, options')} The options target only supports last-value bindings; options(any) and options(all) are invalid.` }
     ],
@@ -228,6 +229,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'options-loading-label', description: 'Status text while dynamic options are loading. Default: Loading options...' },
       { name: 'options-empty-label', description: 'Status text for a valid empty dynamic option list. Default: No options.' },
       { name: 'options-error-label', description: 'Status text when dynamic options are unavailable or malformed. Default: Options unavailable.' },
+      ...confirmationAttributes,
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: `${signalsBindingDescription('value, label, disabled, options')} The options target only supports last-value bindings; options(any) and options(all) are invalid.` }
     ],
@@ -282,6 +284,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Stepper button tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable both buttons.' },
       { name: 'readout', description: 'Show or hide the numeric readout.', values: ['show', 'hide'] },
+      ...confirmationAttributes,
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled') }
     ],
@@ -305,6 +308,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Pad button tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable the whole pad.' },
       { name: 'center-disabled', description: 'Disable only the centre button.' },
+      ...confirmationAttributes,
       { name: 'signals', description: signalsBindingDescription('disabled, label, center-disabled') }
     ],
     snippet: '<nodel-group label="Navigate">\n  <nodel-pad action="Navigate" center="show"></nodel-pad>\n</nodel-group>'
@@ -345,6 +349,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'variant', description: 'Palette visual variant.', values: ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'] },
       { name: 'tone', description: 'Palette swatch/custom-control tone.', values: ['solid', 'soft', 'outline'] },
       { name: 'disabled', description: 'Disable all swatches.' },
+      ...confirmationAttributes,
       { name: 'signal', description: signalBindingDescription('value') },
       { name: 'signals', description: signalsBindingDescription('value, label, disabled, custom-color') }
     ],

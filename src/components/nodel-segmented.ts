@@ -48,7 +48,7 @@ function optionEnabled(option: HTMLElement) {
 export class NodelSegmented extends HTMLElement {
   static observedAttributes = [
     'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label', 'value', 'variant', 'tone', 'orientation', 'disabled',
-    'allow-deselect', 'label', 'aria-label', 'aria-labelledby', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
+    'allow-deselect', 'label', 'aria-label', 'aria-labelledby', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'
   ];
 
   private connected = false;
@@ -242,7 +242,7 @@ export class NodelSegmented extends HTMLElement {
         title: 'Confirm selection',
         text: `Select ${option.textContent?.trim() || nextValue}?`,
         tone: 'info'
-      }));
+      }), option.querySelector('button'));
       if (!confirmed) {
         return;
       }

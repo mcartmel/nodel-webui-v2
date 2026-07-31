@@ -113,4 +113,39 @@ test.describe('catalogue in-memory runtime', () => {
     expect(requests.some((url) => /REST\/(actions|activity)/.test(url))).toBe(false);
     expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
   });
+
+  test('gates a catalogue action behind code confirmation', async ({ page }) => {
+    const requests: string[] = [];
+    const websockets: string[] = [];
+    page.on('request', (request) => requests.push(request.url()));
+    page.on('websocket', (websocket) => websockets.push(websocket.url()));
+    await openCatalogue(page, 'TogglesSegmented');
+
+    const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' }).locator('nodel-toggle');
+    const trigger = shutdown.locator('button');
+    await expect(shutdown).toHaveAttribute('data-state', 'off');
+    await trigger.click();
+
+    const host = page.locator('nodel-confirm-host');
+    await expect(host).toBeVisible();
+    await expect(host.locator('.nodel-confirm-code-status')).toHaveText('Enter operator code.');
+    await expect(host.locator('[data-confirm-action="confirm"]')).toBeDisabled();
+    await expect(shutdown).toHaveAttribute('data-state', 'off');
+    expect(await host.evaluate((element) => element.innerHTML.includes('0420'))).toBe(false);
+
+    for (const digit of ['0', '4', '2', '1']) {
+      await host.locator(`[data-confirm-code-digit="${digit}"]`).click();
+    }
+    await expect(host.locator('[data-confirm-action="confirm"]')).toBeDisabled();
+    await host.locator('[data-confirm-action="backspace"]').click();
+    await host.locator('[data-confirm-code-digit="0"]').click();
+    await expect(host.locator('[data-confirm-action="confirm"]')).toBeEnabled();
+    await host.locator('[data-confirm-action="confirm"]').click();
+
+    await expect(host).toBeHidden();
+    await expect(shutdown).toHaveAttribute('data-state', 'on');
+    await expect(trigger).toBeFocused();
+    expect(requests.some((url) => /REST\/(actions|activity)/.test(url))).toBe(false);
+    expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
+  });
 });

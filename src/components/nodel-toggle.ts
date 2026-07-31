@@ -70,7 +70,7 @@ export class NodelToggle extends HTMLElement {
   static observedAttributes = [
     'action', 'actions', 'join', 'on-arg', 'off-arg', 'arg-type', 'signal', 'signals', 'value', 'on-value', 'off-value',
     'partial-on-value', 'partial-off-value', 'label', 'on-label', 'off-label', 'on-icon', 'off-icon', 'state-label', 'variant', 'off-variant', 'tone',
-    'disabled', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone',
+    'disabled', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal',
     'aria-label', 'aria-labelledby', 'title'
   ];
 
@@ -206,7 +206,7 @@ export class NodelToggle extends HTMLElement {
         title: 'Confirm toggle',
         text: `Set ${this.getAttribute('label') || 'toggle'} ${nextOn ? 'on' : 'off'}?`,
         tone: nextOn ? 'success' : 'info'
-      }));
+      }), this.buttonNode);
       if (!confirmed) {
         return;
       }

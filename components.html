@@ -1112,7 +1112,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Actions And Confirm</h2>
               <p class="nodel-catalogue-description">
-                Action toggles send <code>on-arg</code> or <code>off-arg</code>. Add <code>confirm</code>, <code>confirm-title</code>, or <code>confirm-text</code> to route the command through the app-level confirm dialog.
+                Action toggles send <code>on-arg</code> or <code>off-arg</code>. Add standard confirmation text or use <code>confirm-mode=&quot;code&quot;</code> for a signal-backed operator interlock. The catalogue code is <code>0420</code>.
               </p>
             </header>
 
@@ -1124,7 +1124,7 @@
                       <nodel-toggle action="SetPower" signal="Power"></nodel-toggle>
                     </nodel-group>
                     <nodel-group label="Shutdown">
-                      <nodel-toggle action="Shutdown" confirm-title="Confirm shutdown" confirm-text="Shut down the device?" confirm-tone="danger" variant="danger"></nodel-toggle>
+                      <nodel-toggle action="SetShutdown" signal="Shutdown" confirm-mode="code" confirm-code-signal="ConfirmCode" confirm-title="Confirm shutdown" confirm-text="Enter the operator code" confirm-tone="danger" variant="danger"></nodel-toggle>
                     </nodel-group>
                   </nodel-control-grid>
                 </nodel-column>
@@ -1136,7 +1136,7 @@
     &lt;nodel-toggle action=&quot;SetPower&quot; signal=&quot;Power&quot;&gt;&lt;/nodel-toggle&gt;
   &lt;/nodel-group&gt;
   &lt;nodel-group label=&quot;Shutdown&quot;&gt;
-    &lt;nodel-toggle action=&quot;Shutdown&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Shut down the device?&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;
+    &lt;nodel-toggle action=&quot;SetShutdown&quot; signal=&quot;Shutdown&quot; confirm-mode=&quot;code&quot; confirm-code-signal=&quot;ConfirmCode&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Enter the operator code&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>

@@ -13,7 +13,7 @@ type StepperArgType = Extract<ControlArgType, 'number' | 'string' | 'json'>;
 const argTypes: StepperArgType[] = ['number', 'string', 'json'];
 
 export class NodelStepper extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'min', 'max', 'step', 'unit', 'prefix', 'suffix', 'precision', 'repeat', 'repeat-delay', 'repeat-interval', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'readout', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'min', 'max', 'step', 'unit', 'prefix', 'suffix', 'precision', 'repeat', 'repeat-delay', 'repeat-interval', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'readout', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private shellNode: HTMLElement | null = null;
@@ -147,7 +147,7 @@ export class NodelStepper extends HTMLElement {
         title: 'Confirm value',
         text: `Set ${this.getAttribute('label') || 'value'} to ${this.formattedValue(nextValue)}?`,
         tone: 'info'
-      }));
+      }), direction === -1 ? this.decreaseNode : direction === 1 ? this.increaseNode : this.shellNode);
       if (!confirmed) {
         return;
       }

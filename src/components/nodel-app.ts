@@ -184,7 +184,15 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private handleConfirmRequest = (event: ConfirmCustomEvent) => {
     event.preventDefault();
-    this.ensureConfirmHost().confirm(event.detail, event.target instanceof Element ? event.target : document.activeElement);
+    const eventTarget = event.target instanceof Element ? event.target : null;
+    const activeElement = document.activeElement;
+    const targetControl = eventTarget?.querySelector<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? null;
+    const trigger = event.detail.trigger
+      ?? (activeElement instanceof Element && eventTarget?.contains(activeElement) ? activeElement : null)
+      ?? targetControl
+      ?? eventTarget
+      ?? activeElement;
+    this.ensureConfirmHost().confirm(event.detail, trigger);
   };
 
   private handleParamsSaved = () => {

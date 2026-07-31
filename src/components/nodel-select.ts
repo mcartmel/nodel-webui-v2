@@ -11,7 +11,7 @@ const argTypes: SelectArgType[] = ['string', 'number', 'boolean', 'json'];
 let selectIdCounter = 0;
 
 export class NodelSelect extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'signal', 'signals', 'options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'signal', 'signals', 'options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private triggerNode: HTMLButtonElement | null = null;
@@ -219,7 +219,7 @@ export class NodelSelect extends HTMLElement {
     const confirmSource = shouldConfirm(option) ? option : this;
 
     if (shouldConfirm(confirmSource)) {
-      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm selection', text: `Select ${option.textContent?.trim() || nextValue}?`, tone: 'info' }));
+      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm selection', text: `Select ${option.textContent?.trim() || nextValue}?`, tone: 'info' }), option.querySelector('button'));
       if (!confirmed) {
         return;
       }

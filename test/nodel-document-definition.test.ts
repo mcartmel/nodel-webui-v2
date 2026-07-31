@@ -127,6 +127,10 @@ describe('nodel document definition', () => {
     const segmented = nodelDocumentElements.find((element) => element.name === 'nodel-segmented');
     expect(select?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
     expect(segmented?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
+    for (const name of ['nodel-button', 'nodel-toggle', 'nodel-segmented', 'nodel-select', 'nodel-palette', 'nodel-pad', 'nodel-stepper']) {
+      const control = nodelDocumentElements.find((element) => element.name === name);
+      expect(control?.attributes.map((attribute) => attribute.name), name).toEqual(expect.arrayContaining(['confirm-mode', 'confirm-code-signal']));
+    }
 
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);

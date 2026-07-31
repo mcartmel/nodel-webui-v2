@@ -33,6 +33,45 @@ function isForcedColoursProject(testInfo: TestInfo) {
 }
 
 test.describe('catalogue visual regressions', () => {
+  test('captures standard and code confirmation dialogs', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Confirmation dialog baselines run once for each desktop colour theme.');
+
+    await openCatalogue(page, 'TogglesSegmented');
+    const mode = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-group').filter({ hasText: 'Mode' });
+    await mode.locator('nodel-button[value="Manual"] button').click();
+    const host = page.locator('nodel-confirm-host');
+    await expect(host).toBeVisible();
+    await expect(host.locator('.nodel-confirm-dialog')).toHaveScreenshot('confirm-standard-dialog.png');
+    await host.locator('[data-confirm-action="cancel"]').last().click();
+
+    const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' });
+    await shutdown.locator('nodel-toggle button').click();
+    await expect(host).toBeVisible();
+    await expect(host.locator('.nodel-confirm-dialog')).toHaveScreenshot('confirm-code-dialog.png');
+  });
+
+  test('keeps code confirmation reachable in mobile landscape', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to a short touch viewport.');
+
+    await page.setViewportSize({ width: 568, height: 320 });
+    await openCatalogue(page, 'TogglesSegmented');
+    const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' });
+    await shutdown.locator('nodel-toggle button').click();
+    const dialog = page.locator('.nodel-confirm-dialog');
+    await expect(dialog).toBeVisible();
+    const dialogBox = await dialog.boundingBox();
+    expect(dialogBox).not.toBeNull();
+    expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(320);
+
+    const confirm = dialog.locator('[data-confirm-action="confirm"]');
+    await confirm.scrollIntoViewIfNeeded();
+    const confirmBox = await confirm.boundingBox();
+    expect(confirmBox).not.toBeNull();
+    expect(confirmBox!.y).toBeGreaterThanOrEqual(dialogBox!.y);
+    expect(confirmBox!.y + confirmBox!.height).toBeLessThanOrEqual(dialogBox!.y + dialogBox!.height);
+  });
+
   test('captures representative control variants', async ({ page }, testInfo) => {
     test.skip(isForcedColoursProject(testInfo), 'Forced-colours uses assertions instead of pixel baselines.');
 

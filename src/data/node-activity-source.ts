@@ -43,6 +43,28 @@ let pollTimer: number | null = null;
 let reconnectTimer: number | null = null;
 let lastWsAttemptAt = 0;
 let activeMode: 'idle' | 'websocket' | 'poll' = 'idle';
+const latestEntries = new Map<string, NodelActivityLogEntry>();
+
+function activityEntryKey(entry: NodelActivityLogEntry) {
+  return `${entry.source}_${entry.type}_${entry.alias}`;
+}
+
+function updateCurrentBatch(batch: NodeActivityBatch) {
+  if (batch.replace) {
+    latestEntries.clear();
+  }
+  for (const item of batch.items) {
+    const key = activityEntryKey(item.entry);
+    latestEntries.delete(key);
+    latestEntries.set(key, item.entry);
+  }
+  currentBatch = {
+    items: Array.from(latestEntries.values(), (entry) => ({ entry, changed: false, live: false })),
+    replace: true,
+    transport: batch.transport,
+    nextSeq: batch.nextSeq
+  };
+}
 
 const liveAccumulator = createActivityAccumulator<NodelActivityLogEntry>((items) => {
   if (items.length === 0) {
@@ -105,6 +127,7 @@ function resetConnection() {
 
 function resetActivitySource() {
   liveAccumulator.clear();
+  latestEntries.clear();
   lastSeq = null;
   currentBatch = null;
   loading = true;
@@ -116,7 +139,7 @@ function resetActivitySource() {
 
 function emit(batch: NodeActivityBatch | null, nextError = error) {
   if (batch) {
-    currentBatch = batch;
+    updateCurrentBatch(batch);
     loading = false;
     error = '';
   } else if (nextError !== error) {
@@ -139,7 +162,7 @@ function normalizeEntries(entries: NodelActivityLogEntry[]) {
   const deduped = new Map<string, NodelActivityLogEntry>();
 
   for (const entry of sorted) {
-    const key = `${entry.source}_${entry.type}_${entry.alias}`;
+    const key = activityEntryKey(entry);
     deduped.delete(key);
     deduped.set(key, entry);
   }
@@ -250,7 +273,7 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
     if (data.activity) {
       const entry = data.activity;
       liveAccumulator.enqueue({
-        key: `${entry.source}_${entry.type}_${entry.alias}`,
+        key: activityEntryKey(entry),
         value: entry,
         changed: true,
         live: true
@@ -364,6 +387,7 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
         resetConnection();
         loading = true;
         currentBatch = null;
+        latestEntries.clear();
         lastSeq = null;
         error = '';
       }

@@ -2727,7 +2727,9 @@
   }
 
   .nodel-confirm-dialog {
-    @apply relative flex w-[min(28rem,100%)] gap-4 rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover;
+    @apply relative flex w-[min(28rem,100%)] gap-4 overflow-y-auto overscroll-contain rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover;
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
   }
 
   .nodel-confirm-icon {
@@ -2756,6 +2758,30 @@
 
   .nodel-confirm-text {
     @apply mt-2 text-sm leading-6 text-nodel-muted;
+  }
+
+  .nodel-confirm-code {
+    @apply mt-4 space-y-3;
+  }
+
+  .nodel-confirm-code-status {
+    @apply m-0 min-h-5 text-sm font-medium text-nodel-muted;
+  }
+
+  .nodel-confirm-code-entry {
+    @apply flex min-h-12 items-center justify-center rounded-control border border-nodel-border bg-nodel-bg px-3 font-mono text-lg tracking-[0.35em] text-nodel-fg;
+  }
+
+  .nodel-confirm-keypad {
+    @apply mx-auto grid w-full max-w-72 grid-cols-3 gap-2;
+  }
+
+  .nodel-confirm-key {
+    @apply min-h-12 min-w-0 px-2 text-base;
+  }
+
+  .nodel-confirm-key-text {
+    @apply text-xs;
   }
 
   .nodel-confirm-actions {
