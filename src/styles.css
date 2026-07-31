@@ -1810,7 +1810,7 @@
   }
 
   .nodel-palette-value-input {
-    @apply min-w-0 normal-case tracking-normal;
+    @apply h-11 min-w-0 normal-case tracking-normal;
   }
 
   .nodel-palette-value-input[aria-invalid='true'] {

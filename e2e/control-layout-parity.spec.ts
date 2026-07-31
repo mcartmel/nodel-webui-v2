@@ -14,6 +14,11 @@ test.describe('retained control and layout parity', () => {
     const palette = page.locator('[data-catalogue-example="palette-native"] nodel-palette');
     await expect(palette).toHaveAttribute('data-format', 'hsl');
     await expect(palette).toHaveAttribute('data-live', 'true');
+    const customControlHeights = await palette.locator('.nodel-palette-custom-input, .nodel-palette-value-input, .nodel-palette-custom-button').evaluateAll((elements) => (
+      elements.map((element) => element.getBoundingClientRect().height)
+    ));
+    expect(Math.max(...customControlHeights) - Math.min(...customControlHeights)).toBeLessThanOrEqual(1);
+    expect(Math.min(...customControlHeights)).toBeGreaterThanOrEqual(44);
     await page.evaluate(() => {
       const element = document.querySelector('[data-catalogue-example="palette-native"] nodel-palette');
       element?.addEventListener('nodel-palette-change', (event) => {
