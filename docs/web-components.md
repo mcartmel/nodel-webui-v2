@@ -78,6 +78,7 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-toast-host`: app-level notification host, created automatically by `nodel-app`.
 - `nodel-confirm-host`: app-level confirmation dialog host, created automatically by `nodel-app`.
 - `nodel-connectivity-host`: app-level host-connectivity presentation, created automatically by `nodel-app`.
+- `nodel-link`: safe static, node-discovered, or event-binding-derived link.
 
 ## Shared Styling Classes
 
@@ -137,6 +138,32 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, solid surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
 Cards are passive surfaces, grouped lists use the card surface as one collection boundary, panels add stronger grouping, and popovers/dialogs carry the strongest elevation. The default font uses the native system stack. Theme styles include reduced-motion, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours.
+
+## Links
+
+`nodel-link` preserves its child text and components while resolving exactly one destination source:
+
+```html
+<nodel-link href="https://example.org">Documentation</nodel-link>
+<nodel-link node="Display Controller">Open controller</nodel-link>
+<nodel-link event-binding="DisplayStatus">Open bound node</nodel-link>
+```
+
+- `href` accepts relative and HTTP(S) URLs. Unsafe schemes such as `javascript:` and `data:` are rejected.
+- `node` posts the exact name to `/REST/nodeURLsForNode`. It prefers a valid current-origin address and otherwise uses the first valid HTTP(S) result in backend order.
+- `event-binding` reads relative `REST/remote`, finds the explicitly named event binding, and resolves that binding's target node. It never infers a binding from a parent component.
+- Node resolution immediately provides `/nodes.html?filter=<name>#Network` as a usable fallback. The fallback remains when direct discovery has no safe result or fails.
+- Links use the current tab by default. Set `target="_blank"` to open a new context; V2 adds `noopener noreferrer` automatically.
+- Loading and resolution failures are exposed through `aria-busy`, `aria-disabled`, and a polite status message. Changing destination attributes or disconnecting the component aborts obsolete requests.
+
+Nested display content remains inside the native anchor:
+
+```html
+<nodel-link node="Lighting">
+  <nodel-icon name="info" size="sm"></nodel-icon>
+  Lighting controller
+</nodel-link>
+```
 
 ## Toast Notifications
 
@@ -1028,7 +1055,7 @@ The collapsed height can also be overridden with CSS:
 
 ```html
 <nodel-node-list></nodel-node-list>
-<nodel-node-list scope="network"></nodel-node-list>
+<nodel-node-list scope="network" query-param="filter"></nodel-node-list>
 ```
 
 Supported attributes:
@@ -1036,12 +1063,14 @@ Supported attributes:
 - `scope="local|network"`
 - `poll-interval="2000"`
 - `page-size="20"`
+- `query-param="filter"` to read the first matching URL query value into the initial filter
 
 Behavior:
 
 - Local scope reads `/REST` and uses `info.nodes`.
 - Network scope reads `/REST/nodeURLs`.
 - Filters are live and case-insensitive.
+- Query-prefilled filters are URL-decoded once; later manual edits are not overwritten by polling or unrelated attribute changes.
 - Node icons use the familiar Nodel host identicon generated from `identicon.js` and `xxhashjs`.
 - Unreachable network hosts are dimmed.
 
@@ -1155,6 +1184,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 
 - Reads current-node remote binding schema from relative `REST/remote/schema` and values from relative `REST/remote`.
 - Renders action and event bindings as grouped rows with status, target node, target action/event, and suggestion state.
+- Renders a wired status as a link to the dedicated Network page prefiltered for that row's target node.
 - Uses `/REST/nodeURLs` for node lookup and target-node `REST/actions` or `REST/events` for action/event lookup.
 - Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
 - Posts raw remote binding payloads to relative `REST/remote/save`, matching the v1 backend shape.

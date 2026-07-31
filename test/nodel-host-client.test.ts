@@ -3,6 +3,8 @@ import {
   getDiagnosticMeasurements,
   getHostCapabilities,
   getHostLogs,
+  getNodeEventBinding,
+  getNodeUrlsForNode,
   getNodeRestartStatus,
   NodelDuplicateNodeError,
   normalizeNodelCapabilities
@@ -97,6 +99,44 @@ describe('nodel host client', () => {
         consoleExec: true
       }
     });
+  });
+
+  it('resolves exact node URLs and typed local event bindings', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/nodeURLsForNode') {
+        expect(JSON.parse(String(init?.body))).toEqual({ name: 'Display' });
+        return new Response(JSON.stringify([{ address: 'https://display.example/nodes/Display/' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'REST/remote') {
+        return new Response(JSON.stringify({ events: { DisplayStatus: { node: 'Display', event: 'Status' } } }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getNodeUrlsForNode('Display')).resolves.toEqual([{ address: 'https://display.example/nodes/Display/' }]);
+    await expect(getNodeEventBinding('DisplayStatus')).resolves.toEqual({ node: 'Display', event: 'Status' });
+    await expect(getNodeEventBinding('Missing')).resolves.toBeNull();
+    await expect(getNodeEventBinding('toString')).resolves.toBeNull();
+  });
+
+  it('rejects malformed local event bindings', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ events: { Broken: 'not an object' } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })) as unknown as typeof fetch);
+
+    await expect(getNodeEventBinding('Broken')).rejects.toThrow('Event binding "Broken" is malformed');
+  });
+
+  it('rejects a malformed remote event-binding collection', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ events: 'not an object' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })) as unknown as typeof fetch);
+
+    await expect(getNodeEventBinding('Broken')).rejects.toThrow('Remote event bindings are malformed');
   });
 
   it('duplicates files byte-for-byte, filters unsafe files, and saves script.py last', async () => {

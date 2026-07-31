@@ -2400,6 +2400,30 @@
     @apply rounded-control outline-none ring-2 ring-nodel-focus ring-offset-2 ring-offset-nodel-surface;
   }
 
+  nodel-link {
+    display: inline;
+  }
+
+  .nodel-link-component {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .nodel-link-component[aria-disabled='true'] {
+    @apply cursor-not-allowed text-nodel-muted decoration-nodel-muted/40;
+  }
+
+  .nodel-link-indicator {
+    @apply inline-flex shrink-0;
+  }
+
+  nodel-link[data-state='loading'] .nodel-link-indicator {
+    @apply text-nodel-muted;
+  }
+
+  nodel-link[data-state='error'] .nodel-link-indicator {
+    @apply text-nodel-warning;
+  }
+
   .nodel-choice {
     @apply h-4 w-4 shrink-0 accent-nodel-accent;
   }

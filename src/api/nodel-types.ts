@@ -14,6 +14,19 @@ export interface NodelNodeUrlEntry {
   [key: string]: unknown;
 }
 
+export interface NodelRemoteBinding {
+  node: string;
+  action?: string;
+  event?: string;
+  [key: string]: unknown;
+}
+
+export interface NodelRemoteBindings {
+  actions?: Record<string, unknown>;
+  events?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface NodelLocalRestResponse {
   nodes?: Record<string, NodelLocalNodeEntry>;
   [key: string]: unknown;

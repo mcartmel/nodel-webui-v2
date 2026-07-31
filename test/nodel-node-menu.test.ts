@@ -86,6 +86,8 @@ describe('nodel-node-menu', () => {
     expect(document.querySelector('.nodel-node-menu-header')?.textContent?.trim()).toBe('');
     expect(document.querySelector('[data-node-menu-close] [data-icon="xmark"]')).not.toBeNull();
     expect(document.querySelector('.nodel-node-menu-section-appearance nodel-theme-toggle')).not.toBeNull();
+    expect(document.querySelector('.nodel-node-menu-drawer input[type="search"]')).toBeNull();
+    expect(document.querySelector('.nodel-node-menu-drawer [data-node-search]')).toBeNull();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);

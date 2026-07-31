@@ -12,6 +12,7 @@ import { subscribeNodeActivity } from '../data/node-activity-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { getSimpleName, getVerySimpleName } from '../utils/node-name';
+import { networkNodeSearchHref } from '../navigation/node-links';
 import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 
 type BindingKind = 'actions' | 'events';
@@ -46,6 +47,8 @@ interface BindingRow {
   selected: boolean;
   status: string;
   statusClass: string;
+  statusHref: string;
+  statusLinkLabel: string;
   nodeOptions: BindingOption[];
   targetOptions: TargetOption[];
   showNodeOptions: boolean;
@@ -189,7 +192,11 @@ const template = `
                           <label class="inline-flex h-8 items-center justify-center">
                             <input class="nodel-choice" type="checkbox" data-bindings-row-select data-link="selected" aria-label="Select binding" />
                           </label>
-                          <span class="nodel-bindings-status" data-link="class{:statusClass}">{^{>status}}</span>
+                           {^{if status === 'Wired' && statusHref}}
+                             <a class="nodel-bindings-status nodel-link" data-link="href{:statusHref} aria-label{:statusLinkLabel} class{:statusClass + ' nodel-link'}">{^{>status}}</a>
+                           {{else}}
+                             <span class="nodel-bindings-status" data-link="class{:statusClass}">{^{>status}}</span>
+                           {{/if}}
                           <span class="min-w-0">
                             <span class="block truncate font-semibold text-nodel-fg" data-link="title{:alias}">{^{>title}}</span>
                             <span class="block truncate text-xs text-nodel-muted">{^{>alias}}</span>
@@ -296,6 +303,14 @@ function normalizeStatus(status: unknown) {
 
 function statusClass(status: string) {
   return status === 'Wired' ? 'nodel-bindings-status is-wired' : 'nodel-bindings-status is-unwired';
+}
+
+function statusLinkProperties(node: string) {
+  const name = node.trim();
+  return {
+    statusHref: name ? networkNodeSearchHref(name) : '',
+    statusLinkLabel: name ? `Open ${name} in Network nodes` : ''
+  };
 }
 
 function getNodeOptionValue(entry: NodelNodeUrlEntry) {
@@ -673,6 +688,7 @@ export class NodelBindings extends HTMLElement {
     const rows = Object.entries(schema?.properties ?? {})
       .map(([alias, rowSchema]) => {
         const value = objectValue(values[alias]);
+        const node = stringValue(value.node);
         const row: BindingRow = {
           id: nextBindingId(kind, alias),
           kind,
@@ -681,12 +697,13 @@ export class NodelBindings extends HTMLElement {
           alias,
           title: titleFor(alias, rowSchema),
           description: typeof rowSchema.desc === 'string' ? rowSchema.desc : '',
-          node: stringValue(value.node),
+          node,
           nodeAddress: '',
           target: stringValue(value[targetKey]),
           selected: false,
           status: normalizeStatus(''),
           statusClass: statusClass(normalizeStatus('')),
+          ...statusLinkProperties(node),
           nodeOptions: [],
           targetOptions: [],
           showNodeOptions: false,
@@ -754,7 +771,8 @@ export class NodelBindings extends HTMLElement {
       this.clearLookupCaches();
       getJQuery().observable(row).setProperty({
         node: target.value,
-        nodeAddress: ''
+        nodeAddress: '',
+        ...statusLinkProperties(target.value)
       });
       void this.searchRowNodes(row, target.value);
       return;
@@ -944,6 +962,7 @@ export class NodelBindings extends HTMLElement {
         $.observable(row).setProperty({
           node: selected.value,
           nodeAddress: selected.address,
+          ...statusLinkProperties(selected.value),
           nodeOptions: [],
           showNodeOptions: false
         });
@@ -1114,6 +1133,7 @@ export class NodelBindings extends HTMLElement {
         getJQuery().observable(row).setProperty({
           node: this.state.bulkNode,
           nodeAddress: this.state.bulkNodeAddress,
+          ...statusLinkProperties(this.state.bulkNode),
           suggestionValue: '',
           suggestionLabel: '',
           suggestionConfidence: '',

@@ -133,6 +133,10 @@ describe('nodel document definition', () => {
     }
     const app = nodelDocumentElements.find((element) => element.name === 'nodel-app');
     expect(app?.attributes.find((attribute) => attribute.name === 'offline-mode')?.values).toEqual(['modal', 'overlay']);
+    const link = nodelDocumentElements.find((element) => element.name === 'nodel-link');
+    expect(link?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['href', 'node', 'event-binding', 'target', 'rel']));
+    const nodeListDefinition = nodelDocumentElements.find((element) => element.name === 'nodel-node-list');
+    expect(nodeListDefinition?.attributes.map((attribute) => attribute.name)).toContain('query-param');
 
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);

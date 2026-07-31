@@ -688,7 +688,7 @@ describe('nodel-bindings', () => {
 
   it('updates row status from remote binding activity entries', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
-    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Display Ünit' }, powerOn: {} }, events: {} });
 
     await mountBindings();
 
@@ -719,6 +719,9 @@ describe('nodel-bindings', () => {
     await flush();
 
     expect(rows('actions')[0].textContent).toContain('Wired');
+    const statusLink = rows('actions')[0].querySelector<HTMLAnchorElement>('.nodel-bindings-status');
+    expect(statusLink?.getAttribute('href')).toBe('/nodes.html?filter=Display%20%C3%9Cnit#Network');
+    expect(statusLink?.getAttribute('aria-label')).toBe('Open Display Ünit in Network nodes');
   });
 
   it('normalizes non-wired backend binding states to Unwired', async () => {

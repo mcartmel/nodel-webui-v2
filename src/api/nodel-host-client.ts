@@ -21,6 +21,8 @@ import type {
   NodelNodeUrlEntry,
   NodelRestartStatus,
   NodelRecipeEntry,
+  NodelRemoteBinding,
+  NodelRemoteBindings,
   NodelJsonSchema,
   NodelSignalDefinition,
   NodelToolkitResponse
@@ -297,8 +299,30 @@ export async function getNodeRemoteSchema(init?: RequestInit): Promise<NodelJson
   return fetchJson<NodelJsonSchema>('REST/remote/schema', init);
 }
 
-export async function getNodeRemoteBindings(init?: RequestInit): Promise<Record<string, unknown>> {
-  return fetchJson<Record<string, unknown>>('REST/remote', init);
+export async function getNodeRemoteBindings(init?: RequestInit): Promise<NodelRemoteBindings> {
+  return fetchJson<NodelRemoteBindings>('REST/remote', init);
+}
+
+export async function getNodeEventBinding(alias: string, init?: RequestInit): Promise<NodelRemoteBinding | null> {
+  const bindings = await getNodeRemoteBindings(init);
+  const events = bindings.events;
+  if (events === undefined || events === null) {
+    return null;
+  }
+  if (!isRecord(events)) {
+    throw new Error('Remote event bindings are malformed');
+  }
+  if (!Object.prototype.hasOwnProperty.call(events, alias)) {
+    return null;
+  }
+  const value = events[alias];
+  if (!isRecord(value) || (value.node !== undefined && typeof value.node !== 'string')) {
+    throw new Error(`Event binding "${alias}" is malformed`);
+  }
+  return {
+    ...value,
+    node: typeof value.node === 'string' ? value.node : ''
+  } as NodelRemoteBinding;
 }
 
 export async function saveNodeRemoteBindings(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
@@ -384,6 +408,10 @@ export async function deleteNodeFile(path: string, init?: RequestInit): Promise<
 
 export async function searchNodeUrls(filter: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {
   return postJson<NodelNodeUrlEntry[]>('/REST/nodeURLs', { filter }, init);
+}
+
+export async function getNodeUrlsForNode(name: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {
+  return postJson<NodelNodeUrlEntry[]>('/REST/nodeURLsForNode', { name }, init);
 }
 
 export async function listRecipes(): Promise<NodelRecipeEntry[]> {

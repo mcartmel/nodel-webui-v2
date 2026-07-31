@@ -406,6 +406,19 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     snippet: '<nodel-icon name="power"></nodel-icon>'
   },
   {
+    name: 'nodel-link',
+    description: 'Static, discovered-node, or event-binding-derived link. Author exactly one destination attribute.',
+    attributes: [
+      { name: 'href', description: 'Safe relative or HTTP(S) URL.' },
+      { name: 'node', description: 'Exact Nodel node name resolved through host discovery.' },
+      { name: 'event-binding', description: 'Local remote-event binding alias whose target node should be opened.' },
+      { name: 'target', description: 'Standard anchor browsing context, such as _blank.' },
+      { name: 'rel', description: 'Standard anchor relationship tokens.' },
+      { name: 'aria-label', description: 'Accessible link label override.' }
+    ],
+    snippet: '<nodel-link href="${}">Link</nodel-link>'
+  },
+  {
     name: 'nodel-qrcode',
     description: 'Scan-safe signal-aware QR code with a fixed black-on-white high-correction symbol.',
     attributes: [
@@ -520,6 +533,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'scope', description: 'Node list scope.', values: ['local', 'network'] },
       { name: 'poll-interval', description: 'Polling interval in milliseconds.' },
       { name: 'page-size', description: 'Initial number of visible rows.' },
+      { name: 'query-param', description: 'URL query parameter used once to prefill the initial filter.' },
       { name: 'show-filter', description: 'Show filter control.', values: ['true', 'false'] },
       { name: 'show-total', description: 'Show total count.', values: ['true', 'false'] }
     ],

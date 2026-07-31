@@ -98,12 +98,15 @@ function nextPageSize(current: number): number {
 }
 
 export class NodelNodeList extends HTMLElement {
-  static observedAttributes = ['scope', 'poll-interval', 'page-size'];
+  static observedAttributes = ['scope', 'poll-interval', 'page-size', 'query-param'];
 
   private static nextSourceId = 0;
 
   private connected = false;
+  private appliedQueryParam: string | undefined;
   private debounceTimer: number | null = null;
+  private initializeToken = 0;
+  private lifecycle = Promise.resolve();
   private linked = false;
   private lastAppliedUpdatedAt: number | null = null;
   private source: NodelSourceSubscription<NodeListStateItem[]> | null = null;
@@ -120,20 +123,26 @@ export class NodelNodeList extends HTMLElement {
 
   connectedCallback() {
     this.connected = true;
-    void this.initialize();
+    this.appliedQueryParam = undefined;
+    this.queueInitialize();
   }
 
   disconnectedCallback() {
     this.connected = false;
+    this.initializeToken += 1;
+    this.appliedQueryParam = undefined;
     this.clearDebounceTimer();
     this.disposeSource();
     this.removeEventListener('click', this.handleClick);
-    void unlinkTemplate(this);
+    this.lifecycle = this.lifecycle.catch(() => undefined).then(async () => {
+      await unlinkTemplate(this);
+      this.linked = false;
+    });
   }
 
   attributeChangedCallback() {
     if (this.connected) {
-      void this.initialize();
+      this.queueInitialize();
     }
   }
 
@@ -154,17 +163,35 @@ export class NodelNodeList extends HTMLElement {
     return pageSizes.includes(value) ? value : this.state.end;
   }
 
-  private async initialize() {
+  private queueInitialize() {
+    const token = ++this.initializeToken;
+    this.lifecycle = this.lifecycle.catch(() => undefined).then(() => this.initialize(token));
+  }
+
+  private async initialize(token: number) {
+    if (!this.connected || token !== this.initializeToken) {
+      return;
+    }
     this.state.scope = normalizeScope(this.getAttribute('scope'));
     this.state.end = this.pageSize;
+    this.applyQueryFilter();
     if (!this.linked) {
       this.innerHTML = `<div class="nodel-node-list-shell"></div>`;
       await bootstrapJsViews();
+      if (!this.connected || token !== this.initializeToken) {
+        return;
+      }
       await linkTemplate(this, template, this.state);
+      if (!this.connected || token !== this.initializeToken) {
+        return;
+      }
       this.linked = true;
       this.bindEvents();
     }
 
+    if (!this.connected || token !== this.initializeToken) {
+      return;
+    }
     this.syncStateFromAttributes();
     this.rebuildSource();
   }
@@ -185,6 +212,22 @@ export class NodelNodeList extends HTMLElement {
     const $ = getJQuery();
     $.observable(this.state).setProperty('scope', normalizeScope(this.getAttribute('scope')));
     $.observable(this.state).setProperty('end', this.pageSize);
+  }
+
+  private applyQueryFilter() {
+    const queryParam = this.getAttribute('query-param')?.trim() ?? '';
+    if (this.appliedQueryParam === queryParam) {
+      return;
+    }
+    this.appliedQueryParam = queryParam;
+    if (!queryParam) {
+      return;
+    }
+    const value = new URLSearchParams(window.location.search).get(queryParam) ?? '';
+    this.state.flt = value;
+    if (this.linked) {
+      getJQuery().observable(this.state).setProperty('flt', value);
+    }
   }
 
   private handleFilterInput = (event: Event) => {

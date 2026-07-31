@@ -374,7 +374,7 @@
             <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Links And Native Inputs</h2>
               <p class="nodel-catalogue-description">
-                Use <code>nodel-link</code> for ordinary theme-aware links, <code>nodel-choice</code> for checkbox or radio inputs, and <code>nodel-field</code> for native text fields.
+                Use <code>nodel-link</code> for safe static, discovered-node, or event-binding-derived links. Static links are catalogue-safe and can preserve nested icon/status content. Use <code>nodel-choice</code> for checkbox or radio inputs and <code>nodel-field</code> for native text fields.
               </p>
             </header>
 
@@ -384,7 +384,7 @@
                   <nodel-group label="Native elements">
                     <nodel-row>
                       <nodel-column md="4">
-                        <a class="nodel-link" href="#Text">Theme-aware link</a>
+                        <nodel-link href="#Text"><nodel-icon name="info" size="sm"></nodel-icon> Theme-aware link</nodel-link>
                       </nodel-column>
                       <nodel-column md="4">
                         <label class="inline-flex items-center gap-2 text-sm text-nodel-fg">
@@ -409,7 +409,7 @@
     &lt;nodel-group label=&quot;Native elements&quot;&gt;
       &lt;nodel-row&gt;
         &lt;nodel-column md=&quot;4&quot;&gt;
-          &lt;a class=&quot;nodel-link&quot; href=&quot;#Text&quot;&gt;Theme-aware link&lt;/a&gt;
+          &lt;nodel-link href=&quot;#Text&quot;&gt;&lt;nodel-icon name=&quot;info&quot; size=&quot;sm&quot;&gt;&lt;/nodel-icon&gt; Theme-aware link&lt;/nodel-link&gt;
         &lt;/nodel-column&gt;
         &lt;nodel-column md=&quot;4&quot;&gt;
           &lt;label class=&quot;inline-flex items-center gap-2 text-sm text-nodel-fg&quot;&gt;
