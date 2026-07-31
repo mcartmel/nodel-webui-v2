@@ -65,11 +65,43 @@ describe('nodel-palette', () => {
 
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const input = palette.querySelector('input[type="color"]') as HTMLInputElement;
+    const valueInput = palette.querySelector('.nodel-palette-value-input') as HTMLInputElement;
+    const valueLabel = palette.querySelector('.nodel-palette-value-label') as HTMLLabelElement;
+    expect(palette.dataset.valueField).toBe('readonly');
+    expect(valueInput.readOnly).toBe(true);
+    expect(valueLabel.hidden).toBe(false);
+    expect(valueLabel.textContent).toContain('Colour value');
     input.value = '#123456';
     palette.querySelector('.nodel-palette-custom-button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(palette.getAttribute('value')).toBe('#123456');
+  });
+
+  it('supports explicit editable and hidden custom value fields', () => {
+    document.body.innerHTML = '<nodel-palette picker="native" value="#123456"></nodel-palette>';
+    const palette = document.querySelector('nodel-palette') as HTMLElement;
+    const colorInput = palette.querySelector('.nodel-palette-custom-input') as HTMLInputElement;
+    const valueInput = palette.querySelector('.nodel-palette-value-input') as HTMLInputElement;
+    const valueLabel = palette.querySelector('.nodel-palette-value-label') as HTMLLabelElement;
+
+    palette.setAttribute('value-field', 'editable');
+    expect(palette.dataset.valueField).toBe('editable');
+    expect(valueInput.readOnly).toBe(false);
+    valueInput.value = 'rgb(0, 255, 0)';
+    valueInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(colorInput.value).toBe('#00ff00');
+
+    palette.setAttribute('value-field', 'hidden');
+    expect(palette.dataset.valueField).toBe('hidden');
+    expect(valueLabel.hidden).toBe(true);
+    expect(valueInput.readOnly).toBe(true);
+    expect(colorInput.hidden).toBe(false);
+
+    palette.setAttribute('value-field', 'unsupported');
+    expect(palette.dataset.valueField).toBe('readonly');
+    expect(valueLabel.hidden).toBe(false);
+    expect(valueInput.readOnly).toBe(true);
   });
 
   it('uses join as action and updates from signals', async () => {
@@ -106,7 +138,7 @@ describe('nodel-palette', () => {
   });
 
   it('validates and normalizes editable custom values without discarding the last valid colour', async () => {
-    document.body.innerHTML = '<nodel-palette picker="native" action="SetColour" format="rgb" value="#123456"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" value-field="editable" action="SetColour" format="rgb" value="#123456"></nodel-palette>';
     await flush();
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const valueInput = palette.querySelector('.nodel-palette-value-input') as HTMLInputElement;
@@ -135,7 +167,7 @@ describe('nodel-palette', () => {
     ['hsl(120 100% 50% / 50%)', '#00ff0080'],
     ['hsv(240 100% 100% / 25%)', '#0000ff40']
   ])('accepts modern alpha colour syntax %s', async (inputValue, expected) => {
-    document.body.innerHTML = '<nodel-palette picker="native" action="SetColour"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" value-field="editable" action="SetColour"></nodel-palette>';
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const input = palette.querySelector('.nodel-palette-value-input') as HTMLInputElement;
     input.value = inputValue;
@@ -149,7 +181,7 @@ describe('nodel-palette', () => {
   });
 
   it('rejects malformed colour channel tokens', async () => {
-    document.body.innerHTML = '<nodel-palette picker="native" value="#123456"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" value-field="editable" value="#123456"></nodel-palette>';
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const input = palette.querySelector('.nodel-palette-value-input') as HTMLInputElement;
     input.value = 'rgb(1x, 2, 3)';
@@ -164,7 +196,7 @@ describe('nodel-palette', () => {
     'hsl(120, 100%, 50% / 50%)',
     'hsv(120, 100%, 50% / 50%)'
   ])('rejects mixed legacy and modern separator syntax %s', (inputValue) => {
-    document.body.innerHTML = '<nodel-palette picker="native" value="#123456"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" value-field="editable" value="#123456"></nodel-palette>';
     const input = document.querySelector('.nodel-palette-value-input') as HTMLInputElement;
     input.value = inputValue;
     input.dispatchEvent(new Event('input', { bubbles: true }));

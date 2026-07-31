@@ -14,6 +14,9 @@ test.describe('retained control and layout parity', () => {
     const palette = page.locator('[data-catalogue-example="palette-native"] nodel-palette');
     await expect(palette).toHaveAttribute('data-format', 'hsl');
     await expect(palette).toHaveAttribute('data-live', 'true');
+    await expect(palette).toHaveAttribute('data-value-field', 'readonly');
+    await expect(palette.locator('.nodel-palette-value-input')).toHaveAttribute('readonly', '');
+    await expect(palette.locator('.nodel-palette-value-label > span')).toHaveCSS('position', 'absolute');
     const customControlHeights = await palette.locator('.nodel-palette-custom-input, .nodel-palette-value-input, .nodel-palette-custom-button').evaluateAll((elements) => (
       elements.map((element) => element.getBoundingClientRect().height)
     ));
@@ -25,8 +28,9 @@ test.describe('retained control and layout parity', () => {
         (window as typeof window & { paletteChange?: unknown }).paletteChange = (event as CustomEvent).detail;
       });
     });
-    await palette.locator('.nodel-palette-value-input').fill('rgb(255, 0, 0)');
+    await palette.locator('.nodel-palette-custom-input').fill('#ff0000');
     await expect(palette).toHaveAttribute('value', '#ff0000');
+    await expect(palette.locator('.nodel-palette-value-input')).toHaveValue('hsl(0, 100%, 50%)');
     await expect.poll(() => page.evaluate(() => (window as typeof window & { paletteChange?: { arg?: unknown } }).paletteChange?.arg)).toBe('hsl(0, 100%, 50%)');
     await expect(palette.locator('.nodel-palette-custom')).toHaveScreenshot('palette-live-format.png', screenshotOptions);
 

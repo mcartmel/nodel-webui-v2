@@ -1806,7 +1806,15 @@
   }
 
   .nodel-palette-value-label {
-    @apply flex min-w-48 flex-1 flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+    @apply flex min-w-48 flex-1;
+  }
+
+  .nodel-palette-value-label[hidden] {
+    display: none;
+  }
+
+  .nodel-palette-value-label > span {
+    @apply sr-only;
   }
 
   .nodel-palette-value-input {

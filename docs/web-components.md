@@ -752,11 +752,11 @@ v1 migration examples:
 </nodel-group>
 ```
 
-`nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native picker plus an editable colour field. The field accepts and normalizes hex, RGB, HSL, and HSV values; invalid edits are marked without replacing the last valid colour.
+`nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native picker and colour-value feedback. The value field has no visual caption and defaults to `value-field="readonly"`, avoiding the on-screen keyboard while remaining focusable and copyable. Use `value-field="editable"` for manual hex, RGB, HSL, or HSV entry, or `value-field="hidden"` to omit the feedback field while retaining the native picker and Select button. Invalid editable values are marked without replacing the last valid colour.
 
 The palette keeps a canonical RGBA colour and converts only its action payload. `format="hex|rgb|hsl|hsv"` defaults to `hex`; for example, the same green selection emits `#00ff00`, `rgb(0, 255, 0)`, `hsl(120, 100%, 50%)`, or `hsv(120, 100%, 100%)`. The reflected selected `value` remains normalized hex so swatches and signals compare consistently.
 
-Add `live` to dispatch throttled custom-picker `input` updates. `live-interval` defaults to `100` ms and clamps to `50..1000`; the final pending value is flushed on picker/text `change`, and pending work is cancelled on disconnect. Without `live`, custom values retain the explicit Select/Enter behavior. Swatches, dynamic markup, confirmation, `allow-deselect`, and signal state use the same selection path in every output format.
+Add `live` to dispatch throttled custom-picker `input` updates. `live-interval` defaults to `100` ms and clamps to `50..1000`; the final pending value is flushed on picker change or editable-field change, and pending work is cancelled on disconnect. Without `live`, custom values retain the explicit Select behavior, with Enter also available in editable mode. Swatches, dynamic markup, confirmation, `allow-deselect`, and signal state use the same selection path in every output format.
 
 ```html
 <nodel-group label="LED Colour">

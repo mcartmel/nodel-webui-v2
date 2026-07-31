@@ -369,6 +369,7 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'columns', description: 'Internal swatch column count.' },
       { name: 'shape', description: 'Swatch shape.', values: ['square', 'rounded', 'circle'] },
       { name: 'picker', description: 'Optional custom colour picker.', values: ['off', 'native'] },
+      { name: 'value-field', description: 'Custom colour value feedback mode. Defaults to readonly.', values: ['readonly', 'editable', 'hidden'] },
       { name: 'format', description: 'Action payload colour format.', values: ['hex', 'rgb', 'hsl', 'hsv'] },
       { name: 'live', description: 'Dispatch throttled custom-picker input updates.' },
       { name: 'live-interval', description: 'Live update interval in milliseconds. Defaults to 100 and clamps to 50..1000.' },

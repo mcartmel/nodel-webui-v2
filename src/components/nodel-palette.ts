@@ -10,11 +10,13 @@ import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColo
 type PaletteShape = 'square' | 'rounded' | 'circle';
 type PaletteLabels = 'auto' | 'show' | 'hide';
 type PalettePicker = 'off' | 'native';
+type PaletteValueField = 'readonly' | 'editable' | 'hidden';
 type PaletteArgType = 'string' | 'json';
 
 const shapes: PaletteShape[] = ['square', 'rounded', 'circle'];
 const labelModes: PaletteLabels[] = ['auto', 'show', 'hide'];
 const pickerModes: PalettePicker[] = ['off', 'native'];
+const valueFieldModes: PaletteValueField[] = ['readonly', 'editable', 'hidden'];
 const argTypes: PaletteArgType[] = ['string', 'json'];
 const defaultLiveInterval = 100;
 const minimumLiveInterval = 50;
@@ -34,12 +36,13 @@ function looksLikeColor(value: string) {
 }
 
 export class NodelPalette extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'live', 'live-interval', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'action', 'actions', 'join', 'arg-type', 'columns', 'shape', 'picker', 'value-field', 'format', 'custom-label', 'show-labels', 'allow-deselect', 'live', 'live-interval', 'variant', 'tone', 'disabled', 'signal', 'signals', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private gridNode: HTMLElement | null = null;
   private customNode: HTMLInputElement | null = null;
   private customButton: HTMLButtonElement | null = null;
+  private customValueLabel: HTMLLabelElement | null = null;
   private customValueNode: HTMLInputElement | null = null;
   private customErrorNode: HTMLElement | null = null;
   private canonicalColor: NodelColor = { r: 255, g: 255, b: 255, a: 1 };
@@ -98,7 +101,7 @@ export class NodelPalette extends HTMLElement {
             <input type="color" class="nodel-palette-custom-input" value="#ffffff" />
           </label>
           <label class="nodel-palette-value-label">
-            <span>Value</span>
+            <span>Colour value</span>
             <input type="text" class="nodel-palette-value-input nodel-field" spellcheck="false" />
           </label>
           <button type="button" class="nodel-palette-custom-button">Select</button>
@@ -109,6 +112,7 @@ export class NodelPalette extends HTMLElement {
     this.gridNode = this.querySelector('.nodel-palette-grid');
     this.customNode = this.querySelector('.nodel-palette-custom-input');
     this.customButton = this.querySelector('.nodel-palette-custom-button');
+    this.customValueLabel = this.querySelector('.nodel-palette-value-label');
     this.customValueNode = this.querySelector('.nodel-palette-value-input');
     this.customErrorNode = this.querySelector('.nodel-palette-value-error');
     for (const child of children) {
@@ -139,6 +143,7 @@ export class NodelPalette extends HTMLElement {
     const shape = normalizeFromList(this.getAttribute('shape'), shapes, 'rounded');
     const showLabels = normalizeFromList(this.getAttribute('show-labels'), labelModes, 'auto');
     const picker = normalizeFromList(this.getAttribute('picker'), pickerModes, 'off');
+    const valueField = normalizeFromList(this.getAttribute('value-field'), valueFieldModes, 'readonly');
     const disabled = this.hasAttribute('disabled');
     const accessibleLabel = accessibleLabelText(this);
     const value = this.getAttribute('value') ?? '';
@@ -157,6 +162,7 @@ export class NodelPalette extends HTMLElement {
     this.dataset.shape = shape;
     this.dataset.showLabels = showLabels;
     this.dataset.picker = picker;
+    this.dataset.valueField = valueField;
     this.dataset.disabled = String(disabled);
     this.dataset.value = value;
     this.dataset.format = format;
@@ -169,6 +175,7 @@ export class NodelPalette extends HTMLElement {
     }
 
     customWrap!.hidden = picker !== 'native';
+    this.customValueLabel!.hidden = valueField === 'hidden';
     const customLabelText = this.getAttribute('custom-label') ?? '';
     customLabel!.hidden = !customLabelText;
     customLabel!.textContent = customLabelText;
@@ -177,12 +184,17 @@ export class NodelPalette extends HTMLElement {
     this.customNode!.setAttribute('aria-label', customLabelText || (accessibleLabel ? `${accessibleLabel} custom colour` : 'Custom colour'));
     this.customNode!.disabled = disabled;
     this.customValueNode!.disabled = disabled;
+    this.customValueNode!.readOnly = valueField !== 'editable';
+    if (valueField !== 'editable' && this.customInvalid) {
+      this.customInvalid = false;
+      this.customDraftActive = false;
+    }
     this.customButton!.disabled = disabled || this.customInvalid;
     this.customValueNode!.setAttribute('aria-invalid', String(this.customInvalid));
     this.customErrorNode!.hidden = !this.customInvalid;
     const canonicalHex = formatColor(this.canonicalColor, 'hex');
     this.customNode!.value = canonicalHex.slice(0, 7);
-    if (document.activeElement !== this.customValueNode && !this.customInvalid) {
+    if ((document.activeElement !== this.customValueNode || valueField !== 'editable') && !this.customInvalid) {
       this.customValueNode!.value = formatColor(this.canonicalColor, format);
     }
     this.style.setProperty('--nodel-palette-custom', canonicalHex);
@@ -320,13 +332,13 @@ export class NodelPalette extends HTMLElement {
   };
 
   private handleCustomValueInput = () => {
-    if (this.customValueNode) {
+    if (this.customValueNode && this.valueFieldMode() === 'editable') {
       this.applyCustomDraft(this.customValueNode.value, true);
     }
   };
 
   private handleCustomValueKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter' && !this.customInvalid) {
+    if (this.valueFieldMode() === 'editable' && event.key === 'Enter' && !this.customInvalid) {
       event.preventDefault();
       this.flushLiveSelection();
       if (!this.hasAttribute('live')) {
@@ -382,6 +394,10 @@ export class NodelPalette extends HTMLElement {
   private liveInterval() {
     const parsed = Number.parseInt(this.getAttribute('live-interval') ?? '', 10);
     return Number.isFinite(parsed) ? Math.min(maximumLiveInterval, Math.max(minimumLiveInterval, parsed)) : defaultLiveInterval;
+  }
+
+  private valueFieldMode() {
+    return normalizeFromList(this.getAttribute('value-field'), valueFieldModes, 'readonly');
   }
 
   private syncCustomValidation() {

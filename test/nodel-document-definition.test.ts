@@ -149,6 +149,7 @@ describe('nodel document definition', () => {
     expect(clock?.attributes.find((attribute) => attribute.name === 'format')?.values).toEqual(['time', 'date', 'datetime']);
     const palette = nodelDocumentElements.find((element) => element.name === 'nodel-palette');
     expect(palette?.attributes.find((attribute) => attribute.name === 'format')?.values).toEqual(['hex', 'rgb', 'hsl', 'hsv']);
+    expect(palette?.attributes.find((attribute) => attribute.name === 'value-field')?.values).toEqual(['readonly', 'editable', 'hidden']);
     expect(palette?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['live', 'live-interval']));
     const indicator = nodelDocumentElements.find((element) => element.name === 'nodel-status-indicator');
     expect(indicator?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['partial-on-value', 'partial-off-value', 'partial-tone', 'show-state-label']));

@@ -8,6 +8,7 @@
 - Static, discovered-node, and event-binding links use the explicit `nodel-link` component.
 - Node duplication is binary-safe, filters backup/generated files, makes configuration copying opt-in, reports partial results, and writes `script.py` last.
 - Page activation actions, footers, signal Markdown, title/clock bindings, retained control parity, responsive order, editor drops, and retained syntax modes use additive V2 APIs.
+- Native palette value feedback is read-only by default for touch use, with explicit editable and hidden modes.
 - The legacy V1 loader and V1 page path remain available for pages that have not migrated.
 
 See `docs/web-components.md` in the source repository for the full V1-to-V2 mapping and intentional differences.
