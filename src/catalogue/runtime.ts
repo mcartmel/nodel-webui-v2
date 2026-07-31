@@ -39,6 +39,8 @@ const initialSignals: Record<string, unknown> = {
   SectionTitle: 'Signal-driven section title',
   Status: 'Ready for catalogue interaction',
   AlertText: 'Signal-driven warning message',
+  MarkdownContent: '## Live operations\n\n- Network ready\n- Controller connected\n\n[Open details](#Text)',
+  ClockValue: '2026-07-31T10:15:30Z',
   HostName: 'Demo Host',
   HostAddress: 'demo-host',
   HostUrl: '#HostIcon',

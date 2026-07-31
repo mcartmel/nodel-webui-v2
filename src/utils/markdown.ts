@@ -44,8 +44,12 @@ const allowedAttributes = new Map<string, Set<string>>([
 const removedTags = new Set(['iframe', 'object', 'script', 'style']);
 
 function isSafeUrl(value: string) {
-  const trimmed = value.trim().toLowerCase();
-  return Boolean(trimmed) && !trimmed.startsWith('javascript:') && !trimmed.startsWith('data:') && !trimmed.startsWith('vbscript:');
+  try {
+    const url = new URL(value, window.location.href);
+    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:' || url.protocol === 'tel:';
+  } catch {
+    return false;
+  }
 }
 
 function sanitizeElement(element: Element) {

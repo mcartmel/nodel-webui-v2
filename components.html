@@ -1920,6 +1920,69 @@
           </section>
         </nodel-page>
 
+        <nodel-page title="Page Primitives" action="CataloguePageOpened">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">Page Primitives</h1>
+            <p class="nodel-catalogue-description">
+              Compose sanitized signal content, explicit clocks, status navigation, and semantic footers. This page also demonstrates a memory-runtime-safe page activation action.
+            </p>
+          </header>
+
+          <div class="nodel-catalogue-examples" data-catalogue-example="content-page-primitives">
+            <nodel-row>
+              <nodel-column md="7">
+                <nodel-group label="Signal-driven Markdown" surface="card">
+                  <nodel-markdown signal="MarkdownContent" max-height="sm"></nodel-markdown>
+                </nodel-group>
+              </nodel-column>
+              <nodel-column md="5">
+                <nodel-group label="Presentation time" surface="card">
+                  <nodel-clock signal="ClockValue" format="datetime" hour12="false" time-zone="UTC"></nodel-clock>
+                </nodel-group>
+              </nodel-column>
+            </nodel-row>
+            <nodel-row>
+              <nodel-column md="6">
+                <nodel-status label="Projector" value="ready">
+                  <nodel-link href="#Text">Open text examples</nodel-link>
+                </nodel-status>
+              </nodel-column>
+              <nodel-column md="6">
+                <nodel-footer>
+                  <span>Normal-flow footer content</span>
+                  <nodel-link href="#PagePrimitives">Current page</nodel-link>
+                </nodel-footer>
+              </nodel-column>
+            </nodel-row>
+          </div>
+
+          <pre class="nodel-catalogue-code" data-catalogue-code-for="content-page-primitives"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;7&quot;&gt;
+    &lt;nodel-group label=&quot;Signal-driven Markdown&quot; surface=&quot;card&quot;&gt;
+      &lt;nodel-markdown signal=&quot;MarkdownContent&quot; max-height=&quot;sm&quot;&gt;&lt;/nodel-markdown&gt;
+    &lt;/nodel-group&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;5&quot;&gt;
+    &lt;nodel-group label=&quot;Presentation time&quot; surface=&quot;card&quot;&gt;
+      &lt;nodel-clock signal=&quot;ClockValue&quot; format=&quot;datetime&quot; hour12=&quot;false&quot; time-zone=&quot;UTC&quot;&gt;&lt;/nodel-clock&gt;
+    &lt;/nodel-group&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-status label=&quot;Projector&quot; value=&quot;ready&quot;&gt;
+      &lt;nodel-link href=&quot;#Text&quot;&gt;Open text examples&lt;/nodel-link&gt;
+    &lt;/nodel-status&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-footer&gt;
+      &lt;span&gt;Normal-flow footer content&lt;/span&gt;
+      &lt;nodel-link href=&quot;#PagePrimitives&quot;&gt;Current page&lt;/nodel-link&gt;
+    &lt;/nodel-footer&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+        </nodel-page>
+
         <nodel-page title="Host Icon">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Host Icon</h1>

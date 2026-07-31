@@ -2416,6 +2416,57 @@
     @apply inline-flex shrink-0;
   }
 
+  nodel-app[data-fixed-footer='true'] {
+    padding-bottom: var(--nodel-fixed-footer-height, 0px);
+  }
+
+  nodel-footer {
+    @apply block;
+  }
+
+  .nodel-footer-shell {
+    @apply flex w-full flex-wrap items-center justify-between gap-3 border-t border-nodel-border bg-nodel-surface px-4 py-3 text-sm text-nodel-muted;
+  }
+
+  nodel-footer[fixed] .nodel-footer-shell {
+    @apply fixed inset-x-0 bottom-0 z-40;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+
+  .nodel-markdown-region {
+    @apply min-w-0;
+  }
+
+  nodel-markdown[data-max-height='sm'] .nodel-markdown-region {
+    max-height: 12rem;
+    overflow: auto;
+  }
+
+  nodel-markdown[data-max-height='md'] .nodel-markdown-region {
+    max-height: 20rem;
+    overflow: auto;
+  }
+
+  nodel-markdown[data-max-height='lg'] .nodel-markdown-region {
+    max-height: 32rem;
+    overflow: auto;
+  }
+
+  nodel-markdown[data-max-height='screen'] .nodel-markdown-region {
+    max-height: min(48rem, 70vh);
+    overflow: auto;
+  }
+
+  .nodel-markdown-fallback {
+    @apply text-sm text-nodel-muted;
+  }
+
+  nodel-clock {
+    @apply inline-flex font-mono tabular-nums text-nodel-fg;
+  }
+
   nodel-link[data-state='loading'] .nodel-link-indicator {
     @apply text-nodel-muted;
   }

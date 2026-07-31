@@ -13,6 +13,7 @@ vi.mock('../src/data/node-activity-source', () => ({
 import { flush } from './helpers';
 
 import '../src/components/nodel-status';
+import '../src/components/nodel-link';
 
 function emitSignal(alias: string, arg: unknown) {
   for (const listener of activityMock.listeners) {
@@ -57,6 +58,21 @@ describe('nodel-status', () => {
     expect(scaleSteps).toEqual(['muted', 'danger', 'warning', 'info', 'success']);
     expect(status.querySelector('.nodel-status-body nodel-button')).toBe(button);
     expect(button.getAttribute('aria-labelledby')).toBeNull();
+  });
+
+  it('composes explicit hash navigation without making the status card clickable', async () => {
+    document.body.innerHTML = '<nodel-status label="Projector" value="ready"><nodel-link href="#Details"><nodel-icon name="info"></nodel-icon> Details</nodel-link><button type="button">Reset</button></nodel-status>';
+    await customElements.whenDefined('nodel-status');
+    await flush();
+    const status = document.querySelector('nodel-status')!;
+    const shell = status.querySelector('.nodel-status-shell')!;
+    const link = status.querySelector<HTMLAnchorElement>('nodel-link a')!;
+
+    expect(link.getAttribute('href')).toBe('#Details');
+    expect(shell.tagName).toBe('DIV');
+    expect(shell.getAttribute('role')).toBe('group');
+    expect(shell.hasAttribute('href')).toBe(false);
+    expect(status.querySelector('button')?.textContent).toBe('Reset');
   });
 
   it('infers simple signal values conservatively and displays useful text', async () => {

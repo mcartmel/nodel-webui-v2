@@ -1,7 +1,17 @@
+import { callActionBindings, parseActionArg, parseActionBindings, type ActionArgType } from '../data/action-bindings';
+import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+
+const actionArgTypes: ActionArgType[] = ['string', 'number', 'boolean', 'json'];
+
+function normalizeArgType(value: string | null): ActionArgType {
+  return actionArgTypes.includes(value as ActionArgType) ? value as ActionArgType : 'string';
+}
+
 export class NodelPage extends HTMLElement {
   static observedAttributes = ['title'];
 
   private shellReady = false;
+  private activationGeneration = 0;
   private groupPage = false;
   private contentNode: HTMLElement | null = null;
 
@@ -9,9 +19,41 @@ export class NodelPage extends HTMLElement {
     this.render();
   }
 
+  disconnectedCallback() {
+    this.activationGeneration += 1;
+  }
+
   attributeChangedCallback() {
     if (this.isConnected) {
       this.render();
+    }
+  }
+
+  async activate() {
+    const generation = this.activationGeneration;
+    const bindings = parseActionBindings({
+      action: this.getAttribute('action'),
+      actions: this.getAttribute('actions'),
+      defaultPhase: 'activate'
+    });
+    if (bindings.length === 0) {
+      return;
+    }
+    const payload = this.hasAttribute('arg')
+      ? { arg: parseActionArg(this.getAttribute('arg') ?? '', normalizeArgType(this.getAttribute('arg-type'))) }
+      : {};
+    const execution = await callActionBindings(bindings, 'activate', payload);
+    if (generation === this.activationGeneration && this.isConnected && execution.failures.length > 0) {
+      this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
+        bubbles: true,
+        composed: true,
+        detail: {
+          message: 'Page action failed',
+          detail: execution.failures.map((failure) => `${failure.action}: ${failure.error ?? 'Failed to call action'}`).join('; '),
+          tone: 'danger',
+          durationMs: 7000
+        }
+      }));
     }
   }
 

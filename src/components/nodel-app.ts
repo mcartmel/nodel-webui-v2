@@ -20,6 +20,9 @@ import {
   slugPageTitle
 } from '../navigation/navigation';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
+import { createSignalBindingController } from '../data/signal-bindings';
+import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail } from '../data/app-title';
+import { updateHostFavicon } from '../icons/favicon';
 
 function setRootTheme(theme: string) {
   document.documentElement.dataset.theme = theme;
@@ -34,6 +37,10 @@ interface NavigationDiscovery {
 
 interface RestartRefreshElement extends Element {
   refreshAfterRestart?: () => void | Promise<void>;
+}
+
+interface ActivatablePage extends HTMLElement {
+  activate?: () => void | Promise<void>;
 }
 
 type ToastCustomEvent = CustomEvent<NodelToastDetail>;
@@ -75,9 +82,11 @@ function eventDetailValue(event: Event, key: string) {
 }
 
 export class NodelApp extends HTMLElement implements NodelNavigationHost {
-  static observedAttributes = ['theme', 'title', 'offline-mode'];
+  static observedAttributes = ['theme', 'title', 'offline-mode', 'signal', 'signals'];
 
   private activePageId = '';
+  private initialPageActivated = false;
+  private lastHandledHash = '';
   private groupByChildId = new Map<string, HTMLElement>();
   private groupPages = new Set<HTMLElement>();
   private mutationObserver: MutationObserver | null = null;
@@ -85,6 +94,8 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
+  private signalBindings = createSignalBindingController(this);
+  private signalTitle: string | null = null;
   private systemThemeMediaQuery: MediaQueryList | null = null;
   private titleLoadToken = 0;
   private confirmHost: NodelConfirmHostElement | null = null;
@@ -101,10 +112,12 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.ensureConnectivityHost();
     this.ensureConfirmHost();
     this.ensureToastHost();
+    updateHostFavicon();
     this.connectivitySubscription = subscribeConnectivity(this.handleConnectivityChange);
     this.syncTheme();
     this.startThemeSynchronization();
     this.syncTitle();
+    this.syncSignalSubscription();
     this.addEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
     this.addEventListener(NODEL_CONFIRM, this.handleConfirmRequest as EventListener);
     this.addEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
@@ -129,6 +142,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   disconnectedCallback() {
     this.titleLoadToken += 1;
+    this.signalTitle = null;
     this.removeEventListener(NODEL_NAV_SELECT, this.handleNavSelect as EventListener);
     this.removeEventListener(NODEL_CONFIRM, this.handleConfirmRequest as EventListener);
     this.removeEventListener(NODEL_TOAST, this.handleToastRequest as EventListener);
@@ -148,6 +162,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.connectivitySubscription = null;
     this.restoreConnectivityInert(false);
     this.stopThemeSynchronization();
+    this.signalBindings.dispose();
     this.confirmHost = null;
     this.connectivityHost = null;
     this.toastHost = null;
@@ -161,6 +176,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       this.syncTheme();
     } else if (name === 'title') {
       this.syncTitle();
+    } else if (name === 'signal' || name === 'signals') {
+      this.signalTitle = null;
+      this.syncTitle();
+      this.dispatchSignalTitleChange();
+      this.syncSignalSubscription();
     } else if (name === 'offline-mode') {
       this.syncConnectivityPresentation();
     }
@@ -173,6 +193,10 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     };
   }
 
+  getSignalTitle() {
+    return this.signalTitle;
+  }
+
   private handleNavSelect = (event: CustomEvent<NodelNavSelectDetail>) => {
     const pageId = event.detail?.pageId;
     if (!pageId || !this.pageById.has(pageId)) {
@@ -180,13 +204,14 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     }
 
     event.preventDefault();
-    this.setActivePage(pageId, true);
+    this.setActivePage(pageId, true, true);
   };
 
   private handleHashChange = () => {
     const pageId = this.getHashPageId();
     if (pageId && this.pageById.has(pageId)) {
-      this.setActivePage(pageId, false);
+      this.lastHandledHash = window.location.hash;
+      this.setActivePage(pageId, false, true);
     }
   };
 
@@ -427,7 +452,9 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.navigationQueued = true;
     queueMicrotask(() => {
       this.navigationQueued = false;
-      this.syncNavigation();
+      if (this.isConnected) {
+        this.syncNavigation();
+      }
     });
   }
 
@@ -445,7 +472,15 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       this.pageById.keys().next().value ||
       '';
 
-    this.setActivePage(nextPageId, false);
+    const hashActivation = Boolean(hashPageId && this.pageById.has(hashPageId) && window.location.hash !== this.lastHandledHash);
+    const activate = Boolean(nextPageId) && (!this.initialPageActivated || hashActivation);
+    this.setActivePage(nextPageId, false, activate);
+    if (nextPageId) {
+      this.initialPageActivated = true;
+    }
+    if (hashPageId && this.pageById.has(hashPageId)) {
+      this.lastHandledHash = window.location.hash;
+    }
   }
 
   private discoverNavigation(): NavigationDiscovery {
@@ -501,14 +536,18 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     return { groupByChildId, groupPages, items, pageById };
   }
 
-  private setActivePage(pageId: string, updateHash: boolean) {
+  private setActivePage(pageId: string, updateHash: boolean, activate = false) {
     this.activePageId = pageId;
     this.dataset.activePage = pageId;
     this.applyPageVisibility(pageId);
     if (updateHash && pageId) {
       history.replaceState(undefined, '', `#${pageId}`);
+      this.lastHandledHash = window.location.hash;
     }
     this.dispatchNavigationChange();
+    if (activate) {
+      void (this.pageById.get(pageId) as ActivatablePage | undefined)?.activate?.();
+    }
   }
 
   private applyPageVisibility(activePageId: string) {
@@ -582,6 +621,10 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private syncTitle() {
     const token = ++this.titleLoadToken;
+    if (this.signalTitle !== null) {
+      document.title = this.signalTitle;
+      return;
+    }
     const title = this.getAttribute('title');
     if (title) {
       document.title = title;
@@ -598,7 +641,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private async loadNodeTitle(token: number) {
     try {
       const data = await getNodeDetails();
-      if (token !== this.titleLoadToken || this.hasAttribute('title')) {
+      if (token !== this.titleLoadToken || this.hasAttribute('title') || this.signalTitle !== null) {
         return;
       }
 
@@ -609,6 +652,22 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     } catch {
       // Node title lookup is best-effort; leave the static page title in place if it fails.
     }
+  }
+
+  private syncSignalSubscription() {
+    this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'title', {
+      title: (value) => {
+        this.signalTitle = value;
+        this.syncTitle();
+        this.dispatchSignalTitleChange();
+      }
+    });
+  }
+
+  private dispatchSignalTitleChange() {
+    this.dispatchEvent(new CustomEvent<NodelAppTitleChangeDetail>(NODEL_APP_TITLE_CHANGE, {
+      detail: { title: this.signalTitle }
+    }));
   }
 }
 

@@ -10,8 +10,9 @@ import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
 import { getNodeDetails } from '../api/nodel-host-client';
 import './nodel-host-icon';
+import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail, type NodelAppTitleHost } from '../data/app-title';
 
-type NavigationAppElement = HTMLElement & NodelNavigationHost;
+type NavigationAppElement = HTMLElement & NodelNavigationHost & NodelAppTitleHost;
 
 export class NodelToolbar extends HTMLElement {
   static observedAttributes = ['title', 'icon-src', 'icon-alt'];
@@ -24,6 +25,7 @@ export class NodelToolbar extends HTMLElement {
   private openGroupId = '';
   private shellReady = false;
   private autoTitle = '';
+  private appSignalTitle: string | null = null;
   private titleLoadToken = 0;
   private iconNode: HTMLImageElement | null = null;
   private hostIconNode: HTMLElement | null = null;
@@ -32,10 +34,12 @@ export class NodelToolbar extends HTMLElement {
 
   connectedCallback() {
     this.appNode = this.closest('nodel-app') as NavigationAppElement | null;
+    this.appSignalTitle = this.appNode?.getSignalTitle?.() ?? null;
     this.render();
     void this.loadDefaultTitle();
     this.addEventListener('click', this.handleClick);
     this.appNode?.addEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
+    this.appNode?.addEventListener(NODEL_APP_TITLE_CHANGE, this.handleAppTitleChange as EventListener);
     document.addEventListener('click', this.handleDocumentClick);
     document.addEventListener('keydown', this.handleDocumentKeydown);
     window.addEventListener('resize', this.positionOpenGroupMenu);
@@ -47,11 +51,13 @@ export class NodelToolbar extends HTMLElement {
     this.titleLoadToken += 1;
     this.removeEventListener('click', this.handleClick);
     this.appNode?.removeEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
+    this.appNode?.removeEventListener(NODEL_APP_TITLE_CHANGE, this.handleAppTitleChange as EventListener);
     document.removeEventListener('click', this.handleDocumentClick);
     document.removeEventListener('keydown', this.handleDocumentKeydown);
     window.removeEventListener('resize', this.positionOpenGroupMenu);
     window.removeEventListener('scroll', this.positionOpenGroupMenu, true);
     this.appNode = null;
+    this.appSignalTitle = null;
   }
 
   attributeChangedCallback() {
@@ -62,7 +68,7 @@ export class NodelToolbar extends HTMLElement {
   }
 
   private render() {
-    const title = this.getAttribute('title') ?? this.autoTitle;
+    const title = this.getAttribute('title') ?? this.appSignalTitle ?? this.autoTitle;
     const hasTitle = title.trim().length > 0;
     const iconSrc = this.getAttribute('icon-src');
     const iconAlt = this.getAttribute('icon-alt') ?? title;
@@ -127,7 +133,7 @@ export class NodelToolbar extends HTMLElement {
   private async loadDefaultTitle() {
     const token = ++this.titleLoadToken;
 
-    if (this.hasAttribute('title') || !getNodePathName()) {
+    if (this.hasAttribute('title') || this.appSignalTitle !== null || !getNodePathName()) {
       this.autoTitle = '';
       this.render();
       return;
@@ -200,6 +206,12 @@ export class NodelToolbar extends HTMLElement {
     this.navItems = event.detail.items;
     this.activePageId = event.detail.activePageId;
     this.renderNavigation();
+  };
+
+  private handleAppTitleChange = (event: CustomEvent<NodelAppTitleChangeDetail>) => {
+    this.appSignalTitle = event.detail.title;
+    this.render();
+    void this.loadDefaultTitle();
   };
 
   private syncNavigationFromApp() {

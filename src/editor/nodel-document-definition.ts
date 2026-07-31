@@ -49,7 +49,9 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'title', description: 'Runtime page title.' },
       { name: 'theme', description: 'Theme selection.', values: ['default', 'light', 'dark'] },
-      { name: 'offline-mode', description: 'Host-offline presentation. Modal blocks controls; overlay leaves them available.', values: ['modal', 'overlay'] }
+      { name: 'offline-mode', description: 'Host-offline presentation. Modal blocks controls; overlay leaves them available.', values: ['modal', 'overlay'] },
+      { name: 'signal', description: signalBindingDescription('title') },
+      { name: 'signals', description: signalsBindingDescription('title') }
     ],
     snippet: '<nodel-app title="Nodel">\n  ${}\n</nodel-app>'
   },
@@ -68,7 +70,11 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     description: 'Selectable app page or nav group.',
     attributes: [
       { name: 'title', description: 'Page title used for heading/navigation.' },
-      { name: 'nav-id', description: 'Stable explicit navigation id.' }
+      { name: 'nav-id', description: 'Stable explicit navigation id.' },
+      { name: 'action', description: 'Action called whenever this page is explicitly activated.' },
+      { name: 'actions', description: 'Semicolon/comma-separated activation actions.' },
+      { name: 'arg', description: 'Optional activation action argument.' },
+      { name: 'arg-type', description: 'Parser for the activation argument.', values: ['string', 'number', 'boolean', 'json'] }
     ],
     snippet: '<nodel-page title="Page">\n  ${}\n</nodel-page>'
   },
@@ -88,6 +94,14 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'lg', description: 'Large breakpoint 12-column span.' }
     ],
     snippet: '<nodel-column md="6">\n  ${}\n</nodel-column>'
+  },
+  {
+    name: 'nodel-footer',
+    description: 'Semantic page footer in normal flow or an explicitly fixed safe-area-aware mode.',
+    attributes: [
+      { name: 'fixed', description: 'Fix the footer to the viewport bottom and reserve matching app space.' }
+    ],
+    snippet: '<nodel-footer>\n  ${}\n</nodel-footer>'
   },
   {
     name: 'nodel-control-grid',
@@ -507,6 +521,30 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
       { name: 'signals', description: 'Signal bindings in SignalName[.path]:target format. Use target value for title content.' }
     ],
     snippet: '<nodel-title level="1">${}</nodel-title>'
+  },
+  {
+    name: 'nodel-markdown',
+    description: 'Sanitized literal or signal-driven Markdown content.',
+    attributes: [
+      { name: 'value', description: 'Markdown source text.' },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value') },
+      { name: 'max-height', description: 'Constrained internal overflow height.', values: ['none', 'sm', 'md', 'lg', 'screen'] }
+    ],
+    snippet: '<nodel-markdown signal="${}"></nodel-markdown>'
+  },
+  {
+    name: 'nodel-clock',
+    description: 'Explicit signal-driven date/time display without an autonomous timer.',
+    attributes: [
+      { name: 'value', description: 'Date/time input value.' },
+      { name: 'signal', description: signalBindingDescription('value') },
+      { name: 'signals', description: signalsBindingDescription('value') },
+      { name: 'format', description: 'Displayed date/time fields.', values: ['time', 'date', 'datetime'] },
+      { name: 'hour12', description: '12-hour clock preference.', values: ['auto', 'true', 'false'] },
+      { name: 'time-zone', description: 'Optional IANA time zone.' }
+    ],
+    snippet: '<nodel-clock signal="${}" format="time"></nodel-clock>'
   },
   {
     name: 'nodel-theme-toggle',

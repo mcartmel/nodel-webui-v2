@@ -5,6 +5,7 @@ import './components/nodel-toolbar';
 import './components/nodel-page';
 import './components/nodel-row';
 import './components/nodel-column';
+import './components/nodel-footer';
 import './components/nodel-control-grid';
 import './components/nodel-control-space';
 import './components/nodel-group';
@@ -28,7 +29,9 @@ import './components/nodel-status';
 import './components/nodel-collapse';
 import './components/nodel-description';
 import './components/nodel-text';
+import './components/nodel-markdown';
 import './components/nodel-title';
+import './components/nodel-clock';
 import './components/nodel-host-icon';
 import './components/nodel-node-list';
 import './components/nodel-add-node';
@@ -47,11 +50,9 @@ import './components/nodel-theme-toggle';
 import './components/nodel-toast-host';
 import './components/nodel-confirm-host';
 
-import { updateHostFavicon } from './icons/favicon';
 import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';
 import { bootstrapJsViews } from './jsviews/jsviews-runtime';
 
-updateHostFavicon();
 bootstrapSignalVisibilityBindings();
 
 void bootstrapJsViews().catch((error) => {

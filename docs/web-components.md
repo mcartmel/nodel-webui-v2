@@ -34,6 +34,7 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-page`: selectable page or nested navigation group.
 - `nodel-row`: responsive 12-column page-layout row.
 - `nodel-column`: responsive page-layout column.
+- `nodel-footer`: semantic normal-flow or explicitly fixed page footer.
 - `nodel-control-grid`: equal-cell grid for touch controls.
 - `nodel-control-space`: deliberate empty cell inside a control grid.
 - `nodel-group`: labelled composition group with optional card or panel surface.
@@ -56,6 +57,8 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-collapse`: reusable native disclosure section.
 - `nodel-title`: visible page or section heading.
 - `nodel-text`: theme-aware body text and callout content.
+- `nodel-markdown`: sanitized literal or signal-driven Markdown.
+- `nodel-clock`: explicit signal-driven date/time display.
 - `nodel-host-icon`: generated host identicon with an optional link.
 - `nodel-theme-toggle`: persistent light/dark theme control for the nearest app.
 
@@ -220,7 +223,18 @@ Use the stable v2 asset path when authoring pages:
 <nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>
 ```
 
-The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. Set `title` only when the bar needs an explicit override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
+The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. A `nodel-app` `signal` or `signals` binding targets `title` by default and updates both `document.title` and the default toolbar title. An explicit `nodel-toolbar title="..."` remains the visible toolbar override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
+
+```html
+<nodel-app signal="DisplayTitle">
+  <nodel-toolbar></nodel-toolbar>
+  ...
+</nodel-app>
+```
+
+Signal aliases named `Title` are not globally special; dynamic titles require this explicit binding.
+
+When the document has no authored `link[rel~="icon"]`, `nodel-app` creates a generated host favicon. An authored favicon is never replaced, and toolbar `icon-src` does not affect the favicon.
 
 The toolbar remains in normal document flow. Below `640px`, its branding/actions occupy the first row and page navigation moves to a horizontally scrollable second row. Nested page menus remain keyboard accessible and use a viewport-clamped overlay on small screens so they are not clipped by the navigation strip.
 
@@ -254,6 +268,20 @@ Use `nav-id` when a page needs a stable explicit hash target:
 If `nav-id` is omitted, the ID is generated from the title by keeping only ASCII letters and digits, matching the v1 concept.
 
 Prefer omitting `nav-id` on core pages unless the generated title-based ID is not sufficient.
+
+Pages can call one or more current-node actions whenever they are activated:
+
+```html
+<nodel-page title="Presentation" action="PreparePresentation"></nodel-page>
+<nodel-page title="Preview" actions="Prepare; SelectPreview" arg='{"source":"preview"}' arg-type="json"></nodel-page>
+```
+
+- `action` and `actions` use the shared action-binding parser. Multiple names are separated with semicolons or commas.
+- `arg-type` accepts `string`, `number`, `boolean`, or `json`.
+- Omitting `arg` sends an empty object payload, matching V1 page-action behavior.
+- Actions run once for initial/hash activation and for every explicit navigation selection, including reselection of the active page.
+- Navigation updates immediately. Failures appear through the app toast host and do not return the user to the previous page.
+- DOM mutation rediscovery does not reactivate the current page.
 
 ## Theme
 
@@ -324,6 +352,19 @@ Use `md="6"` for full width on small screens and half width from medium screens 
 ```
 
 `nodel-page title="..."` is used for generated navigation labels. It does not render a visible page heading. Add explicit heading/content components inside the page when a visible title is needed.
+
+## Footer
+
+`nodel-footer` preserves arbitrary text, links, buttons, and other children inside a semantic `footer`. It remains in normal document flow by default.
+
+```html
+<nodel-footer>
+  <span>Controller ready</span>
+  <nodel-link href="#Details">Details</nodel-link>
+</nodel-footer>
+```
+
+Add `fixed` only for V1-style touch pages that need persistent bottom actions. Fixed mode respects the device safe-area inset and measures its wrapped height so the nearest `nodel-app` reserves matching bottom space. Removing or disconnecting the fixed footer removes that reservation. Pages with no fixed footer receive no extra spacing.
 
 ## Touch Controls
 
@@ -911,6 +952,18 @@ The logical states are `unknown`, `muted`, `danger`, `warning`, `info`, and `suc
 
 Whole `signal` values that are JSON objects with v1-style `level` and optional `message` fields are also understood, but explicit path bindings are preferred for structured status values.
 
+Navigation is composed explicitly inside the status body. Do not make the entire status card clickable because it may also contain buttons, toggles, or nested links:
+
+```html
+<nodel-status label="Projector" signal="ProjectorStatus">
+  <nodel-link href="#Details">Details</nodel-link>
+  <nodel-link node="Projector Controller">Open controller</nodel-link>
+  <nodel-button action="ResetProjector">Reset</nodel-button>
+</nodel-status>
+```
+
+When migrating V1 `status page="Details"`, replace it with an explicit `<nodel-link href="#Details">` child. Use `node` or `event-binding` on that child for remote navigation; no parent status inference occurs.
+
 `nodel-status-indicator` supports:
 
 - `signal="SignalName"` as shorthand for `value`
@@ -1011,6 +1064,36 @@ Supported attributes:
 - `signals="SignalName:target"` with target `value`
 
 Use `surface="card"` for bordered/padded callouts.
+
+## Signal-Driven Markdown
+
+`nodel-markdown` safely replaces V1 `<panel event="...">` content. It uses the shared sanitized Markdown renderer rather than inserting untrusted runtime HTML.
+
+```html
+<nodel-markdown value="## Instructions"></nodel-markdown>
+<nodel-markdown signal="OperatorInstructions" max-height="md"></nodel-markdown>
+```
+
+- `signal` and `signals` target `value` by default.
+- `max-height` accepts only `none`, `sm`, `md`, `lg`, or `screen`; constrained modes use an internal overflow region.
+- Empty, loading, and source-error states remain plain text.
+- Scripts, event-handler attributes, unsafe URL schemes, and unsupported elements are removed. New-window links receive `noopener noreferrer`.
+
+## Clock
+
+`nodel-clock` formats an explicit `value` or signal update with `Intl.DateTimeFormat`:
+
+```html
+<nodel-clock signal="PresentationTime" format="time"></nodel-clock>
+<nodel-clock signals="Schedule.start:value" format="datetime" hour12="false" time-zone="UTC"></nodel-clock>
+```
+
+- `format="time|date|datetime"` defaults to `time`.
+- `hour12="auto|true|false"` defaults to `auto`.
+- `time-zone` accepts an optional IANA time-zone name.
+- Invalid scalar values are displayed as their original text.
+- The component changes only when `value` or its explicit signal changes. It does not create an autonomous ticking clock.
+- Signal aliases named `Clock` are not globally special.
 
 For precise styling overrides, set CSS custom properties on the host:
 
