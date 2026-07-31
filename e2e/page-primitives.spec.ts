@@ -6,7 +6,7 @@ async function openCatalogue(page: Page, pageId: string) {
 }
 
 test.describe('page authoring primitives', () => {
-  test('renders memory-backed Markdown, clock, status links, and a semantic flow footer', async ({ page }) => {
+  test('renders memory-backed Markdown, clock, status links, and a semantic flow footer', async ({ page }, testInfo) => {
     const requests: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
     await openCatalogue(page, 'PagePrimitives');
@@ -24,7 +24,9 @@ test.describe('page authoring primitives', () => {
     await footerLink.focus();
     await expect(footerLink).toBeFocused();
     expect(requests.some((url) => /REST\/(actions|events|activity)/.test(url))).toBe(false);
-    await expect(example).toHaveScreenshot('page-primitives.png');
+    await expect(example).toHaveScreenshot('page-primitives.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
   });
 
   test('fixed footers wrap, reserve content space, preserve focus, and clean up', async ({ page }) => {

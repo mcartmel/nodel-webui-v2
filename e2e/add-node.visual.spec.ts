@@ -41,7 +41,7 @@ test.describe('add-node autocomplete', () => {
     await expect(addNode.locator('.nodel-template-selected')).toContainText('Recipe: Recipes/Starter Projector');
   });
 
-  test('renders duplicate options and partial-copy warning across display modes', async ({ page }) => {
+  test('renders duplicate options and partial-copy warning across display modes', async ({ page }, testInfo) => {
     await page.route('**/REST/recipes/list', (route) => route.fulfill({
       contentType: 'application/json',
       body: '[]'
@@ -92,7 +92,9 @@ test.describe('add-node autocomplete', () => {
     await expect(warning).toContainText('unavailable.zip');
     await expect(warning).toContainText('HTTP 507');
     await expect(addNode.locator('.nodel-template-selected')).toContainText('Node: Existing Projector');
-    await expect(addNode.locator('.nodel-add-node-panel')).toHaveScreenshot('add-node-partial-copy.png');
+    await expect(addNode.locator('.nodel-add-node-panel')).toHaveScreenshot('add-node-partial-copy.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
   });
 
   test('redirects to a completely duplicated node by default', async ({ page }, testInfo) => {

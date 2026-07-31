@@ -165,7 +165,7 @@ test.describe('theme first paint and preferences', () => {
 
     await openCatalogue(page, 'ControlGrid');
     const field = page.locator('[data-catalogue-example="links-native-choices"] .nodel-field');
-    const link = page.locator('.nodel-link').first();
+    const link = page.locator('[data-catalogue-example="links-native-choices"] .nodel-link');
     const choice = page.locator('.nodel-choice').first();
     await expectHighContrastFocus(field);
     await expectHighContrastFocus(link);
@@ -194,7 +194,7 @@ test.describe('theme first paint and preferences', () => {
     await expectFocusIsNotClipped(buttons.nth(0));
 
     await openCatalogue(page, 'ControlGrid');
-    const link = page.locator('.nodel-link');
+    const link = page.locator('[data-catalogue-example="links-native-choices"] .nodel-link');
     const choice = page.locator('.nodel-choice');
     const field = page.locator('[data-catalogue-example="links-native-choices"] .nodel-field');
     await tabTo(page, link);
