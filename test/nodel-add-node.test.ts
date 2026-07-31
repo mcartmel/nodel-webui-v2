@@ -241,6 +241,172 @@ describe('nodel-add-node', () => {
     expect(calls).toContain('/REST/newNode');
   });
 
+  it('shows duplicate-only configuration choice and reports current file progress', async () => {
+    let releaseContents: (() => void) | undefined;
+    const contentsReady = new Promise<void>((resolve) => {
+      releaseContents = resolve;
+    });
+    const saves: string[] = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Existing Node', address: 'http://host/nodes/Existing%20Node/', host: 'host' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files') {
+        return new Response(JSON.stringify([{ path: 'payload.bin' }, { path: 'nodeConfig.json' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/ConfiguredCopy/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.includes('http://host/nodes/Existing%20Node/REST/files/contents?path=')) {
+        if (url.endsWith('payload.bin')) {
+          await contentsReady;
+        }
+        return new Response(Uint8Array.from([0, 255, 1]), { status: 200 }) as never;
+      }
+      if (url.includes('/nodes/ConfiguredCopy/REST/files/save?path=')) {
+        saves.push(decodeURIComponent(url.split('path=')[1]));
+        expect(init?.body).toBeInstanceOf(Blob);
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel('<nodel-add-node redirect="false"></nodel-add-node>');
+    expect(document.querySelector('[data-add-node-copy-config]')).toBeNull();
+
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Configured Copy');
+    await setInputValue(templateInput, 'Existing');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    await pressKey(templateInput, 'ArrowDown');
+    await pressKey(templateInput, 'Enter');
+
+    const copyConfig = document.querySelector('[data-add-node-copy-config]') as HTMLInputElement;
+    expect(copyConfig).not.toBeNull();
+    expect(copyConfig.checked).toBe(false);
+    expect(document.body.textContent).toContain('environment-specific settings');
+    copyConfig.click();
+    expect(copyConfig.checked).toBe(true);
+
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => document.querySelector('.nodel-add-node-status')?.textContent?.includes('Copying payload.bin') === true, { attempts: 80, intervalMs: 5 });
+    expect(document.body.textContent).toContain('Node: Existing Node');
+    releaseContents?.();
+    await waitFor(() => document.body.textContent?.includes('Node created') === true, { attempts: 80, intervalMs: 5 });
+
+    expect(saves).toEqual(['payload.bin', 'nodeConfig.json']);
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-add-node-created-link')?.href).toContain('/nodes/ConfiguredCopy/');
+  });
+
+  it('keeps duplicate input and source selection visible after partial file failures', async () => {
+    const partialListener = vi.fn();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Existing Node', address: 'http://host/nodes/Existing%20Node/', host: 'host' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files') {
+        return new Response(JSON.stringify([{ path: 'broken.bin' }, { path: 'good.bin' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/PartialCopy/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.includes('http://host/nodes/Existing%20Node/REST/files/contents?path=')) {
+        return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
+      }
+      if (url.includes('/nodes/PartialCopy/REST/files/save?path=broken.bin')) {
+        return new Response(JSON.stringify({ message: 'disk rejected file' }), { status: 507, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.includes('/nodes/PartialCopy/REST/files/save?path=good.bin')) {
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel('<nodel-add-node redirect="false"></nodel-add-node>');
+    document.querySelector('nodel-add-node')?.addEventListener('nodel-node-duplicate-partial', partialListener);
+
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Partial Copy');
+    await setInputValue(templateInput, 'Existing');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    await pressKey(templateInput, 'ArrowDown');
+    await pressKey(templateInput, 'Enter');
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-warning')), { attempts: 80, intervalMs: 5 });
+    const warning = document.querySelector('.nodel-add-node-warning');
+    expect(warning?.getAttribute('role')).toBe('alert');
+    expect(warning?.textContent).toContain('broken.bin');
+    expect(warning?.textContent).toContain('HTTP 507');
+    expect(warning?.textContent).toContain('disk rejected file');
+    expect(nameInput.value).toBe('Partial Copy');
+    expect(templateInput.value).toBe('Existing Node');
+    expect(document.body.textContent).toContain('Node: Existing Node');
+    expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-add-node-created-link')?.href).toContain('/nodes/PartialCopy/');
+    expect(partialListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        failed: [expect.objectContaining({ path: 'broken.bin', phase: 'save', status: 507 })]
+      })
+    }));
+  });
+
+  it('shows the created-node link when script.py makes duplication fatal', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Existing Node', address: 'http://host/nodes/Existing%20Node/', host: 'host' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files') {
+        return new Response(JSON.stringify([{ path: 'script.py' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/BrokenCopy/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files/contents?path=script.py') {
+        return new Response('print("hello")', { status: 200 }) as never;
+      }
+      if (url.includes('/nodes/BrokenCopy/REST/files/save?path=script.py')) {
+        return new Response('invalid recipe', { status: 500 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel('<nodel-add-node redirect="false"></nodel-add-node>');
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Broken Copy');
+    await setInputValue(templateInput, 'Existing');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    await pressKey(templateInput, 'ArrowDown');
+    await pressKey(templateInput, 'Enter');
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-error')), { attempts: 80, intervalMs: 5 });
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('created but is incomplete');
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('script.py');
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-add-node-created-link')?.href).toContain('/nodes/BrokenCopy/');
+    expect(nameInput.value).toBe('Broken Copy');
+    expect(templateInput.value).toBe('Existing Node');
+  });
+
   it('closes the add-node panel with Cancel', async () => {
     stubAddNodeLookups();
     await openAddNodePanel();

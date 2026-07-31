@@ -186,3 +186,34 @@ export interface NodelFileEntry {
   modified?: string;
   [key: string]: unknown;
 }
+
+export type NodelDuplicateFilePhase = 'read' | 'save';
+
+export interface NodelDuplicateFileFailure {
+  path: string;
+  phase: NodelDuplicateFilePhase;
+  status?: number;
+  message: string;
+}
+
+export type NodelDuplicateProgressPhase = 'creating' | 'waiting' | 'copying' | 'complete';
+
+export interface NodelDuplicateProgress {
+  phase: NodelDuplicateProgressPhase;
+  message: string;
+  current: number;
+  total: number;
+  path?: string;
+}
+
+export interface NodelDuplicateNodeOptions {
+  includeNodeConfig?: boolean;
+  onProgress?: (progress: NodelDuplicateProgress) => void;
+}
+
+export interface NodelDuplicateNodeResult {
+  url: string;
+  copied: string[];
+  skipped: string[];
+  failed: NodelDuplicateFileFailure[];
+}

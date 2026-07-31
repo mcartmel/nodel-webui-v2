@@ -2603,6 +2603,10 @@
     background: rgb(var(--nodel-danger-bg) / 0.75);
   }
 
+  .nodel-alert-warning {
+    @apply border-solid border-nodel-warning/45 bg-nodel-warning/10 text-nodel-warning;
+  }
+
   .nodel-toast-host {
     @apply pointer-events-none fixed z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2;
     inset: 1rem 1rem auto auto;

@@ -1,5 +1,5 @@
-import { createNode, duplicateNode, listRecipes, searchNodeUrls, waitForNodeReady } from '../api/nodel-host-client';
-import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
+import { createNode, duplicateNode, listRecipes, NodelDuplicateNodeError, searchNodeUrls, waitForNodeReady } from '../api/nodel-host-client';
+import type { NodelDuplicateFileFailure, NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
 import { linkTemplate, unlinkTemplate, getJQuery } from '../jsviews/jsviews-runtime';
 import { getVerySimpleName } from '../utils/node-name';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
@@ -26,10 +26,14 @@ type TemplateResultView = TemplateResult & {
 };
 
 interface AddNodeViewModel {
+  createdUrl: string;
   duplicateEnabled: boolean;
+  duplicateMode: boolean;
   error: string;
+  failedFiles: NodelDuplicateFileFailure[];
   hasNodeResults: boolean;
   hasRecipeResults: boolean;
+  includeNodeConfig: boolean;
   nodeName: string;
   open: boolean;
   recipeResults: TemplateResultView[];
@@ -40,6 +44,7 @@ interface AddNodeViewModel {
   status: string;
   submitting: boolean;
   templateQuery: string;
+  warning: string;
 }
 
 const recipeCache: RecipeCache = {
@@ -94,14 +99,39 @@ const template = `
               </ul>
             </div>
           </div>
+          {^{if duplicateMode}}
+            <fieldset class="nodel-add-node-duplicate-options nodel-card space-y-1 px-3 py-2" data-link="disabled{:submitting}">
+              <label class="inline-flex items-center gap-2 text-sm font-medium text-nodel-fg">
+                <input class="nodel-choice" type="checkbox" data-add-node-copy-config data-link="includeNodeConfig" />
+                Copy configuration
+              </label>
+              <p class="text-xs text-nodel-muted">Includes nodeConfig.json, which may contain environment-specific settings.</p>
+            </fieldset>
+          {{/if}}
         </div>
 
         <div class="flex items-center justify-between gap-3">
           <div class="min-w-0 flex-1">
             {^{if error}}
               <div class="nodel-add-node-error nodel-alert nodel-alert-danger nodel-alert-sm" role="alert">{^{>error}}</div>
+              {^{if createdUrl}}
+                <a class="nodel-add-node-created-link nodel-link mt-1 inline-block text-sm" data-link="href{:createdUrl}">Open created node</a>
+              {{/if}}
+            {{else warning}}
+              <div class="nodel-add-node-warning nodel-alert nodel-alert-warning nodel-alert-sm space-y-1" role="alert">
+                <p>{^{>warning}}</p>
+                <ul class="list-disc space-y-0.5 pl-5">
+                  {^{for failedFiles}}
+                    <li><strong>{^{>path}}</strong>: {^{>phase}} failed{^{if status}} (HTTP {^{>status}}){{/if}} - {^{>message}}</li>
+                  {{/for}}
+                </ul>
+                <a class="nodel-add-node-created-link nodel-link inline-block" data-link="href{:~root.createdUrl}">Open created node</a>
+              </div>
             {{else}}
               <p class="nodel-add-node-status text-sm text-nodel-muted" role="status">{^{>status}}</p>
+              {^{if createdUrl}}
+                <a class="nodel-add-node-created-link nodel-link mt-1 inline-block text-sm" data-link="href{:createdUrl}">Open created node</a>
+              {{/if}}
             {{/if}}
           </div>
           <div class="flex items-center gap-2">
@@ -147,10 +177,14 @@ export class NodelAddNode extends HTMLElement {
   private selection: Selection = null;
   private templateResults: TemplateResult[] = [];
   private state: AddNodeViewModel = {
+    createdUrl: '',
     duplicateEnabled: true,
+    duplicateMode: false,
     error: '',
+    failedFiles: [],
     hasNodeResults: false,
     hasRecipeResults: false,
+    includeNodeConfig: false,
     nodeName: '',
     open: false,
     recipeResults: [],
@@ -160,7 +194,8 @@ export class NodelAddNode extends HTMLElement {
     showSelection: false,
     status: '',
     submitting: false,
-    templateQuery: ''
+    templateQuery: '',
+    warning: ''
   };
 
   connectedCallback() {
@@ -232,7 +267,12 @@ export class NodelAddNode extends HTMLElement {
   }
 
   private syncAttributeState() {
-    this.setState({ duplicateEnabled: this.allowDuplicate });
+    const duplicateEnabled = this.allowDuplicate;
+    this.setState({
+      duplicateEnabled,
+      duplicateMode: duplicateEnabled && this.selection?.type === 'node',
+      includeNodeConfig: duplicateEnabled && this.selection?.type === 'node' ? this.state.includeNodeConfig : false
+    });
   }
 
   private clearDebounceTimer() {
@@ -292,7 +332,12 @@ export class NodelAddNode extends HTMLElement {
     }
 
     this.selection = null;
-    this.setState({ showSelection: false, selectionText: '' });
+    this.setState({
+      duplicateMode: false,
+      includeNodeConfig: false,
+      showSelection: false,
+      selectionText: ''
+    });
     this.scheduleSearch();
   };
 
@@ -367,17 +412,22 @@ export class NodelAddNode extends HTMLElement {
       this.selection = null;
       this.templateResults = [];
       this.setState({
+        createdUrl: '',
+        duplicateMode: false,
         error: '',
+        failedFiles: [],
         nodeName: '',
         hasNodeResults: false,
         hasRecipeResults: false,
+        includeNodeConfig: false,
         nodeResults: [],
         recipeResults: [],
         selectionText: '',
         showAutocomplete: false,
         showSelection: false,
         status: '',
-        templateQuery: ''
+        templateQuery: '',
+        warning: ''
       });
       await refreshRecipes(true);
       this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
@@ -476,20 +526,30 @@ export class NodelAddNode extends HTMLElement {
     if (result.type === 'recipe') {
       this.selection = { type: 'recipe', path: result.path };
       this.setState({
+        createdUrl: '',
+        duplicateMode: false,
+        failedFiles: [],
+        includeNodeConfig: false,
         selectionText: `Recipe: ${result.path}`,
         showAutocomplete: false,
         showSelection: true,
-        templateQuery: result.path
+        templateQuery: result.path,
+        warning: ''
       });
       return;
     }
 
     this.selection = { type: 'node', address: result.address, name: result.name, host: result.host };
     this.setState({
+      createdUrl: '',
+      duplicateMode: true,
+      failedFiles: [],
+      includeNodeConfig: false,
       selectionText: `Node: ${result.name}`,
       showAutocomplete: false,
       showSelection: true,
-      templateQuery: result.name
+      templateQuery: result.name,
+      warning: ''
     });
   }
 
@@ -502,14 +562,32 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
-    this.setState({ error: '', status: '', submitting: true });
+    getJQuery().observable(this.state.failedFiles).refresh([]);
+    this.setState({ createdUrl: '', error: '', status: '', submitting: true, warning: '' });
 
     try {
       let url = '';
 
       if (this.selection?.type === 'node' && this.allowDuplicate) {
         this.setState({ status: 'Duplicating node...' });
-        url = await duplicateNode(this.selection.address, name);
+        const result = await duplicateNode(this.selection.address, name, {
+          includeNodeConfig: this.state.includeNodeConfig,
+          onProgress: (progress) => this.setState({ status: progress.message })
+        });
+        url = result.url;
+        if (result.failed.length > 0) {
+          getJQuery().observable(this.state.failedFiles).refresh(result.failed);
+          this.setState({
+            createdUrl: url,
+            status: '',
+            warning: `Node "${name}" was created, but ${result.failed.length} file${result.failed.length === 1 ? '' : 's'} could not be copied. The node may be incomplete.`
+          });
+          this.dispatchEvent(new CustomEvent('nodel-node-duplicate-partial', {
+            bubbles: true,
+            detail: result
+          }));
+          return;
+        }
       } else {
         const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
         this.setState({ status: 'Creating node...' });
@@ -522,20 +600,28 @@ export class NodelAddNode extends HTMLElement {
       this.dispatchEvent(new CustomEvent('nodel-node-created', { bubbles: true, detail: { url } }));
       if (this.allowRedirect) {
         window.location.href = url;
+        this.closePanel();
       } else {
-        this.setState({ status: 'Node created' });
+        this.setState({ createdUrl: url, status: 'Node created' });
       }
-
-      this.closePanel();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Node add failed';
+      const destinationUrl = error instanceof NodelDuplicateNodeError ? error.destinationUrl : '';
+      if (error instanceof NodelDuplicateNodeError) {
+        getJQuery().observable(this.state.failedFiles).refresh(error.failed);
+      }
       this.setState({
+        createdUrl: destinationUrl,
         error: message,
         status: ''
       });
+      const detail: { error: string; name: string; url?: string } = { error: message, name };
+      if (destinationUrl) {
+        detail.url = destinationUrl;
+      }
       this.dispatchEvent(new CustomEvent('nodel-add-node-error', {
         bubbles: true,
-        detail: { error: message, name }
+        detail
       }));
     } finally {
       this.setState({ submitting: false });

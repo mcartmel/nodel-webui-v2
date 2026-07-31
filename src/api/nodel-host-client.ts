@@ -8,6 +8,10 @@ import type {
   NodelCapabilityFeatures,
   NodelDiagnosticMeasurement,
   NodelDiagnosticsResponse,
+  NodelDuplicateFileFailure,
+  NodelDuplicateNodeOptions,
+  NodelDuplicateNodeResult,
+  NodelDuplicateProgress,
   NodelFileEntry,
   NodelHostLogEntry,
   NodelLocalNodeEntry,
@@ -30,6 +34,18 @@ export interface NodelCustomUiEntry {
   href: string;
   path: string;
   title: string;
+}
+
+export class NodelDuplicateNodeError extends Error {
+  readonly destinationUrl: string;
+  readonly failed: NodelDuplicateFileFailure[];
+
+  constructor(message: string, destinationUrl: string, failed: NodelDuplicateFileFailure[] = []) {
+    super(message);
+    this.name = 'NodelDuplicateNodeError';
+    this.destinationUrl = destinationUrl;
+    this.failed = failed;
+  }
 }
 
 async function responseError(response: Response) {
@@ -382,39 +398,168 @@ export async function createNode(value: string, base?: string): Promise<unknown>
   return postJson('/REST/newNode', payload);
 }
 
-export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, progressCallback?: (message: string) => void): Promise<string> {
-  const files = await fetchJson<Array<{ path: string }>>(`${sourceNodeUrl}REST/files`);
-  await createNode(newNodeName);
-  const newNodeUrl = `${window.location.origin}/nodes/${encodeURIComponent(getVerySimpleName(newNodeName))}/`;
+function duplicateFileBasename(path: string) {
+  return path.split(/[\\/]/).pop() ?? path;
+}
 
-  await waitForNodeReady(newNodeUrl);
+function shouldCopyDuplicateFile(path: string, includeNodeConfig: boolean) {
+  const basename = duplicateFileBasename(path);
+  return !basename.startsWith('_')
+    && !/^script_backup_.*\.py$/i.test(basename)
+    && (includeNodeConfig || basename !== 'nodeConfig.json');
+}
 
-  if (files.length === 0) {
-    return newNodeUrl;
+function validateDuplicateFileList(value: unknown): NodelFileEntry[] {
+  if (!Array.isArray(value) || value.some((file) => !isRecord(file) || typeof file.path !== 'string' || !file.path.trim())) {
+    throw new Error('Source node returned an invalid file list');
   }
 
-  progressCallback?.('Initializing node...');
+  return value as NodelFileEntry[];
+}
 
-  for (const file of files) {
-    const fileResponse = await fetch(`${sourceNodeUrl}REST/files/contents?path=${encodeURIComponent(file.path)}`);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to read ${file.path}`);
+function boundedErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  return (message.trim() || fallback).replace(/\s+/g, ' ').slice(0, 500);
+}
+
+async function duplicateFileFailure(path: string, phase: NodelDuplicateFileFailure['phase'], response: Response): Promise<NodelDuplicateFileFailure> {
+  const error = await responseError(response);
+  return {
+    path,
+    phase,
+    status: response.status,
+    message: boundedErrorMessage(error, `HTTP ${response.status}`)
+  };
+}
+
+function networkDuplicateFileFailure(path: string, phase: NodelDuplicateFileFailure['phase'], error: unknown): NodelDuplicateFileFailure {
+  return {
+    path,
+    phase,
+    message: boundedErrorMessage(error, phase === 'read' ? 'Failed to read source file' : 'Failed to save destination file')
+  };
+}
+
+function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: NodelDuplicateProgress) {
+  try {
+    options.onProgress?.(progress);
+  } catch {
+    // UI progress must not interrupt a file copy.
+  }
+}
+
+async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string): Promise<NodelDuplicateFileFailure | null> {
+  let contents: Blob;
+  try {
+    const response = await fetch(restUrlForNode(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`));
+    if (!response.ok) {
+      return duplicateFileFailure(path, 'read', response);
     }
+    contents = await response.blob();
+  } catch (error) {
+    return networkDuplicateFileFailure(path, 'read', error);
+  }
 
-    const content = await fileResponse.text();
-    const saveUrl = `${newNodeUrl}REST/files/save?path=${encodeURIComponent(file.path)}`;
-    const saveResponse = await fetch(saveUrl, {
+  try {
+    const response = await fetch(restUrlForNode(destinationNodeUrl, `REST/files/save?path=${encodeURIComponent(path)}`), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: content
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: contents
+    });
+    if (!response.ok) {
+      return duplicateFileFailure(path, 'save', response);
+    }
+  } catch (error) {
+    return networkDuplicateFileFailure(path, 'save', error);
+  }
+
+  return null;
+}
+
+export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, options: NodelDuplicateNodeOptions = {}): Promise<NodelDuplicateNodeResult> {
+  let files: NodelFileEntry[];
+  try {
+    const fileList = await fetchJson<unknown>(restUrlForNode(sourceNodeUrl, 'REST/files'));
+    files = validateDuplicateFileList(fileList);
+  } catch (error) {
+    throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`);
+  }
+  const includeNodeConfig = options.includeNodeConfig === true;
+  const skipped = files.filter((file) => !shouldCopyDuplicateFile(file.path, includeNodeConfig)).map((file) => file.path);
+  const filesToCopy = files
+    .filter((file) => shouldCopyDuplicateFile(file.path, includeNodeConfig))
+    .sort((left, right) => Number(left.path === 'script.py') - Number(right.path === 'script.py'));
+
+  reportDuplicateProgress(options, {
+    phase: 'creating',
+    message: 'Creating destination node...',
+    current: 0,
+    total: filesToCopy.length
+  });
+  try {
+    await createNode(newNodeName);
+  } catch (error) {
+    throw new Error(`Failed to create destination node "${newNodeName}": ${boundedErrorMessage(error, 'node creation failed')}`);
+  }
+
+  const newNodeUrl = `${window.location.origin}/nodes/${encodeURIComponent(getVerySimpleName(newNodeName))}/`;
+  reportDuplicateProgress(options, {
+    phase: 'waiting',
+    message: 'Waiting for the destination node to become available...',
+    current: 0,
+    total: filesToCopy.length
+  });
+
+  try {
+    await waitForNodeReady(newNodeUrl);
+  } catch (error) {
+    throw new NodelDuplicateNodeError(
+      `Node "${newNodeName}" was created but may be incomplete because it did not become available: ${boundedErrorMessage(error, 'readiness check failed')}`,
+      newNodeUrl
+    );
+  }
+
+  const copied: string[] = [];
+  const failed: NodelDuplicateFileFailure[] = [];
+  for (const [index, file] of filesToCopy.entries()) {
+    reportDuplicateProgress(options, {
+      phase: 'copying',
+      message: `Copying ${file.path} (${index + 1} of ${filesToCopy.length})...`,
+      current: index + 1,
+      total: filesToCopy.length,
+      path: file.path
     });
 
-    if (!saveResponse.ok) {
-      throw new Error(`Failed to copy ${file.path}`);
+    const failure = await copyDuplicateFile(sourceNodeUrl, newNodeUrl, file.path);
+    if (!failure) {
+      copied.push(file.path);
+      continue;
+    }
+
+    failed.push(failure);
+    if (file.path === 'script.py') {
+      const status = failure.status ? `, HTTP ${failure.status}` : '';
+      throw new NodelDuplicateNodeError(
+        `Node "${newNodeName}" was created but is incomplete: failed to ${failure.phase} script.py (${failure.phase}${status}): ${failure.message}`,
+        newNodeUrl,
+        failed
+      );
     }
   }
 
-  return newNodeUrl;
+  reportDuplicateProgress(options, {
+    phase: 'complete',
+    message: failed.length > 0 ? `Copy completed with ${failed.length} failed file${failed.length === 1 ? '' : 's'}.` : 'Node copy complete.',
+    current: filesToCopy.length,
+    total: filesToCopy.length
+  });
+
+  return {
+    url: newNodeUrl,
+    copied,
+    skipped,
+    failed
+  };
 }
 
 export async function checkHostReachable(host: string, timeoutMs = 3000, signal?: AbortSignal): Promise<NodelReachabilityResult> {
