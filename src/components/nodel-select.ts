@@ -8,10 +8,12 @@ import './nodel-button';
 
 type SelectArgType = ControlArgType;
 const argTypes: SelectArgType[] = ['string', 'number', 'boolean', 'json'];
+type SelectPlacement = 'auto' | 'bottom' | 'top';
+const placements: SelectPlacement[] = ['auto', 'bottom', 'top'];
 let selectIdCounter = 0;
 
 export class NodelSelect extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'signal', 'signals', 'options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'placeholder', 'value', 'action', 'actions', 'join', 'arg-type', 'variant', 'tone', 'disabled', 'allow-deselect', 'open', 'placement', 'signal', 'signals', 'options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private triggerNode: HTMLButtonElement | null = null;
@@ -24,6 +26,8 @@ export class NodelSelect extends HTMLElement {
   private optionsState: DynamicOptionsState = 'static';
   private optionsBindingKey = '';
   private optionsSourceError = false;
+  private placementListenersActive = false;
+  private placementResizeObserver: ResizeObserver | null = null;
 
   connectedCallback() {
     this.ensureShell();
@@ -44,6 +48,7 @@ export class NodelSelect extends HTMLElement {
     this.removeEventListener('click', this.handleOptionClick, true);
     this.removeEventListener('keydown', this.handleKeyDown);
     document.removeEventListener('pointerdown', this.handleDocumentPointerDown);
+    this.stopPlacementListeners();
   }
 
   attributeChangedCallback() {
@@ -148,6 +153,7 @@ export class NodelSelect extends HTMLElement {
     this.triggerNode!.setAttribute('aria-expanded', String(open));
     this.valueNode!.textContent = displayValue;
     this.panelNode!.hidden = !open;
+    this.syncPlacement(open);
     this.syncStatus();
     this.syncTriggerAccessibility(label, displayValue);
 
@@ -430,6 +436,73 @@ export class NodelSelect extends HTMLElement {
       item.setAttribute('data-nodel-native-tabindex', item === option ? '0' : '-1');
     }
     (option.querySelector('button') as HTMLButtonElement | null)?.focus();
+  }
+
+  private requestedPlacement() {
+    return normalizeFromList(this.getAttribute('placement'), placements, 'auto') as SelectPlacement;
+  }
+
+  private syncPlacement(open: boolean) {
+    const requested = this.requestedPlacement();
+    this.dataset.placementRequested = requested;
+    if (!open) {
+      this.dataset.placement = requested === 'top' ? 'top' : 'bottom';
+      this.stopPlacementListeners();
+      return;
+    }
+    if (requested === 'auto') {
+      this.startPlacementListeners();
+    } else {
+      this.stopPlacementListeners();
+    }
+    this.updatePlacement();
+  }
+
+  private updatePlacement = () => {
+    if (!this.hasAttribute('open') || !this.triggerNode || !this.panelNode) {
+      return;
+    }
+    const requested = this.requestedPlacement();
+    if (requested !== 'auto') {
+      this.dataset.placement = requested;
+      return;
+    }
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+    const triggerRect = this.triggerNode.getBoundingClientRect();
+    const panelHeight = Math.min(this.panelNode.scrollHeight || this.panelNode.getBoundingClientRect().height, 288);
+    const above = Math.max(0, triggerRect.top - viewportTop - 6);
+    const below = Math.max(0, viewportBottom - triggerRect.bottom - 6);
+    this.dataset.placement = panelHeight <= below || below >= above ? 'bottom' : 'top';
+  };
+
+  private startPlacementListeners() {
+    if (this.placementListenersActive) {
+      return;
+    }
+    this.placementListenersActive = true;
+    window.addEventListener('resize', this.updatePlacement);
+    window.addEventListener('scroll', this.updatePlacement, true);
+    window.visualViewport?.addEventListener('resize', this.updatePlacement);
+    window.visualViewport?.addEventListener('scroll', this.updatePlacement);
+    if (typeof ResizeObserver === 'function' && this.panelNode) {
+      this.placementResizeObserver = new ResizeObserver(this.updatePlacement);
+      this.placementResizeObserver.observe(this.panelNode);
+    }
+  }
+
+  private stopPlacementListeners() {
+    if (!this.placementListenersActive) {
+      return;
+    }
+    this.placementListenersActive = false;
+    window.removeEventListener('resize', this.updatePlacement);
+    window.removeEventListener('scroll', this.updatePlacement, true);
+    window.visualViewport?.removeEventListener('resize', this.updatePlacement);
+    window.visualViewport?.removeEventListener('scroll', this.updatePlacement);
+    this.placementResizeObserver?.disconnect();
+    this.placementResizeObserver = null;
   }
 }
 

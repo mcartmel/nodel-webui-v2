@@ -128,10 +128,10 @@
 
           <div class="nodel-catalogue-examples" data-catalogue-example="layout-responsive">
             <nodel-row>
-              <nodel-column md="8">
+              <nodel-column md="8" order="2" md-order="0">
                 <nodel-text surface="card" tone="default">Primary content</nodel-text>
               </nodel-column>
-              <nodel-column md="4">
+              <nodel-column md="4" order="1" md-order="0">
                 <nodel-text surface="card" tone="default">Supporting content</nodel-text>
               </nodel-column>
             </nodel-row>
@@ -152,10 +152,10 @@
           </div>
 
           <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-responsive"><code>&lt;nodel-row&gt;
-  &lt;nodel-column md=&quot;8&quot;&gt;
+  &lt;nodel-column md=&quot;8&quot; order=&quot;2&quot; md-order=&quot;0&quot;&gt;
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Primary content&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
-  &lt;nodel-column md=&quot;4&quot;&gt;
+  &lt;nodel-column md=&quot;4&quot; order=&quot;1&quot; md-order=&quot;0&quot;&gt;
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;Supporting content&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;
@@ -726,7 +726,7 @@
                 <nodel-column md="8">
                   <nodel-control-grid columns="1" md="2" data-catalogue-example="select-stepper">
                     <nodel-group label="Source">
-                      <nodel-select action="SetSource" signal="Source" value="HDMI 1" variant="primary" tone="soft">
+                      <nodel-select action="SetSource" signal="Source" value="HDMI 1" placement="top" variant="primary" tone="soft">
                         <nodel-button value="HDMI 1">HDMI 1</nodel-button>
                         <nodel-button value="HDMI 2">HDMI 2</nodel-button>
                         <nodel-button value="USB-C">USB-C</nodel-button>
@@ -742,7 +742,7 @@
 
             <pre class="nodel-catalogue-code" data-catalogue-code-for="select-stepper"><code>&lt;nodel-control-grid columns=&quot;1&quot; md=&quot;2&quot;&gt;
   &lt;nodel-group label=&quot;Source&quot;&gt;
-    &lt;nodel-select action=&quot;SetSource&quot; signal=&quot;Source&quot; value=&quot;HDMI 1&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;
+    &lt;nodel-select action=&quot;SetSource&quot; signal=&quot;Source&quot; value=&quot;HDMI 1&quot; placement=&quot;top&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;
       &lt;nodel-button value=&quot;HDMI 1&quot;&gt;HDMI 1&lt;/nodel-button&gt;
       &lt;nodel-button value=&quot;HDMI 2&quot;&gt;HDMI 2&lt;/nodel-button&gt;
       &lt;nodel-button value=&quot;USB-C&quot;&gt;USB-C&lt;/nodel-button&gt;
@@ -839,7 +839,7 @@
                 <nodel-column md="4">
                   <nodel-control-grid columns="1" data-catalogue-example="palette-native">
                     <nodel-group label="LED Colour">
-                      <nodel-palette value="#00ff00" picker="native" variant="primary" tone="soft"></nodel-palette>
+                      <nodel-palette action="SetColour" value="#00ff00" picker="native" format="hsl" live live-interval="100" variant="primary" tone="soft"></nodel-palette>
                     </nodel-group>
                   </nodel-control-grid>
                 </nodel-column>
@@ -848,7 +848,7 @@
 
             <pre class="nodel-catalogue-code" data-catalogue-code-for="palette-native"><code>&lt;nodel-control-grid columns=&quot;1&quot;&gt;
   &lt;nodel-group label=&quot;LED Colour&quot;&gt;
-    &lt;nodel-palette value=&quot;#00ff00&quot; picker=&quot;native&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;&lt;/nodel-palette&gt;
+    &lt;nodel-palette action=&quot;SetColour&quot; value=&quot;#00ff00&quot; picker=&quot;native&quot; format=&quot;hsl&quot; live live-interval=&quot;100&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;&lt;/nodel-palette&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
@@ -1316,21 +1316,25 @@
             <div class="nodel-catalogue-examples">
               <nodel-row>
                 <nodel-column md="8">
-                  <nodel-control-grid columns="2" md="4" data-catalogue-example="media-status-indicators">
+                  <nodel-control-grid columns="2" md="6" data-catalogue-example="media-status-indicators">
                     <nodel-button>Present <nodel-status-indicator value="present" label="Present"></nodel-status-indicator></nodel-button>
                     <nodel-button>Muted Off <nodel-status-indicator value="absent" off-tone="muted" label="Absent"></nodel-status-indicator></nodel-button>
                     <nodel-button>Fault <nodel-status-indicator value="fault" on-value="fault" tone="danger" label="Fault"></nodel-status-indicator></nodel-button>
                     <nodel-button>Signal <nodel-status-indicator signal="DeviceOnline" label="Device online"></nodel-status-indicator></nodel-button>
+                    <nodel-button>Mixed <nodel-status-indicator value="mixed" partial-on-value="mixed" label="Mixed state"></nodel-status-indicator></nodel-button>
+                    <nodel-button>Zones <nodel-status-indicator value="standby" partial-off-value="standby" partial-tone="info" show-state-label partial-off-label="Some off" label="Zone state"></nodel-status-indicator></nodel-button>
                   </nodel-control-grid>
                 </nodel-column>
               </nodel-row>
             </div>
 
-            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-status-indicators"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="media-status-indicators"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;6&quot;&gt;
   &lt;nodel-button&gt;Present &lt;nodel-status-indicator value=&quot;present&quot; label=&quot;Present&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Muted Off &lt;nodel-status-indicator value=&quot;absent&quot; off-tone=&quot;muted&quot; label=&quot;Absent&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Fault &lt;nodel-status-indicator value=&quot;fault&quot; on-value=&quot;fault&quot; tone=&quot;danger&quot; label=&quot;Fault&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Signal &lt;nodel-status-indicator signal=&quot;DeviceOnline&quot; label=&quot;Device online&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Mixed &lt;nodel-status-indicator value=&quot;mixed&quot; partial-on-value=&quot;mixed&quot; label=&quot;Mixed state&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
+  &lt;nodel-button&gt;Zones &lt;nodel-status-indicator value=&quot;standby&quot; partial-off-value=&quot;standby&quot; partial-tone=&quot;info&quot; show-state-label partial-off-label=&quot;Some off&quot; label=&quot;Zone state&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
 

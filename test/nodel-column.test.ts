@@ -45,4 +45,26 @@ describe('nodel-column responsive spans', () => {
     expect(column.hasAttribute('data-lg')).toBe(false);
     expect(column.style.getPropertyValue('--nodel-column-lg')).toBe('');
   });
+
+  it('sets bounded responsive order variables and removes them when omitted', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<nodel-column order="-2" sm-order="3" md-order="99" 2xl-order="-99">Ordered</nodel-column>');
+    const column = document.querySelectorAll<HTMLElement>('nodel-column')[1];
+
+    expect(column.style.getPropertyValue('--nodel-column-order')).toBe('-2');
+    expect(column.style.getPropertyValue('--nodel-column-sm-order')).toBe('3');
+    expect(column.style.getPropertyValue('--nodel-column-md-order')).toBe('12');
+    expect(column.style.getPropertyValue('--nodel-column-2xl-order')).toBe('-12');
+    expect(column.getAttribute('data-md-order')).toBe('12');
+
+    column.removeAttribute('sm-order');
+    column.setAttribute('lg-order', 'invalid');
+    expect(column.style.getPropertyValue('--nodel-column-sm-order')).toBe('');
+    expect(column.style.getPropertyValue('--nodel-column-lg-order')).toBe('');
+  });
+
+  it('preserves source-order defaults when order attributes are omitted', () => {
+    const column = document.querySelector('nodel-column') as HTMLElement;
+    expect(column.style.getPropertyValue('--nodel-column-order')).toBe('');
+    expect(column.hasAttribute('data-order')).toBe(false);
+  });
 });

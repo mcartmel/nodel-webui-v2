@@ -353,6 +353,17 @@ Use `md="6"` for full width on small screens and half width from medium screens 
 
 `nodel-page title="..."` is used for generated navigation labels. It does not render a visible page heading. Add explicit heading/content components inside the page when a visible title is needed.
 
+Columns also support bounded visual ordering with `order`, `sm-order`, `md-order`, `lg-order`, `xl-order`, and `2xl-order`. Values are integers clamped to `-12..12`; omitted values preserve source order, and each breakpoint inherits the previous order.
+
+```html
+<nodel-row>
+  <nodel-column order="2" md-order="0">Primary in source order</nodel-column>
+  <nodel-column order="1" md-order="0">Visually first on small screens</nodel-column>
+</nodel-row>
+```
+
+Ordering changes visual layout only. Keep the authored source sequence logical for keyboard and screen-reader users; do not use visual order to create a reading sequence that contradicts the DOM.
+
 ## Footer
 
 `nodel-footer` preserves arbitrary text, links, buttons, and other children inside a semantic `footer`. It remains in normal document flow by default.
@@ -645,6 +656,8 @@ Use `options-signal="Name"` or `signals="Name:options"` for collection bindings.
 
 `nodel-select` renders a touch-friendly picker for larger option sets. Use direct `nodel-button` children as options; the selected value is taken from `value`, then `arg`, then text content. It supports `action`, `actions="Action:select"`, `join`, `arg-type`, `variant`, `tone`, `disabled`, `allow-deselect`, `signal`, `signals="Name:value; Lock:disabled"`, dynamic `options` bindings, and the standard confirmation attributes.
 
+Set `placement="bottom"` or `placement="top"` for an explicit option-panel side. The default `placement="auto"` measures space above and below the trigger inside the visual viewport whenever the picker opens, resizes, or scrolls, then uses the side that fits best. Placement changes only CSS position; option DOM and keyboard order remain unchanged.
+
 `nodel-select` uses the same dynamic option payload contract as `nodel-segmented`. Bind options with `options-signal="AvailableSources"` or `signals="AvailableSources:options"`. The selected value is preserved when it disappears from a dynamic list; the trigger displays the raw selected value until a matching option returns or the user selects a different option. Loading, empty, and error state labels are exposed through `data-options-state` and inline `aria-live` status text rather than toasts. The default labels are `Loading options...`, `No options`, and `Options unavailable`.
 
 `nodel-select` exposes a native listbox model while open: the panel has `role="listbox"` and an accessible name, each inner native option button has `role="option"`, and the selected option has `aria-selected="true"`. Enter/Space toggles the trigger. ArrowDown opens and focuses the selected or first option; ArrowUp opens and focuses the selected or last option. In the open list, ArrowUp/ArrowDown wrap, Home/End jump, Enter/Space selects, Escape closes and returns focus to the trigger, and Tab closes without trapping focus. Only one option is in the native tab sequence while the list is open.
@@ -702,11 +715,15 @@ v1 migration examples:
 </nodel-group>
 ```
 
-`nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native custom colour input. It supports `action`, `actions="Action:select"`, `join`, `arg-type="string|json"`, `columns`, `shape="square|rounded|circle"`, `show-labels="auto|show|hide"`, `allow-deselect`, `variant`, `tone`, `disabled`, `signal`, and `signals` targets `value`, `label`, `disabled`, and `custom-color`.
+`nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native picker plus an editable colour field. The field accepts and normalizes hex, RGB, HSL, and HSV values; invalid edits are marked without replacing the last valid colour.
+
+The palette keeps a canonical RGBA colour and converts only its action payload. `format="hex|rgb|hsl|hsv"` defaults to `hex`; for example, the same green selection emits `#00ff00`, `rgb(0, 255, 0)`, `hsl(120, 100%, 50%)`, or `hsv(120, 100%, 100%)`. The reflected selected `value` remains normalized hex so swatches and signals compare consistently.
+
+Add `live` to dispatch throttled custom-picker `input` updates. `live-interval` defaults to `100` ms and clamps to `50..1000`; the final pending value is flushed on picker/text `change`, and pending work is cancelled on disconnect. Without `live`, custom values retain the explicit Select/Enter behavior. Swatches, dynamic markup, confirmation, `allow-deselect`, and signal state use the same selection path in every output format.
 
 ```html
 <nodel-group label="LED Colour">
-  <nodel-palette action="SetColour" signal="Colour" picker="native" show-labels="hide">
+  <nodel-palette action="SetColour" signal="Colour" picker="native" format="hsl" live show-labels="hide">
     <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>
     <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>
     <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>
@@ -971,11 +988,16 @@ When migrating V1 `status page="Details"`, replace it with an explicit `<nodel-l
 - `value`
 - `on-value`
 - `off-value`
+- `partial-on-value`
+- `partial-off-value`
 - `tone="success|info|warning|danger"`
 - `off-tone="off|muted"`
+- `partial-tone="success|info|warning|danger"` (defaults to `warning`)
+- `show-state-label`
+- `on-label`, `off-label`, `partial-on-label`, and `partial-off-label`
 - `label`
 
-Status indicators default to off/dark. Truthy values such as `true`, `1`, `on`, `active`, `present`, `available`, or `signal` turn them on. Falsey values such as `false`, `0`, `off`, `inactive`, `absent`, or an empty value turn them off.
+Status indicators remain dot-only by default. Truthy values such as `true`, `1`, `on`, `active`, `present`, `available`, or `signal` turn them on. Falsey values such as `false`, `0`, `off`, `inactive`, `absent`, or an empty value turn them off. State precedence is exact partial-on/partial-off values, exact on/off values, then truthy/falsey inference. Add `show-state-label` for visible state text while keeping `label` as the component's accessible name.
 
 ## Collapsible Sections
 

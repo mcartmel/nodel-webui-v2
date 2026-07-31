@@ -126,4 +126,35 @@ describe('control media components', () => {
     indicator.setAttribute('value', 'Available');
     expect(indicator.dataset.state).toBe('on');
   });
+
+  it('uses partial values before exact and inferred status values', async () => {
+    document.body.innerHTML = '<nodel-status-indicator value="present" partial-on-value="present" partial-off-value="standby" on-value="ready" partial-tone="info"></nodel-status-indicator>';
+    await flush();
+    const indicator = document.querySelector('nodel-status-indicator') as HTMLElement;
+    expect(indicator.dataset.state).toBe('partially-on');
+    expect(indicator.dataset.partialTone).toBe('info');
+
+    indicator.setAttribute('partial-tone', 'invalid');
+    expect(indicator.dataset.partialTone).toBe('warning');
+
+    indicator.setAttribute('value', 'standby');
+    expect(indicator.dataset.state).toBe('partially-off');
+    indicator.setAttribute('value', 'ready');
+    expect(indicator.dataset.state).toBe('on');
+    indicator.setAttribute('value', 'available');
+    expect(indicator.dataset.state).toBe('on');
+  });
+
+  it('keeps dot-only defaults and optionally renders state labels', async () => {
+    document.body.innerHTML = '<nodel-status-indicator value="mixed" partial-on-value="mixed" label="Zone state"></nodel-status-indicator>';
+    await flush();
+    const indicator = document.querySelector('nodel-status-indicator') as HTMLElement;
+    expect(indicator.querySelector('.nodel-status-indicator-label')).toBeNull();
+    expect(indicator.getAttribute('aria-label')).toBe('Zone state');
+
+    indicator.setAttribute('show-state-label', '');
+    indicator.setAttribute('partial-on-label', 'Some zones on');
+    expect(indicator.querySelector('.nodel-status-indicator-label')?.textContent).toBe('Some zones on');
+    expect(indicator.getAttribute('aria-label')).toBe('Zone state');
+  });
 });

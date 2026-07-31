@@ -392,6 +392,7 @@
 
   nodel-column {
     grid-column: span var(--nodel-column-span, 12) / span var(--nodel-column-span, 12);
+    order: var(--nodel-column-order, 0);
   }
 
   nodel-control-grid {
@@ -657,6 +658,7 @@
   @media (min-width: 640px) {
     nodel-column {
       grid-column: span var(--nodel-column-sm, var(--nodel-column-span, 12)) / span var(--nodel-column-sm, var(--nodel-column-span, 12));
+      order: var(--nodel-column-sm-order, var(--nodel-column-order, 0));
     }
 
     nodel-control-grid {
@@ -667,6 +669,7 @@
   @media (min-width: 768px) {
     nodel-column {
       grid-column: span var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))) / span var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)));
+      order: var(--nodel-column-md-order, var(--nodel-column-sm-order, var(--nodel-column-order, 0)));
     }
 
     nodel-control-grid {
@@ -677,6 +680,7 @@
   @media (min-width: 1024px) {
     nodel-column {
       grid-column: span var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))) / span var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))));
+      order: var(--nodel-column-lg-order, var(--nodel-column-md-order, var(--nodel-column-sm-order, var(--nodel-column-order, 0))));
     }
 
     nodel-control-grid {
@@ -687,6 +691,7 @@
   @media (min-width: 1280px) {
     nodel-column {
       grid-column: span var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))))) / span var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))));
+      order: var(--nodel-column-xl-order, var(--nodel-column-lg-order, var(--nodel-column-md-order, var(--nodel-column-sm-order, var(--nodel-column-order, 0)))));
     }
 
     nodel-control-grid {
@@ -697,6 +702,7 @@
   @media (min-width: 1536px) {
     nodel-column {
       grid-column: span var(--nodel-column-2xl, var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12)))))) / span var(--nodel-column-2xl, var(--nodel-column-xl, var(--nodel-column-lg, var(--nodel-column-md, var(--nodel-column-sm, var(--nodel-column-span, 12))))));
+      order: var(--nodel-column-2xl-order, var(--nodel-column-xl-order, var(--nodel-column-lg-order, var(--nodel-column-md-order, var(--nodel-column-sm-order, var(--nodel-column-order, 0))))));
     }
 
     nodel-control-grid {
@@ -1474,6 +1480,15 @@
     box-shadow: var(--nodel-shadow-popover, none);
   }
 
+  nodel-select[data-placement='top'] .nodel-select-panel {
+    top: auto;
+    bottom: calc(100% + 0.375rem);
+  }
+
+  nodel-select[data-placement='top'] .nodel-select-chevron::before {
+    transform: translateY(0.125rem) rotate(225deg);
+  }
+
   .nodel-select-panel nodel-button .nodel-button-touch {
     @apply h-auto min-h-10 justify-start px-3 py-2 text-sm leading-5;
   }
@@ -1773,11 +1788,11 @@
   }
 
   .nodel-palette-custom {
-    @apply flex min-w-0 items-center gap-2;
+    @apply flex min-w-0 flex-wrap items-end gap-2;
   }
 
   .nodel-palette-custom-label {
-    @apply flex min-w-0 flex-1 items-center gap-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+    @apply flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
   }
 
   .nodel-palette-custom-label span[hidden] {
@@ -1785,9 +1800,25 @@
   }
 
   .nodel-palette-custom-input {
-    @apply h-11 min-w-16 flex-1 rounded-control border border-nodel-border bg-transparent p-1;
+    @apply h-11 w-16 flex-none rounded-control border border-nodel-border bg-transparent p-1;
     border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
     box-shadow: var(--nodel-shadow-control, none);
+  }
+
+  .nodel-palette-value-label {
+    @apply flex min-w-48 flex-1 flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-palette-value-input {
+    @apply min-w-0 normal-case tracking-normal;
+  }
+
+  .nodel-palette-value-input[aria-invalid='true'] {
+    @apply border-nodel-danger ring-1 ring-nodel-danger;
+  }
+
+  .nodel-palette-value-error {
+    @apply basis-full text-xs font-medium text-nodel-danger;
   }
 
   nodel-image {
@@ -1976,6 +2007,14 @@
     @apply block h-3 w-3 rounded-full border border-black/20 bg-nodel-statusOff shadow-sm;
   }
 
+  nodel-status-indicator:has(.nodel-status-indicator-label) {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .nodel-status-indicator-label {
+    @apply text-xs font-medium text-nodel-muted;
+  }
+
   nodel-status-indicator[data-state='off'][data-off-tone='muted'] .nodel-status-indicator-dot {
     @apply bg-nodel-muted/45;
   }
@@ -1993,6 +2032,22 @@
   }
 
   nodel-status-indicator[data-state='on'][data-tone='danger'] .nodel-status-indicator-dot {
+    @apply bg-nodel-dangerFill;
+  }
+
+  nodel-status-indicator[data-state^='partially'][data-partial-tone='success'] .nodel-status-indicator-dot {
+    @apply bg-nodel-successFill;
+  }
+
+  nodel-status-indicator[data-state^='partially'][data-partial-tone='info'] .nodel-status-indicator-dot {
+    @apply bg-nodel-infoFill;
+  }
+
+  nodel-status-indicator[data-state^='partially'][data-partial-tone='warning'] .nodel-status-indicator-dot {
+    @apply bg-nodel-warningFill;
+  }
+
+  nodel-status-indicator[data-state^='partially'][data-partial-tone='danger'] .nodel-status-indicator-dot {
     @apply bg-nodel-dangerFill;
   }
 

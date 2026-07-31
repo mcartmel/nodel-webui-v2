@@ -1,6 +1,8 @@
 const responsiveSpanAttributes = ['span', 'sm', 'md', 'lg', 'xl', '2xl'] as const;
+const responsiveOrderAttributes = ['order', 'sm-order', 'md-order', 'lg-order', 'xl-order', '2xl-order'] as const;
 
 type ResponsiveSpanAttribute = (typeof responsiveSpanAttributes)[number];
+type ResponsiveOrderAttribute = (typeof responsiveOrderAttributes)[number];
 
 function normalizeSpan(value: string | null, fallback: number | null) {
   if (value === null) {
@@ -19,8 +21,20 @@ function cssVariableName(attribute: ResponsiveSpanAttribute) {
   return attribute === 'span' ? '--nodel-column-span' : `--nodel-column-${attribute}`;
 }
 
+function normalizeOrder(value: string | null) {
+  if (value === null) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(12, Math.max(-12, Math.trunc(parsed))) : null;
+}
+
+function orderVariableName(attribute: ResponsiveOrderAttribute) {
+  return attribute === 'order' ? '--nodel-column-order' : `--nodel-column-${attribute}`;
+}
+
 export class NodelColumn extends HTMLElement {
-  static observedAttributes = responsiveSpanAttributes;
+  static observedAttributes = [...responsiveSpanAttributes, ...responsiveOrderAttributes];
 
   private shellReady = false;
   private columnNode: HTMLElement | null = null;
@@ -38,6 +52,7 @@ export class NodelColumn extends HTMLElement {
   private render() {
     const children = this.shellReady ? [] : Array.from(this.childNodes);
     this.syncResponsiveSpans();
+    this.syncResponsiveOrders();
 
     if (!this.shellReady) {
       this.innerHTML = `
@@ -73,6 +88,20 @@ export class NodelColumn extends HTMLElement {
       } else {
         this.setAttribute(`data-${attribute}`, String(span));
         this.style.setProperty(variableName, String(span));
+      }
+    }
+  }
+
+  private syncResponsiveOrders() {
+    for (const attribute of responsiveOrderAttributes) {
+      const order = normalizeOrder(this.getAttribute(attribute));
+      const variableName = orderVariableName(attribute);
+      if (order === null) {
+        this.removeAttribute(`data-${attribute}`);
+        this.style.removeProperty(variableName);
+      } else {
+        this.setAttribute(`data-${attribute}`, String(order));
+        this.style.setProperty(variableName, String(order));
       }
     }
   }

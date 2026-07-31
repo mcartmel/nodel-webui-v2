@@ -126,6 +126,7 @@ describe('nodel document definition', () => {
     const select = nodelDocumentElements.find((element) => element.name === 'nodel-select');
     const segmented = nodelDocumentElements.find((element) => element.name === 'nodel-segmented');
     expect(select?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
+    expect(select?.attributes.find((attribute) => attribute.name === 'placement')?.values).toEqual(['auto', 'bottom', 'top']);
     expect(segmented?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['options-signal', 'options-loading-label', 'options-empty-label', 'options-error-label']));
     for (const name of ['nodel-button', 'nodel-toggle', 'nodel-segmented', 'nodel-select', 'nodel-palette', 'nodel-pad', 'nodel-stepper']) {
       const control = nodelDocumentElements.find((element) => element.name === name);
@@ -146,6 +147,13 @@ describe('nodel document definition', () => {
     expect(markdown?.attributes.find((attribute) => attribute.name === 'max-height')?.values).toEqual(['none', 'sm', 'md', 'lg', 'screen']);
     const clock = nodelDocumentElements.find((element) => element.name === 'nodel-clock');
     expect(clock?.attributes.find((attribute) => attribute.name === 'format')?.values).toEqual(['time', 'date', 'datetime']);
+    const palette = nodelDocumentElements.find((element) => element.name === 'nodel-palette');
+    expect(palette?.attributes.find((attribute) => attribute.name === 'format')?.values).toEqual(['hex', 'rgb', 'hsl', 'hsv']);
+    expect(palette?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['live', 'live-interval']));
+    const indicator = nodelDocumentElements.find((element) => element.name === 'nodel-status-indicator');
+    expect(indicator?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['partial-on-value', 'partial-off-value', 'partial-tone', 'show-state-label']));
+    const column = nodelDocumentElements.find((element) => element.name === 'nodel-column');
+    expect(column?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['order', 'sm-order', 'md-order', 'lg-order', 'xl-order', '2xl-order']));
 
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);

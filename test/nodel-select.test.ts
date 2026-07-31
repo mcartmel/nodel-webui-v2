@@ -70,6 +70,75 @@ describe('nodel-select', () => {
     expect(buttons.map((button) => button.getAttribute('tabindex'))).toEqual(['0', '-1']);
   });
 
+  it('honours explicit top and bottom placements', async () => {
+    document.body.innerHTML = '<nodel-select placement="top" open><nodel-button>A</nodel-button></nodel-select>';
+    await flush();
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    expect(select.dataset.placement).toBe('top');
+    select.setAttribute('placement', 'bottom');
+    expect(select.dataset.placement).toBe('bottom');
+  });
+
+  it('auto-places against the visual viewport and repositions while open', async () => {
+    const originalVisualViewport = window.visualViewport;
+    let triggerTop = 430;
+    const viewportListeners = new Map<string, EventListener>();
+    const visualViewport = {
+      height: 500,
+      offsetTop: 0,
+      addEventListener: vi.fn((name: string, listener: EventListener) => viewportListeners.set(name, listener)),
+      removeEventListener: vi.fn((name: string) => viewportListeners.delete(name))
+    };
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: visualViewport });
+    document.body.innerHTML = '<nodel-select placement="auto"><nodel-button>A</nodel-button><nodel-button>B</nodel-button></nodel-select>';
+    await flush();
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    const trigger = select.querySelector('.nodel-select-trigger') as HTMLButtonElement;
+    const panel = select.querySelector('.nodel-select-panel') as HTMLElement;
+    vi.spyOn(trigger, 'getBoundingClientRect').mockImplementation(() => ({ top: triggerTop, bottom: triggerTop + 50, left: 0, right: 200, width: 200, height: 50, x: 0, y: triggerTop, toJSON: () => ({}) }));
+    Object.defineProperty(panel, 'scrollHeight', { configurable: true, value: 180 });
+
+    trigger.click();
+    expect(select.dataset.placement).toBe('top');
+    triggerTop = 20;
+    window.dispatchEvent(new Event('resize'));
+    expect(select.dataset.placement).toBe('bottom');
+
+    select.removeAttribute('open');
+    expect(visualViewport.removeEventListener).toHaveBeenCalled();
+    select.remove();
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: originalVisualViewport });
+  });
+
+  it('repositions auto placement when the open panel changes size', async () => {
+    const resizeCallback: { value: ResizeObserverCallback | null } = { value: null };
+    const disconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback.value = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect = disconnect;
+    });
+    let panelHeight = 80;
+    document.body.innerHTML = '<nodel-select placement="auto"><nodel-button>A</nodel-button></nodel-select>';
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    const trigger = select.querySelector('.nodel-select-trigger') as HTMLButtonElement;
+    const panel = select.querySelector('.nodel-select-panel') as HTMLElement;
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({ top: 500, bottom: 550, left: 0, right: 200, width: 200, height: 50, x: 0, y: 500, toJSON: () => ({}) });
+    Object.defineProperty(panel, 'scrollHeight', { configurable: true, get: () => panelHeight });
+
+    trigger.click();
+    expect(select.dataset.placement).toBe('bottom');
+    panelHeight = 400;
+    resizeCallback.value?.([], {} as ResizeObserver);
+    expect(select.dataset.placement).toBe('top');
+    select.removeAttribute('open');
+    expect(disconnect).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it('opens, selects an option, and calls an action', async () => {
     document.body.innerHTML = `
       <nodel-select action="SetSource" arg-type="string">

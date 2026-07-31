@@ -10,9 +10,11 @@ type StatusSample = { box: Box; name: string; surface: string };
 const representativeViews = [
   { pageId: 'Buttons', selector: '[data-catalogue-example="buttons-variants"]' },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },
+  { pageId: 'PickersPrecision', selector: '[data-catalogue-example="palette-native"]' },
   { pageId: 'FadersMeters', selector: '[data-catalogue-example="faders-compound-fader"]' },
   { pageId: 'Media', selector: '[data-catalogue-example="media-status-blocks"]' },
   { pageId: 'Media', selector: '[data-catalogue-example="media-qr-codes"]' },
+  { pageId: 'Media', selector: '[data-catalogue-example="media-status-indicators"]' },
   { pageId: 'Text', selector: '[data-catalogue-example="content-text-surface"]' }
 ];
 
