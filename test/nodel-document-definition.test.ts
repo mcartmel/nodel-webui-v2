@@ -131,6 +131,8 @@ describe('nodel document definition', () => {
       const control = nodelDocumentElements.find((element) => element.name === name);
       expect(control?.attributes.map((attribute) => attribute.name), name).toEqual(expect.arrayContaining(['confirm-mode', 'confirm-code-signal']));
     }
+    const app = nodelDocumentElements.find((element) => element.name === 'nodel-app');
+    expect(app?.attributes.find((attribute) => attribute.name === 'offline-mode')?.values).toEqual(['modal', 'overlay']);
 
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);
@@ -257,7 +259,8 @@ describe('nodel document definition', () => {
       'nodel-editor',
       'nodel-node-menu',
       'nodel-toast-host',
-      'nodel-confirm-host'
+      'nodel-confirm-host',
+      'nodel-connectivity-host'
     ];
 
     for (const component of runtimeComponents) {
@@ -271,7 +274,10 @@ describe('nodel document definition', () => {
     for (const page of ['nodel.html', 'nodes.html', 'toolkit.html']) {
       const pageUi = await readFile(resolve(process.cwd(), page), 'utf8');
       expect(pageUi).not.toContain('data-nodel-runtime="memory"');
+      expect(pageUi).toMatch(/<nodel-app\b[^>]*offline-mode="overlay"/);
     }
+    expect(componentsUi).toMatch(/<nodel-app\b/);
+    expect(componentsUi).not.toMatch(/<nodel-app\b[^>]*offline-mode=/);
   });
 
   it('keeps marked catalogue examples matched to their code snippets', async () => {

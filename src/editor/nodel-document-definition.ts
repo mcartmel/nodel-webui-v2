@@ -48,7 +48,8 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     description: 'Top-level Nodel application shell.',
     attributes: [
       { name: 'title', description: 'Runtime page title.' },
-      { name: 'theme', description: 'Theme selection.', values: ['default', 'light', 'dark'] }
+      { name: 'theme', description: 'Theme selection.', values: ['default', 'light', 'dark'] },
+      { name: 'offline-mode', description: 'Host-offline presentation. Modal blocks controls; overlay leaves them available.', values: ['modal', 'overlay'] }
     ],
     snippet: '<nodel-app title="Nodel">\n  ${}\n</nodel-app>'
   },

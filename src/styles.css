@@ -2788,6 +2788,47 @@
     @apply mt-5 flex flex-wrap justify-end gap-2;
   }
 
+  .nodel-connectivity-host {
+    @apply fixed z-[100];
+  }
+
+  .nodel-connectivity-host.is-modal {
+    @apply inset-0 flex items-center justify-center p-4;
+  }
+
+  .nodel-connectivity-host.is-overlay {
+    @apply pointer-events-none inset-x-0 top-0 flex justify-center px-3;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .nodel-connectivity-host[hidden] {
+    display: none;
+  }
+
+  .nodel-connectivity-backdrop {
+    @apply absolute inset-0 bg-black/45 backdrop-blur-[2px];
+  }
+
+  .nodel-connectivity-dialog {
+    @apply relative flex w-[min(30rem,100%)] items-start gap-4 rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover outline-none;
+  }
+
+  .nodel-connectivity-banner {
+    @apply flex w-[min(42rem,100%)] items-start gap-3 shadow-nodel-popover;
+  }
+
+  .nodel-connectivity-icon {
+    @apply mt-0.5 inline-flex shrink-0 text-nodel-warning;
+  }
+
+  .nodel-connectivity-title {
+    @apply m-0 text-lg font-semibold text-nodel-fg;
+  }
+
+  .nodel-connectivity-message {
+    @apply mt-1 text-sm leading-6 text-nodel-muted;
+  }
+
   .nodel-collapse {
     @apply overflow-hidden;
   }

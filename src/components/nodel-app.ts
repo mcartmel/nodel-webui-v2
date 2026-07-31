@@ -1,5 +1,6 @@
 import { getNodeDetails } from '../api/nodel-host-client';
 import { NODEL_CONFIRM, type NodelConfirmDetail } from '../data/confirm';
+import { subscribeConnectivity, type NodelConnectivityState } from '../data/connectivity';
 import { getStoredTheme, getSystemThemeMediaQuery, isNodelTheme, resolveTheme, THEME_STORAGE_KEY } from '../theme/theme';
 import { refreshNodeActivity } from '../data/node-activity-source';
 import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
@@ -7,6 +8,8 @@ import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartW
 import { NODEL_TOAST, type NodelToastDetail, type NodelToastHost } from './nodel-toast-host';
 import './nodel-confirm-host';
 import type { NodelConfirmHostElement } from './nodel-confirm-host';
+import './nodel-connectivity-host';
+import { normalizeOfflineMode, type NodelConnectivityHostElement } from './nodel-connectivity-host';
 import {
   NODEL_NAVIGATION_CHANGE,
   NODEL_NAV_SELECT,
@@ -72,7 +75,7 @@ function eventDetailValue(event: Event, key: string) {
 }
 
 export class NodelApp extends HTMLElement implements NodelNavigationHost {
-  static observedAttributes = ['theme', 'title'];
+  static observedAttributes = ['theme', 'title', 'offline-mode'];
 
   private activePageId = '';
   private groupByChildId = new Map<string, HTMLElement>();
@@ -85,12 +88,20 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private systemThemeMediaQuery: MediaQueryList | null = null;
   private titleLoadToken = 0;
   private confirmHost: NodelConfirmHostElement | null = null;
+  private connectivityFocus: HTMLElement | null = null;
+  private connectivityHost: NodelConnectivityHostElement | null = null;
+  private connectivityInert = new Map<HTMLElement, boolean>();
+  private connectivityModalActive = false;
+  private connectivityState: NodelConnectivityState = { offline: false, reason: '', retryAttempt: 0 };
+  private connectivitySubscription: { dispose(): void } | null = null;
   private toastHost: NodelToastHost | null = null;
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
+    this.ensureConnectivityHost();
     this.ensureConfirmHost();
     this.ensureToastHost();
+    this.connectivitySubscription = subscribeConnectivity(this.handleConnectivityChange);
     this.syncTheme();
     this.startThemeSynchronization();
     this.syncTitle();
@@ -105,7 +116,10 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.addEventListener('nodel-bindings-error', this.handleBindingsError);
     this.addEventListener('nodel-editor-error', this.handleEditorError);
     window.addEventListener('hashchange', this.handleHashChange);
-    this.mutationObserver = new MutationObserver(() => this.queueNavigationSync());
+    this.mutationObserver = new MutationObserver(() => {
+      this.queueNavigationSync();
+      this.syncConnectivityPresentation();
+    });
     this.mutationObserver.observe(this, { childList: true });
     this.queueNavigationSync();
     if (isNodePage()) {
@@ -130,15 +144,25 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.mutationObserver = null;
     this.restartWatcher?.dispose();
     this.restartWatcher = null;
+    this.connectivitySubscription?.dispose();
+    this.connectivitySubscription = null;
+    this.restoreConnectivityInert(false);
     this.stopThemeSynchronization();
     this.confirmHost = null;
+    this.connectivityHost = null;
     this.toastHost = null;
   }
 
-  attributeChangedCallback() {
-    if (this.isConnected) {
+  attributeChangedCallback(name: string) {
+    if (!this.isConnected) {
+      return;
+    }
+    if (name === 'theme') {
       this.syncTheme();
+    } else if (name === 'title') {
       this.syncTitle();
+    } else if (name === 'offline-mode') {
+      this.syncConnectivityPresentation();
     }
   }
 
@@ -193,6 +217,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       ?? eventTarget
       ?? activeElement;
     this.ensureConfirmHost().confirm(event.detail, trigger);
+  };
+
+  private handleConnectivityChange = (state: NodelConnectivityState) => {
+    this.connectivityState = state;
+    this.syncConnectivityPresentation();
   };
 
   private handleParamsSaved = () => {
@@ -315,6 +344,75 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.appendChild(host);
     this.confirmHost = host;
     return host;
+  }
+
+  private ensureConnectivityHost() {
+    const existing = Array.from(this.children).find((child): child is NodelConnectivityHostElement => child.localName === 'nodel-connectivity-host');
+    if (existing) {
+      this.connectivityHost = existing;
+      return existing;
+    }
+
+    const host = document.createElement('nodel-connectivity-host') as NodelConnectivityHostElement;
+    this.prepend(host);
+    this.connectivityHost = host;
+    return host;
+  }
+
+  private syncConnectivityPresentation() {
+    if (!this.isConnected) {
+      return;
+    }
+    const mode = normalizeOfflineMode(this.getAttribute('offline-mode'));
+    const host = this.ensureConnectivityHost();
+    host.update(this.connectivityState, mode);
+    const modalOffline = this.connectivityState.offline && mode === 'modal';
+
+    if (!modalOffline) {
+      this.restoreConnectivityInert(true);
+      return;
+    }
+
+    const enteredModal = !this.connectivityModalActive;
+    if (enteredModal) {
+      const activeElement = document.activeElement;
+      this.connectivityFocus = activeElement instanceof HTMLElement && this.contains(activeElement) && activeElement !== host ? activeElement : null;
+      this.connectivityModalActive = true;
+    }
+    for (const child of Array.from(this.children)) {
+      if (!(child instanceof HTMLElement) || child === host) {
+        continue;
+      }
+      if (!this.connectivityInert.has(child)) {
+        this.connectivityInert.set(child, child.hasAttribute('inert'));
+      }
+      child.setAttribute('inert', '');
+      child.inert = true;
+    }
+    if (enteredModal) {
+      queueMicrotask(() => {
+        if (this.connectivityModalActive) {
+          host.focusDialog();
+        }
+      });
+    }
+  }
+
+  private restoreConnectivityInert(restoreFocus: boolean) {
+    if (!this.connectivityModalActive && this.connectivityInert.size === 0) {
+      return;
+    }
+    for (const [element, inert] of this.connectivityInert) {
+      element.toggleAttribute('inert', inert);
+      element.inert = inert;
+    }
+    this.connectivityInert.clear();
+    this.connectivityModalActive = false;
+    const focus = this.connectivityFocus;
+    this.connectivityFocus = null;
+    if (restoreFocus && focus?.isConnected) {
+      queueMicrotask(() => focus.focus());
+    }
   }
 
   private showToast(detail: NodelToastDetail) {

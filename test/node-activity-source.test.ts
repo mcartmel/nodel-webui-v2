@@ -6,6 +6,7 @@ const activityMock = vi.hoisted(() => ({
   disposeVisibility: vi.fn(),
   getNodeActivity: vi.fn(),
   initialVisible: true,
+  reportConnectivityFailure: vi.fn(),
   visibilityHandlers: [] as Array<(visible: boolean) => void>
 }));
 
@@ -19,6 +20,10 @@ vi.mock('../src/data/visibility-scope', () => ({
     handler(activityMock.initialVisible);
     return activityMock.disposeVisibility;
   })
+}));
+
+vi.mock('../src/data/connectivity', () => ({
+  reportConnectivityFailure: activityMock.reportConnectivityFailure
 }));
 
 interface ActivityState {
@@ -104,6 +109,7 @@ describe('node-activity-source', () => {
     activityMock.disposeVisibility.mockClear();
     activityMock.getNodeActivity.mockReset();
     activityMock.initialVisible = true;
+    activityMock.reportConnectivityFailure.mockClear();
     activityMock.visibilityHandlers = [];
     MockWebSocket.instances = [];
     vi.stubGlobal('WebSocket', MockWebSocket);
@@ -243,6 +249,16 @@ describe('node-activity-source', () => {
     expect(states.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
     expect(states.at(-1)?.transport).toBe('poll');
 
+    subscription.dispose();
+  });
+
+  it('reports WebSocket transport errors for same-origin connectivity confirmation', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const subscription = subscribeNodeActivity(createSubscriberHost(), vi.fn());
+
+    MockWebSocket.instances[0].onerror?.({} as Event);
+
+    expect(activityMock.reportConnectivityFailure).toHaveBeenCalledWith('REST/', expect.any(TypeError));
     subscription.dispose();
   });
 

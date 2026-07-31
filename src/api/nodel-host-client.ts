@@ -1,4 +1,5 @@
 import { getVerySimpleName } from '../utils/node-name';
+import { fetchWithConnectivity } from '../data/connectivity';
 import type {
   NodelActivityLogEntry,
   NodelActionDefinition,
@@ -79,7 +80,7 @@ async function responseError(response: Response) {
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
+  const response = await fetchWithConnectivity(input, init);
   if (!response.ok) {
     throw await responseError(response);
   }
@@ -99,7 +100,7 @@ async function postJson<T>(input: RequestInfo | URL, body: unknown, init?: Reque
 }
 
 async function fetchOk(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(input, init);
+  const response = await fetchWithConnectivity(input, init);
   if (!response.ok) {
     throw await responseError(response);
   }
@@ -151,7 +152,7 @@ async function wait(ms: number) {
 export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const response = await fetch(`${nodeUrl}REST/`);
+      const response = await fetchWithConnectivity(`${nodeUrl}REST/`);
       if (response.ok) {
         return;
       }
@@ -171,7 +172,7 @@ export async function getLocalRest(init?: RequestInit): Promise<NodelLocalRestRe
 
 export async function getHostCapabilities(init?: RequestInit): Promise<NodelCapabilities> {
   try {
-    const response = await fetch('/REST/capabilities', init);
+    const response = await fetchWithConnectivity('/REST/capabilities', init);
     if (!response.ok) {
       return legacyCapabilities();
     }
@@ -354,7 +355,7 @@ export async function listCustomUiEntries(init?: RequestInit): Promise<NodelCust
 }
 
 export async function getNodeFileContents(path: string, init?: RequestInit): Promise<string> {
-  const response = await fetch(`REST/files/contents?path=${encodeURIComponent(path)}`, init);
+  const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeURIComponent(path)}`, init);
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
@@ -451,7 +452,7 @@ function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: N
 async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string): Promise<NodelDuplicateFileFailure | null> {
   let contents: ArrayBuffer;
   try {
-    const response = await fetch(restUrlForNode(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`));
+    const response = await fetchWithConnectivity(restUrlForNode(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`));
     if (!response.ok) {
       return duplicateFileFailure(path, 'read', response);
     }
@@ -461,7 +462,7 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
   }
 
   try {
-    const response = await fetch(restUrlForNode(destinationNodeUrl, `REST/files/save?path=${encodeURIComponent(path)}`), {
+    const response = await fetchWithConnectivity(restUrlForNode(destinationNodeUrl, `REST/files/save?path=${encodeURIComponent(path)}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: contents
@@ -576,7 +577,7 @@ export async function checkHostReachable(host: string, timeoutMs = 3000, signal?
   }
 
   try {
-    const response = await fetch(`//${host}/REST`, {
+    const response = await fetchWithConnectivity(`//${host}/REST`, {
       signal: controller.signal
     });
     return { host, reachable: response.ok || response.type === 'opaque' };

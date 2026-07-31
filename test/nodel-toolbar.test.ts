@@ -56,7 +56,7 @@ describe('nodel-toolbar', () => {
 
     expect(title?.hidden).toBe(false);
     expect(icon?.alt).toBe('Nodel Recipes Sync for TRANSCENDENCE 8085');
-    expect(fetchMock).toHaveBeenCalledWith('REST/');
+    expect(fetchMock).toHaveBeenCalledWith('REST/', undefined);
   });
 
   it('uses an explicit title instead of fetching a node default', async () => {

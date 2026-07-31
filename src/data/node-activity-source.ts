@@ -2,6 +2,7 @@ import { getNodeActivity } from '../api/nodel-host-client';
 import type { NodelActivityLogEntry, NodelActivityWebSocketMessage } from '../api/nodel-types';
 import { getNodePathName } from '../utils/node-name';
 import { createActivityAccumulator } from './activity-accumulator';
+import { reportConnectivityFailure } from './connectivity';
 import { observeNodelVisibility } from './visibility-scope';
 
 export interface NodeActivityBatch {
@@ -303,6 +304,7 @@ async function openWebSocket() {
     const url = `${protocol}//${window.location.host}/nodes/${encodeURIComponent(nodeName)}`;
     ws = new WebSocket(url);
   } catch (connectError) {
+    reportConnectivityFailure('REST/', connectError);
     error = connectError instanceof Error ? connectError.message : 'Failed to open activity socket';
     ws = null;
     connected = false;
@@ -321,6 +323,7 @@ async function openWebSocket() {
   ws.onmessage = handleWebSocketMessage;
 
   ws.onerror = () => {
+    reportConnectivityFailure('REST/', new TypeError('WebSocket activity stream unavailable'));
     error = 'WebSocket activity stream unavailable';
     emit(null);
   };

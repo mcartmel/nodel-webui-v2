@@ -77,6 +77,7 @@ The component set has two audiences. Custom UI components are public authoring p
 - `nodel-editor`: current-node file and recipe editor.
 - `nodel-toast-host`: app-level notification host, created automatically by `nodel-app`.
 - `nodel-confirm-host`: app-level confirmation dialog host, created automatically by `nodel-app`.
+- `nodel-connectivity-host`: app-level host-connectivity presentation, created automatically by `nodel-app`.
 
 ## Shared Styling Classes
 
@@ -164,6 +165,20 @@ Touch controls that support confirmation expose `confirm`, `confirm-title`, `con
 ```
 
 Code confirmation is a client-side accidental-action/operator interlock, not authentication or authorization. The signal value reaches the browser and may still be visible in a separately rendered activity log. Server-side permissions remain responsible for securing actions.
+
+## Host Connectivity
+
+`nodel-app` creates one shared `nodel-connectivity-host` and listens for same-origin host reachability. Custom pages default to `offline-mode="modal"`: a non-dismissible alert dialog blocks pointer and keyboard interaction with page controls until the current Nodel host responds again. Core administration pages use `offline-mode="overlay"`, which displays a fixed warning above the page without shifting layout or blocking controls.
+
+```html
+<nodel-app offline-mode="modal">
+  ...
+</nodel-app>
+```
+
+Browser offline events take effect immediately. A failed same-origin REST request or node activity transport is confirmed with a lightweight host probe before the global offline state appears. HTTP responses, including `4xx` and `5xx` application errors, prove that the host is reachable and remain visible through the originating component's normal error handling. Aborted requests and failures from remote or cross-origin nodes do not mark the current host offline.
+
+While offline, V2 retries with bounded backoff and clears the global state after a successful response. Recovery does not reload the page, so active navigation, entered values, and other in-memory UI state are retained. Use modal mode for touch/operator pages where controls must not remain actionable; use overlay mode for administration pages where cached or local interface actions should remain available.
 
 ## Toolbar Icon
 

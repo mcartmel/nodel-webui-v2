@@ -8,6 +8,7 @@ import {
 } from '../navigation/navigation';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
+import { getNodeDetails } from '../api/nodel-host-client';
 import './nodel-host-icon';
 
 type NavigationAppElement = HTMLElement & NodelNavigationHost;
@@ -133,12 +134,7 @@ export class NodelToolbar extends HTMLElement {
     }
 
     try {
-      const response = await fetch('REST/');
-      if (!response.ok) {
-        return;
-      }
-
-      const data = await response.json() as { name?: unknown };
+      const data = await getNodeDetails();
       if (token !== this.titleLoadToken || this.hasAttribute('title')) {
         return;
       }
