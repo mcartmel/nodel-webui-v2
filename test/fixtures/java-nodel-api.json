@@ -1,0 +1,340 @@
+{
+  "provenance": {
+    "repository": "museumsvictoria/nodel",
+    "commit": "19756071383d696682688ab436c77c0a1f80c783",
+    "capturedAt": "2026-08-01",
+    "sources": [
+      "nodel-jyhost/src/main/java/org/nodel/jyhost/NodelHostHTTPD.java",
+      "nodel-jyhost/src/main/java/org/nodel/jyhost/PyNode.java",
+      "nodel-jyhost/src/main/java/org/nodel/jyhost/FilesEndPoint.java",
+      "nodel-jyhost/src/main/java/org/nodel/jyhost/RecipesEndPoint.java",
+      "nodel-framework/src/main/java/org/nodel/host/BaseNode.java",
+      "nodel-framework/src/main/java/org/nodel/host/RemoteBindingValues.java",
+      "nodel-framework/src/main/java/org/nodel/core/NodelServerAction.java",
+      "nodel-framework/src/main/java/org/nodel/core/NodelServerEvent.java",
+      "nodel-framework/src/main/java/org/nodel/core/NodelClients.java",
+      "nodel-framework/src/main/java/org/nodel/diagnostics/Diagnostics.java",
+      "nodel-framework/src/main/java/org/nodel/diagnostics/MeasurementHistory.java"
+    ]
+  },
+  "transport": {
+    "restMethods": ["GET", "POST"],
+    "contentType": "application/json; charset=utf-8",
+    "cors": "*",
+    "unsupportedEndpoints": ["/REST/capabilities"]
+  },
+  "responses": {
+    "localRest": {
+      "started": "2026-08-01T01:00:00.000Z",
+      "nodes": {
+        "Contract Node": {
+          "name": "Contract Node",
+          "desc": "Contract fixture node",
+          "nodelVersion": "2.2.0"
+        }
+      }
+    },
+    "diagnostics": {
+      "startTime": "2026-08-01T01:00:00.000Z",
+      "uptime": 123456,
+      "hostname": "NODEL-CONTRACT",
+      "hostPath": "/opt/nodel",
+      "nodesRoot": "/opt/nodel/nodes",
+      "hostingRule": "Include *",
+      "httpAddresses": ["http://127.0.0.1:8085"],
+      "agent": "nodel-contract",
+      "availableProcessors": 4,
+      "freeMemory": 1048576,
+      "maxMemory": 536870912,
+      "totalMemory": 67108864,
+      "systemProperties": {
+        "java.version": "17"
+      },
+      "vmArgs": ["-Xmx512m"]
+    },
+    "diagnosticMeasurements": [
+      {
+        "name": "Java runtime.Free bytes",
+        "isRate": false,
+        "capacity": 100,
+        "values": [1048576, 1047552, 1046528]
+      },
+      {
+        "name": "Discovery multicast.Receives",
+        "isRate": true,
+        "capacity": 100,
+        "values": [0, 10, 20]
+      }
+    ],
+    "buildInfo": {
+      "project": "nodel",
+      "origin": "https://github.com/museumsvictoria/nodel",
+      "branch": "dev",
+      "version": "2.2.0",
+      "id": "1975607",
+      "host": "NODEL-BUILD",
+      "date": "2026-08-01T00:00:00.000Z"
+    },
+    "hostLogs": [
+      {
+        "seq": 42,
+        "timestamp": "2026-08-01T01:02:03.000Z",
+        "level": "INFO",
+        "thread": "main",
+        "tag": "org.nodel.Contract",
+        "message": "Contract host log",
+        "error": null
+      }
+    ],
+    "toolkit": {
+      "script": "# Contract toolkit\ndef TCP():\n    pass\n"
+    },
+    "nodeDetails": {
+      "name": "Contract Node",
+      "desc": "# Contract Node\n\nFixture description.",
+      "started": "2026-08-01T01:00:00.000Z",
+      "nodelVersion": "2.2.0"
+    },
+    "restartStatus": {
+      "timestamp": "2026-08-01T01:00:00.000Z"
+    },
+    "console": [
+      {
+        "seq": 100,
+        "timestamp": "2026-08-01T01:02:03.000Z",
+        "console": "out",
+        "comment": "Contract console output"
+      },
+      {
+        "seq": 101,
+        "timestamp": "2026-08-01T01:02:04.000Z",
+        "console": "warn",
+        "comment": "Contract warning"
+      }
+    ],
+    "activity": [
+      {
+        "seq": 200,
+        "timestamp": "2026-08-01T01:02:03.000Z",
+        "source": "local",
+        "type": "event",
+        "alias": "Status",
+        "arg": {
+          "level": 0,
+          "message": "Ready"
+        }
+      },
+      {
+        "seq": 201,
+        "timestamp": "2026-08-01T01:02:04.000Z",
+        "source": "remote",
+        "type": "actionBinding",
+        "alias": "SetPower",
+        "arg": "Wired"
+      }
+    ],
+    "activityWebSocketHistory": {
+      "node": "Contract Node",
+      "activityHistory": [
+        {
+          "seq": 200,
+          "timestamp": "2026-08-01T01:02:03.000Z",
+          "source": "local",
+          "type": "event",
+          "alias": "Status",
+          "arg": {
+            "level": 0,
+            "message": "Ready"
+          }
+        }
+      ]
+    },
+    "activityWebSocketLive": {
+      "node": "Contract Node",
+      "activity": {
+        "seq": 202,
+        "timestamp": "2026-08-01T01:02:05.000Z",
+        "source": "local",
+        "type": "event",
+        "alias": "Power",
+        "arg": true
+      }
+    },
+    "actions": {
+      "SetLevel": {
+        "name": "SetLevel",
+        "title": "Set level",
+        "desc": "Sets the output level.",
+        "group": "Output",
+        "caution": "",
+        "order": 1,
+        "schema": {
+          "type": "integer",
+          "title": "Level",
+          "min": 0,
+          "max": 100
+        },
+        "seq": 0,
+        "arg": null
+      },
+      "Ping": {
+        "name": "Ping",
+        "title": "Ping",
+        "desc": "Runs a no-argument action.",
+        "group": "General",
+        "order": 2,
+        "schema": null,
+        "seq": 0,
+        "arg": null
+      }
+    },
+    "events": {
+      "Status": {
+        "name": "Status",
+        "title": "Status",
+        "desc": "Current status.",
+        "group": "General",
+        "caution": "",
+        "order": 1,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        },
+        "arg": {
+          "level": 0,
+          "message": "Ready"
+        },
+        "seq": 200,
+        "timestamp": "2026-08-01T01:02:03.000Z"
+      }
+    },
+    "paramsSchema": {
+      "type": "object",
+      "title": "Parameters",
+      "properties": {
+        "host": {
+          "type": "string",
+          "title": "Host",
+          "desc": "Remote host name.",
+          "group": "Connection",
+          "order": 1
+        },
+        "port": {
+          "type": "integer",
+          "title": "Port",
+          "desc": "Remote port.",
+          "group": "Connection",
+          "order": 2,
+          "min": 1,
+          "max": 65535
+        }
+      }
+    },
+    "params": {
+      "host": "127.0.0.1",
+      "port": 9000
+    },
+    "remoteSchema": {
+      "type": "object",
+      "title": "Remote",
+      "desc": "Holds all the remote bindings.",
+      "properties": {
+        "actions": {
+          "type": "object",
+          "title": "Actions",
+          "properties": {
+            "SetPower": {
+              "type": "object",
+              "title": "Set power",
+              "properties": {
+                "node": {
+                  "type": "string",
+                  "format": "node"
+                },
+                "action": {
+                  "type": "string",
+                  "format": "action"
+                }
+              }
+            }
+          }
+        },
+        "events": {
+          "type": "object",
+          "title": "Events",
+          "properties": {
+            "SourceStatus": {
+              "type": "object",
+              "title": "Source status",
+              "properties": {
+                "node": {
+                  "type": "string",
+                  "format": "node"
+                },
+                "event": {
+                  "type": "string",
+                  "format": "event"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "remoteBindings": {
+      "actions": {
+        "SetPower": {
+          "node": "Display",
+          "action": "Power"
+        }
+      },
+      "events": {
+        "SourceStatus": {
+          "node": "Display",
+          "event": "Status"
+        }
+      }
+    },
+    "files": [
+      {
+        "path": "script.py",
+        "modified": "2026-08-01T01:00:00.000Z"
+      },
+      {
+        "path": "content/control.html",
+        "modified": "2026-08-01T01:01:00.000Z"
+      },
+      {
+        "path": "assets/logo.png",
+        "modified": "2026-08-01T01:01:30.000Z"
+      }
+    ],
+    "fileContents": "print(\"contract\")\n",
+    "nodeUrls": [
+      {
+        "node": "Contract Node",
+        "address": "http://127.0.0.1:8085/nodes/Contract%20Node/"
+      },
+      {
+        "node": "Display",
+        "address": "http://display.example:8085/nodes/Display/"
+      }
+    ],
+    "recipes": [
+      {
+        "path": "displays/projector",
+        "modified": "2026-08-01T00:00:00.000Z",
+        "readme": "Projector recipe"
+      }
+    ],
+    "writeResult": true,
+    "actionResult": true
+  }
+}

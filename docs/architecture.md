@@ -6,6 +6,21 @@
 
 Do not modify v1 code for new UI work. Legacy-loader remains the compatibility path for old pages and XML/custom UI content.
 
+## Runtime Contract
+
+The current Java Nodel implementation is the primary backend contract. Representative response and request fixtures are captured in `test/fixtures/java-nodel-api.json` from Java Nodel commit `19756071383d696682688ab436c77c0a1f80c783`. `test/java-nodel-api-contract.test.ts` protects the endpoint paths, HTTP methods, payload envelopes, and representative source-backed response values consumed by this UI. Runtime decoding and rejection of malformed variants are separate boundary-hardening work. Update the fixture provenance and contract tests whenever a Java Nodel API change is intentionally adopted.
+
+Java Nodel's REST dispatcher accepts GET and POST. Some existing state-changing services are exposed through GET-compatible endpoints, so client methods must not be changed based only on general HTTP conventions. Method changes require a matching Java Nodel contract change and integration coverage.
+
+The framework has two supported consumers:
+
+- Core host and node administration pages are built in this repository and later bundled into a Nodel build by a separate integration process.
+- User-authored pages are plain static files served by Nodel. They may be created after this project has been built and have no page-specific compilation step.
+
+Both consumers use the same stable `v2/nodel-webui.js` and `v2/nodel-webui.css` files. A static authored page may declare supported components in its initial markup or insert them later. The runtime must not rely exclusively on Vite knowing every consuming HTML page at build time. Browser coverage for this contract uses `e2e/fixtures/no-build-authored-page.html`, which is deliberately not a Vite input or release page.
+
+The complete `v2/` directory is one indivisible release asset. The stable JavaScript entry may reference hashed chunks, so copying only the stable entry files is unsupported.
+
 ## Rules
 
 - Use TypeScript.
@@ -106,15 +121,19 @@ The page title can then be controlled by `nodel-app title="..."`.
 
 Vite source pages may reference `/src/main.ts` during local dev. Built/deployed pages should reference the stable v2 support files.
 
+This contract also applies to pages authored after a release. They do not need to be listed in `vite.config.ts` and must not import source modules. The stable script registers the component framework for initial markup and components inserted later. Advanced runtime loading may split implementation code into hashed chunks internally, but that must remain transparent to ordinary static markup.
+
 The public `components.html` catalogue is the one intentional exception to the normal node-backed control path. Its module script carries the internal `data-nodel-runtime="memory"` marker, which the first import in `src/main.ts` detects before custom elements are registered. That import installs a page-local, closed-loop in-memory action/signal runtime for catalogue demonstrations. The runtime seeds the signal examples and resolves catalogue actions without calling `REST/actions/*/call` or opening the node activity stream; mapped actions publish synthetic local signal entries so related examples stay synchronized. Other pages omit the marker and retain the default REST/WebSocket adapters. The marker is an implementation detail of the catalogue page, not a public custom-page attribute.
 
 ## Test Deployment
 
-The deploy script follows the v1 convention of a root page plus versioned support files.
+The deploy script follows the v1 convention of a root page plus versioned support files. It is a live test override for a development Nodel host, not the production installation mechanism for this project.
 
 `npm run deploy:preview` writes the same structure inside the project at `build/deploy-preview/`. Use this for local smoke tests that should not touch a running Nodel content directory.
 
 `npm run deploy` writes to the Nodel custom content root, defaulting to `/opt/nodel/custom/content/`.
+
+The command clears and replaces its target. Use it only where that custom content directory is intentionally disposable test state. Production Nodel builds consume a validated release bundle through their separate build/integration process.
 
 Both deployment commands write:
 
@@ -130,7 +149,11 @@ Version tags matching `package.json` publish a versioned, deployable ZIP through
 
 The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, the user-facing `components.html` catalogue, and `RELEASE_NOTES.md`. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
 
-The optional `GET /REST/capabilities` endpoint is additive. Missing, failing, non-JSON, or malformed responses preserve legacy Nodel behavior. Only explicit valid feature booleans in a well-formed capabilities response change UI behavior.
+`/REST/capabilities` is not part of the current Java Nodel contract. The existing optional client probe is transitional and must not be used as evidence that Java Nodel advertises feature support. Capability negotiation will be removed before production readiness and can be redesigned later if a concrete alternative backend requires it.
+
+This repository produces the web UI release bundle; it does not install production host files or mutate a Nodel service. The consuming Nodel build is responsible for packaging the complete support directory, MIME types, compression, cache policy, upgrade/rollback behavior, and deployment security headers.
+
+The Stage 0 build and request baseline is recorded in `production-baseline.md`. It is informational rather than a permanent size budget and should be refreshed after intentional runtime-loading changes.
 
 ### Release Validation
 

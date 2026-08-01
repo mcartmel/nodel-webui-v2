@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>No-build authored page contract</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = root.dataset.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            const stored = window.localStorage.getItem('nodel.theme');
+            theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+          } catch {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        root.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="./v2/nodel-webui.css" />
+    <script type="module" src="./v2/nodel-webui.js"></script>
+  </head>
+  <body>
+    <nodel-app title="Authored page contract">
+      <nodel-toolbar>
+        <nodel-theme-toggle></nodel-theme-toggle>
+      </nodel-toolbar>
+      <nodel-page title="Controls">
+        <nodel-title level="1">No-build authored page</nodel-title>
+        <nodel-group label="Static controls">
+          <nodel-control-grid columns="2">
+            <nodel-button id="contract-button">Ready</nodel-button>
+            <nodel-toggle id="contract-toggle" label="Power"></nodel-toggle>
+          </nodel-control-grid>
+        </nodel-group>
+        <nodel-markdown value="## Stable assets&#10;&#10;This page was not an input to the Vite build."></nodel-markdown>
+        <section id="dynamic-contract"></section>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>
