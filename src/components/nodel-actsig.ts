@@ -17,13 +17,18 @@ import {
   createSchemaForm,
   findSchemaField,
   handleSchemaFormClick,
+  handleSchemaFormInput,
   handleSchemaFormToggle,
   hydrateSchemaForm,
+  resetSchemaFormDirty,
+  revealSchemaValidationIssues,
   registerSchemaFormTemplates,
   serializeSchemaForm,
   setSchemaFormControlsDisabled,
+  syncSchemaFormControls,
   type SchemaField,
-  type SchemaFormModel
+  type SchemaFormModel,
+  validateAndUpdateSchemaForm
 } from '../schema/schema-form';
 
 type ActSigPointType = 'action' | 'event';
@@ -80,7 +85,6 @@ const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-s
 const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
 const copyToastId = 'nodel-actsig-copy-name';
 let registered = false;
-let nextId = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
@@ -93,7 +97,7 @@ const actSigFormTemplate = `
       <div class="flex shrink-0 items-center gap-2">
         <span class="nodel-actsig-form-icon" data-link="data-actsig-point-type{:pointType}" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
         <button type="button" class="nodel-button nodel-actsig-copy nodel-button-compact" data-link="data-actsig-copy-id{:id} title{:copyTitle} aria-label{:copyLabel}">${copyIconMarkup}</button>
-        <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
+        <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || !schemaForm || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
           {^{>pointType === 'action' ? 'Call' : 'Emit'}}
         </button>
       </div>
@@ -184,8 +188,7 @@ function registerActSigTemplates() {
 }
 
 function nextActSigId(prefix: string) {
-  nextId += 1;
-  return `nodel-actsig-${prefix.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${nextId}`;
+  return `nodel-actsig-${encodeURIComponent(prefix)}`;
 }
 
 function actionSignalSchema(schema: NodelJsonSchema | null | undefined): NodelJsonSchema {
@@ -195,6 +198,14 @@ function actionSignalSchema(schema: NodelJsonSchema | null | undefined): NodelJs
       arg: schema ?? { type: 'null' }
     }
   };
+}
+
+function hasConcreteArgument(schema: NodelJsonSchema) {
+  const argument = schema.properties?.arg;
+  const type = argument?.type;
+  if (typeof type === 'string') return type !== 'null';
+  if (Array.isArray(type)) return type.some((variant) => variant.type !== 'null');
+  return Boolean(argument && type !== null);
 }
 
 function titleFor(definition: { name?: string; title?: string }, fallback: string) {
@@ -274,6 +285,7 @@ export class NodelActSig extends HTMLElement {
     this.source?.dispose();
     this.source = null;
     this.removeEventListener('submit', this.handleSubmit);
+    this.removeEventListener('input', this.handleInput);
     this.removeEventListener('change', this.handleChange);
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('toggle', this.handleToggle, true);
@@ -316,6 +328,7 @@ export class NodelActSig extends HTMLElement {
     }
     this.linked = true;
     scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(this, 'input', this.handleInput);
     scope.listen(this, 'change', this.handleChange);
     scope.listen(this, 'click', this.handleClick);
     scope.listen(this, 'toggle', this.handleToggle, true);
@@ -502,13 +515,15 @@ export class NodelActSig extends HTMLElement {
     const schemaForm = createSchemaForm(form.schema, {
       idPrefix: form.id,
       hideRootKeyLabels: true,
-      controlsDisabled: this.isReadOnlySignalForm(form)
+      controlsDisabled: this.isReadOnlySignalForm(form),
+      initialPresent: hasConcreteArgument(form.schema)
     });
     getJQuery().observable(form).setProperty({
       schemaForm,
       materialized: true
     });
     this.applyCachedArgToForm(form);
+    this.lifecycle.current?.setTimeout(() => this.applyCachedArgToForm(form), 0);
   }
 
   private syncSignalFormReadOnlyState(overrideSignals = this.state.overrideSignals) {
@@ -552,7 +567,9 @@ export class NodelActSig extends HTMLElement {
         continue;
       }
 
-      this.latestArgs.set(formKey(entry.type, String(entry.alias ?? '')), entry.arg);
+      if (Object.prototype.hasOwnProperty.call(entry, 'arg')) {
+        this.latestArgs.set(formKey(entry.type, String(entry.alias ?? '')), entry.arg);
+      }
       const form = this.findForm(entry.type, String(entry.alias ?? ''));
       if (form) {
         this.applyCachedArgToForm(form);
@@ -587,7 +604,10 @@ export class NodelActSig extends HTMLElement {
       return;
     }
 
-    hydrateSchemaForm(form.schemaForm, { arg: this.latestArgs.get(key) });
+    hydrateSchemaForm(form.schemaForm, { arg: this.latestArgs.get(key) }, { preserveDirty: form.pointType === 'action' });
+    const formRoot = Array.from(this.querySelectorAll<HTMLFormElement>('[data-actsig-form-id]'))
+      .find((element) => element.dataset.actsigFormId === form.id);
+    syncSchemaFormControls(form.schemaForm, formRoot ?? this);
   }
 
   private canHydrateSection(section: ActSigSectionModel) {
@@ -670,16 +690,26 @@ export class NodelActSig extends HTMLElement {
       return;
     }
 
+    if (validateAndUpdateSchemaForm(form.schemaForm).length > 0) {
+      revealSchemaValidationIssues(form.schemaForm, target);
+      return;
+    }
+
     void this.submitForm(form);
   };
 
   private handleChange = (event: Event) => {
+    handleSchemaFormInput(event, this, (fieldId) => this.findField(fieldId));
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || !target.hasAttribute('data-actsig-override')) {
       return;
     }
 
     this.lifecycle.current?.setTimeout(() => this.syncSignalFormReadOnlyState(), 0);
+  };
+
+  private handleInput = (event: Event) => {
+    handleSchemaFormInput(event, this, (fieldId) => this.findField(fieldId));
   };
 
   private handleClick = (event: MouseEvent) => {
@@ -748,6 +778,7 @@ export class NodelActSig extends HTMLElement {
       if (!scope.isCurrent()) {
         return;
       }
+      resetSchemaFormDirty(form.schemaForm!);
       this.dispatchEvent(new CustomEvent('nodel-actsig-submitted', {
         bubbles: true,
         detail: { type: form.pointType, name: form.name, payload }

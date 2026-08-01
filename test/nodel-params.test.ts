@@ -160,6 +160,111 @@ describe('nodel-params', () => {
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
+  it('preserves unknown replacement fields and blocks invalid required writes', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        network: {
+          type: 'object',
+          properties: { host: { type: 'string' } }
+        },
+        requiredValue: { type: 'integer', required: true }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({
+      network: { host: 'localhost', backendOnly: { keep: true } },
+      rootBackendOnly: false
+    });
+
+    await mountParams();
+    submitForm();
+    await flush();
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('required');
+
+    const required = document.querySelector<HTMLInputElement>('input[type="number"]')!;
+    expect(required.getAttribute('aria-invalid')).toBe('true');
+
+    await setInputValue(required, '4');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({
+      network: { host: 'localhost', backendOnly: { keep: true } },
+      requiredValue: 4,
+      rootBackendOnly: false
+    });
+  });
+
+  it('lets nullable parameter controls distinguish missing, null, and an empty string', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { maybe: { type: [{ type: 'string' }, { type: 'null' }] } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ maybe: null });
+
+    await mountParams();
+    const presence = document.querySelector<HTMLSelectElement>('[data-schema-presence]')!;
+    expect(presence.value).toBe('null');
+    await setInputValue(presence, 'value');
+    const input = document.querySelector<HTMLInputElement>('[data-schema-field-input]')!;
+    expect(input.value).toBe('');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ maybe: '' });
+
+    paramsMock.saveNodeParams.mockReset().mockResolvedValue({});
+    await setInputValue(presence, 'missing');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({});
+
+    paramsMock.saveNodeParams.mockReset().mockResolvedValue({});
+    await setInputValue(presence, 'null');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ maybe: null });
+  });
+
+  it('reveals and focuses a collapsed invalid nested field on submit', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        network: {
+          type: 'object',
+          title: 'Network',
+          properties: { host: { type: 'string', required: true } }
+        }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ network: {} });
+
+    await mountParams();
+    const network = schemaDetailsByLabel('Network')!;
+    expect(network.open).toBe(false);
+    submitForm();
+    await waitFor(() => Boolean(network.open && document.activeElement?.matches('[data-schema-field-input]')));
+    const input = network.querySelector<HTMLInputElement>('[data-schema-field-input]')!;
+    expect(input).toBe(document.activeElement);
+    expect(network.querySelector('[role="alert"]')?.textContent).toContain('required');
+    expect(network.getAttribute('aria-describedby')).toBeTruthy();
+  });
+
+  it('exposes collapsed array minItems errors and opens the array on submit', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { servers: { type: 'array', title: 'Servers', minItems: 1, items: { type: 'string' } } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ servers: [] });
+
+    await mountParams();
+    const servers = schemaDetailsByLabel('Servers')!;
+    expect(servers.open).toBe(false);
+    submitForm();
+    await waitFor(() => servers.open);
+    expect(servers.parentElement?.querySelector('[role="alert"]')?.textContent).toContain('at least 1 item');
+    expect(servers.getAttribute('aria-describedby')).toBeTruthy();
+  });
+
   it('renders an empty state when there are no parameter schema fields', async () => {
     paramsMock.getNodeParamsSchema.mockResolvedValue({ type: 'object', properties: {} });
     paramsMock.getNodeParams.mockResolvedValue({});
@@ -234,6 +339,147 @@ describe('nodel-params', () => {
     expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({
       servers: ['gamma', 'beta']
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('enforces both array add/remove boundaries for minItems and maxItems', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { servers: { type: 'array', title: 'Servers', minItems: 1, maxItems: 2, items: { type: 'string' } } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ servers: ['alpha'] });
+
+    await mountParams();
+    await openDetails(schemaDetailsByLabel('Servers')!);
+    expect(document.querySelector<HTMLButtonElement>('[data-schema-array-remove]')?.disabled).toBe(true);
+    document.querySelector<HTMLButtonElement>('[data-schema-array-add]')?.click();
+    await flush();
+    expect(document.querySelectorAll('[data-schema-array-entry]')).toHaveLength(2);
+    expect(document.querySelector<HTMLButtonElement>('[data-schema-array-add]')?.disabled).toBe(true);
+    document.querySelector<HTMLButtonElement>('[data-schema-array-remove]')?.click();
+    await flush();
+    expect(document.querySelectorAll('[data-schema-array-entry]')).toHaveLength(1);
+    expect(document.querySelector<HTMLButtonElement>('[data-schema-array-remove]')?.disabled).toBe(true);
+  });
+
+  it('edits nullable object array entries between value and null and preserves reordered payloads', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        rows: {
+          type: 'array',
+          title: 'Rows',
+          items: { type: [{ type: 'object', properties: { name: { type: 'string' } } }, { type: 'null' }] }
+        }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ rows: [null, {}] });
+
+    await mountParams();
+    await openDetails(schemaDetailsByLabel('Rows')!);
+    let states = Array.from(document.querySelectorAll<HTMLSelectElement>('[data-schema-array-presence]'));
+    expect(states.map((select) => select.value)).toEqual(['null', 'value']);
+    await setInputValue(states[0], 'value');
+    await waitFor(() => document.querySelectorAll('[data-schema-array-presence]').length === 2);
+    const name = document.querySelector<HTMLInputElement>('[data-schema-array-entry] [data-schema-field-input]')!;
+    await setInputValue(name, 'first');
+    states = Array.from(document.querySelectorAll<HTMLSelectElement>('[data-schema-array-presence]'));
+    await setInputValue(states[1], 'null');
+    const moveDown = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-schema-array-move="down"]'))[0];
+    moveDown.click();
+    await flush();
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ rows: [null, { name: 'first' }] });
+  });
+
+  it('does not offer Missing for nullable scalar array items and blocks forged absent items', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { values: { type: 'array', title: 'Values', items: { type: [{ type: 'string' }, { type: 'null' }] } } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ values: [null, 'ready'] });
+
+    await mountParams();
+    await openDetails(schemaDetailsByLabel('Values')!);
+    const states = Array.from(document.querySelectorAll<HTMLSelectElement>('[data-schema-presence]'));
+    expect(states).toHaveLength(2);
+    expect(states.every((select) => Array.from(select.options).every((option) => option.value !== 'missing'))).toBe(true);
+
+    const host = document.querySelector('nodel-params') as any;
+    const values = host.state.schemaForm.fields.find((candidate: any) => candidate.key === 'values');
+    values.entries[0].valueField.present = false;
+    submitForm();
+    await flush();
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('array item');
+  });
+
+  it('activates missing nullable ancestors when editing a child or adding an array item', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        config: { type: [{ type: 'object', title: 'Config', properties: { name: { type: 'string' } } }, { type: 'null' }] },
+        values: { type: [{ type: 'array', title: 'Values', items: { type: 'string' } }, { type: 'null' }] }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({});
+
+    await mountParams();
+    const config = schemaDetailsByLabel('Config')!;
+    const configState = config.parentElement?.querySelector<HTMLSelectElement>('[data-schema-presence]')!;
+    expect(configState.value).toBe('missing');
+    await openDetails(config);
+    await setInputValue(config.querySelector<HTMLInputElement>('[data-schema-field-input]')!, 'active');
+    expect(config.parentElement?.querySelector<HTMLSelectElement>('[data-schema-presence]')?.value).toBe('value');
+
+    const values = schemaDetailsByLabel('Values')!;
+    const valuesState = values.parentElement?.querySelector<HTMLSelectElement>('[data-schema-presence]')!;
+    expect(valuesState.value).toBe('missing');
+    await openDetails(values);
+    values.querySelector<HTMLButtonElement>('[data-schema-array-add]')?.click();
+    await flush();
+    expect(values.parentElement?.querySelector<HTMLSelectElement>('[data-schema-presence]')?.value).toBe('value');
+
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ config: { name: 'active' }, values: [''] });
+  });
+
+  it('activates a missing nullable parent when a nested nullable child is set to null', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        config: {
+          type: [
+            {
+              type: 'object',
+              properties: {
+                child: { type: [{ type: 'string' }, { type: 'null' }], title: 'Child' }
+              }
+            },
+            { type: 'null' }
+          ],
+          title: 'Config'
+        }
+      }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({});
+
+    await mountParams();
+
+    const config = schemaDetailsByLabel('Config')!;
+    await openDetails(config);
+    const parentPresence = config.parentElement?.querySelector<HTMLSelectElement>('[aria-label="Config state"]')!;
+    const childPresence = config.querySelector<HTMLSelectElement>('[aria-label="Child state"]')!;
+    expect(parentPresence.value).toBe('missing');
+
+    await setInputValue(childPresence, 'null');
+    await waitFor(() => parentPresence.value === 'value');
+    expect(parentPresence.value).toBe('value');
+
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ config: { child: null } });
   });
 
   it('uses shared schema stacks for nested object arrays and array entries', async () => {

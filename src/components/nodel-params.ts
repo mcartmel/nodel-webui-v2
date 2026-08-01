@@ -11,12 +11,15 @@ import {
   createSchemaForm,
   findSchemaField,
   handleSchemaFormClick,
+  handleSchemaFormInput,
   handleSchemaFormToggle,
   hydrateSchemaForm,
   registerSchemaFormTemplates,
+  revealSchemaValidationIssues,
   serializeSchemaForm,
   type SchemaField,
-  type SchemaFormModel
+  type SchemaFormModel,
+  validateAndUpdateSchemaForm
 } from '../schema/schema-form';
 
 interface ParamsViewModel {
@@ -97,6 +100,8 @@ export class NodelParams extends HTMLElement {
     this.abortController?.abort();
     this.abortController = null;
     this.removeEventListener('submit', this.handleSubmit);
+    this.removeEventListener('input', this.handleInput);
+    this.removeEventListener('change', this.handleInput);
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('toggle', this.handleToggle, true);
     if (this.saveMessageTimer !== null) {
@@ -123,6 +128,8 @@ export class NodelParams extends HTMLElement {
     }
     this.linked = true;
     scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(this, 'input', this.handleInput);
+    scope.listen(this, 'change', this.handleInput);
     scope.listen(this, 'click', this.handleClick);
     scope.listen(this, 'toggle', this.handleToggle, true);
 
@@ -202,7 +209,16 @@ export class NodelParams extends HTMLElement {
       return;
     }
 
+    if (validateAndUpdateSchemaForm(this.state.schemaForm).length > 0) {
+      revealSchemaValidationIssues(this.state.schemaForm, this);
+      return;
+    }
+
     void this.saveParams();
+  };
+
+  private handleInput = (event: Event) => {
+    handleSchemaFormInput(event, this, (fieldId) => this.findField(fieldId));
   };
 
   private handleClick = (event: MouseEvent) => {

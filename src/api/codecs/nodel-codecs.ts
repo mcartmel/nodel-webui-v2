@@ -178,11 +178,18 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
     invalid(context, path, `schema exceeds ${MAX_SCHEMA_DEPTH} levels`);
   }
   const record = asRecord(value, context, path);
+  for (const key of ['title', 'desc', 'hint', 'format', 'group', 'caution'] as const) {
+    if (record[key] !== undefined && (typeof record[key] !== 'string' || unsafeText.test(record[key] as string))) {
+      invalid(context, `${path}.${key}`, 'expected a string');
+    }
+  }
   const result = normalizeOptionalStrings(record, ['title', 'desc', 'hint', 'format', 'group', 'caution'], context, path);
   const type = record.type;
   if (typeof type === 'string' && !schemaTypes.has(type)) {
     invalid(context, `${path}.type`, 'expected a supported JSON schema type');
-  } else if (type !== undefined && type !== null && typeof type !== 'string') {
+  } else if (type === null) {
+    result.type = null;
+  } else if (type !== undefined && typeof type !== 'string') {
     const variants = asArray(type, context, `${path}.type`);
     if (variants.length === 0) {
       invalid(context, `${path}.type`, 'expected at least one schema variant');
@@ -191,7 +198,15 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
   }
   if (record.enum !== undefined) {
     const enumValues = [...asArray(record.enum, context, `${path}.enum`)];
-    enumValues.forEach((item, index) => validateJsonBounds(item, context, `${path}.enum[${index}]`));
+    if (enumValues.length === 0) {
+      invalid(context, `${path}.enum`, 'expected at least one scalar value');
+    }
+    enumValues.forEach((item, index) => {
+      validateJsonBounds(item, context, `${path}.enum[${index}]`);
+      if (item !== null && typeof item !== 'string' && typeof item !== 'boolean' && (typeof item !== 'number' || !Number.isFinite(item))) {
+        invalid(context, `${path}.enum[${index}]`, 'expected a JSON scalar value');
+      }
+    });
     result.enum = enumValues;
   }
   if (record.properties !== undefined) {
@@ -205,6 +220,9 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
     result.items = decodeSchemaAt(record.items, context, `${path}.items`, depth + 1);
   }
   for (const key of ['order', 'min', 'max', 'minItems', 'maxItems'] as const) {
+    if (record[key] === null) {
+      invalid(context, `${path}.${key}`, 'expected a finite number');
+    }
     const number = optionalFiniteNumber(record, key, context, path);
     if (number !== undefined) {
       if ((key === 'minItems' || key === 'maxItems') && (!Number.isSafeInteger(number) || number < 0)) {
@@ -213,14 +231,25 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
       result[key] = number;
     }
   }
-  if (record.step !== undefined && record.step !== null && typeof record.step !== 'string' && (typeof record.step !== 'number' || !Number.isFinite(record.step))) {
-    invalid(context, `${path}.step`, 'expected a finite number or string');
+  if (record.step !== undefined) {
+    if (record.step === null || (typeof record.step !== 'string' && (typeof record.step !== 'number' || !Number.isFinite(record.step)))) {
+      invalid(context, `${path}.step`, 'expected a positive finite number or "any"');
+    }
+    if (record.step !== 'any' && ((typeof record.step === 'string' && (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?$/.test(record.step) || !Number.isFinite(Number(record.step)) || Number(record.step) <= 0)) || (typeof record.step === 'number' && record.step <= 0))) {
+      invalid(context, `${path}.step`, 'expected a positive finite number or "any"');
+    }
   }
-  if (record.required !== undefined && record.required !== null && typeof record.required !== 'boolean') {
+  if (record.required !== undefined && typeof record.required !== 'boolean') {
     invalid(context, `${path}.required`, 'expected a boolean');
   }
-  if (record.advanced !== undefined && record.advanced !== null && typeof record.advanced !== 'boolean') {
+  if (record.advanced !== undefined && typeof record.advanced !== 'boolean') {
     invalid(context, `${path}.advanced`, 'expected a boolean');
+  }
+  if (typeof result.min === 'number' && typeof result.max === 'number' && result.min > result.max) {
+    invalid(context, path, 'minimum cannot exceed maximum');
+  }
+  if (typeof result.minItems === 'number' && typeof result.maxItems === 'number' && result.minItems > result.maxItems) {
+    invalid(context, path, 'minItems cannot exceed maxItems');
   }
   return result as NodelJsonSchema;
 }
@@ -431,7 +460,8 @@ export function decodeRecord(value: unknown, context: string) {
 
 export function decodeRemoteBindings(value: unknown, context: string): NodelRemoteBindings {
   const record = asRecord(value, context);
-  const result = { ...record };
+  validateJsonBounds(record, context, '$');
+  const result = cloneJsonValue(record) as Record<string, unknown>;
   for (const sectionName of ['actions', 'events'] as const) {
     if (record[sectionName] === undefined || record[sectionName] === null) {
       continue;
@@ -444,6 +474,14 @@ export function decodeRemoteBindings(value: unknown, context: string): NodelRemo
     }));
   }
   return result;
+}
+
+function cloneJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(cloneJsonValue);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [key, cloneJsonValue(child)]));
+  }
+  return value;
 }
 
 export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {

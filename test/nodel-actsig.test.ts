@@ -163,7 +163,7 @@ describe('nodel-actsig', () => {
     await waitFor(() => Boolean(formByTitle('Configure')));
 
     const form = formByTitle('Configure')!;
-    await openDetails(form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!);
+    await openDetails(form.querySelector<HTMLDetailsElement>('details')!);
     await waitFor(() => form.querySelectorAll('input, select').length >= 4);
 
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, '192.168.1.10');
@@ -182,6 +182,70 @@ describe('nodel-actsig', () => {
         mode: 'On'
       }
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('blocks action calls for invalid strict numeric input', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      SetLevel: { name: 'SetLevel', title: 'Set Level', schema: { type: 'integer', min: 0, max: 10 } }
+    });
+    await mountActSig();
+    const form = formByTitle('Set Level')!;
+    const input = form.querySelector<HTMLInputElement>('input[type="number"]')!;
+    await setInputValue(input, '3.5');
+    submitForm(form);
+    await flush();
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+    expect(form.textContent).toContain('whole number');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('opens and focuses a collapsed required action field with an accessible summary', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Configure: {
+        name: 'Configure',
+        title: 'Configure',
+        schema: {
+          type: 'object',
+          properties: {
+            settings: {
+              type: 'object',
+              title: 'Settings',
+              required: true,
+              properties: { host: { type: 'string', required: true } }
+            }
+          }
+        }
+      }
+    });
+
+    await mountActSig();
+    const form = formByTitle('Configure')!;
+    const root = form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!;
+    expect(root.open).toBe(false);
+    submitForm(form);
+    await waitFor(() => Boolean(root.open && document.activeElement?.matches('[data-schema-field-input]')));
+    const settings = Array.from(form.querySelectorAll<HTMLDetailsElement>('details.nodel-schema-nested'))
+      .find((details) => details.querySelector('.nodel-collapse-label')?.textContent?.trim() === 'Settings')!;
+    expect(settings.open).toBe(true);
+    expect(settings.getAttribute('aria-describedby')).toBeTruthy();
+    expect(Array.from(form.querySelectorAll('[role="alert"]')).some((alert) => alert.textContent?.includes('required'))).toBe(true);
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+  });
+
+  it('blocks signal emission for invalid required input', async () => {
+    actsigMock.getNodeSignals.mockResolvedValue({
+      Status: { name: 'Status', title: 'Status', schema: { type: 'object', properties: { message: { type: 'string', required: true } } } }
+    });
+    await mountActSig();
+    await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
+    const form = formByTitle('Status')!;
+    const root = form.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!;
+    await openDetails(root);
+    submitForm(form);
+    await flush();
+    expect(actsigMock.emitNodeSignal).not.toHaveBeenCalled();
+    expect(form.textContent).toContain('required');
+    expect(form.querySelector('[role="alert"]')).not.toBeNull();
   });
 
   it('renders accessible copy icons and copies the technical action name', async () => {
@@ -435,6 +499,144 @@ describe('nodel-actsig', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('hydrates pristine action arguments but preserves edited action fields during later activity', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'Run', title: 'Run Action', schema: { type: 'string' } },
+      Other: { name: 'Other', title: 'Other Action', schema: { type: 'string' } }
+    });
+
+    await mountActSig();
+    await waitFor(() => Boolean(formByTitle('Run Action')) && Boolean(formByTitle('Other Action')));
+    const edited = formByTitle('Run Action')!;
+    await setInputValue(edited.querySelector<HTMLInputElement>('[data-schema-field-input]')!, 'manual');
+
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 3,
+        items: [
+          { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Run', arg: 'activity' }, changed: true, live: true },
+          { entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'action', alias: 'Other', arg: 'pristine' }, changed: true, live: true }
+        ]
+      }
+    });
+    await flush();
+
+    expect(edited.querySelector<HTMLInputElement>('[data-schema-field-input]')?.value).toBe('manual');
+    expect(formByTitle('Other Action')?.querySelector<HTMLInputElement>('[data-schema-field-input]')?.value).toBe('pristine');
+    submitForm(edited);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+    expect(actsigMock.callNodeAction).toHaveBeenCalledWith('Run', { arg: 'manual' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('preserves unknown activity metadata through action calls and signal emissions', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'Run', title: 'Run Action', schema: { type: 'object', properties: { known: { type: 'string' } } } }
+    });
+    actsigMock.getNodeSignals.mockResolvedValue({
+      State: { name: 'State', title: 'State Signal', schema: { type: 'object', properties: { known: { type: 'string' } } } }
+    });
+
+    await mountActSig();
+    await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 3,
+        items: [
+          { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Run', arg: { known: 'action-live', extra: { keep: 'action' } } }, changed: true, live: true },
+          { entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'event', alias: 'State', arg: { known: 'signal-live', extra: { keep: 'signal' } } }, changed: true, live: true }
+        ]
+      }
+    });
+    await flush();
+
+    const action = formByTitle('Run Action')!;
+    await openDetails(action.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!);
+    await setInputValue(action.querySelector<HTMLInputElement>('[data-schema-field-input]')!, 'action-edited');
+    submitForm(action);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+
+    const signal = formByTitle('State Signal')!;
+    await openDetails(signal.querySelector<HTMLDetailsElement>('details.nodel-schema-root-object')!);
+    await setInputValue(signal.querySelector<HTMLInputElement>('[data-schema-field-input]')!, 'signal-edited');
+    submitForm(signal);
+    await waitFor(() => actsigMock.emitNodeSignal.mock.calls.length === 1);
+
+    expect(actsigMock.callNodeAction.mock.calls[0][1]).toEqual({ arg: { known: 'action-edited', extra: { keep: 'action' } } });
+    expect(actsigMock.emitNodeSignal.mock.calls[0][1]).toEqual({ arg: { known: 'signal-edited', extra: { keep: 'signal' } } });
+  });
+
+  it('preserves dirty nullable scalar array state and IDs during later action activity', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: {
+        name: 'Run',
+        title: 'Run Action',
+        schema: { type: 'array', items: { type: [{ type: 'string' }, { type: 'null' }] } }
+      }
+    });
+
+    await mountActSig();
+    const form = formByTitle('Run Action')!;
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Run', arg: ['initial', 'second'] }, changed: true, live: true }]
+      }
+    });
+    await flush();
+    await openDetails(form.querySelector<HTMLDetailsElement>('details')!);
+    const firstInput = form.querySelector<HTMLInputElement>('[data-schema-field-input]')!;
+    await setInputValue(firstInput, 'manual');
+    let states = Array.from(form.querySelectorAll<HTMLSelectElement>('[data-schema-presence]'));
+    expect(states).toHaveLength(2);
+    await setInputValue(states[0], 'null');
+
+    const host = document.querySelector('nodel-actsig') as any;
+    const model = host.state.sections.flatMap((section: any) => section.rows).find((row: any) => row.action?.name === 'Run').action;
+    const entryId = model.schemaForm.fields[0].entries[0].id;
+
+    actsigMock.activityListeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 3,
+        items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'action', alias: 'Run', arg: ['activity', 'updated'] }, changed: true, live: true }]
+      }
+    });
+    await flush();
+
+    const refreshed = host.state.sections.flatMap((section: any) => section.rows).find((row: any) => row.action?.name === 'Run').action;
+    const firstEntry = refreshed.schemaForm.fields[0].entries[0];
+    states = Array.from(form.querySelectorAll<HTMLSelectElement>('[data-schema-presence]'));
+    expect(states[0].value).toBe('null');
+    expect(firstEntry.id).toBe(entryId);
+    expect(firstEntry.valueField.value).toBeNull();
+    expect(firstEntry.valueField.concreteValue).toBe('manual');
+    expect(firstEntry.valueField.presenceState).toBe('null');
+    expect(firstEntry.valueField.dirty).toBe(true);
+
+    submitForm(form);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+    expect(actsigMock.callNodeAction.mock.calls[0][1]).toEqual({ arg: [null, 'updated'] });
   });
 
   it('renders root object action args as a collapsible group while keeping nested arrays collapsible', async () => {

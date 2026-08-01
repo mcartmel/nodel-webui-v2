@@ -18,6 +18,9 @@ import { getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { networkNodeSearchHref } from '../navigation/node-links';
 import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 import { safeRemoteNodeUrl } from '../utils/urls';
+import { cloneSchemaValue } from '../schema/schema-values';
+import { validateValueAgainstSchema } from '../schema/schema-validation';
+import { normalizeSchema } from '../schema/schema-model';
 
 type BindingKind = 'actions' | 'events';
 type BindingTargetKey = 'action' | 'event';
@@ -63,6 +66,16 @@ interface BindingRow {
   suggestionLabel: string;
   suggestionConfidence: SuggestionConfidence;
   suggestionClass: string;
+  schema: NodelJsonSchema;
+  originalValue: Record<string, unknown>;
+  rowPresent: boolean;
+  nodePresent: boolean;
+  targetPresent: boolean;
+  dirty: boolean;
+  nodeDirty: boolean;
+  targetDirty: boolean;
+  nodeError: string;
+  targetError: string;
 }
 
 interface BindingSection {
@@ -97,6 +110,7 @@ interface BindingsViewModel {
   busy: boolean;
   message: string;
   toolbarError: string;
+  invalid: boolean;
 }
 
 interface TargetDefinition {
@@ -206,8 +220,8 @@ const template = `
                             <span class="block truncate text-xs text-nodel-muted">{^{>alias}}</span>
                             {^{if description}}<span class="block truncate text-xs text-nodel-muted">{^{>description}}</span>{{/if}}
                           </span>
-                          <span class="nodel-bindings-combobox">
-                            <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="node" />
+                           <span class="nodel-bindings-combobox">
+                             <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="{:node:} id{:id + '-node'} aria-invalid{:nodeError ? 'true' : 'false'} aria-describedby{:nodeError ? id + '-node-error' : ''}" />
                             {^{if showNodeOptions}}
                               <div class="nodel-bindings-popover nodel-popover">
                                 {^{for nodeOptions}}
@@ -216,11 +230,12 @@ const template = `
                                     {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
                                   </button>
                                 {{/for}}
-                              </div>
-                            {{/if}}
-                          </span>
-                          <span class="nodel-bindings-combobox">
-                            <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} placeholder{:targetLabel}" />
+                             </div>
+                           {{/if}}
+                           {^{if nodeError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert" data-link="id{:id + '-node-error'} text{:nodeError}"></span>{{/if}}
+                           </span>
+                           <span class="nodel-bindings-combobox">
+                             <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} id{:id + '-target'} placeholder{:targetLabel} aria-invalid{:targetError ? 'true' : 'false'} aria-describedby{:targetError ? id + '-target-error' : ''}" />
                             {^{if showTargetOptions}}
                               <div class="nodel-bindings-popover nodel-popover">
                                 {^{for targetOptions}}
@@ -229,9 +244,10 @@ const template = `
                                     {^{if detail}}<span class="truncate text-xs text-nodel-muted">{^{>detail}}</span>{{/if}}
                                   </button>
                                 {{/for}}
-                              </div>
-                            {{/if}}
-                          </span>
+                             </div>
+                           {{/if}}
+                           {^{if targetError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert" data-link="id{:id + '-target-error'} text{:targetError}"></span>{{/if}}
+                           </span>
                           <span class="nodel-bindings-suggestion" data-link="class{:suggestionClass}">
                             {^{if suggestionLabel}}{^{>suggestionLabel}}{{else}}-{{/if}}
                           </span>
@@ -247,7 +263,7 @@ const template = `
           </div>
         </fieldset>
         <div class="flex min-w-0 flex-wrap items-center gap-3">
-          <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving}">
+             <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:saving || invalid}">
             {^{if saving}}Saving...{{else}}Save{{/if}}
           </button>
           {^{if saveMessage}}<span class="text-sm text-nodel-muted">{^{>saveMessage}}</span>{{/if}}
@@ -260,15 +276,21 @@ const template = `
   </div>
 `;
 
-let nextId = 0;
-
 function apiErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
 function nextBindingId(kind: BindingKind, alias: string) {
-  nextId += 1;
-  return `nodel-bindings-${kind}-${alias.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${nextId}`;
+  return `nodel-bindings-${kind}-${alias.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${bindingHash(`${kind}:${alias}`)}`;
+}
+
+function bindingHash(value: string) {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.codePointAt(0)!;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function sectionTitle(kind: BindingKind) {
@@ -291,6 +313,24 @@ function hasBindingSchema(schema: NodelJsonSchema | null | undefined) {
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateBindingRow(row: BindingRow) {
+  // Java RemoteBindingValues serialises a declared but unbound row as an empty
+  // object; BaseNode treats that state as valid and reports it as unbound.
+  if (!row.nodePresent && !row.targetPresent && !row.nodeDirty && !row.targetDirty) return [];
+  const value: Record<string, unknown> = cloneSchemaValue(row.originalValue);
+  if (row.nodeDirty || row.nodePresent) value.node = row.node;
+  if (row.targetDirty || row.targetPresent) value[row.targetKey] = row.target;
+  return validateValueAgainstSchema(value, row.schema, row.id).map((issue) => ({
+    ...issue,
+    fieldId: issue.fieldId.startsWith(row.id) ? issue.fieldId : `${row.id}${issue.pointer}`,
+    pointer: issue.pointer.startsWith(row.id) ? issue.pointer : `${row.id}${issue.pointer}`
+  }));
 }
 
 function stringValue(value: unknown) {
@@ -577,8 +617,10 @@ export class NodelBindings extends HTMLElement {
     unboundCount: 0,
     busy: false,
     message: '',
-    toolbarError: ''
+    toolbarError: '',
+    invalid: false
   };
+  private sourceBindings: Record<string, unknown> = {};
 
   connectedCallback() {
     const scope = this.lifecycle.connect();
@@ -669,7 +711,8 @@ export class NodelBindings extends HTMLElement {
       visibleCount: 0,
       unboundCount: 0,
       message: '',
-      toolbarError: ''
+      toolbarError: '',
+      invalid: false
     });
 
     try {
@@ -681,7 +724,19 @@ export class NodelBindings extends HTMLElement {
         return;
       }
 
-      if (!hasBindingSchema(schema)) {
+      const normalizedSchema = normalizeSchema(schema);
+      if (normalizedSchema.unsupportedReason) {
+        this.setState({
+          loading: false,
+          error: `Unsupported binding schema: ${normalizedSchema.unsupportedReason}`,
+          sections: [],
+          empty: false,
+          invalid: true
+        });
+        return;
+      }
+
+      if (!hasBindingSchema(normalizedSchema.schema)) {
         this.setState({
           loading: false,
           empty: true,
@@ -690,12 +745,15 @@ export class NodelBindings extends HTMLElement {
         return;
       }
 
-      const sections = this.createSections(schema, values);
+      this.sourceBindings = cloneSchemaValue(values);
+      const sections = this.createSections(normalizedSchema.schema, values);
       this.setState({
         loading: false,
         empty: sections.every((section) => section.rows.length === 0),
-        sections
+        sections,
+        invalid: false
       });
+      this.validateBindings();
       this.bindFilterInput();
       this.updateToolbarSummary();
     } catch (error) {
@@ -746,6 +804,16 @@ export class NodelBindings extends HTMLElement {
           node,
           nodeAddress: '',
           target: stringValue(value[targetKey]),
+          schema: rowSchema,
+          originalValue: cloneSchemaValue(value),
+          rowPresent: Object.prototype.hasOwnProperty.call(values, alias),
+          nodePresent: Object.prototype.hasOwnProperty.call(value, 'node'),
+          targetPresent: Object.prototype.hasOwnProperty.call(value, targetKey),
+          dirty: false,
+          nodeDirty: false,
+          targetDirty: false,
+          nodeError: '',
+          targetError: '',
           selected: false,
           status: normalizeStatus(''),
           statusClass: statusClass(normalizeStatus('')),
@@ -790,6 +858,10 @@ export class NodelBindings extends HTMLElement {
       return;
     }
 
+    if (this.validateBindings().length > 0) {
+      return;
+    }
+
     void this.saveBindings();
   };
 
@@ -818,8 +890,12 @@ export class NodelBindings extends HTMLElement {
       getJQuery().observable(row).setProperty({
         node: target.value,
         nodeAddress: '',
+        nodePresent: true,
+        dirty: true,
+        nodeDirty: true,
         ...statusLinkProperties(target.value)
       });
+      this.validateBindings();
       void this.searchRowNodes(row, target.value);
       return;
     }
@@ -827,11 +903,15 @@ export class NodelBindings extends HTMLElement {
     if (target.hasAttribute('data-bindings-target')) {
       getJQuery().observable(row).setProperty({
         target: target.value,
+        targetPresent: true,
+        dirty: true,
+        targetDirty: true,
         suggestionValue: '',
         suggestionLabel: '',
         suggestionConfidence: '',
         suggestionClass: suggestionClass('')
       });
+      this.validateBindings();
       void this.searchTargets(row, target.value);
     }
   };
@@ -1008,10 +1088,14 @@ export class NodelBindings extends HTMLElement {
         $.observable(row).setProperty({
           node: selected.value,
           nodeAddress: selected.address,
+          nodePresent: true,
+          dirty: true,
+          nodeDirty: true,
           ...statusLinkProperties(selected.value),
           nodeOptions: [],
           showNodeOptions: false
         });
+        this.validateBindings();
       }
       return;
     }
@@ -1026,6 +1110,9 @@ export class NodelBindings extends HTMLElement {
       if (selected) {
         $.observable(row).setProperty({
           target: selected.value,
+          targetPresent: true,
+          dirty: true,
+          targetDirty: true,
           targetOptions: [],
           showTargetOptions: false,
           suggestionValue: '',
@@ -1033,6 +1120,7 @@ export class NodelBindings extends HTMLElement {
           suggestionConfidence: '',
           suggestionClass: suggestionClass('')
         });
+        this.validateBindings();
       }
     }
   }
@@ -1196,6 +1284,9 @@ export class NodelBindings extends HTMLElement {
         getJQuery().observable(row).setProperty({
           node: this.state.bulkNode,
           nodeAddress: this.state.bulkNodeAddress,
+          nodePresent: true,
+          dirty: true,
+          nodeDirty: true,
           ...statusLinkProperties(this.state.bulkNode),
           suggestionValue: '',
           suggestionLabel: '',
@@ -1204,6 +1295,7 @@ export class NodelBindings extends HTMLElement {
         });
       }
     }
+    this.validateBindings();
   }
 
   private async suggestMatches() {
@@ -1262,13 +1354,14 @@ export class NodelBindings extends HTMLElement {
       if (!row.selected || !row.suggestionValue || (row.suggestionConfidence !== 'high' && row.suggestionConfidence !== 'medium')) {
         continue;
       }
-      getJQuery().observable(row).setProperty('target', row.suggestionValue);
+      getJQuery().observable(row).setProperty({ target: row.suggestionValue, targetPresent: true, dirty: true, targetDirty: true });
       applied += 1;
     }
     this.setState({
       message: `${applied} suggestion${applied === 1 ? '' : 's'} applied.`,
       toolbarError: ''
     });
+    this.validateBindings();
   }
 
   private async getTargetDefinitions(row: BindingRow, scope: ConnectionScope) {
@@ -1375,6 +1468,9 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
+    if (this.validateBindings().length > 0) {
+      return;
+    }
     const payload = this.serializePayload();
     this.setState({
       saving: true,
@@ -1417,23 +1513,41 @@ export class NodelBindings extends HTMLElement {
   }
 
   private serializePayload() {
-    const payload: Record<string, unknown> = {
-      actions: {},
-      events: {}
-    };
+    const payload: Record<string, unknown> = cloneSchemaValue(this.sourceBindings);
 
     for (const section of this.state.sections) {
-      const sectionPayload: Record<string, unknown> = {};
+      const sourceSectionPresent = Object.prototype.hasOwnProperty.call(payload, section.kind);
+      if (!sourceSectionPresent && !section.rows.some((row) => row.dirty)) continue;
+      const sectionPayload: Record<string, unknown> = isRecordValue(payload[section.kind]) ? cloneSchemaValue(payload[section.kind]) as Record<string, unknown> : {};
       for (const row of section.rows) {
-        sectionPayload[row.alias] = {
-          node: row.node,
-          [row.targetKey]: row.target
-        };
+        if (!row.dirty && row.rowPresent) {
+          continue;
+        }
+        if (!row.dirty) continue;
+        const rowPayload: Record<string, unknown> = cloneSchemaValue(row.originalValue);
+        if (row.nodeDirty) rowPayload.node = row.node;
+        if (row.targetDirty) rowPayload[row.targetKey] = row.target;
+        sectionPayload[row.alias] = rowPayload;
       }
       payload[section.kind] = sectionPayload;
     }
 
     return payload;
+  }
+
+  private validateBindings() {
+    const issues = this.allRows().flatMap((row) => validateBindingRow(row));
+    for (const row of this.allRows()) {
+      const rowIssues = issues.filter((issue) => issue.fieldId === row.id || issue.fieldId.startsWith(`${row.id}/`));
+      const nodeIssue = rowIssues.find((issue) => issue.pointer.endsWith('/node'));
+      const targetIssue = rowIssues.find((issue) => issue.pointer.endsWith(`/${row.targetKey}`));
+      getJQuery().observable(row).setProperty({
+        nodeError: nodeIssue?.message ?? (!targetIssue && rowIssues.length > 0 ? rowIssues[0]?.message ?? '' : ''),
+        targetError: targetIssue?.message ?? ''
+      });
+    }
+    this.setState({ invalid: issues.length > 0 });
+    return issues;
   }
 
   private subscribeActivity(scope: ConnectionScope) {

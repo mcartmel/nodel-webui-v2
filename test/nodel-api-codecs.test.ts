@@ -78,6 +78,21 @@ describe('Nodel API response codecs', () => {
     expect(() => assertSafeNodeFilePath('content/script.py:stream')).toThrow('Node file path is invalid');
   });
 
+  it('preserves the Java variant-schema dialect and explicit null type', () => {
+    expect(decodeSchema({ type: null }, 'schema').type).toBeNull();
+    expect(decodeSchema({ type: [{ type: 'string' }, { type: 'null' }] }, 'schema').type).toEqual([
+      { type: 'string' },
+      { type: 'null' }
+    ]);
+    expect(() => decodeSchema({ type: ['string', 'null'] }, 'schema')).toThrow('expected an object');
+    expect(() => decodeSchema({ type: 'string', required: null }, 'schema')).toThrow('required');
+    expect(() => decodeSchema({ type: 'number', min: null }, 'schema')).toThrow('min');
+    expect(() => decodeSchema({ type: 'number', step: 0 }, 'schema')).toThrow('step');
+    expect(() => decodeSchema({ type: 'string', enum: [{ value: 'unsupported' }] }, 'schema')).toThrow('enum');
+    expect(() => decodeSchema({ type: 'string', enum: [] }, 'schema')).toThrow('enum');
+    expect(() => decodeSchema({ type: 'number', min: 5, max: 1 }, 'schema')).toThrow('minimum');
+  });
+
   it('isolates malformed discovery entries when valid advertisements remain', () => {
     expect(decodeNodeUrls([
       { node: 'Unsafe', address: 'javascript:alert(1)' },
@@ -110,6 +125,22 @@ describe('Nodel API response codecs', () => {
       schema = { type: 'object', properties: { nested: schema } };
     }
     expect(() => decodeSchema(schema, 'schema')).toThrow('schema exceeds 32 levels');
+  });
+
+  it('bounds unknown remote-binding metadata before preserving it', () => {
+    let deep: Record<string, unknown> = {};
+    for (let index = 0; index < 66; index += 1) deep = { nested: deep };
+    expect(() => decodeRemoteBindings({ metadata: deep }, 'bindings')).toThrow('64 levels');
+    expect(() => decodeRemoteBindings({ sectionMetadata: Array(MAX_API_COLLECTION_ITEMS + 1).fill(null) }, 'bindings')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
+    expect(() => decodeRemoteBindings({ actions: { Row: { metadata: Array(MAX_API_COLLECTION_ITEMS + 1).fill(null) } } }, 'bindings')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
+    expect(() => decodeRemoteBindings({ metadata: Number.NaN }, 'bindings')).toThrow('finite JSON number');
+    expect(() => decodeRemoteBindings({ actions: { Row: { metadata: Number.POSITIVE_INFINITY } } }, 'bindings')).toThrow('finite JSON number');
+
+    const metadata = { nested: [{ keep: true }] };
+    const decoded = decodeRemoteBindings({ metadata, actions: { Row: { node: 'Display', metadata } } }, 'bindings');
+    expect(decoded.metadata).toEqual(metadata);
+    expect(decoded.metadata).not.toBe(metadata);
+    expect((decoded.actions as Record<string, any>).Row.metadata).toEqual(metadata);
   });
 
   it('uses bounded structural errors without reflecting hostile payload values', () => {

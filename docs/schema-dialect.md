@@ -1,0 +1,20 @@
+# Java Nodel schema dialect
+
+The schema form consumes Java Nodel's bounded schema dialect; it is not a general JSON Schema implementation. The contract is source-backed by Java Nodel commit `19756071383d696682688ab436c77c0a1f80c783`, mirrored in `test/fixtures/java-nodel-api.json` and exercised by `test/java-nodel-api-contract.test.ts`. The relevant sources are `nodel-framework/.../reflection/Schema.java`, `Value.java`, `ParameterBindings.java`, `RemoteBindingValues.java`, `RemoteBindings.java`, `Serialisation.java`, and `BaseNode.java`; endpoint wrappers are in `nodel-jyhost/.../PyNode.java`.
+
+The supported emitted subset is:
+
+- scalar `type`: `null`, `string`, `number`, `integer`, and `boolean`;
+- `object` properties, and Java map objects represented by `type: "object"` plus `items`;
+- arrays with an `items` schema;
+- scalar enum values, retaining their exact JSON scalar identity. Java's `Value.suggestions` generator emits strings, but the boundary does not collapse distinct scalar wire values such as `1` and `"1"`;
+- `title`, `desc`, `format`, `order`, `required`, `advanced`, and Java parameter-binding `group` metadata;
+- finite `min` and `max`, positive numeric `step` or `"any"` when present in a source schema, plus Java-generated array `minItems` and `maxItems`.
+
+`Schema.java` generates primitive types, object properties, map `items`, array `items`, enum suggestions, field metadata, and array bounds. `ParameterBindings.asSchema()` passes each declared parameter's supplied schema through and adds `title`, `desc`, `group`, and `order`; the fixture's numeric `min`/`max` values therefore represent Nodel-supplied schema data, not generic JSON Schema inference. `min`, `max`, and `step` are accepted only as finite, positive constraints on numeric schemas; `minimum`, `maximum`, and other generic or unknown keywords are unsupported.
+
+Pinned Java `Schema.java` type arrays represent allowed-instance alternatives; the representative endpoint fixture contains no nullable union with a `null` variant. The browser schema boundary nevertheless accepts a simple nullable union containing one concrete variant and `null` as a bounded recipe-authored/schema-input extension. A union with more than one concrete variant, malformed constraints, missing array items, generic JSON Schema composition, or another unsupported shape is represented as one bounded unsupported form state. It is never reduced to the first variant, and all writes are disabled.
+
+`required` is the Java dialect's per-property boolean flag, not JSON Schema's array-valued object keyword. `Value.required()` defaults to `true`, so `RemoteBindingValues.ActionValue` and `EventValue` emit required `node` plus target fields. Java's `Serialisation` omits null object members and `BaseNode` explicitly permits a declared empty binding as an unbound row; the fixture asserts both facts. Empty string, empty array, empty object, `null`, `false`, and zero are distinct present values. Missing properties are tracked with own-property presence and are omitted only when they were missing.
+
+The REST endpoints use `POST /REST/params/save` and `POST /REST/remote/save` with complete object payloads. In `PyNode.Params.save`, Java assigns the incoming `ParamValues` object to config, applies declared parameter values, fills only missing declared gaps, and writes the config. In `PyNode.Remote.save`, Java assigns the incoming `RemoteBindingValues` object, applies declared bindings, and writes the config. The browser serializer therefore starts from the complete loaded payload, patches only edited declared fields, and retains unknown root, section, row, and nested-row data at the wire boundary. Java's typed remote value classes persist only their declared `node`, `action`, and `event` fields; unknown browser metadata is retained by this UI replacement payload but is not asserted to be a Java persistence extension.

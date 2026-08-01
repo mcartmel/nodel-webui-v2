@@ -46,6 +46,11 @@ interface ContractFixture {
       min: string;
       maxExclusive: string;
     };
+    nullableUnionEvidence: {
+      emittedByPinnedJavaEndpoint: boolean;
+      acceptedBySchemaBoundary: boolean;
+      evidence: string;
+    };
   };
   transport: {
     restMethods: string[];
@@ -81,12 +86,22 @@ describe('Java Nodel API contract fixtures', () => {
       apiContract: {
         min: '1.0',
         maxExclusive: '2.0'
+      },
+      nullableUnionEvidence: {
+        emittedByPinnedJavaEndpoint: false,
+        acceptedBySchemaBoundary: true,
+        evidence: expect.stringContaining('no null union variant')
       }
     });
     expect(fixture.provenance.sources).toEqual(expect.arrayContaining([
       expect.stringContaining('NodelHostHTTPD.java'),
       expect.stringContaining('PyNode.java'),
-      expect.stringContaining('BaseNode.java')
+      expect.stringContaining('BaseNode.java'),
+      expect.stringContaining('Schema.java'),
+      expect.stringContaining('Value.java'),
+      expect.stringContaining('ParameterBindings.java'),
+      expect.stringContaining('RemoteBindings.java'),
+      expect.stringContaining('Serialisation.java')
     ]));
     expect(fixture.transport).toEqual(expect.objectContaining({
       restMethods: ['GET', 'POST'],
@@ -136,6 +151,13 @@ describe('Java Nodel API contract fixtures', () => {
     expect(responses.paramsSchema).toEqual(expect.objectContaining({ type: 'object', properties: expect.any(Object) }));
     expect(responses.remoteSchema).toEqual(expect.objectContaining({ type: 'object', properties: expect.any(Object) }));
     expect(responses.remoteBindings).toEqual(expect.objectContaining({ actions: expect.any(Object), events: expect.any(Object) }));
+    const remoteActionSchema = (responses.remoteSchema as any).properties.actions.properties.SetPower.properties;
+    expect(remoteActionSchema.node.required).toBe(true);
+    expect(remoteActionSchema.action.required).toBe(true);
+    expect((responses.remoteSchema as any).properties.actions.properties.UnboundAction.properties.node.required).toBe(true);
+    expect((responses.remoteBindings as any).actions.UnboundAction).toEqual({});
+    expect((responses.paramsSchema as any).properties.host.group).toBe('Connection');
+    expect((responses.paramsSchema as any).properties.port).toMatchObject({ min: 1, max: 65535 });
     expect(responses.files).toEqual(expect.arrayContaining([
       expect.objectContaining({ path: 'script.py', modified: expect.any(String) })
     ]));

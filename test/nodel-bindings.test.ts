@@ -172,6 +172,113 @@ describe('nodel-bindings', () => {
     expect(document.body.textContent).toContain('Saved');
   });
 
+  it('preserves unknown binding metadata and blocks writes for emitted required fields', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            setLevel: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            }
+          }
+        }
+      }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      rootMetadata: { keep: true },
+      actions: {
+        sectionMetadata: 'keep',
+        setLevel: { node: '', rowMetadata: 7 }
+      }
+    });
+
+    await mountBindings();
+    submitForm();
+    await flush();
+    expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('required');
+
+    const row = rows('actions')[0];
+    await setInputValue(rowInputs(row).node, 'Lighting');
+    await setInputValue(rowInputs(row).target, 'Dim');
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({
+      rootMetadata: { keep: true },
+      actions: {
+        sectionMetadata: 'keep',
+        setLevel: { node: 'Lighting', rowMetadata: 7, action: 'Dim' }
+      }
+    });
+  });
+
+  it('allows Java-declared empty binding rows while retaining required schema flags', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            unbound: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            }
+          }
+        }
+      }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { unbound: {} } });
+
+    await mountBindings();
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({ actions: { unbound: {} } });
+  });
+
+  it('does not manufacture untouched schema rows missing from a replacement payload', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      rootMetadata: { keep: true },
+      actions: {
+        sectionMetadata: { keep: true },
+        setLevel: { node: 'Lighting', action: 'Dim', rowMetadata: 4 }
+      }
+    });
+
+    await mountBindings();
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+
+    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({
+      rootMetadata: { keep: true },
+      actions: {
+        sectionMetadata: { keep: true },
+        setLevel: { node: 'Lighting', action: 'Dim', rowMetadata: 4 }
+      }
+    });
+  });
+
+  it('blocks writes for an unsupported remote schema instead of rendering a partial editor', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({ ...bindingSchema, pattern: 'unsupported' });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } } });
+
+    await mountBindings();
+    submitForm();
+    await flush();
+    expect(document.body.textContent).toContain('Unsupported binding schema');
+    expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('[data-bindings-row-id]')).toHaveLength(0);
+  });
+
   it('renders an empty state when there are no binding schema fields', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue({ type: 'object', properties: {} });
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({});
@@ -553,8 +660,7 @@ describe('nodel-bindings', () => {
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
 
     expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0].actions.setLevel).toEqual({
-      node: 'Lighting',
-      action: ''
+      node: 'Lighting'
     });
   });
 

@@ -7,13 +7,23 @@
       "min": "1.0",
       "maxExclusive": "2.0"
     },
+    "nullableUnionEvidence": {
+      "emittedByPinnedJavaEndpoint": false,
+      "acceptedBySchemaBoundary": true,
+      "evidence": "Pinned Schema.java type arrays describe allowed instances and this endpoint fixture contains no null union variant."
+    },
     "sources": [
       "nodel-jyhost/src/main/java/org/nodel/jyhost/NodelHostHTTPD.java",
       "nodel-jyhost/src/main/java/org/nodel/jyhost/PyNode.java",
       "nodel-jyhost/src/main/java/org/nodel/jyhost/FilesEndPoint.java",
       "nodel-jyhost/src/main/java/org/nodel/jyhost/RecipesEndPoint.java",
       "nodel-framework/src/main/java/org/nodel/host/BaseNode.java",
+      "nodel-framework/src/main/java/org/nodel/reflection/Schema.java",
+      "nodel-framework/src/main/java/org/nodel/reflection/Value.java",
+      "nodel-framework/src/main/java/org/nodel/host/ParameterBindings.java",
+      "nodel-framework/src/main/java/org/nodel/host/RemoteBindings.java",
       "nodel-framework/src/main/java/org/nodel/host/RemoteBindingValues.java",
+      "nodel-framework/src/main/java/org/nodel/reflection/Serialisation.java",
       "nodel-framework/src/main/java/org/nodel/core/NodelServerAction.java",
       "nodel-framework/src/main/java/org/nodel/core/NodelServerEvent.java",
       "nodel-framework/src/main/java/org/nodel/core/NodelClients.java",
@@ -259,11 +269,29 @@
               "properties": {
                 "node": {
                   "type": "string",
-                  "format": "node"
+                  "format": "node",
+                  "required": true
                 },
                 "action": {
                   "type": "string",
-                  "format": "action"
+                  "format": "action",
+                  "required": true
+                }
+              }
+            },
+            "UnboundAction": {
+              "type": "object",
+              "title": "Unbound action",
+              "properties": {
+                "node": {
+                  "type": "string",
+                  "format": "node",
+                  "required": true
+                },
+                "action": {
+                  "type": "string",
+                  "format": "action",
+                  "required": true
                 }
               }
             }
@@ -279,11 +307,13 @@
               "properties": {
                 "node": {
                   "type": "string",
-                  "format": "node"
+                  "format": "node",
+                  "required": true
                 },
                 "event": {
                   "type": "string",
-                  "format": "event"
+                  "format": "event",
+                  "required": true
                 }
               }
             }
@@ -296,6 +326,8 @@
         "SetPower": {
           "node": "Display",
           "action": "Power"
+        },
+        "UnboundAction": {
         }
       },
       "events": {

@@ -1,89 +1,81 @@
-import type { NodelJsonSchema } from '../api/nodel-types';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getJQuery } from '../jsviews/jsviews-runtime';
+import {
+  attachSchemaFormContext,
+  buildArrayEntry,
+  createSchemaForm,
+  type SchemaArrayEntry,
+  type SchemaEnumOption,
+  type SchemaField,
+  type SchemaFieldKind,
+  type SchemaFormModel,
+  type SchemaMapEntry,
+  type SchemaPresenceState
+} from './schema-model';
+import {
+  hydrateSchemaFormModel,
+  activateSchemaField,
+  markSchemaFieldDirty,
+  markSchemaFieldPresent,
+  resetSchemaFormDirty,
+  setSchemaFieldPresence,
+  serializeSchemaFieldModel,
+  serializeSchemaFormModel,
+  type SchemaHydrateOptions
+} from './schema-values';
+import { validateSchemaForm } from './schema-validation';
+import type { SchemaValidationIssue } from './schema-model';
 
-export type SchemaFieldKind = 'null' | 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type { SchemaArrayEntry, SchemaEnumOption, SchemaField, SchemaFieldKind, SchemaFormModel, SchemaMapEntry } from './schema-model';
+export { createSchemaForm } from './schema-model';
+export { hydrateSchemaFormModel, serializeSchemaFormModel } from './schema-values';
+export { activateSchemaField, markSchemaFieldDirty, resetSchemaFormDirty, setSchemaFieldPresence } from './schema-values';
+export { validateSchemaForm } from './schema-validation';
 
-export interface SchemaEnumOption {
-  label: string;
-  value: string;
-  raw: unknown;
-}
-
-export interface SchemaArrayEntry {
-  id: string;
-  index: number;
-  fields: SchemaField[];
-  valueField: SchemaField | null;
-}
-
-export interface SchemaField {
-  id: string;
-  key: string;
-  label: string;
-  description: string;
-  hint: string;
-  kind: SchemaFieldKind;
-  inputType: string;
-  format: string;
-  numberType: 'number' | 'integer' | '';
-  value: unknown;
-  enumOptions: SchemaEnumOption[];
-  children: SchemaField[];
-  entries: SchemaArrayEntry[];
-  itemSchema: NodelJsonSchema;
-  rootObjectGroup: boolean;
-  open: boolean;
-  min: number | string;
-  max: number | string;
-  step: number | string;
-  minItems: number;
-  maxItems: number;
-}
-
-export interface SchemaFormModel {
-  id: string;
-  fields: SchemaField[];
-  hasFields: boolean;
-  controlsDisabled: boolean;
-}
-
-interface FieldBuildOptions {
-  arrayItem?: boolean;
-  hideKeyLabel?: boolean;
-  inObject?: boolean;
-  path: string;
-}
-
-const emptySchema: NodelJsonSchema = { type: 'null' };
-let registered = false;
-let nextId = 0;
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 const chevronUpIconMarkup = renderFontAwesomeIcon(uiIcons.chevronUp, 'h-3 w-3');
 const chevronDownIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
+let registered = false;
 
 const schemaFieldTemplate = `
   <div class="nodel-schema-field" data-link="data-schema-field-id{:id} data-schema-kind{:kind}">
-    {^{if kind === 'null'}}
-      <div class="nodel-schema-empty" hidden></div>
+    {^{if nullable}}
+      <label class="nodel-schema-presence inline-flex items-center gap-2 text-xs text-nodel-muted">
+        <span>State</span>
+        <select class="nodel-field nodel-field-compact" data-schema-presence data-link="value{:presenceState}; id{:controlId + '-presence'}; aria-label{:label ? label + ' state' : 'Value state'}; disabled{:~controlsDisabled}">
+          <option value="value">Value</option>
+          <option value="null">Null</option>
+          {^{if allowMissing}}<option value="missing">Missing</option>{{/if}}
+        </select>
+      </label>
+      <div class="nodel-alert nodel-alert-sm" role="status" data-link="hidden{:presenceState !== 'null'}">Null value selected</div>
+    {{/if}}
+    {^{if unsupported}}
+      <div class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert">{^{>unsupportedReason}}</div>
+    {{else kind === 'null'}}
+      {^{if present}}<div class="sr-only">Null value</div>{{/if}}
     {{else kind === 'object'}}
       {^{if rootObjectGroup}}
-        <details class="nodel-schema-root-object nodel-collapse nodel-card" data-link="open{:open}">
-          <summary class="nodel-collapse-summary nodel-schema-root-object-summary" aria-label="Arguments">
-            <span class="nodel-schema-root-object-summary-text">
-              {^{if label}}<span class="nodel-schema-root-object-title">{^{>label}}</span>{{/if}}
-              {^{if description}}<small>{^{>description}}</small>{{/if}}
-            </span>
-            <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
-          </summary>
-          {^{if open}}
-            <div class="nodel-collapse-content nodel-schema-root-object-content nodel-schema-stack">
-              {^{for children tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
-            </div>
-          {{/if}}
-        </details>
+      <details class="nodel-schema-root-object nodel-collapse nodel-card" data-link="open{:open}; hidden{:presenceState === 'null'}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}">
+        <summary class="nodel-collapse-summary nodel-schema-root-object-summary" aria-label="Arguments">
+          <span class="nodel-schema-root-object-summary-text">
+            {^{if label}}<span class="nodel-schema-root-object-title">{^{>label}}</span>{{/if}}
+            {^{if description}}<small>{^{>description}}</small>{{/if}}
+          </span>
+          <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
+        </summary>
+        {^{if open}}
+          <div class="nodel-collapse-content nodel-schema-root-object-content nodel-schema-stack">
+            {^{for children tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
+            {^{for mapEntries}}
+              {{include field tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
+            {{/for}}
+          </div>
+        {{/if}}
+      </details>
+      {^{if errors.length}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm mt-2" role="alert" data-link="id{:errorId} text{:errors[0]}"></div>{{/if}}
       {{else}}
-      <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}">
+      <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}; hidden{:presenceState === 'null'}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}">
         <summary class="nodel-collapse-summary nodel-schema-nested-summary">
           <span class="nodel-collapse-label">{^{>label || 'Details'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
@@ -92,12 +84,16 @@ const schemaFieldTemplate = `
         {^{if open}}
           <div class="nodel-collapse-content nodel-schema-nested-content nodel-schema-stack">
             {^{for children tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
+            {^{for mapEntries}}
+              {{include field tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
+            {{/for}}
           </div>
         {{/if}}
       </details>
+      {^{if errors.length}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm mt-2" role="alert" data-link="id{:errorId} text{:errors[0]}"></div>{{/if}}
       {{/if}}
     {{else kind === 'array'}}
-      <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}">
+      <details class="nodel-schema-nested nodel-collapse nodel-card" data-link="open{:open}; hidden{:presenceState === 'null'}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}">
         <summary class="nodel-collapse-summary nodel-schema-nested-summary">
           <span class="nodel-collapse-label">{^{>label || 'Items'}}</span>
           {^{if description}}<small>{^{>description}}</small>{{/if}}
@@ -109,13 +105,24 @@ const schemaFieldTemplate = `
               <div class="nodel-schema-array-entry nodel-card p-3" data-link="data-schema-array-entry{:id}">
                 <div class="mb-3 flex items-center justify-between gap-2">
                   <span class="nodel-section-heading">Item {^{:index + 1}}</span>
+                  {^{if nullable}}
+                    <label class="nodel-schema-presence inline-flex items-center gap-2 text-xs text-nodel-muted">
+                      <span>State</span>
+                      <select class="nodel-field nodel-field-compact" data-schema-array-presence data-link="value{:nullValue ? 'null' : 'value'}; aria-label{: 'Item ' + (index + 1) + ' state'}; disabled{:~controlsDisabled}">
+                        <option value="value">Value</option>
+                        <option value="null">Null</option>
+                      </select>
+                    </label>
+                  {{/if}}
                   <span class="inline-flex gap-1">
-                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="up" title="Move up" data-link="disabled{:~controlsDisabled}">${chevronUpIconMarkup}<span class="sr-only">Move up</span></button>
-                    <button type="button" class="nodel-button nodel-button-compact nodel-button-danger" data-schema-array-remove title="Remove" data-link="disabled{:~controlsDisabled}">Remove</button>
-                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="down" title="Move down" data-link="disabled{:~controlsDisabled}">${chevronDownIconMarkup}<span class="sr-only">Move down</span></button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="up" title="Move up" data-link="disabled{:~controlsDisabled || !canMoveUp}">${chevronUpIconMarkup}<span class="sr-only">Move up</span></button>
+                    <button type="button" class="nodel-button nodel-button-compact nodel-button-danger" data-schema-array-remove title="Remove" data-link="disabled{:~controlsDisabled || !canRemove}">Remove</button>
+                    <button type="button" class="nodel-button nodel-button-compact" data-schema-array-move="down" title="Move down" data-link="disabled{:~controlsDisabled || !canMoveDown}">${chevronDownIconMarkup}<span class="sr-only">Move down</span></button>
                   </span>
                 </div>
-                {^{if valueField}}
+                {^{if nullValue}}
+                  <div class="sr-only">Null value</div>
+                {{else valueField}}
                   {{include valueField tmpl="nodelSchemaField" ~controlsDisabled=~controlsDisabled/}}
                 {{else}}
                   <div class="nodel-schema-stack">
@@ -128,486 +135,242 @@ const schemaFieldTemplate = `
           </div>
         {{/if}}
       </details>
+      {^{if errors.length}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm mt-2" role="alert" data-link="id{:errorId} text{:errors[0]}"></div>{{/if}}
     {{else kind === 'boolean'}}
-      <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg">
+      <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg" data-link="for{:controlId}; hidden{:presenceState === 'null'}">
         {^{if ~controlsDisabled}}
-          <input class="nodel-choice" type="checkbox" data-link="value" disabled />
+          <input class="nodel-choice" type="checkbox" data-schema-field-input data-link="checked{:value}; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}" disabled />
         {{else}}
-          <input class="nodel-choice" type="checkbox" data-link="value" />
+          <input class="nodel-choice" type="checkbox" data-schema-field-input data-link="checked{:value}; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}" />
         {{/if}}
         <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
+          <span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1" role="alert" data-link="id{:errorId} text{:errors.length ? errors[0] : ''} hidden{:!errors.length}"></span>
         </span>
       </label>
     {{else}}
-      <label class="block min-w-0 text-sm text-nodel-fg">
+      <label class="block min-w-0 text-sm text-nodel-fg" data-link="for{:controlId}; hidden{:presenceState === 'null'}">
         <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
         {^{if enumOptions.length}}
-          <select class="nodel-field w-full" data-link="{:value:} trigger=true; title{:description}; disabled{:~controlsDisabled}">
+          <select class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}">
             <option value=""></option>
             {^{for enumOptions}}
               <option value="{{:value}}">{^{>label}}</option>
             {{/for}}
           </select>
         {{else format === 'long'}}
-          <textarea class="nodel-field min-h-24 w-full" data-link="{:value:} trigger=true; placeholder{:hint}; title{:description}; disabled{:~controlsDisabled}"></textarea>
+          <textarea class="nodel-field min-h-24 w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; placeholder{:hint}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}"></textarea>
         {{else kind === 'number'}}
-          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; min{:min}; max{:max}; step{:step}; disabled{:~controlsDisabled}" />
+          <input class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; type{:inputType}; placeholder{:hint}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; min{:min}; max{:max}; step{:step}; disabled{:~controlsDisabled}" />
           {^{if inputType === 'range'}}<output class="block text-xs text-nodel-muted">{^{>value}}</output>{{/if}}
         {{else}}
-          <input class="nodel-field w-full" data-link="{:value:} trigger=true; type{:inputType}; placeholder{:hint}; title{:description}; disabled{:~controlsDisabled}" />
+          <input class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; type{:inputType}; placeholder{:hint}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}" />
         {{/if}}
+          <span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1" role="alert" data-link="id{:errorId} text{:errors.length ? errors[0] : ''} hidden{:!errors.length}"></span>
         </span>
       </label>
-    {{/if}}
+        {{/if}}
   </div>
 `;
 
 export const schemaFormTemplate = `
   <div class="nodel-schema-form nodel-schema-stack">
+    {^{if unsupported}}
+      <div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">This form cannot be edited: {^{>unsupportedReason}}</div>
+    {{/if}}
     {^{for fields tmpl="nodelSchemaField" ~controlsDisabled=controlsDisabled/}}
   </div>
 `;
 
 export function registerSchemaFormTemplates() {
-  if (registered) {
-    return;
-  }
-
+  if (registered) return;
   getJQuery().templates('nodelSchemaForm', schemaFormTemplate);
   getJQuery().templates('nodelSchemaField', schemaFieldTemplate);
   registered = true;
 }
 
-export function createSchemaForm(schema: NodelJsonSchema | null | undefined, options: { idPrefix?: string; hideRootKeyLabels?: boolean; controlsDisabled?: boolean } = {}): SchemaFormModel {
-  const normalizedSchema = normalizeSchema(schema);
-  const idPrefix = options.idPrefix ?? 'schema';
-  const form: SchemaFormModel = {
-    id: nextFieldId(idPrefix),
-    fields: [],
-    hasFields: false,
-    controlsDisabled: Boolean(options.controlsDisabled)
-  };
-
-  if (schemaType(normalizedSchema) === 'object' && normalizedSchema.properties) {
-    form.fields = orderedProperties(normalizedSchema).map(([key, childSchema]) => buildField(key, childSchema, {
-      hideKeyLabel: options.hideRootKeyLabels,
-      inObject: false,
-      path: key
-    }));
-  } else {
-    form.fields = [buildField('value', normalizedSchema, {
-      hideKeyLabel: options.hideRootKeyLabels,
-      inObject: false,
-      path: 'value'
-    })];
+export function hydrateSchemaForm(form: SchemaFormModel, value: unknown, options: SchemaHydrateOptions = {}) {
+  hydrateSchemaFormModel(form, value, options);
+  attachSchemaFormContext(form);
+  for (const field of allFields(form.fields)) {
+    getJQuery().observable(field).setProperty({
+      value: field.value,
+      concreteValue: field.concreteValue,
+      present: field.present,
+      presenceState: field.presenceState,
+      dirty: field.dirty,
+      typeMismatch: field.typeMismatch,
+      unknownProperties: field.unknownProperties
+    });
+    getJQuery().observable(field.entries).refresh(field.entries);
+    getJQuery().observable(field.mapEntries).refresh(field.mapEntries);
   }
-
-  form.hasFields = form.fields.some((field) => field.kind !== 'null');
-  return form;
-}
-
-export function hydrateSchemaForm(form: SchemaFormModel, value: Record<string, unknown>) {
-  for (const field of form.fields) {
-    hydrateSchemaField(field, value[field.key]);
-  }
+  applySchemaFormValidation(form);
 }
 
 export function serializeSchemaForm(form: SchemaFormModel) {
-  const payload: Record<string, unknown> = {};
-  for (const field of form.fields) {
-    const value = serializeSchemaField(field);
-    if (value !== undefined) {
-      payload[field.key] = value;
-    }
-  }
-
-  return cleanPayload(payload) ?? {};
-}
-
-export function setSchemaFormControlsDisabled(form: SchemaFormModel, controlsDisabled: boolean) {
-  getJQuery().observable(form).setProperty('controlsDisabled', controlsDisabled);
-}
-
-export function hydrateSchemaField(field: SchemaField, value: unknown) {
-  const $ = getJQuery();
-
-  if (field.kind === 'object') {
-    const objectValue = isRecord(value) ? value : {};
-    for (const child of field.children) {
-      hydrateSchemaField(child, objectValue[child.key]);
-    }
-    return;
-  }
-
-  if (field.kind === 'array') {
-    const arrayValue = Array.isArray(value) ? value : [];
-    const nextEntries = arrayValue.map((item, index) => buildArrayEntry(field, item, index));
-    ($.observable(field.entries) as any).refresh(nextEntries);
-    return;
-  }
-
-  if (field.kind === 'number') {
-    $.observable(field).setProperty('value', value === undefined || value === null ? '' : String(value));
-    return;
-  }
-
-  if (field.enumOptions.length > 0) {
-    const matched = field.enumOptions.find((option) => Object.is(option.raw, value) || option.value === String(value ?? ''));
-    $.observable(field).setProperty('value', matched?.value ?? '');
-    return;
-  }
-
-  $.observable(field).setProperty('value', value ?? (field.kind === 'boolean' ? false : ''));
+  return serializeSchemaFormModel(form);
 }
 
 export function serializeSchemaField(field: SchemaField): unknown {
-  if (field.kind === 'null') {
-    return undefined;
-  }
-
-  if (field.kind === 'object') {
-    const objectValue: Record<string, unknown> = {};
-    for (const child of field.children) {
-      const childValue = serializeSchemaField(child);
-      if (childValue !== undefined) {
-        objectValue[child.key] = childValue;
-      }
-    }
-    return cleanPayload(objectValue);
-  }
-
-  if (field.kind === 'array') {
-    const values = field.entries.map((entry) => {
-      if (entry.valueField) {
-        return serializeSchemaField(entry.valueField);
-      }
-
-      const objectValue: Record<string, unknown> = {};
-      for (const child of entry.fields) {
-        const childValue = serializeSchemaField(child);
-        if (childValue !== undefined) {
-          objectValue[child.key] = childValue;
-        }
-      }
-      return cleanPayload(objectValue);
-    });
-    return cleanPayload(values);
-  }
-
-  if (field.enumOptions.length > 0) {
-    return field.enumOptions.find((option) => option.value === field.value)?.raw ?? field.value;
-  }
-
-  if (field.kind === 'boolean') {
-    return Boolean(field.value);
-  }
-
-  if (field.kind === 'number') {
-    if (field.value === '' || field.value === undefined || field.value === null) {
-      return undefined;
-    }
-    const parsed = field.numberType === 'integer' ? parseInt(String(field.value), 10) : parseFloat(String(field.value));
-    return Number.isNaN(parsed) ? undefined : parsed;
-  }
-
-  return field.value;
+  return serializeSchemaFieldModel(field);
 }
 
-export function findSchemaField(fields: SchemaField[], id: string): SchemaField | null {
-  for (const field of fields) {
-    if (field.id === id) {
-      return field;
+export function syncSchemaFormControls(form: SchemaFormModel, root: HTMLElement) {
+  const fieldElements = new Map<string, { control?: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement; presence?: HTMLSelectElement }>();
+  const entryElements = new Map<string, HTMLSelectElement>();
+  for (const element of Array.from(root.querySelectorAll<HTMLElement>('[data-schema-field-id], [data-schema-array-entry], [data-schema-field-input], [data-schema-presence], [data-schema-array-presence]'))) {
+    const fieldId = element.dataset.schemaFieldId ?? element.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
+    if (fieldId) {
+      const state = fieldElements.get(fieldId) ?? {};
+      if (element.hasAttribute('data-schema-field-input')) state.control = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      if (element.hasAttribute('data-schema-presence')) state.presence = element as HTMLSelectElement;
+      fieldElements.set(fieldId, state);
     }
-
-    const child = findSchemaField(field.children, id);
-    if (child) {
-      return child;
+    if (element.hasAttribute('data-schema-array-presence')) {
+      const entryId = element.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
+      if (entryId) entryElements.set(entryId, element as HTMLSelectElement);
     }
+  }
 
+  for (const field of allFields(form.fields)) {
+    const elements = fieldElements.get(field.id);
+    if (!elements) continue;
+    if (elements.presence) elements.presence.value = field.presenceState;
+    const control = elements.control;
+    if (!control) continue;
+    if (control instanceof HTMLInputElement && control.type === 'checkbox') control.checked = field.value === true;
+    else control.value = field.value === null || field.value === undefined ? '' : String(field.value);
+    control.setAttribute('aria-invalid', field.errors.length > 0 ? 'true' : 'false');
+    if (field.errors.length > 0) control.setAttribute('aria-describedby', field.errorId);
+    else control.removeAttribute('aria-describedby');
+  }
+
+  for (const field of allFields(form.fields)) {
+    if (field.kind !== 'array') continue;
     for (const entry of field.entries) {
-      if (entry.valueField?.id === id) {
-        return entry.valueField;
-      }
-
-      const entryChild = findSchemaField(entry.fields, id);
-      if (entryChild) {
-        return entryChild;
-      }
+      const presence = entryElements.get(entry.id);
+      if (presence) presence.value = entry.nullValue ? 'null' : 'value';
     }
   }
-
-  return null;
 }
 
-export function addArrayEntry(field: SchemaField) {
-  if (field.kind !== 'array' || (field.maxItems >= 0 && field.entries.length >= field.maxItems)) {
-    return;
-  }
-
-  const $ = getJQuery();
-  const nextEntries = [...field.entries, buildArrayEntry(field, undefined, field.entries.length)];
-  ($.observable(field.entries) as any).refresh(syncArrayEntryIndexes(nextEntries));
+export function validateAndUpdateSchemaForm(form: SchemaFormModel) {
+  return applySchemaFormValidation(form);
 }
 
-export function removeArrayEntry(field: SchemaField, entryId: string) {
-  if (field.kind !== 'array') {
-    return;
+export function applySchemaFormValidation(form: SchemaFormModel): SchemaValidationIssue[] {
+  const issues = validateSchemaForm(form);
+  const byField = new Map<string, string[]>();
+  for (const item of issues) byField.set(item.fieldId, [...(byField.get(item.fieldId) ?? []), item.message]);
+  for (const field of allFields(form.fields)) {
+    const errors = [
+      ...(byField.get(field.id) ?? []),
+      ...issues
+        .filter((item) => item.fieldId !== field.id && isDescendantPointer(item.pointer, field.pointer))
+        .map((item) => item.message)
+    ].filter((message, index, values) => values.indexOf(message) === index);
+    getJQuery().observable(field).setProperty('errors', errors);
   }
-
-  const $ = getJQuery();
-  const nextEntries = field.entries.filter((entry) => entry.id !== entryId);
-  ($.observable(field.entries) as any).refresh(syncArrayEntryIndexes(nextEntries));
+  getJQuery().observable(form).setProperty({
+    validationIssues: issues,
+    invalid: issues.length > 0
+  });
+  return issues;
 }
 
-export function moveArrayEntry(field: SchemaField, entryId: string, direction: 'up' | 'down') {
-  if (field.kind !== 'array') {
-    return;
-  }
-
-  const index = field.entries.findIndex((entry) => entry.id === entryId);
-  const targetIndex = direction === 'up' ? index - 1 : index + 1;
-  if (index < 0 || targetIndex < 0 || targetIndex >= field.entries.length) {
-    return;
-  }
-
-  const $ = getJQuery();
-  const nextEntries = [...field.entries];
-  const [entry] = nextEntries.splice(index, 1);
-  nextEntries.splice(targetIndex, 0, entry);
-  ($.observable(field.entries) as any).refresh(syncArrayEntryIndexes(nextEntries));
+export function setSchemaFormControlsDisabled(form: SchemaFormModel, controlsDisabled: boolean) {
+  getJQuery().observable(form).setProperty('controlsDisabled', controlsDisabled || form.unsupported);
 }
 
-export function cleanPayload(value: unknown): unknown {
-  if (value === '' || value === undefined) {
-    return undefined;
+export function markSchemaFormFieldPresent(form: SchemaFormModel, fieldId: string, present = true) {
+  const field = markSchemaFieldPresent(form, fieldId, present);
+  if (field) {
+    syncActivatedFieldState(field);
+    applySchemaFormValidation(form);
   }
-
-  if (Array.isArray(value)) {
-    const arrayValue = value.map(cleanPayload).filter((item) => item !== undefined);
-    return arrayValue.length > 0 ? arrayValue : undefined;
-  }
-
-  if (isRecord(value)) {
-    const objectValue: Record<string, unknown> = {};
-    for (const [key, childValue] of Object.entries(value)) {
-      const cleanValue = cleanPayload(childValue);
-      if (cleanValue !== undefined) {
-        objectValue[key] = cleanValue;
-      }
-    }
-    return Object.keys(objectValue).length > 0 ? objectValue : undefined;
-  }
-
-  return value;
-}
-
-function buildField(key: string, schema: NodelJsonSchema | null | undefined, options: FieldBuildOptions): SchemaField {
-  const normalizedSchema = normalizeSchema(schema);
-  const type = schemaType(normalizedSchema);
-  const kind = fieldKind(type);
-  const format = typeof normalizedSchema.format === 'string' ? normalizedSchema.format : '';
-  const label = labelFor(key, normalizedSchema, options);
-  const field: SchemaField = {
-    id: nextFieldId(options.path),
-    key,
-    label,
-    description: typeof normalizedSchema.desc === 'string' ? normalizedSchema.desc : '',
-    hint: typeof normalizedSchema.hint === 'string' ? normalizedSchema.hint : '',
-    kind,
-    inputType: inputTypeFor(kind, format),
-    format,
-    numberType: type === 'integer' ? 'integer' : kind === 'number' ? 'number' : '',
-    value: initialValueFor(kind),
-    enumOptions: enumOptionsFor(normalizedSchema),
-    children: [],
-    entries: [],
-    itemSchema: normalizeSchema(isRecord(normalizedSchema.items) ? normalizedSchema.items as NodelJsonSchema : emptySchema),
-    rootObjectGroup: kind === 'object' && Boolean(options.hideKeyLabel) && !options.inObject && !options.arrayItem,
-    open: false,
-    min: numericConstraint(normalizedSchema.min),
-    max: numericConstraint(normalizedSchema.max),
-    step: stepFor(type, normalizedSchema.step),
-    minItems: typeof normalizedSchema.minItems === 'number' ? normalizedSchema.minItems : -1,
-    maxItems: typeof normalizedSchema.maxItems === 'number' ? normalizedSchema.maxItems : -1
-  };
-
-  if (kind === 'object') {
-    field.children = orderedProperties(normalizedSchema).map(([childKey, childSchema]) => buildField(childKey, childSchema, {
-      inObject: true,
-      path: `${options.path}.${childKey}`
-    }));
-  }
-
-  if (kind === 'array' && field.minItems > 0) {
-    field.entries = Array.from({ length: field.minItems }, (_, index) => buildArrayEntry(field, undefined, index));
-  }
-
   return field;
 }
 
-function buildArrayEntry(field: SchemaField, value: unknown, index: number): SchemaArrayEntry {
-  const itemSchema = field.itemSchema;
-  const itemType = schemaType(itemSchema);
-  const id = nextFieldId(`${field.id}.entry`);
-
-  if (itemType === 'object' && itemSchema.properties) {
-    const fields = orderedProperties(itemSchema).map(([key, schema]) => buildField(key, schema, {
-      arrayItem: true,
-      inObject: true,
-      path: `${id}.${key}`
-    }));
-    if (isRecord(value)) {
-      for (const child of fields) {
-        hydrateSchemaField(child, value[child.key]);
-      }
-    }
-    return { id, index, fields, valueField: null };
+export function handleSchemaFormInput(event: Event, root: HTMLElement, findField: SchemaFieldFinder) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return false;
+  if (!root.contains(target) && !target.closest('[data-schema-field-id]')) return false;
+  const arrayPresence = target instanceof HTMLSelectElement && target.hasAttribute('data-schema-array-presence');
+  if (arrayPresence) {
+    const arrayField = arrayFieldFor(target, findField);
+    const entryId = target.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
+    const entry = arrayField?.entries.find((candidate) => candidate.id === entryId);
+    const form = (arrayField as (SchemaField & { form?: SchemaFormModel }) | null)?.form;
+    if (!arrayField || !entry || !form) return false;
+    getJQuery().observable(entry).setProperty('nullValue', target.value === 'null');
+    arrayField.dirty = true;
+    form.dirty = true;
+    attachSchemaFormContext(form);
+    applySchemaFormValidation(form);
+    syncSchemaFormControls(form, root);
+    return true;
   }
-
-  const valueField = buildField('value', itemSchema, {
-    arrayItem: true,
-    hideKeyLabel: true,
-    inObject: false,
-    path: `${id}.value`
-  });
-  hydrateSchemaField(valueField, value);
-  return { id, index, fields: [], valueField };
-}
-
-function syncArrayEntryIndexes(entries: SchemaArrayEntry[]) {
-  return entries.map((entry, index) => ({ ...entry, index }));
-}
-
-function normalizeSchema(schema: NodelJsonSchema | null | undefined): NodelJsonSchema {
-  if (!schema || !isRecord(schema)) {
-    return emptySchema;
+  const presenceControl = target instanceof HTMLSelectElement && target.hasAttribute('data-schema-presence');
+  if (!presenceControl && !target.hasAttribute('data-schema-field-input')) return false;
+  const fieldId = target.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
+  if (!fieldId) return false;
+  const field = findField(fieldId);
+  if (!field) return false;
+  const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+  if (presenceControl) {
+    if (!form || !setSchemaFieldPresence(form, field.id, target.value as SchemaPresenceState)) return false;
+    markSchemaFieldDirty(form, field.id);
+    syncActivatedFieldState(field);
+    applySchemaFormValidation(form);
+    syncSchemaFormControls(form, root);
+    return true;
   }
-
-  if (!schema.type && schema.properties) {
-    return { ...schema, type: 'object' };
+  let nextValue: unknown;
+  if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+    nextValue = target.checked;
+  } else {
+    nextValue = target.value;
   }
-
-  return schema;
-}
-
-function schemaType(schema: NodelJsonSchema): string {
-  if (Array.isArray(schema.type)) {
-    return schemaType(schema.type[0] ?? emptySchema);
+  if (form) {
+    markSchemaFormFieldPresent(form, field.id, true);
+    markSchemaFieldDirty(form, field.id);
   }
-
-  if (typeof schema.type === 'string') {
-    return schema.type;
-  }
-
-  if (schema.properties) {
-    return 'object';
-  }
-
-  return 'null';
-}
-
-function fieldKind(type: string): SchemaFieldKind {
-  if (type === 'integer' || type === 'number') {
-    return 'number';
-  }
-
-  if (type === 'boolean' || type === 'object' || type === 'array' || type === 'string') {
-    return type;
-  }
-
-  return 'null';
-}
-
-function orderedProperties(schema: NodelJsonSchema): Array<[string, NodelJsonSchema]> {
-  return Object.entries(schema.properties ?? {})
-    .sort(([, left], [, right]) => orderOf(left) - orderOf(right));
-}
-
-function orderOf(schema: NodelJsonSchema) {
-  return typeof schema.order === 'number' ? schema.order : 0;
-}
-
-function labelFor(key: string, schema: NodelJsonSchema, options: FieldBuildOptions) {
-  if (typeof schema.title === 'string' && schema.title.trim()) {
-    return schema.title;
-  }
-
-  if (options.hideKeyLabel && !options.inObject && !options.arrayItem) {
-    return '';
-  }
-
-  return key === 'value' && options.hideKeyLabel ? '' : key;
-}
-
-function inputTypeFor(kind: SchemaFieldKind, format: string) {
-  if (kind === 'number') {
-    return format === 'range' ? 'range' : 'number';
-  }
-
-  if (kind === 'string' && ['date', 'time', 'password', 'color'].includes(format)) {
-    return format;
-  }
-
-  return 'text';
-}
-
-function initialValueFor(kind: SchemaFieldKind) {
-  if (kind === 'boolean') {
-    return false;
-  }
-
-  return '';
-}
-
-function enumOptionsFor(schema: NodelJsonSchema): SchemaEnumOption[] {
-  return Array.isArray(schema.enum)
-    ? schema.enum.map((raw) => ({ label: String(raw), value: String(raw), raw }))
-    : [];
-}
-
-function numericConstraint(value: unknown) {
-  return typeof value === 'number' || typeof value === 'string' ? value : '';
-}
-
-function stepFor(type: string, step: unknown) {
-  if (typeof step === 'number' || typeof step === 'string') {
-    return step;
-  }
-
-  return type === 'integer' ? 1 : 'any';
+  field.presenceState = 'value';
+  getJQuery().observable(field).setProperty({ value: nextValue, present: field.present, presenceState: field.presenceState });
+  if (form) syncSchemaFormControls(form, root);
+  return true;
 }
 
 export type SchemaFieldFinder = (fieldId: string) => SchemaField | null;
 
 export function handleSchemaFormClick(event: MouseEvent, root: HTMLElement, findField: SchemaFieldFinder) {
   const target = event.target;
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
+  if (!(target instanceof Element)) return false;
   const addButton = target.closest<HTMLElement>('[data-schema-array-add]');
   if (addButton && root.contains(addButton)) {
     const field = arrayFieldFor(addButton, findField);
     if (field) {
       addArrayEntry(field);
+      const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+      if (form) syncSchemaFormControls(form, root);
     }
     return true;
   }
-
   const removeButton = target.closest<HTMLElement>('[data-schema-array-remove]');
   if (removeButton && root.contains(removeButton)) {
     const field = arrayFieldFor(removeButton, findField);
     const entryId = removeButton.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
     if (field && entryId) {
       removeArrayEntry(field, entryId);
+      const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+      if (form) syncSchemaFormControls(form, root);
     }
     return true;
   }
-
   const moveButton = target.closest<HTMLElement>('[data-schema-array-move]');
   if (moveButton && root.contains(moveButton)) {
     const field = arrayFieldFor(moveButton, findField);
@@ -615,47 +378,151 @@ export function handleSchemaFormClick(event: MouseEvent, root: HTMLElement, find
     const direction = moveButton.dataset.schemaArrayMove === 'up' ? 'up' : 'down';
     if (field && entryId) {
       moveArrayEntry(field, entryId, direction);
+      const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+      if (form) syncSchemaFormControls(form, root);
     }
     return true;
   }
-
   return false;
 }
 
 export function handleSchemaFormToggle(event: Event, root: HTMLElement, findField: SchemaFieldFinder) {
   const target = event.target;
-  if (!(target instanceof HTMLDetailsElement) || !root.contains(target)) {
-    return false;
-  }
-
+  if (!(target instanceof HTMLDetailsElement) || !root.contains(target)) return false;
   const fieldId = target.closest<HTMLElement>('[data-schema-field-id]')?.dataset.schemaFieldId;
-  if (!fieldId) {
-    return false;
-  }
-
+  if (!fieldId) return false;
   const field = findField(fieldId);
-  if (field) {
-    getJQuery().observable(field).setProperty('open', target.open);
+  if (field) getJQuery().observable(field).setProperty('open', target.open);
+  return true;
+}
+
+export function addArrayEntry(field: SchemaField) {
+  if (field.kind !== 'array' || (field.maxItems >= 0 && field.entries.length >= field.maxItems)) return;
+  field.dirty = true;
+  const entry = buildArrayEntry(field, undefined, field.entries.length);
+  getJQuery().observable(field.entries).refresh(syncArrayEntryIndexes(field, [...field.entries, entry]));
+  const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+  if (form) {
+    activateSchemaField(form, field.id);
+    syncActivatedFieldState(field);
+    form.dirty = true;
+    attachSchemaFormContext(form);
+  } else {
+    field.present = true;
+    field.presenceState = 'value';
+  }
+  applyFieldFormValidation(field);
+}
+
+export function removeArrayEntry(field: SchemaField, entryId: string) {
+  if (field.kind !== 'array' || (field.minItems >= 0 && field.entries.length <= field.minItems)) return;
+  const index = field.entries.findIndex((entry) => entry.id === entryId);
+  if (index < 0) return;
+  field.dirty = true;
+  getJQuery().observable(field.entries).remove(index);
+  getJQuery().observable(field.entries).refresh(syncArrayEntryIndexes(field, field.entries));
+  const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+  if (form) form.dirty = true;
+  applyFieldFormValidation(field);
+}
+
+export function moveArrayEntry(field: SchemaField, entryId: string, direction: 'up' | 'down') {
+  if (field.kind !== 'array') return;
+  const index = field.entries.findIndex((entry) => entry.id === entryId);
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || targetIndex < 0 || targetIndex >= field.entries.length) return;
+  field.dirty = true;
+  const next = [...field.entries];
+  const [entry] = next.splice(index, 1);
+  next.splice(targetIndex, 0, entry);
+  getJQuery().observable(field.entries).refresh(syncArrayEntryIndexes(field, next));
+  const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+  if (form) form.dirty = true;
+  applyFieldFormValidation(field);
+}
+
+export function findSchemaField(fields: SchemaField[], id: string): SchemaField | null {
+  for (const field of fields) {
+    if (field.id === id) return field;
+    const child = findSchemaField(field.children, id);
+    if (child) return child;
+    for (const entry of field.entries) {
+      if (entry.valueField?.id === id) return entry.valueField;
+      const entryChild = findSchemaField(entry.fields, id);
+      if (entryChild) return entryChild;
+    }
+    const mapChild = field.mapEntries.find((entry) => entry.field.id === id)?.field;
+    if (mapChild) return mapChild;
+  }
+  return null;
+}
+
+function allFields(fields: SchemaField[]): SchemaField[] {
+  return fields.flatMap((field) => [field, ...allFields(field.children), ...field.entries.flatMap((entry) => [...entry.fields.flatMap((child) => allFields([child])), ...(entry.valueField ? allFields([entry.valueField]) : [])]), ...field.mapEntries.flatMap((entry) => allFields([entry.field]))]);
+}
+
+function applyFieldFormValidation(field: SchemaField) {
+  const form = (field as SchemaField & { form?: SchemaFormModel }).form;
+  if (form) applySchemaFormValidation(form);
+}
+
+function syncActivatedFieldState(field: SchemaField) {
+  let current: SchemaField | undefined = field;
+  while (current) {
+    getJQuery().observable(current).setProperty({
+      value: current.value,
+      concreteValue: current.concreteValue,
+      present: current.present,
+      presenceState: current.presenceState
+    });
+    current = current.parent;
+  }
+}
+
+export function revealSchemaValidationIssues(form: SchemaFormModel, root: HTMLElement) {
+  const issue = form.validationIssues[0];
+  if (!issue) return;
+  const field = findSchemaField(form.fields, issue.fieldId);
+  if (!field) return;
+
+  let ancestor: SchemaField | undefined = field;
+  while (ancestor) {
+    getJQuery().observable(ancestor).setProperty('open', true);
+    ancestor = ancestor.parent;
   }
 
-  return true;
+  const focusControl = () => {
+    const fieldElement = Array.from(root.querySelectorAll<HTMLElement>('[data-schema-field-id]'))
+      .find((element) => element.dataset.schemaFieldId === field.id);
+    const control = fieldElement?.querySelector<HTMLElement>('[data-schema-field-input], [data-schema-null-toggle]');
+    if (control) {
+      control.setAttribute('aria-invalid', 'true');
+      control.setAttribute('aria-describedby', field.errorId);
+    }
+    (control ?? fieldElement?.querySelector<HTMLElement>('summary'))?.focus();
+  };
+  window.setTimeout(focusControl, 0);
+}
+
+function syncArrayEntryIndexes(field: SchemaField, entries: SchemaArrayEntry[]) {
+  const minItems = field.minItems;
+  return entries.map((entry, index) => ({
+    ...entry,
+    index,
+    canRemove: minItems < 0 || entries.length > minItems,
+    canMoveUp: index > 0,
+    canMoveDown: index < entries.length - 1
+  }));
+}
+
+function isDescendantPointer(pointer: string, parent: string) {
+  if (!parent) return pointer !== '';
+  return pointer.startsWith(`${parent}/`);
 }
 
 function arrayFieldFor(element: Element, findField: SchemaFieldFinder) {
   const fieldId = element.closest<HTMLElement>('[data-schema-kind="array"]')?.dataset.schemaFieldId;
-  if (!fieldId) {
-    return null;
-  }
-
+  if (!fieldId) return null;
   const field = findField(fieldId);
   return field?.kind === 'array' ? field : null;
-}
-
-function nextFieldId(prefix: string) {
-  nextId += 1;
-  return `nodel-schema-${prefix.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${nextId}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

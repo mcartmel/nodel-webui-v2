@@ -118,6 +118,7 @@ export interface NodelJsonSchema {
   step?: number | string;
   minItems?: number;
   maxItems?: number;
+  advanced?: boolean;
   [key: string]: unknown;
 }
 
