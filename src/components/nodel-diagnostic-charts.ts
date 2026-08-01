@@ -1,7 +1,11 @@
 import { getDiagnosticMeasurements } from '../api/nodel-host-client';
 import type { NodelDiagnosticMeasurement } from '../api/nodel-types';
 import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { loadChartModule } from '../utils/dynamic-imports';
+import { renderComponentError } from '../utils/render-component-error';
 import type { Chart as ChartInstance, ChartConfiguration } from 'chart.js';
 
 type LineChart = ChartInstance<'line', number[], string>;
@@ -122,8 +126,11 @@ const chartInteraction = {
 export class NodelDiagnosticCharts extends HTMLElement {
   private charts = new Map<string, LineChart>();
   private chartConstructor: ChartConstructor | null = null;
+  private chartImportPromise: Promise<ChartConstructor> | null = null;
   private categoryKey = '';
   private linked = false;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private measurements: CategorizedMeasurement[] = [];
   private mutationObserver: MutationObserver | null = null;
   private selectedCategories = new Set<string>();
@@ -147,7 +154,7 @@ export class NodelDiagnosticCharts extends HTMLElement {
     visibleMeasurements: []
   };
   private drawToken = 0;
-  private lastAppliedUpdatedAt: number | null = null;
+  private lastAppliedData: NodelDiagnosticMeasurement[] | null = null;
   private visibleMeasurementKey = '';
 
   connectedCallback() {
@@ -156,44 +163,60 @@ export class NodelDiagnosticCharts extends HTMLElement {
       this.sourceKey = `nodel-diagnostic-charts-${NodelDiagnosticCharts.nextSourceId}`;
     }
 
-    this.addEventListener('change', this.handleChange);
-    this.addEventListener('click', this.handleClick);
-    this.mutationObserver = new MutationObserver(() => {
-      void this.drawCharts();
-    });
-    this.mutationObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
-    this.removeEventListener('change', this.handleChange);
-    this.removeEventListener('click', this.handleClick);
-    this.mutationObserver?.disconnect();
-    this.mutationObserver = null;
-    this.source?.dispose();
-    this.source = null;
+    this.drawToken += 1;
+    this.measurements = [];
+    this.categoryKey = '';
+    this.visibleMeasurementKey = '';
+    this.lastAppliedData = null;
+    getJQuery().observable(this.view.categories).refresh([]);
+    getJQuery().observable(this.view.visibleMeasurements).refresh([]);
+    getJQuery().observable(this.view).setProperty({
+      empty: false,
+      error: '',
+      hasCategories: false,
+      loading: true,
+      noSelection: false
+    });
+    this.lifecycle.disconnect();
     this.destroyCharts();
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.view);
-      this.linked = true;
-      this.updateView();
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.view);
+    if (!linked || !scope.isCurrent()) {
+      return;
     }
+    this.linked = true;
+    scope.listen(this, 'change', this.handleChange);
+    scope.listen(this, 'click', this.handleClick);
+    const observer = new MutationObserver(scope.guard(() => {
+      void scope.run(() => this.drawCharts(scope), (error) => this.handleInitializationError(error));
+    }));
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    this.mutationObserver = observer;
+    scope.own(() => {
+      observer.disconnect();
+      if (this.mutationObserver === observer) {
+        this.mutationObserver = null;
+      }
+    });
+    this.updateView();
 
-    if (!this.source) {
-      this.bindSource();
-    }
+    this.bindSource(scope);
   }
 
-  private bindSource() {
-    this.source?.dispose();
+  private bindSource(scope: ConnectionScope) {
     const source = registerNodelPollSource<NodelDiagnosticMeasurement[]>({
       key: this.sourceKey,
       intervalMs: 10000,
@@ -201,13 +224,22 @@ export class NodelDiagnosticCharts extends HTMLElement {
       fetcher: (signal) => getDiagnosticMeasurements({ signal })
     });
 
-    this.source = source.subscribe(this, (state) => {
+    const subscription = source.subscribe(this, scope.guard((state) => {
       this.state = state;
-      if (state.data && state.updatedAt !== this.lastAppliedUpdatedAt) {
-        this.lastAppliedUpdatedAt = state.updatedAt;
+      if (state.error) {
+        this.measurements = [];
+      } else if (state.data && state.data !== this.lastAppliedData) {
+        this.lastAppliedData = state.data;
         this.measurements = sortedMeasurements(state.data);
       }
       this.updateView();
+    }));
+    this.source = subscription;
+    scope.own(() => {
+      subscription.dispose();
+      if (this.source === subscription) {
+        this.source = null;
+      }
     });
   }
 
@@ -242,13 +274,24 @@ export class NodelDiagnosticCharts extends HTMLElement {
     this.updateView();
   };
 
-  private async getChartConstructor() {
+  private async getChartConstructor(scope: ConnectionScope) {
     if (this.chartConstructor) {
       return this.chartConstructor;
     }
 
-    const mod = await import('chart.js/auto') as { default: ChartConstructor };
-    this.chartConstructor = mod.default;
+    if (!this.chartImportPromise) {
+      this.chartImportPromise = loadChartModule()
+        .then((mod) => (mod as { default: ChartConstructor }).default)
+        .catch((error) => {
+          this.chartImportPromise = null;
+          throw error;
+        });
+    }
+    const chartConstructor = await this.chartImportPromise;
+    if (!scope.isCurrent()) {
+      return null;
+    }
+    this.chartConstructor = chartConstructor;
     return this.chartConstructor;
   }
 
@@ -308,10 +351,17 @@ export class NodelDiagnosticCharts extends HTMLElement {
       this.visibleMeasurementKey = nextVisibleMeasurementKey;
       $.observable(this.view.visibleMeasurements).refresh(visibleMeasurements);
     }
-    void this.drawCharts();
+    if (this.state.error) {
+      this.destroyCharts();
+      return;
+    }
+    const scope = this.lifecycle.current;
+    if (scope) {
+      void scope.run(() => this.drawCharts(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
-  private async drawCharts() {
+  private async drawCharts(scope: ConnectionScope) {
     const token = ++this.drawToken;
     const visibleMeasurements = this.selectedMeasurements();
     const visibleNames = new Set(visibleMeasurements.map((measurement) => measurement.name));
@@ -321,8 +371,11 @@ export class NodelDiagnosticCharts extends HTMLElement {
       return;
     }
 
-    const Chart = await this.getChartConstructor();
-    if (token !== this.drawToken || !this.isConnected) {
+    const Chart = await this.getChartConstructor(scope);
+    if (token !== this.drawToken || !scope.isCurrent()) {
+      return;
+    }
+    if (!Chart) {
       return;
     }
 
@@ -441,6 +494,17 @@ export class NodelDiagnosticCharts extends HTMLElement {
           }
         }
       }));
+    }
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to render diagnostic charts';
+    this.state = { ...this.state, loading: false, error: message };
+    if (this.linked) {
+      this.updateView();
+    } else {
+      this.dataset.state = 'error';
+      renderComponentError(this, message);
     }
   }
 }

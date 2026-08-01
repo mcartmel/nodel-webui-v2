@@ -1,13 +1,16 @@
 import { waitFor } from './helpers';
 
 const activityMock = vi.hoisted(() => ({
+  disposers: [] as Array<ReturnType<typeof vi.fn>>,
   listeners: [] as Array<(state: unknown) => void>
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
     activityMock.listeners.push(listener);
-    return { dispose: vi.fn(), refresh: vi.fn() };
+    const dispose = vi.fn();
+    activityMock.disposers.push(dispose);
+    return { dispose, refresh: vi.fn() };
   })
 }));
 
@@ -16,6 +19,7 @@ import '../src/components/nodel-log';
 describe('nodel-log', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    activityMock.disposers = [];
     activityMock.listeners = [];
   });
 
@@ -184,6 +188,7 @@ describe('nodel-log', () => {
     });
 
     expect(document.querySelector('.nodel-log-empty')).toBeNull();
+    expect(document.querySelector('[data-log-status]')?.textContent).toContain('Activity request failed');
   });
 
   it('renders filter-specific empty activity copy', async () => {
@@ -399,5 +404,44 @@ describe('nodel-log', () => {
     })).not.toThrow();
 
     expect(document.querySelectorAll('.nodel-log-row').length).toBe(1);
+  });
+
+  it('owns exactly one activity subscription through rapid reconnect loops', async () => {
+    await mountLog();
+    const log = document.querySelector('nodel-log')!;
+    for (let index = 0; index < 3; index += 1) {
+      log.remove();
+      expect(activityMock.disposers[index]).toHaveBeenCalledOnce();
+      document.body.append(log);
+      await waitFor(() => activityMock.listeners.length === index + 2);
+    }
+
+    expect(activityMock.listeners).toHaveLength(4);
+    expect(activityMock.disposers.slice(0, 3).every((dispose) => dispose.mock.calls.length === 1)).toBe(true);
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 2,
+        items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Stale', arg: true }, changed: false, live: false }]
+      }
+    });
+    activityMock.listeners[3]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 3,
+        items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'action', alias: 'Current', arg: true }, changed: false, live: false }]
+      }
+    });
+    expect(log.textContent).toContain('Current');
+    expect(log.textContent).not.toContain('Stale');
   });
 });

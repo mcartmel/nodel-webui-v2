@@ -198,6 +198,7 @@ export interface NodelDuplicateProgress {
 export interface NodelDuplicateNodeOptions {
   includeNodeConfig?: boolean;
   onProgress?: (progress: NodelDuplicateProgress) => void;
+  signal?: AbortSignal;
 }
 
 export interface NodelDuplicateNodeResult {

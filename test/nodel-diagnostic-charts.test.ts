@@ -211,6 +211,36 @@ describe('nodel-diagnostic-charts', () => {
     expect(chartMock.instances[0].config.data.datasets[0].data).toEqual([2]);
   });
 
+  it('clears stale controls and canvases when a polling refresh fails', async () => {
+    let resolveRetry!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(measurementsResponse([{ name: 'Runtime.Heap', isRate: false, values: [1] }]))
+      .mockResolvedValueOnce(new Response('', { status: 500, statusText: 'Server Error' }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveRetry = resolve;
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    document.body.innerHTML = '<nodel-diagnostic-charts></nodel-diagnostic-charts>';
+    await waitFor(() => categoryInputs().length === 1);
+    setCategoryChecked('Runtime', true);
+    await waitFor(() => chartMock.instances.length === 1);
+
+    await ((document.querySelector('nodel-diagnostic-charts') as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
+    await waitFor(() => document.querySelector('nodel-diagnostic-charts')?.getAttribute('data-state') === 'error');
+
+    expect(categoryInputs()).toHaveLength(0);
+    expect(document.querySelectorAll('canvas[data-diagnostic-chart]')).toHaveLength(0);
+    expect(document.body.textContent).not.toContain('Runtime');
+
+    const retry = (document.querySelector('nodel-diagnostic-charts') as unknown as { source: { refresh: () => Promise<void> } }).source.refresh();
+    await flush();
+    expect(categoryInputs()).toHaveLength(0);
+    resolveRetry(measurementsResponse([{ name: 'Runtime.Current', isRate: false, values: [2] }]));
+    await retry;
+    await waitFor(() => categoryInputs().length === 1);
+    expect(categoryInputs()[0].value).toBe('Runtime');
+  });
+
   it('renders empty and error states', async () => {
     mockMeasurements([]);
 
@@ -243,5 +273,44 @@ describe('nodel-diagnostic-charts', () => {
     await waitFor(() => fetchMock.mock.calls.length === 1);
 
     expect(fetchMock).toHaveBeenCalledWith('/REST/diagnostics/measurements', expect.any(Object));
+  });
+
+  it('destroys charts on disconnect and creates one current reconnect instance', async () => {
+    mockMeasurements([{ name: 'Runtime.Heap', isRate: false, values: [1, 2] }]);
+    const charts = document.createElement('nodel-diagnostic-charts');
+    document.body.append(charts);
+    await waitFor(() => categoryInputs().length === 1);
+    setCategoryChecked('Runtime', true);
+    await waitFor(() => chartMock.instances.length === 1);
+    const first = chartMock.instances[0];
+
+    charts.remove();
+    expect(first.destroy).toHaveBeenCalledOnce();
+    document.body.append(charts);
+    await waitFor(() => charts.querySelectorAll('[data-diagnostic-chart-category]').length === 1);
+    await waitFor(() => chartMock.instances.length === 2);
+
+    expect(charts.querySelectorAll('canvas[data-diagnostic-chart]')).toHaveLength(1);
+    expect(chartMock.instances[1].destroy).not.toHaveBeenCalled();
+  });
+
+  it('does not retain stale measurements when reconnect loading fails', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(measurementsResponse([{ name: 'Runtime.Heap', isRate: false, values: [1] }]))
+      .mockResolvedValueOnce(new Response('', { status: 500, statusText: 'Server Error' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const charts = document.createElement('nodel-diagnostic-charts');
+    document.body.append(charts);
+    await waitFor(() => categoryInputs().length === 1);
+    setCategoryChecked('Runtime', true);
+    await waitFor(() => chartMock.instances.length === 1);
+
+    charts.remove();
+    document.body.append(charts);
+    await waitFor(() => charts.getAttribute('data-state') === 'error');
+
+    expect(charts.querySelectorAll('[data-diagnostic-chart-category]')).toHaveLength(0);
+    expect(charts.querySelectorAll('canvas[data-diagnostic-chart]')).toHaveLength(0);
+    expect(charts.textContent).not.toContain('Runtime');
   });
 });

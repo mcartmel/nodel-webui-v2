@@ -63,10 +63,14 @@ export class NodelToastHost extends HTMLElement {
       window.clearTimeout(timer);
     }
     this.timers.clear();
+    this.toasts = this.toasts.filter((toast) => toast.persistent);
   }
 
   show(detail: NodelToastDetail) {
     if (!detail.message.trim()) {
+      return '';
+    }
+    if (!this.isConnected && detail.persistent !== true) {
       return '';
     }
 

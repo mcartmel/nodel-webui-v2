@@ -1,7 +1,10 @@
 import { checkHostReachable, getLocalRest, searchNodeUrls } from '../api/nodel-host-client';
 import type { NodelLocalNodeEntry, NodelNodeUrlEntry } from '../api/nodel-types';
 import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
-import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { getHostFromAddress, getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { escapeHtml } from '../utils/html';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
@@ -106,9 +109,11 @@ export class NodelNodeList extends HTMLElement {
   private connected = false;
   private appliedQueryParam: string | undefined;
   private debounceTimer: number | null = null;
+  private connectionLifecycle = new ComponentLifecycle();
   private initializeToken = 0;
   private lifecycle = Promise.resolve();
   private linked = false;
+  private linkController = new JsViewsLinkController(this);
   private lastAppliedUpdatedAt: number | null = null;
   private source: NodelSourceSubscription<NodeListStateItem[]> | null = null;
   private state: NodeListState = {
@@ -123,6 +128,10 @@ export class NodelNodeList extends HTMLElement {
   };
 
   connectedCallback() {
+    const scope = this.connectionLifecycle.connect();
+    if (!scope) {
+      return;
+    }
     this.connected = true;
     this.appliedQueryParam = undefined;
     this.queueInitialize();
@@ -135,10 +144,8 @@ export class NodelNodeList extends HTMLElement {
     this.clearDebounceTimer();
     this.disposeSource();
     this.removeEventListener('click', this.handleClick);
-    this.lifecycle = this.lifecycle.catch(() => undefined).then(async () => {
-      await unlinkTemplate(this);
-      this.linked = false;
-    });
+    this.connectionLifecycle.disconnect();
+    this.linked = false;
   }
 
   attributeChangedCallback() {
@@ -166,11 +173,26 @@ export class NodelNodeList extends HTMLElement {
 
   private queueInitialize() {
     const token = ++this.initializeToken;
-    this.lifecycle = this.lifecycle.catch(() => undefined).then(() => this.initialize(token));
+    const scope = this.connectionLifecycle.current;
+    if (!scope) {
+      return;
+    }
+    this.lifecycle = this.lifecycle.catch(() => undefined).then(() => scope.run(
+      () => this.initialize(token, scope),
+      (error) => {
+        const message = error instanceof Error ? error.message : 'Failed to initialize node list';
+        if (this.linked) {
+          this.setError(message);
+        } else {
+          this.dataset.state = 'error';
+          renderComponentError(this, message);
+        }
+      }
+    ));
   }
 
-  private async initialize(token: number) {
-    if (!this.connected || token !== this.initializeToken) {
+  private async initialize(token: number, scope: ConnectionScope) {
+    if (!scope.isCurrent() || token !== this.initializeToken) {
       return;
     }
     this.state.scope = normalizeScope(this.getAttribute('scope'));
@@ -179,18 +201,18 @@ export class NodelNodeList extends HTMLElement {
     if (!this.linked) {
       this.innerHTML = `<div class="nodel-node-list-shell"></div>`;
       await bootstrapJsViews();
-      if (!this.connected || token !== this.initializeToken) {
+      if (!scope.isCurrent() || token !== this.initializeToken) {
         return;
       }
-      await linkTemplate(this, template, this.state);
-      if (!this.connected || token !== this.initializeToken) {
+      const linked = await this.linkController.link(scope, template, this.state);
+      if (!linked || !scope.isCurrent() || token !== this.initializeToken) {
         return;
       }
       this.linked = true;
       this.bindEvents();
     }
 
-    if (!this.connected || token !== this.initializeToken) {
+    if (!scope.isCurrent() || token !== this.initializeToken) {
       return;
     }
     this.syncStateFromAttributes();

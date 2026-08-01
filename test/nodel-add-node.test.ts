@@ -520,4 +520,32 @@ describe('nodel-add-node', () => {
     expect(document.querySelector('.nodel-template-autocomplete')?.classList.contains('hidden')).toBe(true);
     expect(document.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
   });
+
+  it('keeps one event and debounce path through rapid reconnect loops', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list' || url === '/REST/nodeURLs') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    const addNode = document.createElement('nodel-add-node');
+    addNode.setAttribute('redirect', 'false');
+    document.body.append(addNode);
+    await waitFor(() => (addNode as any).linked === true);
+    for (let index = 0; index < 3; index += 1) {
+      addNode.remove();
+      document.body.append(addNode);
+      await waitFor(() => (addNode as any).linked === true);
+    }
+
+    addNode.querySelector<HTMLButtonElement>('.nodel-add-node-toggle')?.click();
+    await flush();
+    expect(addNode.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+    await setInputValue(addNode.querySelector<HTMLInputElement>('.nodel-add-node-template')!, 'Lamp');
+    const nodeLookups = () => (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.filter((call) => String(call[0]) === '/REST/nodeURLs');
+    await waitFor(() => nodeLookups().length === 1, { attempts: 30, intervalMs: 25 });
+    expect(nodeLookups()).toHaveLength(1);
+  });
 });

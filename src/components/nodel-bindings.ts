@@ -10,7 +10,10 @@ import {
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelLocalNodeEntry, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { networkNodeSearchHref } from '../navigation/node-links';
 import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
@@ -545,6 +548,8 @@ function suggestionClass(confidence: SuggestionConfidence) {
 export class NodelBindings extends HTMLElement {
   private abortController: AbortController | null = null;
   private linked = false;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private saveMessageTimer: number | null = null;
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private filterInput: HTMLInputElement | null = null;
@@ -576,10 +581,19 @@ export class NodelBindings extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
+    this.nodeSearchToken += 1;
+    this.targetSearchToken += 1;
+    if (this.linked) {
+      this.setState({ busy: false, loading: false, saving: false, searchingBulkNode: false, showBulkNodeOptions: false });
+    }
+    this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
     this.source?.dispose();
@@ -596,41 +610,53 @@ export class NodelBindings extends HTMLElement {
       window.clearTimeout(this.saveMessageTimer);
       this.saveMessageTimer = null;
     }
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await bootstrapJsViews();
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.addEventListener('submit', this.handleSubmit);
-      this.addEventListener('input', this.handleInput);
-      this.addEventListener('change', this.handleChange);
-      this.addEventListener('click', this.handleClick);
-      this.addEventListener('keydown', this.handleKeydown);
-      this.addEventListener('focusout', this.handleFocusOut);
-      this.observeControls();
+  private async initialize(scope: ConnectionScope) {
+    await bootstrapJsViews();
+    if (!scope.isCurrent()) {
+      return;
     }
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
+    }
+    this.linked = true;
+    scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(this, 'input', this.handleInput);
+    scope.listen(this, 'change', this.handleChange);
+    scope.listen(this, 'click', this.handleClick);
+    scope.listen(this, 'keydown', this.handleKeydown);
+    scope.listen(this, 'focusout', this.handleFocusOut);
+    this.observeControls();
+    scope.own(() => this.unobserveControls());
 
-    await this.loadBindings();
-    this.subscribeActivity();
+    await this.loadBindings(scope);
+    if (scope.isCurrent()) {
+      this.subscribeActivity(scope);
+    }
   }
 
   refreshAfterRestart() {
-    return this.loadBindings();
+    const scope = this.lifecycle.current;
+    return scope ? this.loadBindings(scope) : Promise.resolve();
   }
 
-  private async loadBindings() {
+  private async loadBindings(scope: ConnectionScope) {
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.clearLookupCaches();
     this.setState({
+      busy: false,
       loading: true,
       error: '',
       saveError: '',
       saveMessage: '',
+      saving: false,
       empty: false,
       sections: [],
       filter: '',
@@ -638,6 +664,7 @@ export class NodelBindings extends HTMLElement {
       bulkNodeAddress: '',
       bulkNodeOptions: [],
       showBulkNodeOptions: false,
+      searchingBulkNode: false,
       selectedCount: 0,
       visibleCount: 0,
       unboundCount: 0,
@@ -647,9 +674,12 @@ export class NodelBindings extends HTMLElement {
 
     try {
       const [schema, values] = await Promise.all([
-        getNodeRemoteSchema({ signal: this.abortController.signal }),
-        getNodeRemoteBindings({ signal: this.abortController.signal })
+        getNodeRemoteSchema({ signal: controller.signal }),
+        getNodeRemoteBindings({ signal: controller.signal })
       ]);
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
 
       if (!hasBindingSchema(schema)) {
         this.setState({
@@ -669,6 +699,9 @@ export class NodelBindings extends HTMLElement {
       this.bindFilterInput();
       this.updateToolbarSummary();
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
@@ -681,6 +714,11 @@ export class NodelBindings extends HTMLElement {
         visibleCount: 0,
         unboundCount: 0
       });
+    } finally {
+      scope.signal.removeEventListener('abort', abort);
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -1039,79 +1077,96 @@ export class NodelBindings extends HTMLElement {
   }
 
   private async searchBulkNodes(query: string) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const token = ++this.nodeSearchToken;
     const originalQuery = query;
-    this.setState({ searchingBulkNode: true });
+    this.setState({ searchingBulkNode: true, toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query)).slice(0, 20).map(optionFromNode) : [];
-      if (token === this.nodeSearchToken && this.state.bulkNode === originalQuery) {
+      const options = query.trim() ? (await searchNodeUrls(query, { signal: scope.signal })).slice(0, 20).map(optionFromNode) : [];
+      if (scope.isCurrent() && token === this.nodeSearchToken && this.state.bulkNode === originalQuery) {
         this.setState({
           bulkNodeOptions: options,
           showBulkNodeOptions: options.length > 0
         });
       }
-    } catch {
-      if (token === this.nodeSearchToken) {
+    } catch (error) {
+      if (scope.isCurrent() && token === this.nodeSearchToken) {
         this.setState({
           bulkNodeOptions: [],
-          showBulkNodeOptions: false
+          showBulkNodeOptions: false,
+          toolbarError: apiErrorMessage(error, 'Failed to search nodes')
         });
       }
     } finally {
-      if (token === this.nodeSearchToken) {
+      if (scope.isCurrent() && token === this.nodeSearchToken) {
         this.setState({ searchingBulkNode: false });
       }
     }
   }
 
   private async searchRowNodes(row: BindingRow, query: string) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const token = ++this.nodeSearchToken;
     const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingNode: true });
+    this.setState({ toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query)).slice(0, 20).map(optionFromNode) : [];
-      if (token === this.nodeSearchToken && row.node === originalQuery) {
+      const options = query.trim() ? (await searchNodeUrls(query, { signal: scope.signal })).slice(0, 20).map(optionFromNode) : [];
+      if (scope.isCurrent() && token === this.nodeSearchToken && row.node === originalQuery) {
         getJQuery().observable(row).setProperty({
           nodeOptions: options,
           showNodeOptions: options.length > 0
         });
       }
-    } catch {
-      if (token === this.nodeSearchToken) {
+    } catch (error) {
+      if (scope.isCurrent() && token === this.nodeSearchToken) {
         getJQuery().observable(row).setProperty({
           nodeOptions: [],
           showNodeOptions: false
         });
+        this.setState({ toolbarError: apiErrorMessage(error, 'Failed to search nodes') });
       }
     } finally {
-      if (token === this.nodeSearchToken) {
+      if (scope.isCurrent() && token === this.nodeSearchToken) {
         getJQuery().observable(row).setProperty({ searchingNode: false });
       }
     }
   }
 
   private async searchTargets(row: BindingRow, query: string) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const token = ++this.targetSearchToken;
     const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingTarget: true });
+    this.setState({ toolbarError: '' });
     try {
-      const definitions = row.node ? await this.getTargetDefinitions(row) : [];
+      const definitions = row.node ? await this.getTargetDefinitions(row, scope) : [];
       const options = definitionsToOptions(definitions, query);
-      if (token === this.targetSearchToken && row.target === originalQuery) {
+      if (scope.isCurrent() && token === this.targetSearchToken && row.target === originalQuery) {
         getJQuery().observable(row).setProperty({
           targetOptions: options,
           showTargetOptions: options.length > 0
         });
       }
-    } catch {
-      if (token === this.targetSearchToken) {
+    } catch (error) {
+      if (scope.isCurrent() && token === this.targetSearchToken) {
         getJQuery().observable(row).setProperty({
           targetOptions: [],
           showTargetOptions: false
         });
+        this.setState({ toolbarError: apiErrorMessage(error, 'Failed to load target definitions') });
       }
     } finally {
-      if (token === this.targetSearchToken) {
+      if (scope.isCurrent() && token === this.targetSearchToken) {
         getJQuery().observable(row).setProperty({ searchingTarget: false });
       }
     }
@@ -1152,6 +1207,10 @@ export class NodelBindings extends HTMLElement {
   }
 
   private async suggestMatches() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const rows = this.allRows().filter((row) => row.selected && row.node);
     if (rows.length === 0) {
       this.setState({
@@ -1170,7 +1229,10 @@ export class NodelBindings extends HTMLElement {
     try {
       let suggested = 0;
       for (const row of rows) {
-        const definitions = await this.getTargetDefinitions(row);
+        const definitions = await this.getTargetDefinitions(row, scope);
+        if (!scope.isCurrent()) {
+          return;
+        }
         const suggestion = buildSuggestion(row, definitions);
         if (suggestion.confidence === 'high' || suggestion.confidence === 'medium') {
           suggested += 1;
@@ -1184,9 +1246,13 @@ export class NodelBindings extends HTMLElement {
       }
       this.setState({ message: `${suggested} suggestion${suggested === 1 ? '' : 's'} ready.` });
     } catch (error) {
-      this.setState({ toolbarError: apiErrorMessage(error, 'Failed to suggest matches') });
+      if (scope.isCurrent()) {
+        this.setState({ toolbarError: apiErrorMessage(error, 'Failed to suggest matches') });
+      }
     } finally {
-      this.setState({ busy: false });
+      if (scope.isCurrent()) {
+        this.setState({ busy: false });
+      }
     }
   }
 
@@ -1205,14 +1271,14 @@ export class NodelBindings extends HTMLElement {
     });
   }
 
-  private async getTargetDefinitions(row: BindingRow) {
+  private async getTargetDefinitions(row: BindingRow, scope: ConnectionScope) {
     const key = this.targetCacheKey(row);
     const cached = this.targetCache.get(key);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.promise;
     }
 
-    const promise = this.loadTargetDefinitions(row);
+    const promise = this.loadTargetDefinitions(row, scope);
     this.targetCache.set(key, {
       expiresAt: Date.now() + targetCacheTtlMs,
       promise
@@ -1231,14 +1297,20 @@ export class NodelBindings extends HTMLElement {
     return `${row.kind}:${normalizeNodeIdentity(row.node)}:${row.nodeAddress}`;
   }
 
-  private async loadTargetDefinitions(row: BindingRow) {
-    const localNode = await this.findLocalNode(row.node);
+  private async loadTargetDefinitions(row: BindingRow, scope: ConnectionScope) {
+    const localNode = await this.findLocalNode(row.node, scope);
+    if (!scope.isCurrent()) {
+      return [];
+    }
     if (localNode) {
-      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name));
+      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name), scope);
       return result.definitions;
     }
 
-    const entries = await searchNodeUrls(row.node);
+    const entries = await searchNodeUrls(row.node, { signal: scope.signal });
+    if (!scope.isCurrent()) {
+      return [];
+    }
     const discoveredUrls = entries
       .filter((entry) => nodeUrlMatches(entry, row.node))
       .map((entry) => entry.address);
@@ -1249,7 +1321,7 @@ export class NodelBindings extends HTMLElement {
       discoveredUrls.length === 0 && entries.length === 0 ? localNodeUrl(row.node) : ''
     ].filter((url): url is string => Boolean(url)));
 
-    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url).then(
+    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url, scope).then(
       (result) => result,
       () => null
     )));
@@ -1261,9 +1333,9 @@ export class NodelBindings extends HTMLElement {
     return mergeDefinitions(successful);
   }
 
-  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string): Promise<TargetFetchResult> {
+  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string, scope: ConnectionScope): Promise<TargetFetchResult> {
     const definitions = await withTimeout(
-      kind === 'actions' ? getRemoteNodeActions(nodeUrl) : getRemoteNodeSignals(nodeUrl),
+      kind === 'actions' ? getRemoteNodeActions(nodeUrl, { signal: scope.signal }) : getRemoteNodeSignals(nodeUrl, { signal: scope.signal }),
       targetLookupTimeoutMs
     );
     return {
@@ -1272,14 +1344,14 @@ export class NodelBindings extends HTMLElement {
     };
   }
 
-  private async findLocalNode(node: string) {
-    const localNodes = await this.getLocalNodes().catch(() => []);
+  private async findLocalNode(node: string, scope: ConnectionScope) {
+    const localNodes = await this.getLocalNodes(scope).catch(() => []);
     return localNodes.find((item) => nodeNameMatches(item.name, node)) ?? null;
   }
 
-  private getLocalNodes() {
+  private getLocalNodes(scope: ConnectionScope) {
     if (!this.localNodesPromise) {
-      this.localNodesPromise = getLocalRest().then((rest) => {
+      this.localNodesPromise = getLocalRest({ signal: scope.signal }).then((rest) => {
         return Object.entries(rest.nodes ?? {}).map(([key, entry]) => ({
           key,
           entry,
@@ -1299,6 +1371,10 @@ export class NodelBindings extends HTMLElement {
   }
 
   private async saveBindings() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const payload = this.serializePayload();
     this.setState({
       saving: true,
@@ -1307,7 +1383,10 @@ export class NodelBindings extends HTMLElement {
     });
 
     try {
-      await saveNodeRemoteBindings(payload);
+      await saveNodeRemoteBindings(payload, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setState({ saveMessage: 'Saved' });
       this.dispatchEvent(new CustomEvent('nodel-bindings-saved', {
         bubbles: true,
@@ -1316,11 +1395,14 @@ export class NodelBindings extends HTMLElement {
       if (this.saveMessageTimer !== null) {
         window.clearTimeout(this.saveMessageTimer);
       }
-      this.saveMessageTimer = window.setTimeout(() => {
+      this.saveMessageTimer = scope.setTimeout(() => {
         this.setState({ saveMessage: '' });
         this.saveMessageTimer = null;
       }, 2500);
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, 'Failed to save bindings');
       this.setState({ saveError: message });
       this.dispatchEvent(new CustomEvent('nodel-bindings-error', {
@@ -1328,7 +1410,9 @@ export class NodelBindings extends HTMLElement {
         detail: { error: message, payload }
       }));
     } finally {
-      this.setState({ saving: false });
+      if (scope.isCurrent()) {
+        this.setState({ saving: false });
+      }
     }
   }
 
@@ -1352,16 +1436,33 @@ export class NodelBindings extends HTMLElement {
     return payload;
   }
 
-  private subscribeActivity() {
+  private subscribeActivity(scope: ConnectionScope) {
     if (this.source) {
       return;
     }
 
-    this.source = subscribeNodeActivity(this, (state) => {
+    const source = subscribeNodeActivity(this, scope.guard((state) => {
       if (state.batch) {
         this.applyActivityEntries(state.batch.items.map((item) => item.entry));
       }
+    }));
+    this.source = source;
+    scope.own(() => {
+      source.dispose();
+      if (this.source === source) {
+        this.source = null;
+      }
     });
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = apiErrorMessage(error, 'Failed to initialize bindings');
+    if (this.linked) {
+      this.setState({ loading: false, error: message });
+    } else {
+      this.dataset.state = 'error';
+      renderComponentError(this, message);
+    }
   }
 
   private applyActivityEntries(entries: NodelActivityLogEntry[]) {

@@ -57,13 +57,12 @@ function isAllowedPropertyAccess(node) {
 
 function validatePositiveRequirements(filePath, text, issues) {
   const requirements = [
-    [/linkTemplate/, 'must import and call linkTemplate'],
-    [/unlinkTemplate/, 'must import and call unlinkTemplate'],
+    [/JsViewsLinkController/, 'must use JsViewsLinkController for serialized linking'],
+    [/ComponentLifecycle/, 'must own linked resources through ComponentLifecycle'],
     [/getJQuery/, 'must use getJQuery for observable updates'],
     [/data-link=/, 'must contain JsViews data-link markup'],
     [/\{\^\{/, 'must contain live JsViews tags such as {^{for}}, {^{if}}, or {^{>...}}'],
-    [/linkTemplate\s*\(/, 'must call linkTemplate during component initialization'],
-    [/unlinkTemplate\s*\(/, 'must call unlinkTemplate during cleanup'],
+    [/linkController\.link\s*\(/, 'must link through JsViewsLinkController during component initialization'],
     [/\.observable\s*\(/, 'must update linked data through $.observable(...)']
   ];
 

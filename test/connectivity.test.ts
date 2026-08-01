@@ -259,4 +259,36 @@ describe('connectivity coordinator', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(states.at(-1)).toEqual({ offline: false, reason: '', retryAttempt: 0 });
   });
+
+  it('isolates throwing listeners and does not double-notify reentrant subscriptions', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('network unavailable');
+    }));
+    const listenerError = vi.fn();
+    window.addEventListener('nodel-connectivity-listener-error', listenerError);
+    const throwing = subscribeConnectivity(() => {
+      throw new Error('listener failed');
+    });
+    const received: NodelConnectivityState[] = [];
+    subscription = subscribeConnectivity((state) => received.push(state));
+    const nestedListener = vi.fn();
+    const nestedSubscriptions: Array<{ dispose(): void }> = [];
+    const creator = subscribeConnectivity((state) => {
+      if (state.retryAttempt === 1 && nestedSubscriptions.length === 0) {
+        nestedSubscriptions.push(subscribeConnectivity(nestedListener));
+      }
+    });
+
+    reportConnectivityFailure('/REST', new TypeError('request failed'));
+    await flushAsync();
+
+    expect(received.at(-1)).toMatchObject({ offline: true, reason: 'network' });
+    expect(listenerError).toHaveBeenCalled();
+    expect(nestedListener).toHaveBeenCalledTimes(1);
+
+    throwing.dispose();
+    creator.dispose();
+    nestedSubscriptions[0]?.dispose();
+    window.removeEventListener('nodel-connectivity-listener-error', listenerError);
+  });
 });

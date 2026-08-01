@@ -41,10 +41,15 @@ let error = '';
 let currentBatch: NodeActivityBatch | null = null;
 let lastSeq: number | null = null;
 let ws: WebSocket | null = null;
+let wsConnectTimer: number | null = null;
 let pollTimer: number | null = null;
+let pollController: AbortController | null = null;
+let pollInFlight: Promise<void> | null = null;
 let reconnectTimer: number | null = null;
 let lastWsAttemptAt = 0;
 let activeMode: 'idle' | 'websocket' | 'poll' = 'idle';
+let connectionGeneration = 0;
+let activityEpoch = 0;
 const latestEntries = new Map<string, NodelActivityLogEntry>();
 
 function activityEntryKey(entry: NodelActivityLogEntry) {
@@ -74,7 +79,7 @@ const liveAccumulator = createActivityAccumulator<NodelActivityLogEntry>((items)
   }
 
   const entries = items.map((item) => item.value);
-  const nextSeq = Math.max(...entries.map((entry) => entry.seq), lastSeq ?? 0) + 1;
+  const nextSeq = Math.max(lastSeq ?? 0, Math.max(...entries.map((entry) => entry.seq)) + 1);
   lastSeq = nextSeq;
   emit({
     items: items.map((item) => ({ entry: item.value, changed: item.changed, live: item.live })),
@@ -113,8 +118,16 @@ function clearReconnectTimer() {
 }
 
 function resetConnection() {
+  activityEpoch += 1;
+  connectionGeneration += 1;
+  liveAccumulator.clear();
   clearPollTimer();
   clearReconnectTimer();
+  clearTimer(wsConnectTimer);
+  wsConnectTimer = null;
+  pollController?.abort();
+  pollController = null;
+  pollInFlight = null;
   if (ws) {
     try {
       ws.close();
@@ -148,14 +161,25 @@ function emit(batch: NodeActivityBatch | null, nextError = error) {
     error = nextError;
   }
 
-  for (const subscriber of subscribers) {
-    subscriber.listener({
-      loading,
-      connected,
-      error,
-      batch,
-      transport: activeMode === 'idle' ? null : activeMode
-    });
+  const epoch = activityEpoch;
+  for (const subscriber of [...subscribers]) {
+    if (!subscribers.has(subscriber)) {
+      continue;
+    }
+    try {
+      subscriber.listener({
+        loading,
+        connected,
+        error,
+        batch,
+        transport: activeMode === 'idle' ? null : activeMode
+      });
+    } catch (listenerError) {
+      window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error: listenerError } }));
+    }
+    if (epoch !== activityEpoch) {
+      return;
+    }
   }
 }
 
@@ -177,7 +201,7 @@ function nextSeqFrom(entries: NodelActivityLogEntry[], fallback: number | null) 
     return fallback ?? 0;
   }
 
-  return Math.max(...entries.map((entry) => entry.seq)) + 1;
+  return Math.max(fallback ?? 0, Math.max(...entries.map((entry) => entry.seq)) + 1);
 }
 
 function activityNodeName() {
@@ -194,61 +218,82 @@ function scheduleReconnect() {
     return;
   }
 
+  const generation = connectionGeneration;
   reconnectTimer = window.setTimeout(() => {
     reconnectTimer = null;
-    void openWebSocket();
+    if (generation === connectionGeneration) {
+      void openWebSocket();
+    }
   }, reconnectDelayMs);
 }
 
-async function runPoll() {
+function runPoll() {
   if (!shouldRun()) {
-    return;
+    return Promise.resolve();
+  }
+  if (pollInFlight) {
+    return pollInFlight;
   }
 
   activeMode = 'poll';
+  const generation = connectionGeneration;
+  const controller = new AbortController();
+  pollController = controller;
   connected = false;
   emit(null);
 
-  try {
-    const from = lastSeq === null ? -1 : lastSeq;
-    const entries = await getNodeActivity({ from });
-    if (!shouldRun()) {
-      return;
+  const request = (async () => {
+    try {
+      const from = lastSeq === null ? -1 : lastSeq;
+      const entries = await getNodeActivity({ from }, { signal: controller.signal });
+      if (!shouldRun() || generation !== connectionGeneration || controller.signal.aborted || activeMode !== 'poll') {
+        return;
+      }
+
+      const normalized = normalizeEntries(entries);
+      if (normalized.length > 0) {
+        lastSeq = nextSeqFrom(normalized, lastSeq);
+      } else if (lastSeq === null) {
+        lastSeq = 0;
+      }
+
+      emit({
+        items: normalized.map((entry) => ({ entry, changed: false, live: false })),
+        replace: from === -1,
+        transport: 'poll',
+        nextSeq: lastSeq ?? 0
+      });
+    } catch (pollError) {
+      if (generation !== connectionGeneration || controller.signal.aborted) {
+        return;
+      }
+      error = pollError instanceof Error ? pollError.message : 'Failed to load activity';
+      emit(null);
+    } finally {
+      if (!shouldRun() || generation !== connectionGeneration || controller.signal.aborted || activeMode !== 'poll') {
+        return;
+      }
+      clearPollTimer();
+
+      if (Date.now() - lastWsAttemptAt >= reconnectDelayMs) {
+        void openWebSocket();
+        return;
+      }
+
+      pollTimer = window.setTimeout(() => {
+        pollTimer = null;
+        void runPoll();
+      }, pollIntervalMs);
     }
-
-    const normalized = normalizeEntries(entries);
-    if (normalized.length > 0) {
-      lastSeq = nextSeqFrom(normalized, lastSeq);
-    } else if (lastSeq === null) {
-      lastSeq = 0;
+  })();
+  pollInFlight = request;
+  void request.finally(() => {
+    if (pollInFlight === request) {
+      pollInFlight = null;
+      pollController = null;
     }
-
-    emit({
-      items: normalized.map((entry) => ({ entry, changed: false, live: false })),
-      replace: from === -1,
-      transport: 'poll',
-      nextSeq: lastSeq ?? 0
-    });
-  } catch (pollError) {
-    error = pollError instanceof Error ? pollError.message : 'Failed to load activity';
-    emit(null);
-  } finally {
-    clearPollTimer();
-
-    if (!shouldRun()) {
-      return;
-    }
-
-    if (Date.now() - lastWsAttemptAt >= reconnectDelayMs) {
-      void openWebSocket();
-      return;
-    }
-
-    pollTimer = window.setTimeout(() => {
-      pollTimer = null;
-      void runPoll();
-    }, pollIntervalMs);
-  }
+  });
+  return request;
 }
 
 function handleWebSocketMessage(message: MessageEvent<string>) {
@@ -300,38 +345,73 @@ async function openWebSocket() {
 
   lastWsAttemptAt = Date.now();
   clearPollTimer();
+  pollController?.abort();
+  pollController = null;
+  pollInFlight = null;
   activeMode = 'websocket';
 
+  const generation = connectionGeneration;
+  let socket: WebSocket;
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${protocol}//${window.location.host}/nodes/${encodeURIComponent(nodeName)}`;
-    ws = new WebSocket(url);
+    socket = new WebSocket(url);
+    ws = socket;
   } catch (connectError) {
     reportConnectivityFailure('REST/', connectError);
     error = connectError instanceof Error ? connectError.message : 'Failed to open activity socket';
     ws = null;
     connected = false;
+    activeMode = 'poll';
     emit(null);
     scheduleReconnect();
     await runPoll();
     return;
   }
 
-  ws.onopen = () => {
+  socket.onopen = () => {
+    if (ws !== socket || generation !== connectionGeneration) {
+      return;
+    }
+    clearTimer(wsConnectTimer);
+    wsConnectTimer = null;
     connected = true;
     error = '';
     emit(null);
   };
 
-  ws.onmessage = handleWebSocketMessage;
-
-  ws.onerror = () => {
-    reportConnectivityFailure('REST/', new TypeError('WebSocket activity stream unavailable'));
-    error = 'WebSocket activity stream unavailable';
-    emit(null);
+  socket.onmessage = (message) => {
+    if (ws === socket && generation === connectionGeneration) {
+      handleWebSocketMessage(message);
+    }
   };
 
-  ws.onclose = () => {
+  socket.onerror = () => {
+    if (ws !== socket || generation !== connectionGeneration) {
+      return;
+    }
+    reportConnectivityFailure('REST/', new TypeError('WebSocket activity stream unavailable'));
+    error = 'WebSocket activity stream unavailable';
+    clearTimer(wsConnectTimer);
+    wsConnectTimer = null;
+    ws = null;
+    connected = false;
+    activeMode = 'poll';
+    try {
+      socket.close();
+    } catch {
+      // ignore
+    }
+    emit(null);
+    void runPoll();
+  };
+
+  socket.onclose = () => {
+    if (ws !== socket || generation !== connectionGeneration) {
+      return;
+    }
+    clearTimer(wsConnectTimer);
+    wsConnectTimer = null;
     ws = null;
     connected = false;
 
@@ -345,6 +425,23 @@ async function openWebSocket() {
     emit(null);
     void runPoll();
   };
+
+  wsConnectTimer = window.setTimeout(() => {
+    wsConnectTimer = null;
+    if (ws !== socket || generation !== connectionGeneration || connected) {
+      return;
+    }
+    ws = null;
+    activeMode = 'poll';
+    try {
+      socket.close();
+    } catch {
+      // ignore
+    }
+    error = 'WebSocket activity stream timed out';
+    emit(null);
+    void runPoll();
+  }, reconnectDelayMs);
 }
 
 function evaluate() {
@@ -359,7 +456,7 @@ function evaluate() {
   }
 
   if (activeMode === 'poll') {
-    if (!pollTimer && !ws) {
+    if (!pollTimer && !pollInFlight && !ws) {
       void runPoll();
     }
     return;
@@ -382,11 +479,20 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
   });
 
   subscribers.add(subscriber);
-  listener({ loading, connected, error, batch: currentBatch, transport: activeMode === 'idle' ? null : activeMode });
+  try {
+    listener({ loading, connected, error, batch: currentBatch, transport: activeMode === 'idle' ? null : activeMode });
+  } catch (listenerError) {
+    window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error: listenerError } }));
+  }
   evaluate();
 
+  let disposed = false;
   return {
     dispose() {
+      if (disposed) {
+        return;
+      }
+      disposed = true;
       subscriber.disposeVisibility();
       subscribers.delete(subscriber);
       if (subscribers.size === 0) {

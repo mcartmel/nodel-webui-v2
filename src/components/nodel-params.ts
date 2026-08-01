@@ -4,7 +4,9 @@ import {
   saveNodeParams
 } from '../api/nodel-host-client';
 import type { NodelJsonSchema } from '../api/nodel-types';
-import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import {
   createSchemaForm,
   findSchemaField,
@@ -66,6 +68,8 @@ function hasSchemaFields(schema: NodelJsonSchema | null | undefined) {
 
 export class NodelParams extends HTMLElement {
   private abortController: AbortController | null = null;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private linked = false;
   private saveMessageTimer: number | null = null;
   private state: ParamsViewModel = {
@@ -79,10 +83,17 @@ export class NodelParams extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.renderInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
+    if (this.linked) {
+      this.setState({ loading: false, saving: false });
+    }
+    this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
     this.removeEventListener('submit', this.handleSubmit);
@@ -92,45 +103,56 @@ export class NodelParams extends HTMLElement {
       window.clearTimeout(this.saveMessageTimer);
       this.saveMessageTimer = null;
     }
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
   refreshAfterRestart() {
-    return this.loadParams();
+    const scope = this.lifecycle.current;
+    return scope ? this.loadParams(scope) : Promise.resolve();
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await bootstrapJsViews();
-      registerSchemaFormTemplates();
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.addEventListener('submit', this.handleSubmit);
-      this.addEventListener('click', this.handleClick);
-      this.addEventListener('toggle', this.handleToggle, true);
+  private async initialize(scope: ConnectionScope) {
+    await bootstrapJsViews();
+    if (!scope.isCurrent()) {
+      return;
     }
+    registerSchemaFormTemplates();
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
+    }
+    this.linked = true;
+    scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(this, 'click', this.handleClick);
+    scope.listen(this, 'toggle', this.handleToggle, true);
 
-    await this.loadParams();
+    await this.loadParams(scope);
   }
 
-  private async loadParams() {
+  private async loadParams(scope: ConnectionScope) {
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.setState({
       loading: true,
       error: '',
       saveError: '',
       saveMessage: '',
+      saving: false,
       empty: false,
       schemaForm: null
     });
 
     try {
       const [schema, params] = await Promise.all([
-        getNodeParamsSchema({ signal: this.abortController.signal }),
-        getNodeParams({ signal: this.abortController.signal })
+        getNodeParamsSchema({ signal: controller.signal }),
+        getNodeParams({ signal: controller.signal })
       ]);
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
 
       if (!hasSchemaFields(schema)) {
         this.setState({
@@ -149,6 +171,9 @@ export class NodelParams extends HTMLElement {
         schemaForm
       });
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
@@ -158,6 +183,11 @@ export class NodelParams extends HTMLElement {
         empty: false,
         schemaForm: null
       });
+    } finally {
+      scope.signal.removeEventListener('abort', abort);
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -188,6 +218,10 @@ export class NodelParams extends HTMLElement {
   }
 
   private async saveParams() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const payload = serializeSchemaForm(this.state.schemaForm!) as Record<string, unknown>;
     this.setState({
       saving: true,
@@ -196,7 +230,10 @@ export class NodelParams extends HTMLElement {
     });
 
     try {
-      await saveNodeParams(payload);
+      await saveNodeParams(payload, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setState({ saveMessage: 'Saved' });
       this.dispatchEvent(new CustomEvent('nodel-params-saved', {
         bubbles: true,
@@ -205,11 +242,14 @@ export class NodelParams extends HTMLElement {
       if (this.saveMessageTimer !== null) {
         window.clearTimeout(this.saveMessageTimer);
       }
-      this.saveMessageTimer = window.setTimeout(() => {
+      this.saveMessageTimer = scope.setTimeout(() => {
         this.setState({ saveMessage: '' });
         this.saveMessageTimer = null;
       }, 2500);
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, 'Failed to save parameters');
       this.setState({ saveError: message });
       this.dispatchEvent(new CustomEvent('nodel-params-error', {
@@ -217,7 +257,23 @@ export class NodelParams extends HTMLElement {
         detail: { error: message, payload }
       }));
     } finally {
-      this.setState({ saving: false });
+      if (scope.isCurrent()) {
+        this.setState({ saving: false });
+      }
+    }
+  }
+
+  private renderInitializationError(error: unknown) {
+    const message = apiErrorMessage(error, 'Failed to initialize parameters');
+    if (this.linked) {
+      this.setState({ loading: false, error: message });
+    } else {
+      this.dataset.state = 'error';
+      this.innerHTML = '<div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert"></div>';
+      const alert = this.firstElementChild;
+      if (alert) {
+        alert.textContent = message;
+      }
     }
   }
 

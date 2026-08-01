@@ -60,8 +60,15 @@ function emit(next: NodelConnectivityState) {
     return;
   }
   state = next;
-  for (const listener of listeners) {
-    listener({ ...state });
+  for (const listener of [...listeners]) {
+    if (!listeners.has(listener)) {
+      continue;
+    }
+    try {
+      listener({ ...state });
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('nodel-connectivity-listener-error', { detail: { error } }));
+    }
   }
 }
 
@@ -181,7 +188,11 @@ function stop() {
 export function subscribeConnectivity(listener: ConnectivityListener) {
   start();
   listeners.add(listener);
-  listener({ ...state });
+  try {
+    listener({ ...state });
+  } catch (error) {
+    window.dispatchEvent(new CustomEvent('nodel-connectivity-listener-error', { detail: { error } }));
+  }
   return {
     dispose() {
       listeners.delete(listener);

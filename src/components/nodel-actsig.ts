@@ -7,7 +7,10 @@ import {
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
@@ -242,6 +245,8 @@ function apiErrorMessage(error: unknown, fallback: string) {
 export class NodelActSig extends HTMLElement {
   private abortController: AbortController | null = null;
   private linked = false;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private materializeTimers = new Map<string, number>();
   private pulseTimers = new Map<string, number>();
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
@@ -256,10 +261,14 @@ export class NodelActSig extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
+    this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
     this.source?.dispose();
@@ -277,7 +286,6 @@ export class NodelActSig extends HTMLElement {
     }
     this.materializeTimers.clear();
     this.pulseTimers.clear();
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
@@ -291,37 +299,50 @@ export class NodelActSig extends HTMLElement {
     }
     this.materializeTimers.clear();
     this.pulseTimers.clear();
-    return this.loadDefinitions();
+    const scope = this.lifecycle.current;
+    return scope ? this.loadDefinitions(scope) : Promise.resolve();
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await bootstrapJsViews();
-      registerSchemaFormTemplates();
-      registerActSigTemplates();
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.addEventListener('submit', this.handleSubmit);
-      this.addEventListener('change', this.handleChange);
-      this.addEventListener('click', this.handleClick);
-      this.addEventListener('toggle', this.handleToggle, true);
-      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  private async initialize(scope: ConnectionScope) {
+    await bootstrapJsViews();
+    if (!scope.isCurrent()) {
+      return;
     }
+    registerSchemaFormTemplates();
+    registerActSigTemplates();
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
+    }
+    this.linked = true;
+    scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(this, 'change', this.handleChange);
+    scope.listen(this, 'click', this.handleClick);
+    scope.listen(this, 'toggle', this.handleToggle, true);
+    scope.listen(document, 'visibilitychange', this.handleVisibilityChange);
 
-    await this.loadDefinitions();
-    this.subscribeActivity();
+    await this.loadDefinitions(scope);
+    if (scope.isCurrent()) {
+      this.subscribeActivity(scope);
+    }
   }
 
-  private async loadDefinitions() {
+  private async loadDefinitions(scope: ConnectionScope) {
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.setState({ loading: true, error: '', empty: false });
 
     try {
       const [actions, signals] = await Promise.all([
-        getNodeActions({ signal: this.abortController.signal }),
-        getNodeSignals({ signal: this.abortController.signal })
+        getNodeActions({ signal: controller.signal }),
+        getNodeSignals({ signal: controller.signal })
       ]);
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       const sections = this.buildSections(actions, signals);
       this.setState({
         loading: false,
@@ -336,6 +357,9 @@ export class NodelActSig extends HTMLElement {
         }
       }
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
@@ -346,6 +370,11 @@ export class NodelActSig extends HTMLElement {
         hasSignals: false,
         empty: false
       });
+    } finally {
+      scope.signal.removeEventListener('abort', abort);
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
@@ -422,6 +451,10 @@ export class NodelActSig extends HTMLElement {
   }
 
   private materializeSection(section: ActSigSectionModel) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     if (section.materializing || this.materializeTimers.has(section.id)) {
       return;
     }
@@ -436,14 +469,20 @@ export class NodelActSig extends HTMLElement {
     let index = 0;
 
     const step = () => {
+      if (!scope.isCurrent() || !this.state.sections.includes(section)) {
+        this.materializeTimers.delete(section.id);
+        return;
+      }
       const end = Math.min(index + materializeChunkSize, forms.length);
       for (; index < end; index += 1) {
         this.materializeForm(forms[index]);
       }
 
       if (index < forms.length) {
-        const timer = window.setTimeout(step, 0);
-        this.materializeTimers.set(section.id, timer);
+        const timer = scope.setTimeout(step, 0);
+        if (timer !== null) {
+          this.materializeTimers.set(section.id, timer);
+        }
         return;
       }
 
@@ -488,14 +527,21 @@ export class NodelActSig extends HTMLElement {
     return form.pointType === 'event' && !overrideSignals;
   }
 
-  private subscribeActivity() {
+  private subscribeActivity(scope: ConnectionScope) {
     if (this.source) {
       return;
     }
 
-    this.source = subscribeNodeActivity(this, (state) => {
+    const source = subscribeNodeActivity(this, scope.guard((state) => {
       if (state.batch) {
         this.applyActivityEntries(state.batch.items.map((item) => item.entry));
+      }
+    }));
+    this.source = source;
+    scope.own(() => {
+      source.dispose();
+      if (this.source === source) {
+        this.source = null;
       }
     });
   }
@@ -633,7 +679,7 @@ export class NodelActSig extends HTMLElement {
       return;
     }
 
-    window.setTimeout(() => this.syncSignalFormReadOnlyState(), 0);
+    this.lifecycle.current?.setTimeout(() => this.syncSignalFormReadOnlyState(), 0);
   };
 
   private handleClick = (event: MouseEvent) => {
@@ -686,20 +732,30 @@ export class NodelActSig extends HTMLElement {
   };
 
   private async submitForm(form: ActSigFormModel) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     getJQuery().observable(form).setProperty({ busy: true, error: '' });
     const payload = serializeSchemaForm(form.schemaForm!);
 
     try {
       if (form.pointType === 'action') {
-        await callNodeAction(form.name, payload);
+        await callNodeAction(form.name, payload, { signal: scope.signal });
       } else {
-        await emitNodeSignal(form.name, payload);
+        await emitNodeSignal(form.name, payload, { signal: scope.signal });
+      }
+      if (!scope.isCurrent()) {
+        return;
       }
       this.dispatchEvent(new CustomEvent('nodel-actsig-submitted', {
         bubbles: true,
         detail: { type: form.pointType, name: form.name, payload }
       }));
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, `Failed to ${form.pointType === 'action' ? 'call action' : 'emit signal'}`);
       getJQuery().observable(form).setProperty('error', message);
       this.dispatchEvent(new CustomEvent('nodel-actsig-error', {
@@ -707,14 +763,23 @@ export class NodelActSig extends HTMLElement {
         detail: { type: form.pointType, name: form.name, error: message }
       }));
     } finally {
-      getJQuery().observable(form).setProperty('busy', false);
+      if (scope.isCurrent()) {
+        getJQuery().observable(form).setProperty('busy', false);
+      }
     }
   }
 
   private async copyFormName(form: ActSigFormModel) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const pointLabel = form.pointType === 'action' ? 'action' : 'signal';
     try {
       await copyTextToClipboard(form.name);
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
         bubbles: true,
         detail: {
@@ -725,6 +790,9 @@ export class NodelActSig extends HTMLElement {
         }
       }));
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
         bubbles: true,
         detail: {
@@ -739,17 +807,33 @@ export class NodelActSig extends HTMLElement {
   }
 
   private pulseForm(form: ActSigFormModel) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const $ = getJQuery();
     $.observable(form).setProperty('pulse', true);
     const existing = this.pulseTimers.get(form.id);
     if (existing !== undefined) {
       window.clearTimeout(existing);
     }
-    const timer = window.setTimeout(() => {
+    const timer = scope.setTimeout(() => {
       $.observable(form).setProperty('pulse', false);
       this.pulseTimers.delete(form.id);
     }, 700);
-    this.pulseTimers.set(form.id, timer);
+    if (timer !== null) {
+      this.pulseTimers.set(form.id, timer);
+    }
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = apiErrorMessage(error, 'Failed to initialize actions and signals');
+    if (this.linked) {
+      this.setState({ loading: false, error: message });
+    } else {
+      this.dataset.state = 'error';
+      renderComponentError(this, message);
+    }
   }
 
   private setState(values: Partial<ActSigViewModel>) {

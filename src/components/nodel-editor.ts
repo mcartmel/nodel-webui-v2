@@ -2,7 +2,11 @@ import type { NodelFileEntry } from '../api/nodel-types';
 import { deleteNodeFile, getNodeFileContents, listNodeFiles, saveNodeFile } from '../api/nodel-host-client';
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { loadCodeEditorModule } from '../utils/dynamic-imports';
+import { renderComponentError } from '../utils/render-component-error';
 import { resetFileInput } from '../utils/file-input';
 
 interface EditorFileView extends NodelFileEntry {
@@ -110,9 +114,12 @@ export class NodelEditor extends HTMLElement {
 
   private abortController: AbortController | null = null;
   private editor: NodelCodeEditor | null = null;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private linked = false;
   private originalContent = '';
   private selectedUpload: File | null = null;
+  private uploadFocusFrame: number | null = null;
   private dragCancellationListenersActive = false;
   private state: EditorViewModel = {
     addFilePath: '',
@@ -134,54 +141,94 @@ export class NodelEditor extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
+    if (this.linked) {
+      getJQuery().observable(this.state.files).refresh([]);
+      this.originalContent = '';
+      this.setState({
+        addFilePath: '',
+        adding: false,
+        binary: false,
+        canDelete: false,
+        canSave: false,
+        deleting: false,
+        dirty: false,
+        loading: false,
+        pickerPath: '',
+        saving: false,
+        selectedPath: '',
+        status: '',
+        uploadFileName: ''
+      });
+    }
+    this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
     this.removeEventListeners();
     this.clearSelectedUpload();
-    if (this.linked) {
-      this.setState({ addFilePath: '', adding: false, uploadFileName: '' });
+    if (this.uploadFocusFrame !== null) {
+      window.cancelAnimationFrame(this.uploadFocusFrame);
+      this.uploadFocusFrame = null;
     }
-    this.editor?.destroy();
-    this.editor = null;
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
   refreshAfterRestart() {
-    return this.refreshFilesPreservingEditor();
+    const scope = this.lifecycle.current;
+    return scope ? this.refreshFilesPreservingEditor(scope) : Promise.resolve();
   }
 
   attributeChangedCallback() {
     if (this.linked && !this.state.selectedPath) {
-      void this.loadFiles();
+      const scope = this.lifecycle.current;
+      if (scope) {
+        void scope.run(() => this.loadFiles(undefined, scope));
+      }
     }
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.bindEventListeners();
-      const host = this.querySelector<HTMLElement>('[data-editor-host]');
-      if (host) {
-        const { createNodelCodeEditor } = await import('../editor/codemirror-editor');
-        this.editor = createNodelCodeEditor({
-          parent: host,
-          ariaLabel: 'File contents',
-          readOnly: true,
-          onChange: this.handleEditorChange,
-          onSave: () => {
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
+    }
+    this.linked = true;
+    this.bindEventListeners();
+    scope.own(() => this.removeEventListeners());
+    const host = this.querySelector<HTMLElement>('[data-editor-host]');
+    if (host) {
+      const { createNodelCodeEditor } = await loadCodeEditorModule();
+      if (!scope.isCurrent() || this.querySelector('[data-editor-host]') !== host || this.editor) {
+        return;
+      }
+      const editor = createNodelCodeEditor({
+        parent: host,
+        ariaLabel: 'File contents',
+        readOnly: true,
+        onChange: scope.guard(this.handleEditorChange),
+        onError: scope.guard((error) => this.handleInitializationError(error)),
+        onSave: () => {
+          if (scope.isCurrent()) {
             void this.saveSelectedFile();
           }
-        });
-      }
+        }
+      });
+      this.editor = editor;
+      scope.own(() => {
+        editor.destroy();
+        if (this.editor === editor) {
+          this.editor = null;
+        }
+      });
     }
 
-    await this.loadFiles();
+    await this.loadFiles(undefined, scope);
   }
 
   private bindEventListeners() {
@@ -209,7 +256,7 @@ export class NodelEditor extends HTMLElement {
 
   private setState(values: Partial<EditorViewModel>) {
     getJQuery().observable(this.state).setProperty(values);
-    this.dataset.state = values.error ? 'error' : this.state.loading ? 'loading' : this.state.dirty ? 'dirty' : 'ready';
+    this.dataset.state = this.state.error ? 'error' : this.state.loading ? 'loading' : this.state.dirty ? 'dirty' : 'ready';
   }
 
   private refreshFileViews(files: NodelFileEntry[] = this.state.files) {
@@ -225,18 +272,27 @@ export class NodelEditor extends HTMLElement {
     });
   }
 
-  private async loadFiles(preferredPath?: string) {
+  private async loadFiles(preferredPath?: string, scope = this.lifecycle.current) {
+    if (!scope) {
+      return;
+    }
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.setState({ error: '', loading: true, status: 'Loading files...' });
     this.updateAvailability();
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: this.abortController.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      const files = sortFiles((await listNodeFiles({ signal: controller.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       this.refreshFileViews(files);
       const nextPath = preferredPath ?? this.defaultFilePath(files);
       if (nextPath) {
-        await this.openFile(nextPath, { skipDirtyPrompt: true });
+        await this.openFile(nextPath, { skipDirtyPrompt: true }, scope);
       } else {
         this.editor?.setDocument('', '');
         this.editor?.setReadOnly(true);
@@ -244,23 +300,38 @@ export class NodelEditor extends HTMLElement {
         this.setSelectedState('', '', false, false, '');
       }
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : 'Failed to load files', loading: false });
     } finally {
-      this.updateAvailability();
+      scope.signal.removeEventListener('abort', abort);
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
+      if (scope.isCurrent()) {
+        this.updateAvailability();
+      }
     }
   }
 
-  private async refreshFilesPreservingEditor() {
+  private async refreshFilesPreservingEditor(scope: ConnectionScope) {
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.setState({ error: '', loading: true, status: 'Refreshing files...' });
     this.updateAvailability();
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: this.abortController.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      const files = sortFiles((await listNodeFiles({ signal: controller.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       this.refreshFileViews(files);
       this.setState({
         loading: false,
@@ -268,12 +339,21 @@ export class NodelEditor extends HTMLElement {
         status: files.length ? 'Files refreshed.' : 'No editable node files found.'
       });
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : 'Failed to refresh files', loading: false });
     } finally {
-      this.updateAvailability();
+      scope.signal.removeEventListener('abort', abort);
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
+      if (scope.isCurrent()) {
+        this.updateAvailability();
+      }
     }
   }
 
@@ -300,7 +380,10 @@ export class NodelEditor extends HTMLElement {
     this.updateAvailability();
   }
 
-  private async openFile(path: string, options: { skipDirtyPrompt?: boolean } = {}) {
+  private async openFile(path: string, options: { skipDirtyPrompt?: boolean } = {}, scope = this.lifecycle.current) {
+    if (!scope) {
+      return;
+    }
     if (!options.skipDirtyPrompt && !this.confirmDiscardChanges()) {
       this.setState({ pickerPath: this.state.selectedPath });
       return;
@@ -314,24 +397,40 @@ export class NodelEditor extends HTMLElement {
     }
 
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
     this.setState({ error: '', loading: true, status: `Loading ${path}...` });
     this.updateAvailability();
 
     try {
-      const content = await getNodeFileContents(path, { signal: this.abortController.signal });
+      const content = await getNodeFileContents(path, { signal: controller.signal });
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       this.editor?.setDocument(content, path);
       this.editor?.setReadOnly(false);
       this.setSelectedState(path, content, false, false, '');
       this.editor?.focus();
     } catch (error) {
+      if (!scope.isCurrent() || controller !== this.abortController) {
+        return;
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : `Failed to load ${path}` });
     } finally {
-      this.setState({ loading: false });
-      this.updateAvailability();
+      scope.signal.removeEventListener('abort', abort);
+      const ownsRequest = this.abortController === controller;
+      if (ownsRequest) {
+        this.abortController = null;
+      }
+      if (scope.isCurrent() && ownsRequest) {
+        this.setState({ loading: false });
+        this.updateAvailability();
+      }
     }
   }
 
@@ -525,7 +624,15 @@ export class NodelEditor extends HTMLElement {
     this.clearSelectedUpload();
     this.selectedUpload = file;
     this.setState({ addFilePath: file.name, adding: true, error: '', uploadFileName: file.name });
-    window.requestAnimationFrame(() => {
+    if (this.uploadFocusFrame !== null) {
+      window.cancelAnimationFrame(this.uploadFocusFrame);
+    }
+    const scope = this.lifecycle.current;
+    this.uploadFocusFrame = window.requestAnimationFrame(() => {
+      this.uploadFocusFrame = null;
+      if (!scope?.isCurrent()) {
+        return;
+      }
       const input = this.querySelector<HTMLInputElement>('[data-editor-add-path]');
       input?.focus();
       input?.select();
@@ -593,29 +700,43 @@ export class NodelEditor extends HTMLElement {
   }
 
   async saveSelectedFile() {
-    if (!this.state.selectedPath || this.state.binary || !this.state.dirty) {
+    const scope = this.lifecycle.current;
+    if (!scope || !this.state.selectedPath || this.state.binary || !this.state.dirty || this.state.saving) {
       return;
     }
 
-    this.setState({ error: '', saving: true, status: `Saving ${this.state.selectedPath}...` });
+    const path = this.state.selectedPath;
+    this.setState({ error: '', saving: true, status: `Saving ${path}...` });
     this.updateAvailability();
     try {
       const content = this.editor?.getDocument() ?? '';
-      await saveNodeFile(this.state.selectedPath, content);
+      await saveNodeFile(path, content, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.originalContent = content;
-      this.setState({ dirty: false, saving: false, status: `Saved ${this.state.selectedPath}.` });
+      this.setState({ dirty: false, saving: false, status: `Saved ${path}.` });
       this.refreshFileViews();
-      this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path: this.state.selectedPath } }));
-      await this.loadFiles(this.state.selectedPath);
+      this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path } }));
+      await this.loadFiles(path, scope);
     } catch (error) {
-      this.setState({ error: error instanceof Error ? error.message : `Failed to save ${this.state.selectedPath}`, saving: false });
+      if (!scope.isCurrent()) {
+        return;
+      }
+      this.setState({ error: error instanceof Error ? error.message : `Failed to save ${path}`, saving: false });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      this.updateAvailability();
+      if (scope.isCurrent()) {
+        this.updateAvailability();
+      }
     }
   }
 
   private async createFileFromState() {
+    const scope = this.lifecycle.current;
+    if (!scope || this.state.saving) {
+      return;
+    }
     const path = this.state.addFilePath.trim();
     const validation = validateNodeFilePath(path);
     if (validation) {
@@ -636,16 +757,27 @@ export class NodelEditor extends HTMLElement {
     this.updateAvailability();
     try {
       const content = await this.uploadContentForPath(path);
-      await saveNodeFile(path, content);
+      if (!scope.isCurrent()) {
+        return;
+      }
+      await saveNodeFile(path, content, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.clearSelectedUpload();
       this.setState({ addFilePath: '', adding: false, saving: false, uploadFileName: '', status: `Created ${path}.` });
       this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path } }));
-      await this.loadFiles(path);
+      await this.loadFiles(path, scope);
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setState({ error: error instanceof Error ? error.message : `Failed to create ${path}`, saving: false });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      this.updateAvailability();
+      if (scope.isCurrent()) {
+        this.updateAvailability();
+      }
     }
   }
 
@@ -662,6 +794,10 @@ export class NodelEditor extends HTMLElement {
   }
 
   private async deleteSelectedFile() {
+    const scope = this.lifecycle.current;
+    if (!scope || this.state.deleting) {
+      return;
+    }
     const path = this.state.selectedPath;
     if (!path || path === 'script.py') {
       return;
@@ -674,18 +810,36 @@ export class NodelEditor extends HTMLElement {
     this.setState({ deleting: true, error: '', status: `Deleting ${path}...` });
     this.updateAvailability();
     try {
-      await deleteNodeFile(path);
+      await deleteNodeFile(path, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.editor?.setDocument('', '');
       this.editor?.setReadOnly(true);
       this.setSelectedState('', '', false, false, `Deleted ${path}.`);
       this.dispatchEvent(new CustomEvent('nodel-editor-file-deleted', { bubbles: true, detail: { path } }));
-      await this.loadFiles();
+      await this.loadFiles(undefined, scope);
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setState({ error: error instanceof Error ? error.message : `Failed to delete ${path}` });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      this.setState({ deleting: false });
-      this.updateAvailability();
+      if (scope.isCurrent()) {
+        this.setState({ deleting: false });
+        this.updateAvailability();
+      }
+    }
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to initialize editor';
+    if (this.linked) {
+      this.setState({ error: message, loading: false });
+    } else {
+      this.dataset.state = 'error';
+      renderComponentError(this, message);
     }
   }
 }

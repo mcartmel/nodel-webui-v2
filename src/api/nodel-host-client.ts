@@ -146,8 +146,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-async function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+function abortReason(signal: AbortSignal) {
+  return signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal | null) {
+  if (signal?.aborted) {
+    throw abortReason(signal);
+  }
+}
+
+async function wait(ms: number, signal?: AbortSignal | null) {
+  throwIfAborted(signal);
+  return new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      window.clearTimeout(timer);
+      reject(abortReason(signal!));
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 function boundedLongPollTimeout(value: number | undefined) {
@@ -156,19 +177,22 @@ function boundedLongPollTimeout(value: number | undefined) {
     : 0;
 }
 
-export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000): Promise<void> {
+export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000, init?: RequestInit): Promise<void> {
   const restUrl = remoteNodeEndpoint(nodeUrl, 'REST/');
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const response = await fetchWithDeadline(restUrl, undefined, Math.min(DEFAULT_REQUEST_TIMEOUT_MS, Math.max(3000, intervalMs * 3)));
+      const response = await fetchWithDeadline(restUrl, init, Math.min(DEFAULT_REQUEST_TIMEOUT_MS, Math.max(3000, intervalMs * 3)));
       if (response.ok) {
         return;
       }
-    } catch {
+    } catch (error) {
+      if (init?.signal?.aborted) {
+        throw error;
+      }
       // keep retrying
     }
 
-    await wait(intervalMs);
+    await wait(intervalMs, init?.signal);
   }
 
   throw new Error('Timed out waiting for node to be ready');
@@ -420,13 +444,13 @@ export async function listRecipes(): Promise<NodelRecipeEntry[]> {
   return decodeRecipes(await fetchJson('/REST/recipes/list'), 'GET /REST/recipes/list');
 }
 
-export async function createNode(value: string, base?: string): Promise<unknown> {
+export async function createNode(value: string, base?: string, init?: RequestInit): Promise<unknown> {
   const payload: Record<string, string> = { value };
   if (base) {
     payload.base = base;
   }
 
-  return postJson('/REST/newNode', payload);
+  return postJson('/REST/newNode', payload, init);
 }
 
 function duplicateFileBasename(path: string) {
@@ -471,7 +495,8 @@ function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: N
   }
 }
 
-async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string): Promise<NodelDuplicateFileFailure | null> {
+async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string, signal?: AbortSignal): Promise<NodelDuplicateFileFailure | null> {
+  throwIfAborted(signal);
   let contents: ArrayBuffer;
   try {
     const result = await runWithDeadline(async (signal) => {
@@ -480,12 +505,13 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
         return { failure: await duplicateFileFailure(path, 'read', response), contents: null };
       }
       return { failure: null, contents: await response.arrayBuffer() };
-    }, undefined, FILE_REQUEST_TIMEOUT_MS);
+    }, signal, FILE_REQUEST_TIMEOUT_MS);
     if (result.failure) {
       return result.failure;
     }
     contents = result.contents;
   } catch (error) {
+    throwIfAborted(signal);
     return networkDuplicateFileFailure(path, 'read', error);
   }
 
@@ -498,11 +524,12 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
         signal
       });
       return response.ok ? null : duplicateFileFailure(path, 'save', response);
-    }, undefined, FILE_REQUEST_TIMEOUT_MS);
+    }, signal, FILE_REQUEST_TIMEOUT_MS);
     if (failure) {
       return failure;
     }
   } catch (error) {
+    throwIfAborted(signal);
     return networkDuplicateFileFailure(path, 'save', error);
   }
 
@@ -510,15 +537,17 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
 }
 
 export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, options: NodelDuplicateNodeOptions = {}): Promise<NodelDuplicateNodeResult> {
+  throwIfAborted(options.signal);
   const safeSourceUrl = safeRemoteNodeUrl(sourceNodeUrl);
   if (!safeSourceUrl) {
     throw new Error('Failed to read source node file list: remote node URL is invalid');
   }
   let files: NodelFileEntry[];
   try {
-    const fileList = await fetchJson(remoteNodeEndpoint(safeSourceUrl.href, 'REST/files'));
+    const fileList = await fetchJson(remoteNodeEndpoint(safeSourceUrl.href, 'REST/files'), { signal: options.signal });
     files = decodeFiles(fileList, 'GET source REST/files');
   } catch (error) {
+    throwIfAborted(options.signal);
     throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`);
   }
   const includeNodeConfig = options.includeNodeConfig === true;
@@ -534,8 +563,9 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
     total: filesToCopy.length
   });
   try {
-    await createNode(newNodeName);
+    await createNode(newNodeName, undefined, { signal: options.signal });
   } catch (error) {
+    throwIfAborted(options.signal);
     throw new Error(`Failed to create destination node "${newNodeName}": ${boundedErrorMessage(error, 'node creation failed')}`);
   }
 
@@ -548,8 +578,9 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
   });
 
   try {
-    await waitForNodeReady(newNodeUrl);
+    await waitForNodeReady(newNodeUrl, 30, 1000, { signal: options.signal });
   } catch (error) {
+    throwIfAborted(options.signal);
     throw new NodelDuplicateNodeError(
       `Node "${newNodeName}" was created but may be incomplete because it did not become available: ${boundedErrorMessage(error, 'readiness check failed')}`,
       newNodeUrl
@@ -559,6 +590,7 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
   const copied: string[] = [];
   const failed: NodelDuplicateFileFailure[] = [];
   for (const [index, file] of filesToCopy.entries()) {
+    throwIfAborted(options.signal);
     reportDuplicateProgress(options, {
       phase: 'copying',
       message: `Copying ${file.path} (${index + 1} of ${filesToCopy.length})...`,
@@ -567,7 +599,7 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
       path: file.path
     });
 
-    const failure = await copyDuplicateFile(safeSourceUrl.href, newNodeUrl, file.path);
+    const failure = await copyDuplicateFile(safeSourceUrl.href, newNodeUrl, file.path, options.signal);
     if (!failure) {
       copied.push(file.path);
       continue;

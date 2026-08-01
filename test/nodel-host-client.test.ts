@@ -1,4 +1,5 @@
 import {
+  createNode,
   duplicateNode,
   getDiagnosticMeasurements,
   getHostLogs,
@@ -6,7 +7,8 @@ import {
   getNodeConsoleLogs,
   getNodeUrlsForNode,
   getNodeRestartStatus,
-  NodelDuplicateNodeError
+  NodelDuplicateNodeError,
+  waitForNodeReady
 } from '../src/api/nodel-host-client';
 
 describe('nodel host client', () => {
@@ -23,6 +25,24 @@ describe('nodel host client', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('propagates cancellation through node creation, readiness, and duplication', async () => {
+    const createController = new AbortController();
+    await createNode('Cancelled Node', undefined, { signal: createController.signal });
+    expect(fetch).toHaveBeenCalledWith('/REST/newNode', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    const readyController = new AbortController();
+    const readiness = waitForNodeReady('http://localhost/nodes/CancelledNode/', 30, 10_000, { signal: readyController.signal });
+    await Promise.resolve();
+    readyController.abort();
+    await expect(readiness).rejects.toMatchObject({ name: 'AbortError' });
+
+    const duplicateController = new AbortController();
+    duplicateController.abort();
+    await expect(duplicateNode('http://source/nodes/Test/', 'Cancelled Copy', { signal: duplicateController.signal }))
+      .rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('reads node restart status with optional timestamp and timeout params', async () => {

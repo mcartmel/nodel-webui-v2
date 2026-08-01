@@ -116,7 +116,7 @@ describe('nodel-params', () => {
       numberParam: 12,
       enabled: false,
       mode: 'Manual'
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(document.body.textContent).toContain('Saved');
   });
 
@@ -157,7 +157,7 @@ describe('nodel-params', () => {
         'ip-address': '10.0.0.10',
         retry_count: 5
       }
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('renders an empty state when there are no parameter schema fields', async () => {
@@ -194,7 +194,7 @@ describe('nodel-params', () => {
     submitForm();
     await waitFor(() => document.body.textContent?.includes('Save failed'));
 
-    expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({ testParam: 'ready' });
+    expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({ testParam: 'ready' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('supports array add, remove, and move controls from the shared schema form', async () => {
@@ -233,7 +233,7 @@ describe('nodel-params', () => {
 
     expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({
       servers: ['gamma', 'beta']
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('uses shared schema stacks for nested object arrays and array entries', async () => {
@@ -343,5 +343,30 @@ describe('nodel-params', () => {
     expect(document.body.textContent).not.toContain('First');
     expect(paramsMock.getNodeParamsSchema).toHaveBeenCalledTimes(2);
     expect(paramsMock.getNodeParams).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears stale saving state when reconnected during an abort-insensitive save', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { value: { type: 'string', title: 'Value' } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ value: 'ready' });
+    let resolveSave!: (value: unknown) => void;
+    paramsMock.saveNodeParams.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+    const params = await mountParams();
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+
+    params.remove();
+    document.body.append(params);
+    await waitFor(() => paramsMock.getNodeParamsSchema.mock.calls.length === 2);
+    await waitFor(() => params.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled === false);
+    resolveSave({});
+    await flush();
+
+    expect(params.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+    expect(params.textContent).not.toContain('Parameters saved.');
   });
 });

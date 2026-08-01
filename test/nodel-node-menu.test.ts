@@ -169,8 +169,13 @@ describe('nodel-node-menu', () => {
     await waitFor(() => nodeMenuMock.renameCurrentNode.mock.calls.length === 1);
     await flush();
 
-    expect(nodeMenuMock.renameCurrentNode).toHaveBeenCalledWith('New Node');
-    expect(nodeMenuMock.waitForNodeReady).toHaveBeenCalledWith(`${window.location.origin}/nodes/NewNode/`);
+    expect(nodeMenuMock.renameCurrentNode).toHaveBeenCalledWith('New Node', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(nodeMenuMock.waitForNodeReady).toHaveBeenCalledWith(
+      `${window.location.origin}/nodes/NewNode/`,
+      30,
+      1000,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({
       detail: expect.objectContaining({ message: 'Rename successful. Redirecting...', tone: 'success' })
     }));
@@ -219,5 +224,58 @@ describe('nodel-node-menu', () => {
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({
       detail: { url: '/' }
     }));
+  });
+
+  it('cancels delayed navigation when disconnected after delete', async () => {
+    const menu = await mountMenu();
+    vi.useFakeTimers();
+    const navigate = vi.fn((event: Event) => event.preventDefault());
+    menu.addEventListener('nodel-node-menu-navigate', navigate);
+    openMenu();
+    document.querySelector<HTMLButtonElement>('[data-node-menu-delete-start]')?.click();
+    document.querySelector<HTMLButtonElement>('[data-node-menu-delete-confirm]')?.click();
+    await waitFor(() => nodeMenuMock.removeCurrentNode.mock.calls.length === 1);
+
+    menu.remove();
+    await vi.advanceTimersByTimeAsync(2500);
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(false);
+  });
+
+  it('keeps one data load and document listener set through rapid reconnect loops', async () => {
+    const menu = await mountMenu();
+    for (let index = 0; index < 3; index += 1) {
+      menu.remove();
+      document.body.append(menu);
+      await waitFor(() => nodeMenuMock.getNodeDetails.mock.calls.length === index + 2);
+    }
+
+    expect(nodeMenuMock.getNodeDetails).toHaveBeenCalledTimes(4);
+    expect(nodeMenuMock.listCustomUiEntries).toHaveBeenCalledTimes(4);
+    openMenu();
+    expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(false);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('ignores abort-insensitive menu data from a disconnected generation', async () => {
+    let resolveStale!: (value: { name: string }) => void;
+    nodeMenuMock.getNodeDetails
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveStale = resolve;
+      }))
+      .mockResolvedValueOnce({ name: 'Current Node' });
+    const menu = document.createElement('nodel-node-menu');
+    document.body.append(menu);
+    await waitFor(() => nodeMenuMock.getNodeDetails.mock.calls.length === 1);
+
+    menu.remove();
+    document.body.append(menu);
+    await waitFor(() => menu.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Current Node');
+    resolveStale({ name: 'Stale Node' });
+    await flush();
+
+    expect(menu.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value).toBe('Current Node');
   });
 });

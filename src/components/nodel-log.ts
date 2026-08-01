@@ -1,7 +1,10 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import { subscribeNodeActivity, type NodeActivityBatch, type NodeActivityTransport } from '../data/node-activity-source';
 import { logIcons, renderFontAwesomeIcon } from '../icons/fontawesome';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { escapeHtml } from '../utils/html';
 
 type RowLimit = '10' | '50' | '100' | 'all';
@@ -37,6 +40,9 @@ interface LogViewModel {
 
 const template = `
   <div class="nodel-log relative min-w-0" data-link="title{:statusLabel} aria-label{:statusLabel}">
+    {^{if statusState === 'error'}}
+      <div data-log-status class="nodel-alert nodel-alert-danger nodel-alert-md mb-3" role="alert">{^{>statusLabel}}</div>
+    {{/if}}
     <div class="nodel-log-panel">
       <div class="nodel-log-toolbar">
         <label class="block min-w-0 text-sm font-medium text-nodel-fg">
@@ -195,6 +201,8 @@ export class NodelLog extends HTMLElement {
   private order: string[] = [];
   private pulseTimers = new Map<string, number>();
   private rows = new Map<string, ActivityRowView>();
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private linked = false;
   private state: LogViewModel = {
@@ -209,37 +217,46 @@ export class NodelLog extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
-    this.unobserveControls();
+    this.lifecycle.disconnect();
     for (const timer of this.pulseTimers.values()) {
       window.clearTimeout(timer);
     }
     this.pulseTimers.clear();
-    void unlinkTemplate(this);
+    for (const row of this.rows.values()) {
+      row.pulse = false;
+      row.rowClass = rowClass(row.entry, false);
+    }
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.observeControls();
-    }
-
-    if (this.source) {
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
       return;
     }
+    this.linked = true;
+    this.observeControls();
+    scope.own(() => this.unobserveControls());
 
-    this.source = subscribeNodeActivity(this, (state) => {
+    const source = subscribeNodeActivity(this, scope.guard((state) => {
       if (state.batch) {
         this.applyBatch(state.batch);
       }
       this.updateStatus(state.loading, state.error, state.connected, state.transport);
+    }));
+    this.source = source;
+    scope.own(() => {
+      source.dispose();
+      if (this.source === source) {
+        this.source = null;
+      }
     });
   }
 
@@ -387,6 +404,16 @@ export class NodelLog extends HTMLElement {
       }
     }, 700);
     this.pulseTimers.set(key, timer);
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to initialize activity log';
+    this.dataset.state = 'error';
+    if (this.linked) {
+      this.updateStatus(false, message, false, null);
+    } else {
+      renderComponentError(this, message);
+    }
   }
 
   private visibleRows() {

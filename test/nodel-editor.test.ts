@@ -134,7 +134,7 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
 
-    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('script.py', 'print("updated")');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('script.py', 'print("updated")', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(saved).toHaveBeenCalledWith(expect.objectContaining({ detail: { path: 'script.py' } }));
   });
 
@@ -157,7 +157,7 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
 
-    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/new.html', '');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/new.html', '', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(created).toHaveBeenCalledWith(expect.objectContaining({ detail: { path: 'content/new.html' } }));
   });
 
@@ -181,7 +181,7 @@ describe('nodel-editor', () => {
     pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
-    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/panel.html', '<nodel-app></nodel-app>');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('content/panel.html', '<nodel-app></nodel-app>', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('routes dropped binary files through the same binary upload path', async () => {
@@ -191,7 +191,7 @@ describe('nodel-editor', () => {
     await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
-    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('image.png', file);
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('image.png', file, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('rejects multiple dropped files without navigating or selecting one', async () => {
@@ -292,7 +292,7 @@ describe('nodel-editor', () => {
 
     document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
     await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
-    expect(editorApiMock.deleteNodeFile).toHaveBeenCalledWith('image.png');
+    expect(editorApiMock.deleteNodeFile).toHaveBeenCalledWith('image.png', expect.objectContaining({ signal: expect.any(AbortSignal) }));
 
     await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'script.py'));
     document.querySelector<HTMLButtonElement>('[data-editor-default]')?.click();
@@ -327,5 +327,43 @@ describe('nodel-editor', () => {
     expect(codeEditorMock.currentDoc).toBe('print("dirty")');
     expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
     expect(editorApiMock.getNodeFileContents).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores an abort-insensitive file list from a disconnected generation', async () => {
+    let resolveFirst!: (files: Array<{ path: string }>) => void;
+    editorApiMock.listNodeFiles
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirst = resolve;
+      }))
+      .mockResolvedValueOnce(editorApiMock.files);
+    const editor = document.createElement('nodel-editor');
+    document.body.append(editor);
+    await waitFor(() => editorApiMock.listNodeFiles.mock.calls.length === 1);
+
+    editor.remove();
+    document.body.append(editor);
+    await waitFor(() => editorApiMock.listNodeFiles.mock.calls.length === 2);
+    resolveFirst([{ path: 'stale.py' }]);
+    await waitFor(() => codeEditorMock.instance.setDocument.mock.calls.some((call) => call[1] === 'script.py'));
+
+    expect(Array.from(editor.querySelectorAll('option')).some((option) => option.textContent?.includes('stale.py'))).toBe(false);
+    expect(codeEditorMock.instance.setDocument).not.toHaveBeenCalledWith(expect.anything(), 'stale.py');
+  });
+
+  it('does not expose a stale dirty selection when reconnect loading fails', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("dirty")';
+    codeEditorMock.options?.onChange?.('print("dirty")');
+    await flush();
+    expect(editor.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+    editorApiMock.listNodeFiles.mockRejectedValueOnce(new Error('Reconnect failed'));
+
+    editor.remove();
+    document.body.append(editor);
+    await waitFor(() => editor.getAttribute('data-state') === 'error');
+
+    expect(editor.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+    expect(editor.querySelector<HTMLButtonElement>('[data-editor-delete]')?.disabled).toBe(true);
+    expect(editor.querySelector<HTMLSelectElement>('[data-editor-file-picker]')?.value).toBe('');
   });
 });

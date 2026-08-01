@@ -8,7 +8,10 @@ import {
   type NodelCustomUiEntry
 } from '../api/nodel-host-client';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { getNodePathName, getVerySimpleName } from '../utils/node-name';
 import { safeNavigationHref } from '../utils/urls';
@@ -126,6 +129,8 @@ export class NodelNodeMenu extends HTMLElement {
   private connected = false;
   private linked = false;
   private lastFocused: Element | null = null;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private state: NodeMenuState = {
     customUis: [],
     deleteConfirming: false,
@@ -143,32 +148,45 @@ export class NodelNodeMenu extends HTMLElement {
   connectedCallback() {
     this.connected = true;
     this.classList.add('nodel-node-menu');
-    this.addEventListener('click', this.handleClick);
-    this.addEventListener('submit', this.handleSubmit);
-    document.addEventListener('keydown', this.handleDocumentKeydown);
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => {
+        const message = apiErrorMessage(error, 'Failed to initialize node menu');
+        if (this.linked) {
+          this.setState({ loading: false, error: message });
+        } else {
+          this.dataset.state = 'error';
+          renderComponentError(this, message);
+        }
+      });
+    }
   }
 
   disconnectedCallback() {
     this.connected = false;
-    this.removeEventListener('click', this.handleClick);
-    this.removeEventListener('submit', this.handleSubmit);
-    document.removeEventListener('keydown', this.handleDocumentKeydown);
+    if (this.linked) {
+      this.setState({ open: false, deleteConfirming: false, deleting: false, renaming: false, restarting: false });
+    }
+    this.lifecycle.disconnect();
     this.setPageScrollLocked(false);
-    void unlinkTemplate(this);
+    this.lastFocused = null;
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
     }
+    this.linked = true;
+    scope.listen(this, 'click', this.handleClick);
+    scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(document, 'keydown', this.handleDocumentKeydown);
 
-    void this.loadMenuData();
+    await this.loadMenuData(scope);
   }
 
-  private async loadMenuData() {
+  private async loadMenuData(scope: ConnectionScope) {
     if (!getNodePathName()) {
       this.setState({ loading: false });
       return;
@@ -177,11 +195,11 @@ export class NodelNodeMenu extends HTMLElement {
     this.setState({ loading: true, error: '', uiError: '' });
 
     const [detailsResult, uiResult] = await Promise.allSettled([
-      getNodeDetails(),
-      listCustomUiEntries()
+      getNodeDetails({ signal: scope.signal }),
+      listCustomUiEntries({ signal: scope.signal })
     ]);
 
-    if (!this.connected) {
+    if (!scope.isCurrent()) {
       return;
     }
 
@@ -257,7 +275,7 @@ export class NodelNodeMenu extends HTMLElement {
     this.lastFocused = document.activeElement;
     this.setPageScrollLocked(true);
     this.setState({ open: true, deleteConfirming: false });
-    window.setTimeout(() => {
+    this.lifecycle.current?.setTimeout(() => {
       this.querySelector<HTMLElement>('[data-node-menu-close]')?.focus();
     }, 0);
   }
@@ -277,6 +295,10 @@ export class NodelNodeMenu extends HTMLElement {
   }
 
   private async renameNode(_form: HTMLFormElement) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const newName = this.state.nodeName.trim();
     if (!newName) {
       this.setState({ error: 'Node name is required.' });
@@ -286,55 +308,83 @@ export class NodelNodeMenu extends HTMLElement {
     this.setState({ renaming: true, error: '' });
 
     try {
-      await renameCurrentNode(newName);
+      await renameCurrentNode(newName, { signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       const nextUrl = `${window.location.origin}/nodes/${encodeURIComponent(getVerySimpleName(newName))}/`;
       this.showToast({ message: 'Rename successful. Redirecting...', tone: 'success', persistent: true });
-      await waitForNodeReady(nextUrl);
-      this.navigate(nextUrl);
+      await waitForNodeReady(nextUrl, 30, 1000, { signal: scope.signal });
+      if (scope.isCurrent()) {
+        this.navigate(nextUrl);
+      }
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, 'Failed to rename node');
       this.setState({ error: message });
       this.showToast({ message: 'Failed to rename node', detail: message, tone: 'danger', durationMs: 7000 });
     } finally {
-      if (this.connected) {
+      if (scope.isCurrent()) {
         this.setState({ renaming: false });
       }
     }
   }
 
   private async restartNode() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     this.setState({ restarting: true, error: '' });
 
     try {
-      await restartCurrentNode();
+      await restartCurrentNode({ signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.showToast({ message: 'Restarting node...', tone: 'info', durationMs: 7000 });
       this.close();
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, 'Failed to restart node');
       this.setState({ error: message });
       this.showToast({ message: 'Failed to restart node', detail: message, tone: 'danger', durationMs: 7000 });
     } finally {
-      if (this.connected) {
+      if (scope.isCurrent()) {
         this.setState({ restarting: false });
       }
     }
   }
 
   private async deleteNode() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     this.setState({ deleting: true, error: '' });
 
     try {
-      await removeCurrentNode();
+      await removeCurrentNode({ signal: scope.signal });
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.showToast({ message: 'Delete successful. Redirecting...', tone: 'success', persistent: true });
-      window.setTimeout(() => {
+      scope.setTimeout(() => {
         this.navigate('/');
       }, deleteRedirectDelayMs);
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = apiErrorMessage(error, 'Failed to delete node');
       this.setState({ error: message });
       this.showToast({ message: 'Failed to delete node', detail: message, tone: 'danger', durationMs: 7000 });
     } finally {
-      if (this.connected) {
+      if (scope.isCurrent()) {
         this.setState({ deleting: false });
       }
     }

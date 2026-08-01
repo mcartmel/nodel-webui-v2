@@ -13,6 +13,7 @@ export interface NodelPollSourceOptions<T> {
   intervalMs: number;
   fetcher: (signal: AbortSignal) => Promise<T>;
   visibleOnly?: boolean;
+  onIdle?: () => void;
 }
 
 export interface NodelSourceSubscription<T> {
@@ -55,8 +56,18 @@ function createState<T>(): NodelSourceState<T> {
 }
 
 function emit<T>(entry: SourceEntry<T>) {
-  for (const subscriber of entry.subscribers) {
-    subscriber.listener(entry.state);
+  for (const subscriber of [...entry.subscribers]) {
+    if (entry.subscribers.has(subscriber)) {
+      notifySubscriber(subscriber, entry.state);
+    }
+  }
+}
+
+function notifySubscriber<T>(subscriber: SourceSubscriber<T>, state: NodelSourceState<T>) {
+  try {
+    subscriber.listener(state);
+  } catch (error) {
+    window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error } }));
   }
 }
 
@@ -114,14 +125,19 @@ async function refreshSource<T>(entry: SourceEntry<T>) {
 
   const token = ++entry.refreshToken;
   entry.abortController?.abort();
-  entry.abortController = new AbortController();
+  const controller = new AbortController();
+  entry.abortController = controller;
   entry.state.loading = entry.state.data === null;
   entry.state.active = true;
   entry.state.error = '';
   entry.pendingRefresh = false;
-  emit(entry);
-
-  const inFlight = entry.options.fetcher(entry.abortController.signal)
+  const inFlight = Promise.resolve()
+    .then(() => {
+      if (token !== entry.refreshToken || controller.signal.aborted || !shouldRun(entry)) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+      return entry.options.fetcher(controller.signal);
+    })
     .then((data) => {
       if (token !== entry.refreshToken) {
         return;
@@ -155,6 +171,9 @@ async function refreshSource<T>(entry: SourceEntry<T>) {
       }
 
       if (token !== entry.refreshToken) {
+        if (entry.pendingRefresh && shouldRun(entry) && entry.subscribers.size > 0) {
+          void refreshSource(entry);
+        }
         return;
       }
 
@@ -172,7 +191,8 @@ async function refreshSource<T>(entry: SourceEntry<T>) {
     });
 
   entry.inFlight = inFlight;
-  return entry.inFlight;
+  emit(entry);
+  return inFlight;
 }
 
 function getOrCreateSource<T>(options: NodelPollSourceOptions<T>) {
@@ -201,7 +221,10 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
   const entry = getOrCreateSource(options);
 
   function ensureRegistered() {
-    if (!sources.has(options.key)) {
+    if (sources.get(options.key) !== entry) {
+      if (sources.has(options.key)) {
+        throw new Error(`Nodel data source handle "${options.key}" is stale`);
+      }
       sources.set(options.key, entry as SourceEntry<unknown>);
     }
   }
@@ -215,7 +238,14 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
     entry.state = createState<T>();
     entry.failureCount = 0;
     entry.pendingRefresh = false;
-    sources.delete(options.key);
+    try {
+      entry.options.onIdle?.();
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error } }));
+    }
+    if (sources.get(options.key) === entry) {
+      sources.delete(options.key);
+    }
   }
 
   function evaluate() {
@@ -224,7 +254,12 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
 
     if (!active) {
       clearTimer(entry);
+      if (entry.inFlight || entry.state.data === null) {
+        entry.pendingRefresh = true;
+      }
       entry.abortController?.abort();
+      entry.abortController = null;
+      entry.inFlight = null;
       entry.refreshToken += 1;
       emit(entry);
       return;
@@ -257,12 +292,17 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
       });
 
       entry.subscribers.add(subscriber);
-      listener(entry.state);
+      notifySubscriber(subscriber, entry.state);
       evaluate();
 
+      let disposed = false;
       return {
         refresh: () => refreshSource(entry),
         dispose: () => {
+          if (disposed) {
+            return;
+          }
+          disposed = true;
           subscriber.disposeVisibility();
           entry.subscribers.delete(subscriber);
 

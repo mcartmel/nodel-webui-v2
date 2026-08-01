@@ -1,7 +1,10 @@
 import { getHostLogs } from '../api/nodel-host-client';
 import type { NodelHostLogEntry } from '../api/nodel-types';
 import { registerNodelPollSource, type NodelSourceSubscription } from '../data/nodel-data-runtime';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 
 interface HostLogBatch {
   entries: NodelHostLogEntry[];
@@ -83,6 +86,8 @@ function toEntryView(entry: NodelHostLogEntry): HostLogEntryView {
 export class NodelHostLog extends HTMLElement {
   private entries: HostLogEntryView[] = [];
   private lastAppliedNextSeq: number | null = null;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private linked = false;
   private seq: number | null = null;
   private source: NodelSourceSubscription<HostLogBatch> | null = null;
@@ -102,25 +107,23 @@ export class NodelHostLog extends HTMLElement {
       this.sourceKey = `nodel-host-log-${NodelHostLog.nextSourceId}`;
     }
 
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
-    void unlinkTemplate(this);
+    this.lifecycle.disconnect();
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.view);
-      this.linked = true;
-    }
-
-    if (this.source) {
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.view);
+    if (!linked || !scope.isCurrent()) {
       return;
     }
+    this.linked = true;
 
     const source = registerNodelPollSource<HostLogBatch>({
       key: this.sourceKey,
@@ -135,9 +138,11 @@ export class NodelHostLog extends HTMLElement {
           },
           { signal }
         );
+        if (!scope.isCurrent() || signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
         const chronological = [...entries].reverse();
         const nextSeq = chronological.length > 0 ? chronological[chronological.length - 1].seq + 1 : (this.seq ?? 0);
-        this.seq = nextSeq;
 
         return {
           entries: chronological,
@@ -147,12 +152,20 @@ export class NodelHostLog extends HTMLElement {
       }
     });
 
-    this.source = source.subscribe(this, (state) => {
+    const subscription = source.subscribe(this, scope.guard((state) => {
       if (state.data && (state.data.replace || state.data.nextSeq !== this.lastAppliedNextSeq)) {
+        this.seq = state.data.nextSeq;
         this.applyBatch(state.data.entries, state.data.replace);
         this.lastAppliedNextSeq = state.data.nextSeq;
       }
       this.updateStatus(state.loading, state.error, state.active);
+    }));
+    this.source = subscription;
+    scope.own(() => {
+      subscription.dispose();
+      if (this.source === subscription) {
+        this.source = null;
+      }
     });
   }
 
@@ -167,6 +180,16 @@ export class NodelHostLog extends HTMLElement {
       statusLabel,
       statusState
     });
+  }
+
+  private handleInitializationError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to initialize host log';
+    this.dataset.state = 'error';
+    if (this.linked) {
+      this.updateStatus(false, message, false);
+    } else {
+      renderComponentError(this, message);
+    }
   }
 
   private applyBatch(entries: NodelHostLogEntry[], replace: boolean) {

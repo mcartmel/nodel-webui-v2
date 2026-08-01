@@ -86,4 +86,18 @@ describe('nodel-toast-host', () => {
     expect(toast.getAttribute('aria-live')).toBe('assertive');
     expect(toast.querySelector('[data-icon="circle-xmark"]')).not.toBeNull();
   });
+
+  it('drops transient toasts but retains persistent toasts across reconnect', () => {
+    const host = mountToastHost();
+    host.show({ message: 'Transient' });
+    host.show({ message: 'Persistent', persistent: true });
+
+    host.remove();
+    expect(host.show({ message: 'Detached' })).toBe('');
+    document.body.append(host);
+
+    expect(host.textContent).not.toContain('Transient');
+    expect(host.textContent).toContain('Persistent');
+    expect(host.textContent).not.toContain('Detached');
+  });
 });

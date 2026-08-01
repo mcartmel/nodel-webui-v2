@@ -24,6 +24,7 @@ export interface NodelCodeEditorOptions {
   text?: string;
   readOnly?: boolean;
   onChange?: (text: string) => void;
+  onError?: (error: unknown) => void;
   onSave?: () => void;
 }
 
@@ -191,7 +192,15 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
 
   const applyLanguage = async (nextPath: string) => {
     const request = ++languageRequest;
-    const extension = await languageExtensionForPath(nextPath);
+    let extension: Extension;
+    try {
+      extension = await languageExtensionForPath(nextPath);
+    } catch (error) {
+      if (!destroyed && request === languageRequest) {
+        options.onError?.(error);
+      }
+      return;
+    }
     if (destroyed || request !== languageRequest) {
       return;
     }
@@ -201,22 +210,33 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
 
   return {
     setDocument(text, nextPath) {
+      if (destroyed) {
+        return;
+      }
       path = nextPath;
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
       void applyLanguage(path);
     },
     getDocument() {
-      return view.state.doc.toString();
+      return destroyed ? '' : view.state.doc.toString();
     },
     setReadOnly(readOnly) {
+      if (destroyed) {
+        return;
+      }
       view.dispatch({
         effects: editable.reconfigure(EditorView.editable.of(!readOnly))
       });
     },
     focus() {
-      view.focus();
+      if (!destroyed) {
+        view.focus();
+      }
     },
     destroy() {
+      if (destroyed) {
+        return;
+      }
       destroyed = true;
       languageRequest += 1;
       view.destroy();

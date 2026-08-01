@@ -84,4 +84,24 @@ describe('nodel-toolkit', () => {
 
     expect(document.querySelector('[data-toolkit-status]')?.textContent).toContain('500 Server Error');
   });
+
+  it('recreates one editor and reapplies unchanged toolkit content on reconnect', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ script: 'def reconnect():\n  return True\n' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    const toolkit = document.createElement('nodel-toolkit');
+    document.body.append(toolkit);
+    await waitForToolkit();
+
+    toolkit.remove();
+    await flush();
+    document.body.append(toolkit);
+    await waitFor(() => toolkit.querySelector('.cm-content')?.textContent?.includes('reconnect') ?? false);
+
+    expect(toolkit.querySelectorAll('.cm-editor')).toHaveLength(1);
+    expect(toolkit.querySelector('.cm-content')?.textContent).toContain('reconnect');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

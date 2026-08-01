@@ -181,7 +181,7 @@ describe('nodel-actsig', () => {
         enabled: true,
         mode: 'On'
       }
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('renders accessible copy icons and copies the technical action name', async () => {
@@ -506,7 +506,7 @@ describe('nodel-actsig', () => {
         transition: 7,
         playlist: 'party'
       }
-    });
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('keeps signals disabled until override is enabled then emits signal payloads', async () => {
@@ -536,7 +536,7 @@ describe('nodel-actsig', () => {
     submitForm(form);
     await waitFor(() => actsigMock.emitNodeSignal.mock.calls.length === 1);
 
-    expect(actsigMock.emitNodeSignal).toHaveBeenCalledWith('Power', { arg: true });
+    expect(actsigMock.emitNodeSignal).toHaveBeenCalledWith('Power', { arg: true }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('allows read-only object signals to expand while keeping controls disabled', async () => {
@@ -723,5 +723,39 @@ describe('nodel-actsig', () => {
     expect(document.querySelector<HTMLInputElement>('[data-actsig-override]')?.checked).toBe(true);
     expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
     expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps one subscription and listener set through rapid reconnect loops', async () => {
+    const actsig = await mountActSig();
+    for (let index = 0; index < 3; index += 1) {
+      actsig.remove();
+      document.body.append(actsig);
+      await waitFor(() => actsigMock.activityListeners.length === index + 2);
+    }
+
+    expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(4);
+    expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(4);
+    expect(actsigMock.activityListeners).toHaveLength(4);
+  });
+
+  it('ignores abort-insensitive definitions from a disconnected generation', async () => {
+    let resolveStale!: (value: unknown) => void;
+    actsigMock.getNodeActions
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveStale = resolve;
+      }))
+      .mockResolvedValueOnce({ Current: { name: 'Current', title: 'Current', schema: { type: 'boolean' } } });
+    const actsig = document.createElement('nodel-actsig');
+    document.body.append(actsig);
+    await waitFor(() => actsigMock.getNodeActions.mock.calls.length === 1);
+
+    actsig.remove();
+    document.body.append(actsig);
+    await waitFor(() => formByTitle('Current') !== null);
+    resolveStale({ Stale: { name: 'Stale', title: 'Stale', schema: { type: 'boolean' } } });
+    await flush();
+
+    expect(formByTitle('Current')).not.toBeNull();
+    expect(formByTitle('Stale')).toBeNull();
   });
 });

@@ -1,7 +1,10 @@
 import { executeNodeConsoleCommand } from '../api/nodel-host-client';
 import type { NodelConsoleLogEntry } from '../api/nodel-types';
 import { refreshNodeConsole, subscribeNodeConsole } from '../data/node-console-source';
-import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 
 interface ConsoleEntryView {
   comment: string;
@@ -12,6 +15,7 @@ interface ConsoleEntryView {
 }
 
 interface ConsoleViewModel {
+  commandError: string;
   commandText: string;
   empty: boolean;
   entries: ConsoleEntryView[];
@@ -21,6 +25,11 @@ interface ConsoleViewModel {
 
 const template = `
   <div class="nodel-console relative space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
+    {^{if commandError}}
+      <div data-console-status class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">{^{>commandError}}</div>
+    {{else statusState === 'error'}}
+      <div data-console-status class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">{^{>statusLabel}}</div>
+    {{/if}}
     <div class="nodel-console-frame nodel-card">
       <div data-console-output class="nodel-console-output h-full overflow-auto p-3 font-mono text-xs leading-5 text-nodel-fg">
         {^{if empty}}
@@ -62,12 +71,16 @@ function consolePreviewText(entry: ConsoleEntryView) {
 }
 
 export class NodelConsole extends HTMLElement {
+  private commandToken = 0;
   private history: string[] = [];
   private historyIndex = -1;
   private lastAppliedNextSeq: number | null = null;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private linked = false;
   private source: ReturnType<typeof subscribeNodeConsole> | null = null;
   private state: ConsoleViewModel = {
+    commandError: '',
     commandText: '',
     empty: false,
     entries: [],
@@ -76,31 +89,33 @@ export class NodelConsole extends HTMLElement {
   };
 
   connectedCallback() {
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
+    }
   }
 
   disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
+    this.commandToken += 1;
+    if (this.linked) {
+      getJQuery().observable(this.state).setProperty('commandError', '');
+    }
+    this.lifecycle.disconnect();
     this.removeEventListeners();
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
-  private async initialize() {
-    if (!this.linked) {
-      await linkTemplate(this, template, this.state, {
-        handleKeydown: this.handleKeydown
-      });
-      this.linked = true;
-      this.bindEvents();
-    }
-
-    if (this.source) {
+  private async initialize(scope: ConnectionScope) {
+    const linked = await this.linkController.link(scope, template, this.state, {
+      handleKeydown: this.handleKeydown
+    });
+    if (!linked || !scope.isCurrent()) {
       return;
     }
+    this.linked = true;
+    this.bindEvents(scope);
 
-    this.source = subscribeNodeConsole(this, (state) => {
+    const source = subscribeNodeConsole(this, scope.guard((state) => {
       if (state.data) {
         if (state.data.replace || state.data.nextSeq !== this.lastAppliedNextSeq) {
           this.applyBatch(state.data.entries, state.data.replace);
@@ -108,13 +123,21 @@ export class NodelConsole extends HTMLElement {
         }
       }
       this.updateStatus(state.loading, state.error, state.active);
+    }));
+    this.source = source;
+    scope.own(() => {
+      source.dispose();
+      if (this.source === source) {
+        this.source = null;
+      }
     });
   }
 
-  private bindEvents() {
+  private bindEvents(scope: ConnectionScope) {
     const input = this.querySelector('[data-console-input]');
-    input?.removeEventListener('keydown', this.handleKeydownEvent);
-    input?.addEventListener('keydown', this.handleKeydownEvent);
+    if (input) {
+      scope.listen(input, 'keydown', this.handleKeydownEvent);
+    }
   }
 
   private removeEventListeners() {
@@ -126,8 +149,8 @@ export class NodelConsole extends HTMLElement {
   }
 
   private updateStatus(loading: boolean, error: string, connected: boolean) {
-    const label = error || (loading ? 'Loading console history' : connected ? 'Console polling active' : 'Console polling paused');
-    const statusState = error ? 'error' : loading ? 'loading' : connected ? 'active' : 'paused';
+    const label = this.state.commandError || error || (loading ? 'Loading console history' : connected ? 'Console polling active' : 'Console polling paused');
+    const statusState = this.state.commandError || error ? 'error' : loading ? 'loading' : connected ? 'active' : 'paused';
     const $ = getJQuery();
 
     $.observable(this.state).setProperty({
@@ -177,6 +200,16 @@ export class NodelConsole extends HTMLElement {
     );
   }
 
+  private handleInitializationError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to initialize console';
+    this.dataset.state = 'error';
+    if (this.linked) {
+      this.updateStatus(false, message, false);
+    } else {
+      renderComponentError(this, message);
+    }
+  }
+
   private handleKeydownEvent = (event: Event) => {
     void this.handleKeydown(event as KeyboardEvent);
   };
@@ -194,10 +227,25 @@ export class NodelConsole extends HTMLElement {
       this.historyIndex = -1;
       this.setCommandText('');
 
+      const scope = this.lifecycle.current;
+      if (!scope) {
+        return;
+      }
+      const commandToken = ++this.commandToken;
+      getJQuery().observable(this.state).setProperty('commandError', '');
+      this.updateStatus(false, '', true);
       try {
-        await executeNodeConsoleCommand(command);
-      } finally {
-        void refreshNodeConsole();
+        await executeNodeConsoleCommand(command, { signal: scope.signal });
+        if (scope.isCurrent() && commandToken === this.commandToken) {
+          getJQuery().observable(this.state).setProperty('commandError', '');
+          this.updateStatus(false, '', true);
+          void refreshNodeConsole();
+        }
+      } catch (error) {
+        if (scope.isCurrent() && commandToken === this.commandToken) {
+          getJQuery().observable(this.state).setProperty('commandError', error instanceof Error ? error.message : 'Failed to execute console command');
+          this.updateStatus(false, '', true);
+        }
       }
       return;
     }

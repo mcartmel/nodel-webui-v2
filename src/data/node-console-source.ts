@@ -9,12 +9,14 @@ export interface NodeConsoleBatch {
 }
 
 interface ConsoleState {
+  generation: number;
   seq: number | null;
 }
 
 type ConsoleListener = (state: NodelSourceState<NodeConsoleBatch>) => void;
 
 const state: ConsoleState = {
+  generation: 0,
   seq: null
 };
 
@@ -23,6 +25,7 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
   intervalMs: 1000,
   visibleOnly: true,
   fetcher: async (signal) => {
+    const generation = state.generation;
     const initial = state.seq === null;
     const from = initial ? -1 : (state.seq ?? 0);
     const entries = await getNodeConsoleLogs(
@@ -32,6 +35,9 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
       },
       { signal }
     );
+    if (signal.aborted || generation !== state.generation) {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }
 
     const chronological = [...entries].reverse();
     const nextSeq = chronological.length > 0 ? chronological[chronological.length - 1].seq + 1 : (state.seq ?? 0);
@@ -42,7 +48,8 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
       replace: initial,
       nextSeq
     };
-  }
+  },
+  onIdle: resetNodeConsoleCursor
 });
 
 export function subscribeNodeConsole(element: HTMLElement, listener: ConsoleListener): NodelSourceSubscription<NodeConsoleBatch> {
@@ -54,5 +61,6 @@ export function refreshNodeConsole() {
 }
 
 export function resetNodeConsoleCursor() {
+  state.generation += 1;
   state.seq = null;
 }

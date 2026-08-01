@@ -1,6 +1,9 @@
 import { createNode, duplicateNode, listRecipes, NodelDuplicateNodeError, searchNodeUrls, waitForNodeReady } from '../api/nodel-host-client';
 import type { NodelDuplicateFileFailure, NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
-import { linkTemplate, unlinkTemplate, getJQuery } from '../jsviews/jsviews-runtime';
+import { getJQuery } from '../jsviews/jsviews-runtime';
+import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { renderComponentError } from '../utils/render-component-error';
 import { getVerySimpleName } from '../utils/node-name';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
@@ -178,6 +181,8 @@ export class NodelAddNode extends HTMLElement {
   private connected = false;
   private debounceTimer: number | null = null;
   private linked = false;
+  private lifecycle = new ComponentLifecycle();
+  private linkController = new JsViewsLinkController(this);
   private searchToken = 0;
   private selection: Selection = null;
   private templateResults: TemplateResult[] = [];
@@ -205,11 +210,27 @@ export class NodelAddNode extends HTMLElement {
 
   connectedCallback() {
     this.connected = true;
-    void this.initialize();
+    const scope = this.lifecycle.connect();
+    if (scope) {
+      void scope.run(() => this.initialize(scope), (error) => {
+        const message = lookupErrorMessage(error);
+        if (this.linked) {
+          this.setState({ error: message });
+        } else {
+          this.dataset.state = 'error';
+          renderComponentError(this, message);
+        }
+      });
+    }
   }
 
   disconnectedCallback() {
     this.connected = false;
+    this.searchToken += 1;
+    if (this.linked) {
+      this.setState({ open: false, showAutocomplete: false, status: '', submitting: false });
+    }
+    this.lifecycle.disconnect();
     this.clearDebounceTimer();
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('submit', this.handleSubmit);
@@ -217,7 +238,6 @@ export class NodelAddNode extends HTMLElement {
     this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.removeEventListener('keydown', this.handleKeydown);
     this.unobserveControls();
     document.removeEventListener('click', this.handleDocumentClick);
-    void unlinkTemplate(this);
     this.linked = false;
   }
 
@@ -239,22 +259,30 @@ export class NodelAddNode extends HTMLElement {
     return this.getAttribute('duplicate') !== 'false';
   }
 
-  private async initialize() {
+  private async initialize(scope: ConnectionScope) {
     this.syncAttributeState();
-    if (!this.linked) {
-      await linkTemplate(this, template, this.state);
-      this.linked = true;
-      this.addEventListener('click', this.handleClick);
-      this.addEventListener('submit', this.handleSubmit);
-      document.addEventListener('click', this.handleDocumentClick);
-      this.bindKeydownEvents();
-      this.observeControls();
+    const linked = await this.linkController.link(scope, template, this.state);
+    if (!linked || !scope.isCurrent()) {
+      return;
     }
+    this.linked = true;
+    scope.listen(this, 'click', this.handleClick);
+    scope.listen(this, 'submit', this.handleSubmit);
+    scope.listen(document, 'click', this.handleDocumentClick);
+    this.bindKeydownEvents(scope);
+    this.observeControls();
+    scope.own(() => this.unobserveControls());
   }
 
-  private bindKeydownEvents() {
-    this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.addEventListener('keydown', this.handleKeydown);
-    this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.addEventListener('keydown', this.handleKeydown);
+  private bindKeydownEvents(scope: ConnectionScope) {
+    const name = this.querySelector<HTMLInputElement>('.nodel-add-node-name');
+    const templateInput = this.querySelector<HTMLInputElement>('.nodel-add-node-template');
+    if (name) {
+      scope.listen(name, 'keydown', this.handleKeydown);
+    }
+    if (templateInput) {
+      scope.listen(templateInput, 'keydown', this.handleKeydown);
+    }
   }
 
   private observeControls() {
@@ -410,6 +438,10 @@ export class NodelAddNode extends HTMLElement {
   };
 
   private async togglePanel() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const open = !this.state.open;
     this.setState({ open });
 
@@ -437,9 +469,13 @@ export class NodelAddNode extends HTMLElement {
       try {
         await refreshRecipes(true);
       } catch (error) {
-        this.setState({ error: lookupErrorMessage(error) });
+        if (scope.isCurrent()) {
+          this.setState({ error: lookupErrorMessage(error) });
+        }
       }
-      this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
+      if (scope.isCurrent() && this.state.open) {
+        this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
+      }
     }
   }
 
@@ -449,13 +485,18 @@ export class NodelAddNode extends HTMLElement {
 
   private scheduleSearch() {
     this.clearDebounceTimer();
-    this.debounceTimer = window.setTimeout(() => {
+    const scope = this.lifecycle.current;
+    this.debounceTimer = scope?.setTimeout(() => {
       this.debounceTimer = null;
       void this.searchTemplates();
-    }, debounceMs);
+    }, debounceMs) ?? null;
   }
 
   private async searchTemplates() {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
     const token = ++this.searchToken;
     const query = this.state.templateQuery.trim();
 
@@ -468,17 +509,17 @@ export class NodelAddNode extends HTMLElement {
     let nodes: NodelNodeUrlEntry[];
     try {
       const recipesPromise = this.allowRecipes ? refreshRecipes(false) : Promise.resolve([] as NodelRecipeEntry[]);
-      const nodesPromise = searchNodeUrls(query);
+      const nodesPromise = searchNodeUrls(query, { signal: scope.signal });
       [recipes, nodes] = await Promise.all([recipesPromise, nodesPromise]);
     } catch (error) {
-      if (token === this.searchToken) {
+      if (scope.isCurrent() && token === this.searchToken) {
         this.refreshResultViews([]);
         this.setState({ error: lookupErrorMessage(error), showAutocomplete: false });
       }
       return;
     }
 
-    if (token !== this.searchToken) {
+    if (!scope.isCurrent() || token !== this.searchToken) {
       return;
     }
 
@@ -578,6 +619,10 @@ export class NodelAddNode extends HTMLElement {
   }
 
   private async submit() {
+    const scope = this.lifecycle.current;
+    if (!scope || this.state.submitting) {
+      return;
+    }
     const name = this.state.nodeName.trim();
     const templateValue = this.state.templateQuery.trim();
 
@@ -596,8 +641,16 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ status: 'Duplicating node...' });
         const result = await duplicateNode(this.selection.address, name, {
           includeNodeConfig: this.state.includeNodeConfig,
-          onProgress: (progress) => this.setState({ status: progress.message })
+          signal: scope.signal,
+          onProgress: (progress) => {
+            if (scope.isCurrent()) {
+              this.setState({ status: progress.message });
+            }
+          }
         });
+        if (!scope.isCurrent()) {
+          return;
+        }
         url = result.url;
         if (result.failed.length > 0) {
           getJQuery().observable(this.state.failedFiles).refresh(result.failed);
@@ -615,10 +668,16 @@ export class NodelAddNode extends HTMLElement {
       } else {
         const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
         this.setState({ status: 'Creating node...' });
-        await createNode(name, base || undefined);
+        await createNode(name, base || undefined, { signal: scope.signal });
+        if (!scope.isCurrent()) {
+          return;
+        }
         url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
         this.setState({ status: 'Waiting for node to become available...' });
-        await waitForNodeReady(new URL(url, window.location.origin).href);
+        await waitForNodeReady(new URL(url, window.location.origin).href, 30, 1000, { signal: scope.signal });
+        if (!scope.isCurrent()) {
+          return;
+        }
       }
 
       this.dispatchEvent(new CustomEvent('nodel-node-created', { bubbles: true, detail: { url } }));
@@ -633,6 +692,9 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ createdUrl: url, status: 'Node created' });
       }
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Node add failed';
       const destinationUrl = error instanceof NodelDuplicateNodeError ? error.destinationUrl : '';
       if (error instanceof NodelDuplicateNodeError) {
@@ -652,7 +714,9 @@ export class NodelAddNode extends HTMLElement {
         detail
       }));
     } finally {
-      this.setState({ submitting: false });
+      if (scope.isCurrent()) {
+        this.setState({ submitting: false });
+      }
     }
   }
 

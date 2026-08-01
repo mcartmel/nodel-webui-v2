@@ -1,3 +1,5 @@
+import { subscribeConnectivity } from './connectivity';
+
 type VisibilityChangeHandler = (visible: boolean) => void;
 
 interface VisibilityObserverEntry {
@@ -9,9 +11,11 @@ interface VisibilityObserverEntry {
 const entries = new Set<VisibilityObserverEntry>();
 let observerStarted = false;
 let mutationObserver: MutationObserver | null = null;
+let connectivityOffline = false;
+let connectivitySubscription: { dispose(): void } | null = null;
 
 function isVisibleInTree(element: HTMLElement) {
-  if (!element.isConnected || document.hidden) {
+  if (!element.isConnected || document.hidden || navigator.onLine === false || connectivityOffline) {
     return false;
   }
 
@@ -29,7 +33,7 @@ function syncEntries() {
     const nextVisible = isVisibleInTree(entry.element);
     if (nextVisible !== entry.visible) {
       entry.visible = nextVisible;
-      entry.handler(nextVisible);
+      notify(entry, nextVisible);
     }
   }
 }
@@ -44,6 +48,10 @@ function ensureObservers() {
   document.addEventListener('visibilitychange', syncEntries);
   window.addEventListener('online', syncEntries);
   window.addEventListener('offline', syncEntries);
+  connectivitySubscription = subscribeConnectivity((state) => {
+    connectivityOffline = state.offline;
+    syncEntries();
+  });
 
   mutationObserver = new MutationObserver(syncEntries);
   mutationObserver.observe(document.body ?? document.documentElement, {
@@ -63,7 +71,7 @@ export function observeNodelVisibility(element: HTMLElement, handler: Visibility
   };
 
   entries.add(entry);
-  handler(entry.visible);
+  notify(entry, entry.visible);
 
   return () => {
     entries.delete(entry);
@@ -74,9 +82,20 @@ export function observeNodelVisibility(element: HTMLElement, handler: Visibility
       document.removeEventListener('visibilitychange', syncEntries);
       window.removeEventListener('online', syncEntries);
       window.removeEventListener('offline', syncEntries);
+      connectivitySubscription?.dispose();
+      connectivitySubscription = null;
+      connectivityOffline = false;
       observerStarted = false;
     }
   };
+}
+
+function notify(entry: VisibilityObserverEntry, visible: boolean) {
+  try {
+    entry.handler(visible);
+  } catch (error) {
+    window.dispatchEvent(new CustomEvent('nodel-visibility-listener-error', { detail: { error } }));
+  }
 }
 
 export function elementIsVisibleInNodelApp(element: HTMLElement) {

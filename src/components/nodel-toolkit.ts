@@ -2,14 +2,18 @@ import { getToolkit } from '../api/nodel-host-client';
 import type { NodelToolkitResponse } from '../api/nodel-types';
 import { registerNodelOneShotSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
+import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { loadCodeEditorModule } from '../utils/dynamic-imports';
 
 export class NodelToolkit extends HTMLElement {
   private editor: NodelCodeEditor | null = null;
   private editorHost: HTMLElement | null = null;
+  private editorError = '';
   private source: NodelSourceSubscription<NodelToolkitResponse> | null = null;
   private statusNode: HTMLElement | null = null;
   private lastRenderedScript = '';
   private lastRenderedError = '';
+  private lifecycle = new ComponentLifecycle();
   private static nextSourceId = 0;
   private sourceKey = '';
   private state: NodelSourceState<NodelToolkitResponse> = {
@@ -26,31 +30,43 @@ export class NodelToolkit extends HTMLElement {
       this.sourceKey = `nodel-toolkit-${NodelToolkit.nextSourceId}`;
     }
 
+    const scope = this.lifecycle.connect();
+    if (!scope) {
+      return;
+    }
     this.renderShell();
-    void this.initializeEditor();
-    this.bindSource();
+    void scope.run(() => this.initializeEditor(scope), (error) => this.renderEditorError(error));
+    this.bindSource(scope);
   }
 
   disconnectedCallback() {
-    this.source?.dispose();
-    this.source = null;
+    this.lifecycle.disconnect();
     this.editor?.destroy();
     this.editor = null;
     this.editorHost = null;
+    this.editorError = '';
     this.statusNode = null;
+    this.lastRenderedScript = '';
+    this.lastRenderedError = '';
   }
 
-  private bindSource() {
-    this.source?.dispose();
+  private bindSource(scope: ConnectionScope) {
     const source = registerNodelOneShotSource<NodelToolkitResponse>({
       key: this.sourceKey,
       fetcher: (signal) => getToolkit({ signal }),
       visibleOnly: true
     });
 
-    this.source = source.subscribe(this, (state) => {
+    const subscription = source.subscribe(this, scope.guard((state) => {
       this.state = state;
       this.renderState();
+    }));
+    this.source = subscription;
+    scope.own(() => {
+      subscription.dispose();
+      if (this.source === subscription) {
+        this.source = null;
+      }
     });
   }
 
@@ -66,35 +82,47 @@ export class NodelToolkit extends HTMLElement {
     this.renderState();
   }
 
-  private async initializeEditor() {
+  private async initializeEditor(scope: ConnectionScope) {
     if (!this.editorHost || this.editor) {
       return;
     }
 
-    const { createNodelCodeEditor } = await import('../editor/codemirror-editor');
-    if (!this.isConnected || !this.editorHost) {
+    const host = this.editorHost;
+    const { createNodelCodeEditor } = await loadCodeEditorModule();
+    if (!scope.isCurrent() || this.editorHost !== host || this.editor) {
       return;
     }
 
     this.editor = createNodelCodeEditor({
-      parent: this.editorHost,
+      parent: host,
       ariaLabel: 'Toolkit source',
       path: 'nodetoolkit.py',
-      readOnly: true
+      readOnly: true,
+      onError: scope.guard((error) => this.renderEditorError(error))
     });
+    this.editorError = '';
+    this.lastRenderedScript = '';
+    this.lastRenderedError = '';
+    this.renderState();
+  }
+
+  private renderEditorError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load toolkit editor';
+    this.editorError = message;
     this.renderState();
   }
 
   private renderState() {
     const script = typeof this.state.data?.script === 'string' ? this.state.data.script : '';
     const loaded = Boolean(script);
-    this.dataset.state = this.state.error ? 'error' : this.state.loading ? 'loading' : loaded ? 'ready' : 'empty';
+    const error = this.editorError || this.state.error;
+    this.dataset.state = error ? 'error' : this.state.loading ? 'loading' : loaded ? 'ready' : 'empty';
 
     if (this.statusNode) {
-      if (this.state.error) {
+      if (error) {
         this.statusNode.hidden = false;
         this.statusNode.className = 'nodel-alert nodel-alert-danger nodel-alert-md';
-        this.statusNode.textContent = this.state.error;
+        this.statusNode.textContent = error;
       } else if (this.state.loading || !loaded) {
         this.statusNode.hidden = false;
         this.statusNode.className = 'nodel-alert nodel-alert-md';
@@ -104,14 +132,14 @@ export class NodelToolkit extends HTMLElement {
       }
     }
 
-    if (this.editor && loaded && script !== this.lastRenderedScript) {
+    if (this.editor && error && error !== this.lastRenderedError) {
+      this.editor.setDocument(`# ${error}`, 'nodetoolkit.py');
+      this.lastRenderedError = error;
+      this.lastRenderedScript = '';
+    } else if (this.editor && !error && loaded && script !== this.lastRenderedScript) {
       this.editor.setDocument(script, 'nodetoolkit.py');
       this.lastRenderedScript = script;
       this.lastRenderedError = '';
-    } else if (this.editor && this.state.error && this.state.error !== this.lastRenderedError) {
-      this.editor.setDocument(`# ${this.state.error}`, 'nodetoolkit.py');
-      this.lastRenderedError = this.state.error;
-      this.lastRenderedScript = '';
     }
   }
 }

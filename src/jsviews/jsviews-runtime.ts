@@ -36,7 +36,10 @@ export async function bootstrapJsViews(): Promise<typeof $> {
       registerJsViewsHelpers();
       bootstrapped = true;
       return $;
-    })();
+    })().catch((error) => {
+      bootPromise = null;
+      throw error;
+    });
   }
 
   return bootPromise;

@@ -96,4 +96,37 @@ describe('nodel-host-log', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/REST/logs?from=-1&max=200', expect.any(Object));
   });
+
+  it('does not let an abort-ignoring stale fetch advance the reconnect cursor', async () => {
+    let resolveFirst!: (response: Response) => void;
+    const urls: string[] = [];
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (urls.length === 1) {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify(url.includes('from=2') ? [] : [
+        { seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'INFO', message: 'Current' }
+      ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    const hostLog = document.createElement('nodel-host-log');
+    document.body.append(hostLog);
+    await waitFor(() => urls.length === 1);
+
+    hostLog.remove();
+    document.body.append(hostLog);
+    await waitFor(() => urls.length === 2);
+    resolveFirst(new Response(JSON.stringify([
+      { seq: 100, timestamp: '2026-01-01T00:01:40Z', level: 'INFO', message: 'Stale' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await waitFor(() => hostLog.textContent?.includes('Current') ?? false);
+
+    await ((hostLog as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
+    expect(urls.at(-1)).toBe('/REST/logs?from=2&max=9999');
+    expect(hostLog.textContent).not.toContain('Stale');
+  });
 });
