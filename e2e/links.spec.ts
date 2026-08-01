@@ -35,10 +35,10 @@ test.describe('remote-aware links and filtered navigation', () => {
       const origin = new URL(request.url()).origin;
       const entries = payload.name === 'Direct Display'
         ? [
-            { address: 'https://remote.example/nodes/DirectDisplay/' },
-            { address: `${origin}/nodes/DirectDisplay/` }
+            { node: 'Direct Display', address: 'https://remote.example/nodes/DirectDisplay/' },
+            { node: 'Direct Display', address: `${origin}/nodes/DirectDisplay/` }
           ]
-        : [{ address: 'https://bound.example/nodes/BoundDisplay/' }];
+        : [{ node: 'Bound Display', address: 'https://bound.example/nodes/BoundDisplay/' }];
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify(entries) });
     });
     await openCatalogue(page, 'ControlGrid');

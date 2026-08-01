@@ -72,6 +72,18 @@ describe('control media components', () => {
     expect(image.getAttribute('aria-label')).toBe('Output');
   });
 
+  it('renders a non-loading placeholder for unsafe image sources', async () => {
+    document.body.innerHTML = '<nodel-image src="javascript:alert(1)" alt="Unsafe"></nodel-image>';
+    await flush();
+    const image = document.querySelector('nodel-image') as HTMLElement;
+
+    expect(image.dataset.sourceState).toBe('error');
+    expect(image.querySelector('img')).toBeNull();
+    expect(image.querySelector('.nodel-image-placeholder')).not.toBeNull();
+    expect(image.getAttribute('role')).toBe('img');
+    expect(image.getAttribute('aria-label')).toBe('Unsafe unavailable');
+  });
+
   it('renders nodel-icon and signal updates', async () => {
     document.body.innerHTML = '<nodel-icon name="power" label="Power" tone="accent" size="xl" variant="bordered" signals="IconName:name; IconTone:tone"></nodel-icon>';
     await customElements.whenDefined('nodel-icon');

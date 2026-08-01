@@ -21,6 +21,18 @@ Both consumers use the same stable `v2/nodel-webui.js` and `v2/nodel-webui.css` 
 
 The complete `v2/` directory is one indivisible release asset. The stable JavaScript entry may reference hashed chunks, so copying only the stable entry files is unsupported.
 
+## Input Boundaries
+
+Treat all REST, WebSocket, discovery, build metadata, authored attributes, and signal values as untrusted at the browser boundary.
+
+- `src/api/codecs/nodel-codecs.ts` validates Java Nodel response envelopes before endpoint functions return data to components. Decoders preserve tolerated unknown fields but reject malformed known fields, non-finite sequence/measurement values, unsafe node/file paths, unsafe node URLs, excessive collection sizes, and excessively deep schemas. Decoder errors include only endpoint and structural path context; they do not reflect arbitrary response values.
+- `src/utils/urls.ts` owns separate policies for browser navigation, Markdown links, absolute remote-node API bases, image sources, and host reachability probes. `src/utils/node-file-path.ts` owns the shared relative file-path policy. HTML escaping does not make a URL safe. Components must use the relevant policy before assigning `href`, `src`, a browser location, a remote API base, or a node file path.
+- Remote node API bases must be absolute HTTP(S) URLs without credentials, query strings, or fragments. Endpoint paths are appended through `remoteNodeEndpoint` rather than string concatenation.
+- Markdown may retain only constrained `language-*` classes on `code` elements. Arbitrary classes are removed so signal/backend Markdown cannot reuse application overlay or positioning styles.
+- `src/api/request.ts` combines caller cancellation with a default 30-second request deadline. File reads/writes use a documented 120-second deadline, and long-poll requests extend the default deadline beyond their server timeout. A caller abort remains an abort; an elapsed deadline is reported as a bounded `TimeoutError`.
+
+Endpoint functions, not components, are responsible for decoding backend responses. Components still validate navigation/image values at the final DOM sink as defense in depth and must retain visible text or an accessible unavailable/error state when a value is rejected.
+
 ## Rules
 
 - Use TypeScript.

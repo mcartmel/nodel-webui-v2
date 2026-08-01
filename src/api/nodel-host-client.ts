@@ -1,5 +1,28 @@
 import { getVerySimpleName } from '../utils/node-name';
 import { fetchWithConnectivity } from '../data/connectivity';
+import { remoteNodeEndpoint, safeHostRestUrl, safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
+import {
+  decodeActions,
+  decodeActivityLogs,
+  decodeBuildInfo,
+  decodeConsoleLogs,
+  decodeDiagnosticMeasurements,
+  decodeDiagnostics,
+  decodeFiles,
+  decodeHostLogs,
+  decodeLocalRest,
+  decodeNodeDetails,
+  decodeNodeUrls,
+  decodeRecipes,
+  decodeRecord,
+  decodeRemoteBindings,
+  decodeRestartStatus,
+  decodeSchema,
+  decodeSignals,
+  decodeToolkit
+} from './codecs/nodel-codecs';
+import { assertSafeNodeFilePath } from '../utils/node-file-path';
+import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, fetchWithDeadline, runWithDeadline } from './request';
 import type {
   NodelActivityLogEntry,
   NodelActionDefinition,
@@ -81,16 +104,19 @@ async function responseError(response: Response) {
   return new Error(detail || status);
 }
 
-async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetchWithConnectivity(input, init);
-  if (!response.ok) {
-    throw await responseError(response);
-  }
-  return (await response.json()) as T;
+async function fetchJson(input: RequestInfo | URL, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {
+  const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  return runWithDeadline(async (signal) => {
+    const response = await fetchWithConnectivity(input, { ...init, signal });
+    if (!response.ok) {
+      throw await responseError(response);
+    }
+    return response.json() as Promise<unknown>;
+  }, callerSignal, timeoutMs);
 }
 
-async function postJson<T>(input: RequestInfo | URL, body: unknown, init?: RequestInit): Promise<T> {
-  return fetchJson<T>(input, {
+async function postJson(input: RequestInfo | URL, body: unknown, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {
+  return fetchJson(input, {
     ...init,
     method: 'POST',
     headers: {
@@ -98,21 +124,24 @@ async function postJson<T>(input: RequestInfo | URL, body: unknown, init?: Reque
       ...(init?.headers ?? {})
     },
     body: JSON.stringify(body)
-  });
+  }, timeoutMs);
 }
 
-async function fetchOk(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
-  const response = await fetchWithConnectivity(input, init);
-  if (!response.ok) {
-    throw await responseError(response);
-  }
+async function fetchOk(input: RequestInfo | URL, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {
+  const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  return runWithDeadline(async (signal) => {
+    const response = await fetchWithConnectivity(input, { ...init, signal });
+    if (!response.ok) {
+      throw await responseError(response);
+    }
 
-  const contentType = response.headers.get('Content-Type') ?? '';
-  if (contentType.includes('application/json')) {
-    return response.json();
-  }
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (contentType.includes('application/json')) {
+      return response.json() as Promise<unknown>;
+    }
 
-  return response.text();
+    return response.text();
+  }, callerSignal, timeoutMs);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,10 +180,17 @@ async function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function boundedLongPollTimeout(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(Math.trunc(value), 120_000)
+    : 0;
+}
+
 export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalMs = 1000): Promise<void> {
+  const restUrl = remoteNodeEndpoint(nodeUrl, 'REST/');
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const response = await fetchWithConnectivity(`${nodeUrl}REST/`);
+      const response = await fetchWithDeadline(restUrl, undefined, Math.min(DEFAULT_REQUEST_TIMEOUT_MS, Math.max(3000, intervalMs * 3)));
       if (response.ok) {
         return;
       }
@@ -169,19 +205,20 @@ export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalM
 }
 
 export async function getLocalRest(init?: RequestInit): Promise<NodelLocalRestResponse> {
-  return fetchJson<NodelLocalRestResponse>('/REST', init);
+  return decodeLocalRest(await fetchJson('/REST', init), 'GET /REST');
 }
 
 export async function getHostCapabilities(init?: RequestInit): Promise<NodelCapabilities> {
   try {
-    const response = await fetchWithConnectivity('/REST/capabilities', init);
-    if (!response.ok) {
-      return legacyCapabilities();
-    }
-
-    return normalizeNodelCapabilities(await response.json());
+    return await runWithDeadline(async (signal) => {
+      const response = await fetchWithConnectivity('/REST/capabilities', { ...init, signal });
+      if (!response.ok) {
+        return legacyCapabilities();
+      }
+      return normalizeNodelCapabilities(await response.json() as unknown);
+    }, init?.signal);
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (init?.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
       throw error;
     }
 
@@ -190,27 +227,27 @@ export async function getHostCapabilities(init?: RequestInit): Promise<NodelCapa
 }
 
 export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosticsResponse> {
-  return fetchJson<NodelDiagnosticsResponse>('/REST/diagnostics', init);
+  return decodeDiagnostics(await fetchJson('/REST/diagnostics', init), 'GET /REST/diagnostics');
 }
 
 export async function getDiagnosticMeasurements(init?: RequestInit): Promise<NodelDiagnosticMeasurement[]> {
-  return fetchJson<NodelDiagnosticMeasurement[]>('/REST/diagnostics/measurements', init);
+  return decodeDiagnosticMeasurements(await fetchJson('/REST/diagnostics/measurements', init), 'GET /REST/diagnostics/measurements');
 }
 
 export async function getBuildInfo(init?: RequestInit): Promise<NodelBuildInfo> {
-  return fetchJson<NodelBuildInfo>('/build.json', init);
+  return decodeBuildInfo(await fetchJson('/build.json', init), 'GET /build.json');
 }
 
 export async function getHostLogs(options: { from: number; max: number }, init?: RequestInit): Promise<NodelHostLogEntry[]> {
-  return fetchJson<NodelHostLogEntry[]>(`/REST/logs?from=${options.from}&max=${options.max}`, init);
+  return decodeHostLogs(await fetchJson(`/REST/logs?from=${options.from}&max=${options.max}`, init), 'GET /REST/logs');
 }
 
 export async function getToolkit(init?: RequestInit): Promise<NodelToolkitResponse> {
-  return fetchJson<NodelToolkitResponse>('/REST/toolkit', init);
+  return decodeToolkit(await fetchJson('/REST/toolkit', init), 'GET /REST/toolkit');
 }
 
 export async function getNodeDetails(init?: RequestInit): Promise<NodelNodeRestResponse> {
-  return fetchJson<NodelNodeRestResponse>('REST/', init);
+  return decodeNodeDetails(await fetchJson('REST/', init), 'GET REST/');
 }
 
 export async function renameCurrentNode(value: string, init?: RequestInit): Promise<unknown> {
@@ -235,52 +272,59 @@ export async function removeCurrentNode(init?: RequestInit): Promise<unknown> {
 
 export async function getNodeRestartStatus(options: { timestamp?: string | null; timeout?: number } = {}, init?: RequestInit): Promise<NodelRestartStatus> {
   const params = new URLSearchParams();
+  const timeout = boundedLongPollTimeout(options.timeout);
   if (options.timestamp) {
     params.set('timestamp', options.timestamp);
   }
-  if (options.timeout && options.timeout > 0) {
-    params.set('timeout', String(options.timeout));
+  if (timeout > 0) {
+    params.set('timeout', String(timeout));
   }
 
   const query = params.toString();
-  return fetchJson<NodelRestartStatus>(`REST/hasRestarted${query ? `?${query}` : ''}`, init);
+  return decodeRestartStatus(
+    await fetchJson(`REST/hasRestarted${query ? `?${query}` : ''}`, init, Math.max(DEFAULT_REQUEST_TIMEOUT_MS, timeout + 5000)),
+    'GET REST/hasRestarted'
+  );
 }
 
 export async function getNodeConsoleLogs(options: { from: number; max: number; timeout?: number }, init?: RequestInit): Promise<NodelConsoleLogEntry[]> {
-  const timeout = options.timeout ?? 0;
-  return fetchJson<NodelConsoleLogEntry[]>(`REST/console?from=${options.from}&max=${options.max}${timeout > 0 ? `&timeout=${timeout}` : ''}`, init);
+  const timeout = boundedLongPollTimeout(options.timeout);
+  return decodeConsoleLogs(
+    await fetchJson(`REST/console?from=${options.from}&max=${options.max}${timeout > 0 ? `&timeout=${timeout}` : ''}`, init, Math.max(DEFAULT_REQUEST_TIMEOUT_MS, timeout + 5000)),
+    'GET REST/console'
+  );
 }
 
 export async function executeNodeConsoleCommand(code: string, init?: RequestInit): Promise<unknown> {
-  return postJson<unknown>('REST/exec', { code }, init);
+  return postJson('REST/exec', { code }, init);
 }
 
 export async function getNodeActivity(options: { from: number }, init?: RequestInit): Promise<NodelActivityLogEntry[]> {
-  return fetchJson<NodelActivityLogEntry[]>(`REST/activity?from=${options.from}`, init);
+  return decodeActivityLogs(await fetchJson(`REST/activity?from=${options.from}`, init), 'GET REST/activity');
 }
 
 export async function getNodeActions(init?: RequestInit): Promise<Record<string, NodelActionDefinition>> {
-  return fetchJson<Record<string, NodelActionDefinition>>('REST/actions', init);
+  return decodeActions(await fetchJson('REST/actions', init), 'GET REST/actions');
 }
 
 export async function getNodeSignals(init?: RequestInit): Promise<Record<string, NodelSignalDefinition>> {
-  return fetchJson<Record<string, NodelSignalDefinition>>('REST/events', init);
+  return decodeSignals(await fetchJson('REST/events', init), 'GET REST/events');
 }
 
 export async function callNodeAction(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
-  return postJson<unknown>(`REST/actions/${encodeURIComponent(name)}/call`, payload, init);
+  return postJson(`REST/actions/${encodeURIComponent(name)}/call`, payload, init);
 }
 
 export async function emitNodeSignal(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
-  return postJson<unknown>(`REST/events/${encodeURIComponent(name)}/emit`, payload, init);
+  return postJson(`REST/events/${encodeURIComponent(name)}/emit`, payload, init);
 }
 
 export async function getNodeParamsSchema(init?: RequestInit): Promise<NodelJsonSchema> {
-  return fetchJson<NodelJsonSchema>('REST/params/schema', init);
+  return decodeSchema(await fetchJson('REST/params/schema', init), 'GET REST/params/schema');
 }
 
 export async function getNodeParams(init?: RequestInit): Promise<Record<string, unknown>> {
-  return fetchJson<Record<string, unknown>>('REST/params', init);
+  return decodeRecord(await fetchJson('REST/params', init), 'GET REST/params');
 }
 
 export async function saveNodeParams(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
@@ -296,11 +340,11 @@ export async function saveNodeParams(payload: Record<string, unknown>, init?: Re
 }
 
 export async function getNodeRemoteSchema(init?: RequestInit): Promise<NodelJsonSchema> {
-  return fetchJson<NodelJsonSchema>('REST/remote/schema', init);
+  return decodeSchema(await fetchJson('REST/remote/schema', init), 'GET REST/remote/schema');
 }
 
 export async function getNodeRemoteBindings(init?: RequestInit): Promise<NodelRemoteBindings> {
-  return fetchJson<NodelRemoteBindings>('REST/remote', init);
+  return decodeRemoteBindings(await fetchJson('REST/remote', init), 'GET REST/remote');
 }
 
 export async function getNodeEventBinding(alias: string, init?: RequestInit): Promise<NodelRemoteBinding | null> {
@@ -337,20 +381,16 @@ export async function saveNodeRemoteBindings(payload: Record<string, unknown>, i
   });
 }
 
-function restUrlForNode(nodeUrl: string, endpoint: string) {
-  return `${nodeUrl.replace(/\/?$/, '/')}${endpoint}`;
-}
-
 export async function getRemoteNodeActions(nodeUrl: string, init?: RequestInit): Promise<Record<string, NodelActionDefinition>> {
-  return fetchJson<Record<string, NodelActionDefinition>>(restUrlForNode(nodeUrl, 'REST/actions'), init);
+  return decodeActions(await fetchJson(remoteNodeEndpoint(nodeUrl, 'REST/actions'), init), 'GET remote REST/actions');
 }
 
 export async function getRemoteNodeSignals(nodeUrl: string, init?: RequestInit): Promise<Record<string, NodelSignalDefinition>> {
-  return fetchJson<Record<string, NodelSignalDefinition>>(restUrlForNode(nodeUrl, 'REST/events'), init);
+  return decodeSignals(await fetchJson(remoteNodeEndpoint(nodeUrl, 'REST/events'), init), 'GET remote REST/events');
 }
 
 export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[]> {
-  return fetchJson<NodelFileEntry[]>('REST/files', init);
+  return decodeFiles(await fetchJson('REST/files', init), 'GET REST/files');
 }
 
 export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUiEntry[] {
@@ -366,12 +406,17 @@ export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUi
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((file) => {
       const title = file.path.replace(/^content\//, '');
+      const href = safeNavigationHref(title);
+      if (!href) {
+        return null;
+      }
       return {
-        href: title,
+        href,
         path: file.path,
         title
       };
-    });
+    })
+    .filter((entry): entry is NodelCustomUiEntry => entry !== null);
 }
 
 export async function listCustomUiEntries(init?: RequestInit): Promise<NodelCustomUiEntry[]> {
@@ -379,16 +424,20 @@ export async function listCustomUiEntries(init?: RequestInit): Promise<NodelCust
 }
 
 export async function getNodeFileContents(path: string, init?: RequestInit): Promise<string> {
-  const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeURIComponent(path)}`, init);
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
-  return response.text();
+  assertSafeNodeFilePath(path);
+  return runWithDeadline(async (signal) => {
+    const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeURIComponent(path)}`, { ...init, signal });
+    if (!response.ok) {
+      throw await responseError(response);
+    }
+    return response.text();
+  }, init?.signal, FILE_REQUEST_TIMEOUT_MS);
 }
 
 export async function saveNodeFile(path: string, content: BodyInit, init?: RequestInit): Promise<unknown> {
+  assertSafeNodeFilePath(path);
   if (path === 'script.py') {
-    return postJson<unknown>('REST/script/save', { script: String(content) }, init);
+    return postJson('REST/script/save', { script: String(content) }, init, FILE_REQUEST_TIMEOUT_MS);
   }
 
   return fetchOk(`REST/files/save?path=${encodeURIComponent(path)}`, {
@@ -399,23 +448,24 @@ export async function saveNodeFile(path: string, content: BodyInit, init?: Reque
       ...(init?.headers ?? {})
     },
     body: content
-  });
+  }, FILE_REQUEST_TIMEOUT_MS);
 }
 
 export async function deleteNodeFile(path: string, init?: RequestInit): Promise<unknown> {
-  return fetchOk(`REST/files/delete?path=${encodeURIComponent(path)}`, init);
+  assertSafeNodeFilePath(path);
+  return fetchOk(`REST/files/delete?path=${encodeURIComponent(path)}`, init, FILE_REQUEST_TIMEOUT_MS);
 }
 
 export async function searchNodeUrls(filter: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {
-  return postJson<NodelNodeUrlEntry[]>('/REST/nodeURLs', { filter }, init);
+  return decodeNodeUrls(await postJson('/REST/nodeURLs', { filter }, init), 'POST /REST/nodeURLs');
 }
 
 export async function getNodeUrlsForNode(name: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {
-  return postJson<NodelNodeUrlEntry[]>('/REST/nodeURLsForNode', { name }, init);
+  return decodeNodeUrls(await postJson('/REST/nodeURLsForNode', { name }, init), 'POST /REST/nodeURLsForNode');
 }
 
 export async function listRecipes(): Promise<NodelRecipeEntry[]> {
-  return fetchJson<NodelRecipeEntry[]>('/REST/recipes/list');
+  return decodeRecipes(await fetchJson('/REST/recipes/list'), 'GET /REST/recipes/list');
 }
 
 export async function createNode(value: string, base?: string): Promise<unknown> {
@@ -436,14 +486,6 @@ function shouldCopyDuplicateFile(path: string, includeNodeConfig: boolean) {
   return !basename.startsWith('_')
     && !/^script_backup_.*\.py$/i.test(basename)
     && (includeNodeConfig || basename !== 'nodeConfig.json');
-}
-
-function validateDuplicateFileList(value: unknown): NodelFileEntry[] {
-  if (!Array.isArray(value) || value.some((file) => !isRecord(file) || typeof file.path !== 'string' || !file.path.trim())) {
-    throw new Error('Source node returned an invalid file list');
-  }
-
-  return value as NodelFileEntry[];
 }
 
 function boundedErrorMessage(error: unknown, fallback: string) {
@@ -480,23 +522,33 @@ function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: N
 async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string): Promise<NodelDuplicateFileFailure | null> {
   let contents: ArrayBuffer;
   try {
-    const response = await fetchWithConnectivity(restUrlForNode(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`));
-    if (!response.ok) {
-      return duplicateFileFailure(path, 'read', response);
+    const result = await runWithDeadline(async (signal) => {
+      const response = await fetchWithConnectivity(remoteNodeEndpoint(sourceNodeUrl, `REST/files/contents?path=${encodeURIComponent(path)}`), { signal });
+      if (!response.ok) {
+        return { failure: await duplicateFileFailure(path, 'read', response), contents: null };
+      }
+      return { failure: null, contents: await response.arrayBuffer() };
+    }, undefined, FILE_REQUEST_TIMEOUT_MS);
+    if (result.failure) {
+      return result.failure;
     }
-    contents = await response.arrayBuffer();
+    contents = result.contents;
   } catch (error) {
     return networkDuplicateFileFailure(path, 'read', error);
   }
 
   try {
-    const response = await fetchWithConnectivity(restUrlForNode(destinationNodeUrl, `REST/files/save?path=${encodeURIComponent(path)}`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: contents
-    });
-    if (!response.ok) {
-      return duplicateFileFailure(path, 'save', response);
+    const failure = await runWithDeadline(async (signal) => {
+      const response = await fetchWithConnectivity(remoteNodeEndpoint(destinationNodeUrl, `REST/files/save?path=${encodeURIComponent(path)}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: contents,
+        signal
+      });
+      return response.ok ? null : duplicateFileFailure(path, 'save', response);
+    }, undefined, FILE_REQUEST_TIMEOUT_MS);
+    if (failure) {
+      return failure;
     }
   } catch (error) {
     return networkDuplicateFileFailure(path, 'save', error);
@@ -506,10 +558,14 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
 }
 
 export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, options: NodelDuplicateNodeOptions = {}): Promise<NodelDuplicateNodeResult> {
+  const safeSourceUrl = safeRemoteNodeUrl(sourceNodeUrl);
+  if (!safeSourceUrl) {
+    throw new Error('Failed to read source node file list: remote node URL is invalid');
+  }
   let files: NodelFileEntry[];
   try {
-    const fileList = await fetchJson<unknown>(restUrlForNode(sourceNodeUrl, 'REST/files'));
-    files = validateDuplicateFileList(fileList);
+    const fileList = await fetchJson(remoteNodeEndpoint(safeSourceUrl.href, 'REST/files'));
+    files = decodeFiles(fileList, 'GET source REST/files');
   } catch (error) {
     throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`);
   }
@@ -531,7 +587,7 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
     throw new Error(`Failed to create destination node "${newNodeName}": ${boundedErrorMessage(error, 'node creation failed')}`);
   }
 
-  const newNodeUrl = `${window.location.origin}/nodes/${encodeURIComponent(getVerySimpleName(newNodeName))}/`;
+  const newNodeUrl = new URL(`/nodes/${encodeURIComponent(getVerySimpleName(newNodeName))}/`, window.location.origin).href;
   reportDuplicateProgress(options, {
     phase: 'waiting',
     message: 'Waiting for the destination node to become available...',
@@ -559,7 +615,7 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
       path: file.path
     });
 
-    const failure = await copyDuplicateFile(sourceNodeUrl, newNodeUrl, file.path);
+    const failure = await copyDuplicateFile(safeSourceUrl.href, newNodeUrl, file.path);
     if (!failure) {
       copied.push(file.path);
       continue;
@@ -592,29 +648,15 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
 }
 
 export async function checkHostReachable(host: string, timeoutMs = 3000, signal?: AbortSignal): Promise<NodelReachabilityResult> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-  const onAbort = () => controller.abort();
-
-  if (signal) {
-    if (signal.aborted) {
-      controller.abort();
-    } else {
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
+  const restUrl = safeHostRestUrl(host);
+  if (!restUrl) {
+    return { host, reachable: false };
   }
 
   try {
-    const response = await fetchWithConnectivity(`//${host}/REST`, {
-      signal: controller.signal
-    });
+    const response = await fetchWithDeadline(restUrl, { signal }, timeoutMs);
     return { host, reachable: response.ok || response.type === 'opaque' };
   } catch {
     return { host, reachable: false };
-  } finally {
-    window.clearTimeout(timeout);
-    if (signal) {
-      signal.removeEventListener('abort', onAbort);
-    }
   }
 }

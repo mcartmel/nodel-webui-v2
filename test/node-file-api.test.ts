@@ -84,10 +84,10 @@ describe('node file api and utilities', () => {
     await expect(restartCurrentNode()).resolves.toBe('');
     await expect(removeCurrentNode()).resolves.toBe('');
 
-    expect(fetch).toHaveBeenCalledWith('REST/files', undefined);
-    expect(fetch).toHaveBeenCalledWith('REST/', undefined);
-    expect(fetch).toHaveBeenCalledWith('REST/files/contents?path=script.py', undefined);
-    expect(fetch).toHaveBeenCalledWith('REST/files/delete?path=content%2Findex.html', undefined);
+    expect(fetch).toHaveBeenCalledWith('REST/files', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetch).toHaveBeenCalledWith('REST/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetch).toHaveBeenCalledWith('REST/files/contents?path=script.py', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetch).toHaveBeenCalledWith('REST/files/delete?path=content%2Findex.html', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('validates node file paths and maps languages', () => {
@@ -106,6 +106,10 @@ describe('node file api and utilities', () => {
     expect(validateNodeFilePath('')).toContain('required');
     expect(validateNodeFilePath('/absolute.py')).toContain('relative');
     expect(validateNodeFilePath('../secret.py')).toContain('parent-directory');
+    expect(validateNodeFilePath('content/./secret.py')).toContain('unsupported');
+    expect(validateNodeFilePath('content/line\nbreak.py')).toContain('unsupported');
+    expect(validateNodeFilePath('C:/outside.py')).toContain('unsupported');
+    expect(validateNodeFilePath('content/script.py:stream')).toContain('unsupported');
     expect(validateNodeFilePath('bad.exe/')).toContain('empty');
     expect(validateNodeFilePath('bad.nope')).toContain('extension');
     expect(languageKindForPath('script.py')).toBe('python');
@@ -122,6 +126,16 @@ describe('node file api and utilities', () => {
     expect(isEditableFile('data/table.csv')).toBe(true);
     expect(isBinaryFile('docs/manual.pdf')).toBe(true);
     expect(isBinaryFile('content/hero.webp')).toBe(true);
+  });
+
+  it('rejects unsafe file API paths before starting a request', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getNodeFileContents('../secret.py')).rejects.toThrow('Node file path is invalid');
+    await expect(saveNodeFile('content/./secret.py', 'unsafe')).rejects.toThrow('Node file path is invalid');
+    await expect(deleteNodeFile('/absolute.py')).rejects.toThrow('Node file path is invalid');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('filters custom UI files using the v1 picker rules', () => {

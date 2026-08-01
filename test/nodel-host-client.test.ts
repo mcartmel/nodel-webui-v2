@@ -4,6 +4,7 @@ import {
   getHostCapabilities,
   getHostLogs,
   getNodeEventBinding,
+  getNodeConsoleLogs,
   getNodeUrlsForNode,
   getNodeRestartStatus,
   NodelDuplicateNodeError,
@@ -12,10 +13,13 @@ import {
 
 describe('nodel host client', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ timestamp: '2026-01-01T00:00:00.000Z' })
-    })));
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const value = url === '/REST/logs?from=-1&max=200' || url === '/REST/diagnostics/measurements' || url.startsWith('REST/console?')
+        ? []
+        : { timestamp: '2026-01-01T00:00:00.000Z' };
+      return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
   });
 
   afterEach(() => {
@@ -30,8 +34,16 @@ describe('nodel host client', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       'REST/hasRestarted?timestamp=2026-01-01T00%3A00%3A00.000Z&timeout=5000',
-      undefined
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+  });
+
+  it('bounds invalid and excessive long-poll timeout values', async () => {
+    await expect(getNodeRestartStatus({ timeout: Number.POSITIVE_INFINITY })).resolves.toEqual({ timestamp: '2026-01-01T00:00:00.000Z' });
+    await expect(getNodeConsoleLogs({ from: -1, max: 200, timeout: 500_000 })).resolves.toEqual([]);
+
+    expect(fetch).toHaveBeenCalledWith('REST/hasRestarted', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetch).toHaveBeenCalledWith('REST/console?from=-1&max=200&timeout=120000', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('reads host diagnostics logs and measurements', async () => {
@@ -40,8 +52,8 @@ describe('nodel host client', () => {
     await getHostLogs({ from: -1, max: 200 }, init);
     await getDiagnosticMeasurements(init);
 
-    expect(fetch).toHaveBeenCalledWith('/REST/logs?from=-1&max=200', init);
-    expect(fetch).toHaveBeenCalledWith('/REST/diagnostics/measurements', init);
+    expect(fetch).toHaveBeenCalledWith('/REST/logs?from=-1&max=200', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetch).toHaveBeenCalledWith('/REST/diagnostics/measurements', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('reads generic host capabilities when a valid feature is explicit', async () => {
@@ -66,7 +78,7 @@ describe('nodel host client', () => {
       }
     });
 
-    expect(fetch).toHaveBeenCalledWith('/REST/capabilities', undefined);
+    expect(fetch).toHaveBeenCalledWith('/REST/capabilities', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('preserves legacy execution defaults for missing, failing, or malformed capabilities', async () => {
@@ -106,7 +118,7 @@ describe('nodel host client', () => {
       const url = String(input);
       if (url === '/REST/nodeURLsForNode') {
         expect(JSON.parse(String(init?.body))).toEqual({ name: 'Display' });
-        return new Response(JSON.stringify([{ address: 'https://display.example/nodes/Display/' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+        return new Response(JSON.stringify([{ node: 'Display', address: 'https://display.example/nodes/Display/' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
       if (url === 'REST/remote') {
         return new Response(JSON.stringify({ events: { DisplayStatus: { node: 'Display', event: 'Status' } } }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
@@ -115,7 +127,7 @@ describe('nodel host client', () => {
     }) as unknown as typeof fetch;
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(getNodeUrlsForNode('Display')).resolves.toEqual([{ address: 'https://display.example/nodes/Display/' }]);
+    await expect(getNodeUrlsForNode('Display')).resolves.toEqual([{ node: 'Display', address: 'https://display.example/nodes/Display/' }]);
     await expect(getNodeEventBinding('DisplayStatus')).resolves.toEqual({ node: 'Display', event: 'Status' });
     await expect(getNodeEventBinding('Missing')).resolves.toBeNull();
     await expect(getNodeEventBinding('toString')).resolves.toBeNull();
@@ -127,7 +139,7 @@ describe('nodel host client', () => {
       headers: { 'Content-Type': 'application/json' }
     })) as unknown as typeof fetch);
 
-    await expect(getNodeEventBinding('Broken')).rejects.toThrow('Event binding "Broken" is malformed');
+    await expect(getNodeEventBinding('Broken')).rejects.toThrow('GET REST/remote returned invalid data at $.events.Broken: expected an object');
   });
 
   it('rejects a malformed remote event-binding collection', async () => {
@@ -136,7 +148,7 @@ describe('nodel host client', () => {
       headers: { 'Content-Type': 'application/json' }
     })) as unknown as typeof fetch);
 
-    await expect(getNodeEventBinding('Broken')).rejects.toThrow('Remote event bindings are malformed');
+    await expect(getNodeEventBinding('Broken')).rejects.toThrow('GET REST/remote returned invalid data at $.events: expected an object');
   });
 
   it('duplicates files byte-for-byte, filters unsafe files, and saves script.py last', async () => {
@@ -325,7 +337,7 @@ describe('nodel host client', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch);
 
-    await expect(duplicateNode(source, 'Invalid Copy')).rejects.toThrow('Failed to read source node file list: Source node returned an invalid file list');
+    await expect(duplicateNode(source, 'Invalid Copy')).rejects.toThrow('Failed to read source node file list: GET source REST/files returned invalid data');
     expect(createCalls).toEqual([]);
   });
 

@@ -8,6 +8,7 @@ import {
 } from '../navigation/navigation';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
+import { safeImageSrc } from '../utils/urls';
 import { getNodeDetails } from '../api/nodel-host-client';
 import './nodel-host-icon';
 import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail, type NodelAppTitleHost } from '../data/app-title';
@@ -70,7 +71,8 @@ export class NodelToolbar extends HTMLElement {
   private render() {
     const title = this.getAttribute('title') ?? this.appSignalTitle ?? this.autoTitle;
     const hasTitle = title.trim().length > 0;
-    const iconSrc = this.getAttribute('icon-src');
+    const authoredIconSrc = this.getAttribute('icon-src');
+    const iconSrc = authoredIconSrc ? safeImageSrc(authoredIconSrc) : null;
     const iconAlt = this.getAttribute('icon-alt') ?? title;
     const children = this.shellReady ? [] : Array.from(this.childNodes);
 
@@ -103,6 +105,7 @@ export class NodelToolbar extends HTMLElement {
     }
 
     if (this.iconNode) {
+      this.dataset.iconState = authoredIconSrc ? (iconSrc ? 'ready' : 'error') : 'empty';
       if (iconSrc) {
         this.iconNode.src = iconSrc;
         this.iconNode.alt = iconAlt;

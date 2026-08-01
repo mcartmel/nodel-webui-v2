@@ -2,6 +2,7 @@ import { getBuildInfo, getDiagnostics } from '../api/nodel-host-client';
 import type { NodelBuildInfo, NodelDiagnosticsResponse } from '../api/nodel-types';
 import { registerNodelOneShotSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
 import { escapeHtml } from '../utils/html';
+import { appendUrlPath, safeAbsoluteHttpUrl } from '../utils/urls';
 
 interface DiagnosticsState {
   loading: boolean;
@@ -87,13 +88,21 @@ function buildLinks(build: NodelBuildInfo | null) {
     return 'Unavailable';
   }
 
-  const origin = escapeHtml(build.origin);
-  const branch = build.branch ? escapeHtml(build.branch) : 'main';
-  const id = build.id ? escapeHtml(build.id) : '';
+  const originUrl = safeAbsoluteHttpUrl(build.origin);
+  if (!originUrl) {
+    return 'Unavailable';
+  }
+  const branchValue = build.branch || 'main';
+  const idValue = build.id || '';
+  const origin = escapeHtml(originUrl.href);
+  const branch = escapeHtml(branchValue);
+  const id = escapeHtml(idValue);
   const buildDate = build.date ? escapeHtml(formatDateTime(build.date)) : 'Unavailable';
   const host = build.host ? escapeHtml(build.host) : 'Unavailable';
+  const branchHref = escapeHtml(appendUrlPath(originUrl, 'tree', branchValue).href);
+  const commitHref = idValue ? escapeHtml(appendUrlPath(originUrl, 'commit', idValue).href) : '';
 
-  return `Built ${buildDate} on ${host}<br />Origin <a class="nodel-link" href="${origin}">${origin}</a><br />Branch <a class="nodel-link" href="${origin}/tree/${branch}">${branch}</a>${id ? `, last commit <a class="nodel-link" href="${origin}/commit/${id}">${id}</a>` : ''}`;
+  return `Built ${buildDate} on ${host}<br />Origin <a class="nodel-link" href="${origin}">${origin}</a><br />Branch <a class="nodel-link" href="${branchHref}">${branch}</a>${id ? `, last commit <a class="nodel-link" href="${commitHref}">${id}</a>` : ''}`;
 }
 
 export class NodelDiagnostics extends HTMLElement {
@@ -176,7 +185,7 @@ export class NodelDiagnostics extends HTMLElement {
 
     if (this.state.error) {
       this.innerHTML = `
-        <div class="nodel-alert nodel-alert-danger nodel-alert-md">
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">
           ${escapeHtml(this.state.error)}
         </div>
       `;

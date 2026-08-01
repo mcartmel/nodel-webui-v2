@@ -3,6 +3,7 @@ import type { NodelDuplicateFileFailure, NodelNodeUrlEntry, NodelRecipeEntry } f
 import { linkTemplate, unlinkTemplate, getJQuery } from '../jsviews/jsviews-runtime';
 import { getVerySimpleName } from '../utils/node-name';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
+import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
 
 type Selection =
   | { type: 'recipe'; path: string }
@@ -165,6 +166,10 @@ async function refreshRecipes(force = false) {
     });
 
   return recipeCache.promise;
+}
+
+function lookupErrorMessage(error: unknown) {
+  return (error instanceof Error ? error.message : 'Template lookup failed').replace(/\s+/g, ' ').trim().slice(0, 500) || 'Template lookup failed';
 }
 
 export class NodelAddNode extends HTMLElement {
@@ -429,7 +434,11 @@ export class NodelAddNode extends HTMLElement {
         templateQuery: '',
         warning: ''
       });
-      await refreshRecipes(true);
+      try {
+        await refreshRecipes(true);
+      } catch (error) {
+        this.setState({ error: lookupErrorMessage(error) });
+      }
       this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
     }
   }
@@ -455,9 +464,19 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
-    const recipesPromise = this.allowRecipes ? refreshRecipes(false) : Promise.resolve([] as NodelRecipeEntry[]);
-    const nodesPromise = searchNodeUrls(query);
-    const [recipes, nodes] = await Promise.all([recipesPromise, nodesPromise]);
+    let recipes: NodelRecipeEntry[];
+    let nodes: NodelNodeUrlEntry[];
+    try {
+      const recipesPromise = this.allowRecipes ? refreshRecipes(false) : Promise.resolve([] as NodelRecipeEntry[]);
+      const nodesPromise = searchNodeUrls(query);
+      [recipes, nodes] = await Promise.all([recipesPromise, nodesPromise]);
+    } catch (error) {
+      if (token === this.searchToken) {
+        this.refreshResultViews([]);
+        this.setState({ error: lookupErrorMessage(error), showAutocomplete: false });
+      }
+      return;
+    }
 
     if (token !== this.searchToken) {
       return;
@@ -474,15 +493,20 @@ export class NodelAddNode extends HTMLElement {
           .filter((node) => (node.name || node.node || '').toLocaleLowerCase().includes(searchLower))
           .slice(0, 10)
           .map((node) => this.normalizeNodeResult(node))
+          .filter((node): node is { type: 'node'; address: string; name: string; host: string } => node !== null)
       : [];
 
     this.refreshResultViews([...recipeResults, ...nodeResults]);
   }
 
-  private normalizeNodeResult(node: NodelNodeUrlEntry): { type: 'node'; address: string; name: string; host: string } {
-    const address = node.address;
+  private normalizeNodeResult(node: NodelNodeUrlEntry): { type: 'node'; address: string; name: string; host: string } | null {
+    const url = safeRemoteNodeUrl(node.address);
+    if (!url) {
+      return null;
+    }
+    const address = url.href;
     const name = node.name || node.node || '';
-    const host = node.host || new URL(address).host;
+    const host = node.host || url.host;
     return { type: 'node', address, name, host };
   }
 
@@ -594,12 +618,16 @@ export class NodelAddNode extends HTMLElement {
         await createNode(name, base || undefined);
         url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
         this.setState({ status: 'Waiting for node to become available...' });
-        await waitForNodeReady(url);
+        await waitForNodeReady(new URL(url, window.location.origin).href);
       }
 
       this.dispatchEvent(new CustomEvent('nodel-node-created', { bubbles: true, detail: { url } }));
       if (this.allowRedirect) {
-        window.location.href = url;
+        const redirectUrl = safeNavigationHref(url);
+        if (!redirectUrl) {
+          throw new Error('Created node URL is invalid');
+        }
+        window.location.href = redirectUrl;
         this.closePanel();
       } else {
         this.setState({ createdUrl: url, status: 'Node created' });

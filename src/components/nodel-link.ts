@@ -2,19 +2,11 @@ import { getNodeEventBinding, getNodeUrlsForNode } from '../api/nodel-host-clien
 import type { NodelNodeUrlEntry } from '../api/nodel-types';
 import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
 import { networkNodeSearchHref } from '../navigation/node-links';
+import { safeNavigationHref, safeNavigationUrl } from '../utils/urls';
 
 type LinkState = 'idle' | 'loading' | 'ready' | 'error';
 
 let linkStatusId = 0;
-
-function safeHttpUrl(value: string) {
-  try {
-    const url = new URL(value, window.location.href);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
-  } catch {
-    return null;
-  }
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -27,7 +19,7 @@ function preferredNodeAddress(entries: unknown) {
   const valid = entries
     .filter(isRecord)
     .map((entry) => entry as Partial<NodelNodeUrlEntry>)
-    .map((entry) => typeof entry.address === 'string' ? safeHttpUrl(entry.address) : null)
+    .map((entry) => typeof entry.address === 'string' ? safeNavigationUrl(entry.address) : null)
     .filter((url): url is URL => url !== null);
   return valid.find((url) => url.origin === window.location.origin) ?? valid[0] ?? null;
 }
@@ -173,11 +165,12 @@ export class NodelLink extends HTMLElement {
     }
 
     if (destination === 'href') {
-      if (!safeHttpUrl(value)) {
+      const href = safeNavigationHref(value);
+      if (!href) {
         this.setState('error', 'Link destination uses an unsupported URL scheme.', '');
         return;
       }
-      this.setState('ready', '', value);
+      this.setState('ready', '', href);
       return;
     }
 
@@ -244,9 +237,11 @@ export class NodelLink extends HTMLElement {
     if (!anchor || !this.status || !this.indicator) {
       return;
     }
-    this.dataset.state = state;
-    if (href) {
-      anchor.setAttribute('href', href);
+    const safeHref = href ? safeNavigationHref(href) : null;
+    const nextState = href && !safeHref ? 'error' : state;
+    this.dataset.state = nextState;
+    if (safeHref) {
+      anchor.setAttribute('href', safeHref);
       anchor.removeAttribute('aria-disabled');
       anchor.removeAttribute('tabindex');
     } else {
@@ -254,12 +249,12 @@ export class NodelLink extends HTMLElement {
       anchor.setAttribute('aria-disabled', 'true');
       anchor.tabIndex = 0;
     }
-    if (state === 'loading') {
+    if (nextState === 'loading') {
       anchor.setAttribute('aria-busy', 'true');
       this.indicator.innerHTML = renderFontAwesomeIcon(uiIcons.spinner, 'h-3.5 w-3.5 animate-spin');
     } else {
       anchor.removeAttribute('aria-busy');
-      this.indicator.innerHTML = state === 'error' ? renderFontAwesomeIcon(toastIcons.warning) : '';
+      this.indicator.innerHTML = nextState === 'error' ? renderFontAwesomeIcon(toastIcons.warning) : '';
     }
     this.status.textContent = message;
     this.syncDescription();

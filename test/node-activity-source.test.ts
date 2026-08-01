@@ -196,6 +196,27 @@ describe('node-activity-source', () => {
     subscription.dispose();
   });
 
+  it('surfaces malformed WebSocket entries and recovers on the next valid message', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+
+    MockWebSocket.instances[0].message({
+      activity: { seq: 1, timestamp: 'not-a-date', source: 'local', type: 'event', alias: 'Status' }
+    });
+    expect(states.at(-1)?.error).toContain('WebSocket activity returned invalid data');
+    expect(states.at(-1)?.batch).toBeNull();
+
+    MockWebSocket.instances[0].message({
+      activityHistory: [activityEntry({ seq: 2, source: 'local', type: 'event', alias: 'Status', arg: 'Ready' })]
+    });
+    expect(states.at(-1)?.error).toBe('');
+    expect(states.at(-1)?.batch?.items[0].entry.alias).toBe('Status');
+    expect(states.at(-1)?.batch?.transport).toBe('websocket');
+
+    subscription.dispose();
+  });
+
   it('replays retained latest signal values to subscribers after unrelated live activity', async () => {
     const { subscribeNodeActivity } = await loadSource();
     const firstStates: ActivityState[] = [];

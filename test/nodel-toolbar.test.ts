@@ -56,7 +56,7 @@ describe('nodel-toolbar', () => {
 
     expect(title?.hidden).toBe(false);
     expect(icon?.alt).toBe('Nodel Recipes Sync for TRANSCENDENCE 8085');
-    expect(fetchMock).toHaveBeenCalledWith('REST/', undefined);
+    expect(fetchMock).toHaveBeenCalledWith('REST/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('uses an explicit title instead of fetching a node default', async () => {
@@ -75,5 +75,16 @@ describe('nodel-toolbar', () => {
     expect(title?.textContent).toBe('Explicit');
     expect(icon?.alt).toBe('Explicit');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('hides an unsafe toolbar image source', async () => {
+    document.body.innerHTML = '<nodel-toolbar title="Unsafe" icon-src="javascript:alert(1)"></nodel-toolbar>';
+    await flush();
+    const toolbar = document.querySelector('nodel-toolbar') as HTMLElement;
+    const icon = toolbar.querySelector('[data-toolbar-icon]') as HTMLImageElement;
+
+    expect(toolbar.dataset.iconState).toBe('error');
+    expect(icon.hasAttribute('src')).toBe(false);
+    expect(icon.classList.contains('hidden')).toBe(true);
   });
 });

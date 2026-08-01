@@ -1,3 +1,5 @@
+import { isSafeNodeFilePath } from '../utils/node-file-path';
+
 export const allowedTextExtensions = ['py', 'xml', 'xsl', 'svg', 'js', 'json', 'html', 'htm', 'css', 'java', 'groovy', 'sql', 'sh', 'cs', 'bat', 'ini', 'txt', 'md', 'cmd', 'yaml', 'yml', 'properties', 'log', 'csv'] as const;
 export const allowedBinaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', '7z', 'exe', 'pdf'] as const;
 
@@ -40,6 +42,10 @@ export function validateNodeFilePath(path: string) {
 
   if (trimmed.split('/').some((part) => part === '..' || part === '')) {
     return 'File path cannot contain empty or parent-directory segments.';
+  }
+
+  if (!isSafeNodeFilePath(trimmed)) {
+    return 'File path contains unsupported path segments or characters.';
   }
 
   if (!isTextFile(trimmed) && !isBinaryFile(trimmed)) {

@@ -51,6 +51,40 @@ describe('nodel-add-node', () => {
     vi.restoreAllMocks();
   });
 
+  it('shows a bounded error when the recipe lookup response is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/recipes/list') {
+        return new Response(JSON.stringify({ recipes: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-error')));
+
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('GET /REST/recipes/list returned invalid data');
+  });
+
+  it('shows a bounded error when the node discovery response is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Unsafe', address: 'javascript:alert(1)' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    await setInputValue(document.querySelector('.nodel-add-node-template') as HTMLInputElement, 'Unsafe');
+    await waitFor(() => document.querySelector('.nodel-add-node-error')?.textContent?.includes('POST /REST/nodeURLs') ?? false, { attempts: 30, intervalMs: 25 });
+
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).not.toContain('javascript:');
+    expect(document.querySelector('.nodel-template-autocomplete')?.classList.contains('hidden')).toBe(true);
+  });
+
   it('creates a node from a recipe path', async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
 
@@ -70,7 +104,7 @@ describe('nodel-add-node', () => {
         return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
 
-      if (url === '/nodes/MyTestNode/REST/') {
+      if (url === `${window.location.origin}/nodes/MyTestNode/REST/`) {
         return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
 
@@ -96,7 +130,7 @@ describe('nodel-add-node', () => {
     expect(postCall?.init?.method).toBe('POST');
     expect(String(postCall?.init?.body)).toContain('My Test Node');
     expect(String(postCall?.init?.body)).toContain('Recipes/Starter');
-    expect(calls.some((call) => call.url === '/nodes/MyTestNode/REST/')).toBe(true);
+    expect(calls.some((call) => call.url === `${window.location.origin}/nodes/MyTestNode/REST/`)).toBe(true);
     expect(document.body.textContent).toContain('Node created');
   });
 

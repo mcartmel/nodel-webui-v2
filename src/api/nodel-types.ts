@@ -82,7 +82,7 @@ export interface NodelHostLogEntry {
   thread?: string;
   tag?: string;
   message?: string;
-  error?: string;
+  error?: string | null;
   [key: string]: unknown;
 }
 

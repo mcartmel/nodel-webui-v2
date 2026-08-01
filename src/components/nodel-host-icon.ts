@@ -1,6 +1,7 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { generateHostIconDataUri } from '../icons/host-identicon';
 import { escapeHtml } from '../utils/html';
+import { safeNavigationHref } from '../utils/urls';
 
 export class NodelHostIcon extends HTMLElement {
   static observedAttributes = ['host', 'icon-host', 'href', 'title', 'alt', 'signal', 'signals'];
@@ -27,14 +28,17 @@ export class NodelHostIcon extends HTMLElement {
     const host = this.getAttribute('host') ?? window.location.host;
     const iconHost = this.getAttribute('icon-host') ?? host;
     const href = this.getAttribute('href');
-    const title = this.getAttribute('title') ?? (href ? 'Browse this host' : host);
+    const safeHref = href ? safeNavigationHref(href) : null;
+    const unavailable = Boolean(href && !safeHref);
+    const title = unavailable ? 'Host link unavailable' : this.getAttribute('title') ?? (safeHref ? 'Browse this host' : host);
     const alt = this.getAttribute('alt') ?? host;
     const src = generateHostIconDataUri(iconHost);
     const image = `<img class="nodel-host-icon-image" src="${src}" alt="${escapeHtml(alt)}" title="${escapeHtml(title)}" />`;
 
-    this.innerHTML = href
-      ? `<a class="nodel-host-icon-link" href="${escapeHtml(href)}" title="${escapeHtml(title)}">${image}</a>`
-      : image;
+    this.dataset.linkState = href ? (safeHref ? 'ready' : 'error') : 'none';
+    this.innerHTML = safeHref
+      ? `<a class="nodel-host-icon-link" href="${escapeHtml(safeHref)}" title="${escapeHtml(title)}">${image}</a>`
+      : `${image}${unavailable ? '<span class="sr-only" role="status">Host link unavailable</span>' : ''}`;
   }
 
   private syncSignalSubscription() {

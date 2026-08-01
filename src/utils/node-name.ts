@@ -40,7 +40,11 @@ export function getNodePathName(pathname = window.location.pathname): string | n
     return null;
   }
 
-  return decodeURIComponent(nodeName.replace(/\+/g, '%20'));
+  try {
+    return decodeURIComponent(nodeName.replace(/\+/g, '%20'));
+  } catch {
+    return null;
+  }
 }
 
 export function getVerySimpleName(name: string): string {
@@ -48,7 +52,11 @@ export function getVerySimpleName(name: string): string {
 }
 
 export function getHostFromAddress(address: string): string {
-  return new URL(address, window.location.origin).host;
+  try {
+    return new URL(address, window.location.origin).host;
+  } catch {
+    return '';
+  }
 }
 
 export function getCurrentHostOrigin(): string {

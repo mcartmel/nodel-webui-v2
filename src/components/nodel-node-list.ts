@@ -5,6 +5,7 @@ import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../js
 import { getHostFromAddress, getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { escapeHtml } from '../utils/html';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
+import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
@@ -53,7 +54,7 @@ const template = `
       <div class="nodel-alert nodel-alert-md">Loading nodes...</div>
     {{else}}
       {^{if error}}
-        <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{:error}}</div>
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">{^{:error}}</div>
       {{else}}
         <div class="nodel-node-list-results space-y-3">
           {^{if lst.length}}
@@ -364,7 +365,10 @@ export class NodelNodeList extends HTMLElement {
   private toLocalRow(entry: NodelLocalNodeEntry, host: string, iconHost: string): NodeListStateItem {
     const name = entry.name || entry.node || '';
     const nodeName = getSimpleName(name);
-    const address = entry.address || `/nodes/${encodeURIComponent(getVerySimpleName(name))}`;
+    const address = safeNavigationHref(entry.address || `/nodes/${encodeURIComponent(getVerySimpleName(name))}`);
+    if (!address) {
+      throw new Error('Local node address is invalid');
+    }
 
     return {
       name,
@@ -378,7 +382,11 @@ export class NodelNodeList extends HTMLElement {
   }
 
   private toNetworkRow(entry: NodelNodeUrlEntry): NodeListStateItem {
-    const address = entry.address;
+    const url = safeRemoteNodeUrl(entry.address);
+    if (!url) {
+      throw new Error('Network node address is invalid');
+    }
+    const address = url.href;
     const host = entry.host || getHostFromAddress(address);
     const name = entry.name || entry.node || getSimpleName(address);
 

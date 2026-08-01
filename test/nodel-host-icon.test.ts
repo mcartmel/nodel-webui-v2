@@ -105,4 +105,31 @@ describe('nodel-host-icon', () => {
     expect(icon?.getAttribute('src')).toBe(generateHostIconDataUri('192.168.1.42:8085'));
     expect(icon?.getAttribute('alt')).toBe('Display Node');
   });
+
+  it('keeps the icon visible but removes unsafe authored and signal links', async () => {
+    document.body.innerHTML = '<nodel-host-icon host="display" href="javascript:alert(1)" signal="HostUrl"></nodel-host-icon>';
+    await customElements.whenDefined('nodel-host-icon');
+    await Promise.resolve();
+    const component = document.querySelector('nodel-host-icon') as HTMLElement;
+
+    expect(component.querySelector('img')).not.toBeNull();
+    expect(component.querySelector('a')).toBeNull();
+    expect(component.dataset.linkState).toBe('error');
+    expect(component.querySelector('[role="status"]')?.textContent).toBe('Host link unavailable');
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        items: [{ entry: { seq: 1, timestamp: '', source: 'local', type: 'event', alias: 'HostUrl', arg: 'data:text/html,unsafe' }, changed: true, live: true }],
+        replace: false,
+        transport: 'websocket',
+        nextSeq: 2
+      }
+    });
+    expect(component.querySelector('a')).toBeNull();
+    expect(component.dataset.linkState).toBe('error');
+    expect(component.querySelector('[role="status"]')?.textContent).toBe('Host link unavailable');
+  });
 });

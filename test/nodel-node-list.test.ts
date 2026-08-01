@@ -113,11 +113,11 @@ describe('nodel-node-list', () => {
         ]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
 
-      if (url === '//alpha:8085/REST') {
+      if (url === 'http://alpha:8085/REST') {
         return new Response('', { status: 200 }) as never;
       }
 
-      if (url === '//beta:8085/REST') {
+      if (url === 'http://beta:8085/REST') {
         return new Response('', { status: 503 }) as never;
       }
 
@@ -158,7 +158,7 @@ describe('nodel-node-list', () => {
           { address: 'http://display:8085/nodes/DisplayUnit/', name: 'Display Ünit', host: 'display:8085' }
         ]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
-      if (url === '//display:8085/REST') {
+      if (url === 'http://display:8085/REST') {
         return new Response('', { status: 200 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -197,6 +197,26 @@ describe('nodel-node-list', () => {
 
     expect(filter).toBe('');
     expect(document.querySelector<HTMLInputElement>('.nodel-node-list-filter')?.value).toBe('');
+  });
+
+  it('renders a bounded error instead of an unsafe discovered link', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Unsafe', address: 'javascript:alert(1)' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    }) as unknown as typeof fetch);
+
+    document.body.innerHTML = '<nodel-node-list scope="network" poll-interval="999999"></nodel-node-list>';
+    await waitFor(() => Boolean(document.querySelector('nodel-node-list .nodel-alert-danger')));
+
+    expect(document.querySelectorAll('nodel-node-list a')).toHaveLength(0);
+    expect(document.querySelector('nodel-node-list .nodel-alert-danger')?.textContent).toContain('POST /REST/nodeURLs returned invalid data');
+    expect(document.querySelector('nodel-node-list .nodel-alert-danger')?.getAttribute('role')).toBe('alert');
+    expect(document.body.textContent).not.toContain('javascript:');
   });
 
   it('relinks and resumes filtering when the same node list reconnects', async () => {
@@ -322,7 +342,7 @@ describe('nodel-node-list', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith('/REST/nodeURLs', expect.anything());
-    expect(fetchMock).toHaveBeenCalledWith('//alpha:8085/REST', expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(new URL('http://alpha:8085/REST'), expect.anything());
     expect(document.body.textContent).toContain('Alpha');
   });
 });

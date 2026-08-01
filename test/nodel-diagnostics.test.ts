@@ -98,6 +98,26 @@ describe('nodel-diagnostics', () => {
     expect(document.body.textContent).toContain('Unavailable');
   });
 
+  it('does not render navigation links from an unsafe build origin', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/diagnostics') {
+        return new Response(JSON.stringify({ hostname: 'safe-host' }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/build.json') {
+        return new Response(JSON.stringify({ version: 'unsafe', origin: 'javascript:alert(1)', branch: 'main' }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
+    await waitForDiagnostics();
+
+    expect(document.querySelector('nodel-diagnostics table')).not.toBeNull();
+    expect(document.body.textContent).toContain('safe-host');
+    expect(Array.from(document.querySelectorAll<HTMLAnchorElement>('nodel-diagnostics a')).some((link) => link.href.startsWith('javascript:'))).toBe(false);
+    expect(document.body.textContent).toContain('Unavailable');
+  });
+
   it('renders an error when diagnostics cannot load', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

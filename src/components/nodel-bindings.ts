@@ -14,6 +14,7 @@ import { bootstrapJsViews, getJQuery, linkTemplate, unlinkTemplate } from '../js
 import { getSimpleName, getVerySimpleName } from '../utils/node-name';
 import { networkNodeSearchHref } from '../navigation/node-links';
 import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
+import { safeRemoteNodeUrl } from '../utils/urls';
 
 type BindingKind = 'actions' | 'events';
 type BindingTargetKey = 'action' | 'event';
@@ -318,12 +319,16 @@ function getNodeOptionValue(entry: NodelNodeUrlEntry) {
 }
 
 function optionFromNode(entry: NodelNodeUrlEntry): BindingOption {
+  const url = safeRemoteNodeUrl(entry.address);
+  if (!url) {
+    throw new Error('Discovered node URL is invalid');
+  }
   const label = getNodeOptionValue(entry) || getSimpleName(entry.address);
   return {
     label,
     value: label,
-    address: entry.address,
-    detail: entry.host || new URL(entry.address, window.location.origin).host
+    address: url.href,
+    detail: entry.host || url.host
   };
 }
 
@@ -354,19 +359,22 @@ function nodeBaseUrl(nodeUrl: string) {
 }
 
 function localNodeUrl(name: string) {
-  return `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
+  return new URL(`/nodes/${encodeURIComponent(getVerySimpleName(name))}/`, window.location.origin).href;
 }
 
 function uniqueUrls(urls: string[]) {
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const url of urls) {
-    const normalized = new URL(nodeBaseUrl(url), window.location.origin).href;
+    const normalized = safeRemoteNodeUrl(new URL(nodeBaseUrl(url), window.location.origin).href)?.href;
+    if (!normalized) {
+      continue;
+    }
     if (seen.has(normalized)) {
       continue;
     }
     seen.add(normalized);
-    unique.push(nodeBaseUrl(url));
+    unique.push(normalized);
   }
   return unique;
 }

@@ -11,6 +11,7 @@ import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { getNodePathName, getVerySimpleName } from '../utils/node-name';
+import { safeNavigationHref } from '../utils/urls';
 import './nodel-theme-toggle';
 
 interface NodeMenuState {
@@ -347,14 +348,19 @@ export class NodelNodeMenu extends HTMLElement {
   }
 
   private navigate(url: string) {
+    const href = safeNavigationHref(url);
+    if (!href) {
+      this.setState({ error: 'Navigation URL is invalid' });
+      return;
+    }
     const event = new CustomEvent('nodel-node-menu-navigate', {
       bubbles: true,
       cancelable: true,
-      detail: { url }
+      detail: { url: href }
     });
 
     if (this.dispatchEvent(event)) {
-      window.location.href = url;
+      window.location.href = href;
     }
   }
 

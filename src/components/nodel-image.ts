@@ -1,5 +1,6 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { escapeHtml } from '../utils/html';
+import { safeImageSrc } from '../utils/urls';
 
 type NodelImageFit = 'contain' | 'cover';
 type NodelImageShape = 'none' | 'rounded' | 'circle';
@@ -39,7 +40,8 @@ export class NodelImage extends HTMLElement {
   }
 
   private render() {
-    const src = this.getAttribute('src') ?? '';
+    const authoredSrc = this.getAttribute('src') ?? '';
+    const src = authoredSrc ? safeImageSrc(authoredSrc) ?? '' : '';
     const alt = this.getAttribute('alt') ?? '';
     const label = this.getAttribute('label') ?? '';
     const fit = normalizeFit(this.getAttribute('fit'));
@@ -47,12 +49,14 @@ export class NodelImage extends HTMLElement {
     const size = normalizeSize(this.getAttribute('size'));
     const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
     const explicitAria = autoAria ? null : this.getAttribute('aria-label');
-    const hostLabel = explicitAria ?? label;
+    const sourceUnavailable = Boolean(authoredSrc && !src);
+    const hostLabel = (explicitAria ?? label) || (sourceUnavailable ? (alt ? `${alt} unavailable` : 'Image unavailable') : '');
     const hostLabelled = Boolean(hostLabel || this.getAttribute('aria-labelledby'));
 
     this.dataset.fit = fit;
     this.dataset.shape = shape;
     this.dataset.size = size;
+    this.dataset.sourceState = authoredSrc ? (src ? 'ready' : 'error') : 'empty';
 
     if (this.hasAttribute('aria-labelledby')) {
       this.setAttribute('role', 'img');

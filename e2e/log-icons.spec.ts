@@ -31,9 +31,7 @@ async function mountLogFixture(page: Page) {
       { seq: 5, source: 'remote', type: 'event', alias: 'RemoteSignal' },
       { seq: 6, source: 'unbound', type: 'event', alias: 'UnboundSignal' },
       { seq: 7, source: 'remote', type: 'actionBinding', alias: 'ActionBinding' },
-      { seq: 8, source: 'remote', type: 'eventBinding', alias: 'EventBinding' },
-      { seq: 9 },
-      { seq: 10, source: 'remote', type: 'unknown', alias: 'UnknownRemote' }
+      { seq: 8, source: 'remote', type: 'eventBinding', alias: 'EventBinding' }
     ];
     await route.fulfill({
       contentType: 'application/json',
@@ -54,7 +52,7 @@ async function mountLogFixture(page: Page) {
     const log = document.createElement('nodel-log');
     pageContent.appendChild(log);
   });
-  await expect(page.locator('nodel-log .nodel-log-row')).toHaveCount(10);
+  await expect(page.locator('nodel-log .nodel-log-row')).toHaveCount(8);
 }
 
 test.describe('log icon geometry', () => {
@@ -99,11 +97,7 @@ test.describe('log icon geometry', () => {
     expect(metrics.find((metric) => metric.primaryIcon === 'traffic-light' && metric.badgeIcon === 'arrow-right')?.badgeOverlapsPrimary).toBe(true);
     expect(metrics.find((metric) => metric.primaryIcon === 'person-running' && metric.badgeIcon === 'link')?.badgeOverlapsPrimary).toBe(true);
     expect(metrics.find((metric) => metric.primaryIcon === 'traffic-light' && metric.badgeIcon === 'link')?.badgeOverlapsPrimary).toBe(true);
-    expect(metrics.find((metric) => metric.ariaLabel === 'Activity' && metric.badgeIcon === 'arrow-right')?.primaryIcon).toBe('traffic-light');
-
     expect(metrics.map((metric) => metric.ariaLabel)).toEqual([
-      'Activity',
-      'Activity',
       'Remote signal binding status',
       'Remote action binding status',
       'Unbound signal',

@@ -1,5 +1,6 @@
 import { getNodeActivity } from '../api/nodel-host-client';
-import type { NodelActivityLogEntry, NodelActivityWebSocketMessage } from '../api/nodel-types';
+import type { NodelActivityLogEntry } from '../api/nodel-types';
+import { decodeActivityWebSocketMessage } from '../api/codecs/nodel-codecs';
 import { getNodePathName } from '../utils/node-name';
 import { createActivityAccumulator } from './activity-accumulator';
 import { reportConnectivityFailure } from './connectivity';
@@ -252,7 +253,8 @@ async function runPoll() {
 
 function handleWebSocketMessage(message: MessageEvent<string>) {
   try {
-    const data = JSON.parse(message.data) as NodelActivityWebSocketMessage;
+    const data = decodeActivityWebSocketMessage(JSON.parse(message.data) as unknown, 'WebSocket activity');
+    error = '';
     if (data.error) {
       error = data.error;
       emit(null);
@@ -280,8 +282,9 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
         live: true
       });
     }
-  } catch {
-    // ignore malformed socket payloads
+  } catch (caught) {
+    error = (caught instanceof Error ? caught.message : 'WebSocket activity returned invalid data').replace(/\s+/g, ' ').slice(0, 500);
+    emit(null);
   }
 }
 

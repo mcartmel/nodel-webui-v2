@@ -1,5 +1,6 @@
 import { installControlRuntime, type NodelControlSignalState } from '../src/data/control-runtime';
 import '../src/components/nodel-markdown';
+import { sanitizeHtml } from '../src/utils/markdown';
 import { flush } from './helpers';
 
 describe('nodel-markdown', () => {
@@ -38,6 +39,29 @@ describe('nodel-markdown', () => {
     expect(Array.from(component.querySelectorAll('a')).find((anchor) => anchor.textContent === 'Obfuscated')?.hasAttribute('href')).toBe(false);
     expect(component.querySelector('script')).toBeNull();
     expect(component.textContent).not.toContain('bad()');
+  });
+
+  it('adds opener protections to safe blank-target links', () => {
+    const output = document.createElement('div');
+    output.innerHTML = sanitizeHtml('<a href="https://example.test/docs" target="_blank" rel="external opener">External</a>');
+    const anchor = output.querySelector('a')!;
+
+    expect(anchor.getAttribute('href')).toBe('https://example.test/docs');
+    expect(anchor.getAttribute('target')).toBe('_blank');
+    expect(anchor.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('strips global styling classes and only keeps constrained code-language classes', async () => {
+    document.body.innerHTML = `<nodel-markdown value="&lt;span class='nodel-connectivity-backdrop fixed inset-0'&gt;Overlay&lt;/span&gt;&#10;&#10;&lt;code class='language-typescript'&gt;safe&lt;/code&gt;&#10;&#10;&lt;code class='nodel-panel language-js'&gt;mixed&lt;/code&gt;"></nodel-markdown>`;
+    await flush();
+    const component = document.querySelector('nodel-markdown')!;
+    const span = component.querySelector('span');
+    const codes = component.querySelectorAll('code');
+
+    expect(span?.textContent).toBe('Overlay');
+    expect(span?.hasAttribute('class')).toBe(false);
+    expect(codes[0].getAttribute('class')).toBe('language-typescript');
+    expect(codes[1].hasAttribute('class')).toBe(false);
   });
 
   it('uses constrained overflow tokens and a plain-text empty fallback', async () => {

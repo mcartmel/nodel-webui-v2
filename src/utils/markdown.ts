@@ -1,4 +1,5 @@
 import { Converter } from 'pagedown';
+import { safeMarkdownHref } from './urls';
 
 const converter = new Converter();
 
@@ -37,19 +38,14 @@ const allowedTags = new Set([
 
 const allowedAttributes = new Map<string, Set<string>>([
   ['a', new Set(['href', 'title', 'target', 'rel'])],
-  ['code', new Set(['class'])],
-  ['span', new Set(['class'])]
+  ['code', new Set(['class'])]
 ]);
 
 const removedTags = new Set(['iframe', 'object', 'script', 'style']);
 
-function isSafeUrl(value: string) {
-  try {
-    const url = new URL(value, window.location.href);
-    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:' || url.protocol === 'tel:';
-  } catch {
-    return false;
-  }
+function safeCodeClass(value: string) {
+  const classes = value.split(/\s+/).filter(Boolean);
+  return classes.length > 0 && classes.every((name) => /^language-[a-z0-9][a-z0-9_-]{0,49}$/i.test(name));
 }
 
 function sanitizeElement(element: Element) {
@@ -75,7 +71,12 @@ function sanitizeElement(element: Element) {
       continue;
     }
 
-    if ((name === 'href' || name === 'src') && !isSafeUrl(value)) {
+    if (name === 'href' && !safeMarkdownHref(value)) {
+      element.removeAttribute(attribute.name);
+      continue;
+    }
+
+    if (name === 'class' && (tagName !== 'code' || !safeCodeClass(value))) {
       element.removeAttribute(attribute.name);
       continue;
     }

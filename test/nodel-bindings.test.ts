@@ -383,7 +383,7 @@ describe('nodel-bindings', () => {
       { node: 'Lighting', address: 'http://lan-host/nodes/Lighting/', host: 'lan-host' }
     ]);
     bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
-      if (url === '/nodes/Lighting/') {
+      if (url === `${window.location.origin}/nodes/Lighting/`) {
         return { dim: { name: 'dim', title: 'Dim Level', group: 'Lighting' } };
       }
       throw new Error('Advertised URL should not be used for local lookup');
@@ -395,7 +395,7 @@ describe('nodel-bindings', () => {
     await setInputValue(targetInput, 'Dim');
     await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
 
-    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('/nodes/Lighting/');
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith(`${window.location.origin}/nodes/Lighting/`);
     expect(bindingsMock.searchNodeUrls).not.toHaveBeenCalled();
     expect(rows('actions')[0].textContent).toContain('Dim Level');
   });
@@ -408,7 +408,7 @@ describe('nodel-bindings', () => {
       { node: 'Lighting', address: 'http://lan-host/nodes/Lighting/', host: 'lan-host' }
     ]);
     bindingsMock.getRemoteNodeActions.mockImplementation(async (url: string) => {
-      if (url === '/nodes/Lighting/') {
+      if (url === `${window.location.origin}/nodes/Lighting/`) {
         return { dim: { name: 'dim', title: 'Dim Level' } };
       }
       throw new Error('LAN address is unreachable from this browser');
@@ -425,7 +425,7 @@ describe('nodel-bindings', () => {
     await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
     await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
 
-    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('/nodes/Lighting/');
+    expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith(`${window.location.origin}/nodes/Lighting/`);
     expect(bindingsMock.getRemoteNodeActions).not.toHaveBeenCalledWith('http://lan-host/nodes/Lighting/');
   });
 
