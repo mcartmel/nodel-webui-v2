@@ -1,11 +1,12 @@
 import { flush, waitFor } from './helpers';
+import type { NodelFileEntry } from '../src/api/nodel-types';
 
 const editorApiMock = vi.hoisted(() => ({
   files: [
     { path: 'content/index.html' },
-    { path: 'image.png' },
+    { path: 'image.png', size: 3 },
     { path: 'script.py' }
-  ],
+  ] as NodelFileEntry[],
   contents: new Map<string, string>([
     ['script.py', 'print("hello")'],
     ['content/index.html', '<nodel-app></nodel-app>']
@@ -50,6 +51,15 @@ import '../src/components/nodel-editor';
 describe('nodel-editor', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    editorApiMock.files = [
+      { path: 'content/index.html' },
+      { path: 'image.png', size: 3 },
+      { path: 'script.py' }
+    ];
+    editorApiMock.contents = new Map<string, string>([
+      ['script.py', 'print("hello")'],
+      ['content/index.html', '<nodel-app></nodel-app>']
+    ]);
     editorApiMock.listNodeFiles.mockImplementation(async () => editorApiMock.files);
     editorApiMock.getNodeFileContents.mockImplementation(async (path: string) => editorApiMock.contents.get(path) ?? '');
     editorApiMock.saveNodeFile.mockResolvedValue('');
@@ -103,6 +113,27 @@ describe('nodel-editor', () => {
     return file;
   }
 
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((nextResolve, nextReject) => {
+      resolve = nextResolve;
+      reject = nextReject;
+    });
+    return { promise, reject, resolve };
+  }
+
+  function handleConfirmations(element: Element, decisions: boolean[] = [true]) {
+    const requests: Array<{ title?: string; text?: string; trigger?: Element | null }> = [];
+    element.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      const detail = (event as CustomEvent<{ title?: string; text?: string; trigger?: Element | null; resolve: (confirmed: boolean) => void }>).detail;
+      requests.push(detail);
+      detail.resolve(decisions.shift() ?? false);
+    });
+    return requests;
+  }
+
   it('renders linked file dropdown and opens script.py by default', async () => {
     await mountEditor();
 
@@ -116,7 +147,7 @@ describe('nodel-editor', () => {
     const status = document.querySelector<HTMLElement>('.nodel-editor-body > .nodel-editor-status');
     expect(status).toBeTruthy();
     expect(status?.hidden).toBe(true);
-    expect(editorApiMock.getNodeFileContents).toHaveBeenCalledWith('script.py', expect.any(Object));
+    expect(editorApiMock.getNodeFileContents).toHaveBeenCalledWith('script.py', expect.any(Object), 1024 * 1024);
     expect(codeEditorMock.instance.setDocument).toHaveBeenCalledWith('print("hello")', 'script.py');
     expect(document.querySelector('[data-editor-file-picker] option')?.hasAttribute('data-file-path')).toBe(false);
   });
@@ -186,12 +217,14 @@ describe('nodel-editor', () => {
 
   it('routes dropped binary files through the same binary upload path', async () => {
     const element = await mountEditor();
+    const confirmations = handleConfirmations(element);
     const file = new File([new Uint8Array([1, 2, 3])], 'image.png', { type: 'image/png' });
     dispatchFileDrag(element, 'drop', [file]);
     await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
     expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('image.png', file, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(confirmations[0]).toMatchObject({ title: 'Overwrite existing file?' });
   });
 
   it('rejects multiple dropped files without navigating or selecting one', async () => {
@@ -231,21 +264,20 @@ describe('nodel-editor', () => {
     expect(target.hidden).toBe(true);
   });
 
-  it('uses the dirty-state confirmation before staging a dropped upload', async () => {
+  it('creates a staged upload without discarding the dirty document', async () => {
     const element = await mountEditor();
     codeEditorMock.currentDoc = 'print("dirty")';
     codeEditorMock.options?.onChange?.('print("dirty")');
     await flush();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirmations = handleConfirmations(element);
 
-    dispatchFileDrag(element, 'drop', [new File(['next'], 'next.txt')]);
+    dispatchFileDrag(element, 'drop', [textFile('next', 'next.txt')]);
     await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
-    expect(confirm).not.toHaveBeenCalled();
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
-    await flush();
-    expect(confirm).toHaveBeenCalledWith('Discard unsaved changes?');
-    expect(document.querySelector('[data-editor-add-path]')).not.toBeNull();
-    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(confirmations).toHaveLength(0);
+    expect(codeEditorMock.currentDoc).toBe('print("dirty")');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
   });
 
   it('keeps the accessible upload input and stages its selected file', async () => {
@@ -278,10 +310,11 @@ describe('nodel-editor', () => {
   });
 
   it('opens binary files as read-only and protects script.py deletion', async () => {
-    await mountEditor();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const editor = await mountEditor();
+    const confirmations = handleConfirmations(editor);
 
     const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.focus();
     picker.value = 'image.png';
     picker.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => codeEditorMock.instance.setDocument.mock.calls.some((call) => call[1] === 'image.png'));
@@ -293,9 +326,11 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
     await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
     expect(editorApiMock.deleteNodeFile).toHaveBeenCalledWith('image.png', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(confirmations[0]).toMatchObject({ title: 'Delete file?' });
 
     await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'script.py'));
-    document.querySelector<HTMLButtonElement>('[data-editor-default]')?.click();
+    picker.value = 'script.py';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
     await flush();
     document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
     await flush();
@@ -365,5 +400,757 @@ describe('nodel-editor', () => {
     expect(editor.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
     expect(editor.querySelector<HTMLButtonElement>('[data-editor-delete]')?.disabled).toBe(true);
     expect(editor.querySelector<HTMLSelectElement>('[data-editor-file-picker]')?.value).toBe('');
+  });
+
+  it('keeps newer edits dirty and visible when an older save resolves', async () => {
+    const pendingSave = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingSave.promise);
+    await mountEditor();
+    codeEditorMock.currentDoc = 'print("snapshot")';
+    codeEditorMock.options?.onChange?.('print("snapshot")');
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    codeEditorMock.currentDoc = 'print("newer")';
+    codeEditorMock.options?.onChange?.('print("newer")');
+    pendingSave.resolve('');
+    await waitFor(() => document.body.textContent?.includes('newer edits remain unsaved') ?? false);
+
+    expect(codeEditorMock.currentDoc).toBe('print("newer")');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+    expect(editorApiMock.getNodeFileContents).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let a late save for file A mutate file B', async () => {
+    const pendingSave = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingSave.promise);
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    codeEditorMock.currentDoc = 'print("snapshot")';
+    codeEditorMock.options?.onChange?.('print("snapshot")');
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/index.html';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === '<nodel-app></nodel-app>');
+    pendingSave.resolve('');
+    await flush();
+
+    expect(picker.value).toBe('content/index.html');
+    expect(codeEditorMock.currentDoc).toBe('<nodel-app></nodel-app>');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+  });
+
+  it('requires explicit overwrite confirmation for canonical existing paths', async () => {
+    const editor = await mountEditor();
+    let resolveOverwrite!: (confirmed: boolean) => void;
+    const requests: Array<{ title?: string; resolve: (confirmed: boolean) => void }> = [];
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      const detail = (event as CustomEvent<{ title?: string; resolve: (confirmed: boolean) => void }>).detail;
+      requests.push(detail);
+      resolveOverwrite = detail.resolve;
+    });
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'Content/Index.HTML';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flush();
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => requests.length === 1);
+
+    expect(requests[0].title).toBe('Overwrite existing file?');
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    resolveOverwrite(false);
+    await flush();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    expect(document.querySelector<HTMLInputElement>('[data-editor-add-path]')?.value).toBe('Content/Index.HTML');
+  });
+
+  it('does not read an upload before accepted overwrite confirmation', async () => {
+    const editor = await mountEditor();
+    let resolveOverwrite!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveOverwrite = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    const upload = textFile('replacement', 'index.html', 'text/html');
+    dispatchFileDrag(editor, 'drop', [upload]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/index.html';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => typeof resolveOverwrite === 'function');
+    expect(upload.text).not.toHaveBeenCalled();
+    resolveOverwrite(true);
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(upload.text).toHaveBeenCalledOnce();
+    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('content/index.html');
+  });
+
+  it('rejects oversized local files before reading or saving them', async () => {
+    const editor = await mountEditor();
+    const textUpload = textFile('large', 'large.txt');
+    Object.defineProperty(textUpload, 'size', { value: 1024 * 1024 + 1 });
+    dispatchFileDrag(editor, 'drop', [textUpload]);
+    await flush();
+    expect(textUpload.text).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('1 MiB upload limit');
+
+    const binaryUpload = new File(['binary'], 'large.zip');
+    Object.defineProperty(binaryUpload, 'size', { value: 8 * 1024 * 1024 + 1 });
+    dispatchFileDrag(editor, 'drop', [binaryUpload]);
+    await flush();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('8 MiB upload limit');
+  });
+
+  it('does not download a listed text file above the edit limit', async () => {
+    editorApiMock.files = [{ path: 'script.py', size: 1024 * 1024 + 1 }];
+    await mountEditor();
+
+    expect(editorApiMock.getNodeFileContents).not.toHaveBeenCalled();
+    expect(codeEditorMock.currentDoc).toBe('File is too large to edit in the browser.');
+    expect(document.body.textContent).toContain('download or manage it externally');
+    expect(document.querySelector('[data-editor-file-picker] option')?.textContent).toContain('2 MiB');
+  });
+
+  it('registers the dirty unload guard and removes it after save and disconnect', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("dirty")';
+    codeEditorMock.options?.onChange?.('print("dirty")');
+    const dirtyEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirtyEvent);
+    expect(dirtyEvent.defaultPrevented).toBe(true);
+
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editor.getAttribute('data-state') === 'ready');
+    const cleanEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(cleanEvent);
+    expect(cleanEvent.defaultPrevented).toBe(false);
+
+    codeEditorMock.currentDoc = 'print("dirty again")';
+    codeEditorMock.options?.onChange?.('print("dirty again")');
+    editor.remove();
+    const disconnectedEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(disconnectedEvent);
+    expect(disconnectedEvent.defaultPrevented).toBe(false);
+  });
+
+  it('refuses to save when modified metadata or server content changed', async () => {
+    editorApiMock.files = [
+      { path: 'script.py', modified: '2026-01-01T00:00:00.000Z' },
+      { path: 'content/index.html' },
+      { path: 'image.png' }
+    ];
+    await mountEditor();
+    codeEditorMock.currentDoc = 'print("local")';
+    codeEditorMock.options?.onChange?.('print("local")');
+    editorApiMock.files = editorApiMock.files.map((file) => file.path === 'script.py'
+      ? { ...file, modified: '2026-01-01T00:00:01.000Z' }
+      : file);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => document.body.textContent?.includes('changed on the node') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+
+    editorApiMock.files = editorApiMock.files.map((file) => file.path === 'script.py'
+      ? { ...file, modified: '2026-01-01T00:00:00.000Z' }
+      : file);
+    editorApiMock.contents.set('script.py', 'print("remote")');
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.length >= 2);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('applies only the latest file open when requests resolve out of order', async () => {
+    const firstOpen = deferred<string>();
+    const secondOpen = deferred<string>();
+    const editor = await mountEditor();
+    editorApiMock.files = [
+      ...editorApiMock.files,
+      { path: 'content/a.txt' },
+      { path: 'content/b.txt' }
+    ];
+    await (editor as any).refreshAfterRestart();
+    editorApiMock.getNodeFileContents.mockImplementation((path: string) => {
+      if (path === 'content/a.txt') return firstOpen.promise;
+      if (path === 'content/b.txt') return secondOpen.promise;
+      return Promise.resolve(editorApiMock.contents.get(path) ?? '');
+    });
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/a.txt';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    picker.value = 'content/b.txt';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    secondOpen.resolve('current B');
+    await waitFor(() => codeEditorMock.currentDoc === 'current B');
+    firstOpen.resolve('stale A');
+    await flush();
+
+    expect(codeEditorMock.currentDoc).toBe('current B');
+    expect(picker.value).toBe('content/b.txt');
+  });
+
+  it('does not let late delete completion clear a newer document', async () => {
+    const pendingDelete = deferred<unknown>();
+    editorApiMock.deleteNodeFile.mockImplementationOnce(() => pendingDelete.promise);
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
+
+    picker.value = 'script.py';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'print("hello")');
+    pendingDelete.resolve('');
+    await flush();
+
+    expect(codeEditorMock.currentDoc).toBe('print("hello")');
+    expect(picker.value).toBe('script.py');
+  });
+
+  it('uses shared confirmation before discarding a dirty document', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("dirty")';
+    codeEditorMock.options?.onChange?.('print("dirty")');
+    let resolveDiscard!: (confirmed: boolean) => void;
+    let request: { title?: string; text?: string; trigger?: Element | null } | null = null;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      const detail = (event as CustomEvent<{ title?: string; text?: string; trigger?: Element | null; resolve: (confirmed: boolean) => void }>).detail;
+      request = detail;
+      resolveDiscard = detail.resolve;
+    });
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.focus();
+    picker.value = 'content/index.html';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => request !== null);
+
+    expect(request).toMatchObject({
+      title: 'Discard unsaved changes?',
+      text: 'Discard unsaved changes to script.py?',
+      trigger: picker
+    });
+    expect(editorApiMock.getNodeFileContents.mock.calls.filter((call) => call[0] === 'content/index.html')).toHaveLength(0);
+    resolveDiscard(false);
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(picker.value).toBe('script.py');
+    expect(codeEditorMock.currentDoc).toBe('print("dirty")');
+    expect(document.activeElement).toBe(picker);
+  });
+
+  it('cancels delete through the shared confirmation without an API call', async () => {
+    const editor = await mountEditor();
+    handleConfirmations(editor, [false]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await flush();
+    expect(editorApiMock.deleteNodeFile).not.toHaveBeenCalled();
+    expect(picker.value).toBe('image.png');
+  });
+
+  it('suppresses an abort-insensitive open completion after disconnect', async () => {
+    const pendingOpen = deferred<string>();
+    const editor = await mountEditor();
+    editorApiMock.files = [...editorApiMock.files, { path: 'content/pending.txt' }];
+    await (editor as any).refreshAfterRestart();
+    editorApiMock.getNodeFileContents.mockImplementation((path: string) => path === 'content/pending.txt'
+      ? pendingOpen.promise
+      : Promise.resolve(editorApiMock.contents.get(path) ?? ''));
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/pending.txt';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'content/pending.txt'));
+    editor.remove();
+    pendingOpen.resolve('stale open');
+    await flush();
+    expect(codeEditorMock.instance.setDocument).not.toHaveBeenCalledWith('stale open', 'content/pending.txt');
+  });
+
+  it('suppresses abort-insensitive save, create, and delete completions after disconnect', async () => {
+    const pendingSave = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingSave.promise);
+    const editor = await mountEditor();
+    const saved = vi.fn();
+    editor.addEventListener('nodel-editor-file-saved', saved);
+    codeEditorMock.currentDoc = 'print("pending")';
+    codeEditorMock.options?.onChange?.('print("pending")');
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    editor.remove();
+    pendingSave.resolve('');
+    await flush();
+    expect(saved).not.toHaveBeenCalled();
+
+    document.body.append(editor);
+    await waitFor(() => (editor as any).linked === true);
+    const pendingCreate = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingCreate.promise);
+    const created = vi.fn();
+    editor.addEventListener('nodel-editor-file-created', created);
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const pathInput = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    pathInput.value = 'content/pending.txt';
+    pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 2);
+    editor.remove();
+    pendingCreate.resolve('');
+    await flush();
+    expect(created).not.toHaveBeenCalled();
+
+    document.body.append(editor);
+    await waitFor(() => (editor as any).linked === true);
+    const pendingDelete = deferred<unknown>();
+    editorApiMock.deleteNodeFile.mockImplementationOnce(() => pendingDelete.promise);
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
+    const deleted = vi.fn();
+    editor.addEventListener('nodel-editor-file-deleted', deleted);
+    editor.remove();
+    pendingDelete.resolve('');
+    await flush();
+    expect(deleted).not.toHaveBeenCalled();
+  });
+
+  it('does not discard edits made while refresh confirmation is pending', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("first dirty")';
+    codeEditorMock.options?.onChange?.('print("first dirty")');
+    let resolveDiscard!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveDiscard = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    const initialLists = editorApiMock.listNodeFiles.mock.calls.length;
+    document.querySelector<HTMLButtonElement>('[data-editor-refresh]')?.click();
+    await waitFor(() => typeof resolveDiscard === 'function');
+    codeEditorMock.currentDoc = 'print("newer dirty")';
+    codeEditorMock.options?.onChange?.('print("newer dirty")');
+    resolveDiscard(true);
+    await flush();
+
+    expect(editorApiMock.listNodeFiles).toHaveBeenCalledTimes(initialLists);
+    expect(codeEditorMock.currentDoc).toBe('print("newer dirty")');
+  });
+
+  it('revalidates overwrite metadata after confirmation', async () => {
+    editorApiMock.files = [
+      { path: 'script.py' },
+      { path: 'content/index.html', modified: '2026-01-01T00:00:00.000Z' },
+      { path: 'image.png' }
+    ];
+    const editor = await mountEditor();
+    let resolveOverwrite!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveOverwrite = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const pathInput = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    pathInput.value = 'Content/Index.HTML';
+    pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => typeof resolveOverwrite === 'function');
+    editorApiMock.files = editorApiMock.files.map((file) => file.path === 'content/index.html'
+      ? { ...file, modified: '2026-01-01T00:00:01.000Z' }
+      : file);
+    resolveOverwrite(true);
+    await waitFor(() => document.body.textContent?.includes('changed while overwrite confirmation was pending') ?? false);
+
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite a file created after the initial create check', async () => {
+    const editor = await mountEditor();
+    const initialFiles = [...editorApiMock.files];
+    editorApiMock.listNodeFiles
+      .mockResolvedValueOnce(initialFiles)
+      .mockResolvedValueOnce([...initialFiles, { path: 'content/new.txt' }]);
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const pathInput = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    pathInput.value = 'content/new.txt';
+    pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => document.body.textContent?.includes('was created on the node') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('revalidates delete metadata after confirmation', async () => {
+    editorApiMock.files = [
+      { path: 'script.py' },
+      { path: 'content/index.html' },
+      { path: 'image.png', modified: '2026-01-01T00:00:00.000Z' }
+    ];
+    const editor = await mountEditor();
+    let resolveDelete!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveDelete = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => typeof resolveDelete === 'function');
+    editorApiMock.files = editorApiMock.files.map((file) => file.path === 'image.png'
+      ? { ...file, modified: '2026-01-01T00:00:01.000Z' }
+      : file);
+    resolveDelete(true);
+    await waitFor(() => document.body.textContent?.includes('changed on the node') ?? false);
+    expect(editorApiMock.deleteNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('blocks keyboard save during delete and preserves later edits as dirty', async () => {
+    const pendingDelete = deferred<unknown>();
+    editorApiMock.deleteNodeFile.mockImplementationOnce(() => pendingDelete.promise);
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/index.html';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === '<nodel-app></nodel-app>');
+    codeEditorMock.currentDoc = '<nodel-app>dirty</nodel-app>';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
+    codeEditorMock.options?.onSave?.();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    codeEditorMock.currentDoc = '<nodel-app>newer</nodel-app>';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    pendingDelete.resolve('');
+    await waitFor(() => document.body.textContent?.includes('remains open and unsaved') ?? false);
+
+    expect(codeEditorMock.currentDoc).toBe('<nodel-app>newer</nodel-app>');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+  });
+
+  it('rejects normal editor saves above the text upload limit', async () => {
+    await mountEditor();
+    codeEditorMock.currentDoc = 'x'.repeat(1024 * 1024 + 1);
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => document.body.textContent?.includes('text-upload limit') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps mixed-case script aliases read-only and undeletable', async () => {
+    editorApiMock.files = [...editorApiMock.files, { path: 'Script.py' }];
+    const editor = await mountEditor();
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'Script.py';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Case-only script.py aliases are read-only in the browser editor.');
+
+    expect(editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'Script.py')).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.disabled).toBe(true);
+    expect(editor.textContent).toContain('cannot be edited safely');
+  });
+
+  it('targets the listed script.py spelling when a create alias is explicitly overwritten', async () => {
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'SCRIPT.PY';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+  });
+
+  it('uses literal identity when normalization-distinct legacy files coexist', async () => {
+    const composed = 'content/caf\u00e9.txt';
+    const decomposed = 'content/cafe\u0301.txt';
+    editorApiMock.files = [...editorApiMock.files, { path: composed }, { path: decomposed }];
+    editorApiMock.contents.set(composed, 'composed');
+    editorApiMock.contents.set(decomposed, 'decomposed');
+    await mountEditor();
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = decomposed;
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'decomposed');
+
+    expect(editorApiMock.getNodeFileContents).toHaveBeenCalledWith(decomposed, expect.any(Object), 1024 * 1024);
+    expect(picker.value).toBe(decomposed);
+  });
+
+  it('rechecks metadata-free text content after overwrite confirmation', async () => {
+    const editor = await mountEditor();
+    let resolveOverwrite!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveOverwrite = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    const upload = textFile('replacement', 'index.html');
+    dispatchFileDrag(editor, 'drop', [upload]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/index.html';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => typeof resolveOverwrite === 'function');
+    editorApiMock.contents.set('content/index.html', 'changed during confirmation');
+    resolveOverwrite(true);
+    await waitFor(() => document.body.textContent?.includes('changed while overwrite confirmation was pending') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('guards staged upload work from page unload', async () => {
+    const editor = await mountEditor();
+    dispatchFileDrag(editor, 'drop', [textFile('staged', 'staged.txt')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const stagedEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(stagedEvent);
+    expect(stagedEvent.defaultPrevented).toBe(true);
+
+    document.querySelector<HTMLButtonElement>('[data-editor-cancel-add]')?.click();
+    const cancelledEvent = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(cancelledEvent);
+    expect(cancelledEvent.defaultPrevented).toBe(false);
+  });
+
+  it('marks an open buffer dirty when refresh finds its remote file removed', async () => {
+    const editor = await mountEditor();
+    editorApiMock.files = editorApiMock.files.filter((file) => file.path !== 'script.py');
+    await (editor as any).refreshAfterRestart();
+
+    expect(document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')?.value).toBe('script.py');
+    expect(document.querySelector('[data-editor-file-picker] option:checked')?.textContent).toContain('local buffer');
+    expect(codeEditorMock.currentDoc).toBe('print("hello")');
+    expect(editor.textContent).toContain('local buffer remains unsaved');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+  });
+
+  it('blocks keyboard save while a file open is pending', async () => {
+    const pendingOpen = deferred<string>();
+    const editor = await mountEditor();
+    editorApiMock.getNodeFileContents.mockImplementation((path: string) => path === 'content/index.html'
+      ? pendingOpen.promise
+      : Promise.resolve(editorApiMock.contents.get(path) ?? ''));
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/index.html';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'content/index.html'));
+    codeEditorMock.currentDoc = 'print("dirty during open")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    codeEditorMock.options?.onSave?.();
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    pendingOpen.resolve('<nodel-app></nodel-app>');
+    await flush();
+    expect(editor.textContent).toContain('newer local edits remain');
+  });
+
+  it('does not update one legacy alias baseline when overwriting its sibling', async () => {
+    editorApiMock.files = [...editorApiMock.files, { path: 'content/Foo.txt' }, { path: 'content/foo.txt' }];
+    editorApiMock.contents.set('content/Foo.txt', 'upper');
+    editorApiMock.contents.set('content/foo.txt', 'lower');
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/Foo.txt';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'upper');
+    codeEditorMock.currentDoc = 'replacement';
+    codeEditorMock.options?.onChange?.('replacement');
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/foo.txt';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('content/foo.txt');
+    expect(codeEditorMock.currentDoc).toBe('replacement');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+  });
+
+  it('invalidates a pending open when refresh preserves a removed local buffer', async () => {
+    const pendingOpen = deferred<string>();
+    const editor = await mountEditor();
+    editorApiMock.files = [...editorApiMock.files, { path: 'content/pending.txt' }];
+    await (editor as any).refreshAfterRestart();
+    editorApiMock.getNodeFileContents.mockImplementation((path: string) => path === 'content/pending.txt'
+      ? pendingOpen.promise
+      : Promise.resolve(editorApiMock.contents.get(path) ?? ''));
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/pending.txt';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'content/pending.txt'));
+    editorApiMock.files = editorApiMock.files.filter((file) => file.path !== 'script.py');
+    await (editor as any).refreshAfterRestart();
+    pendingOpen.resolve('late pending file');
+    await flush();
+
+    expect(codeEditorMock.currentDoc).toBe('print("hello")');
+    expect(editor.textContent).toContain('local buffer remains unsaved');
+  });
+
+  it('uses content checks after a successful save whose metadata refresh failed', async () => {
+    editorApiMock.files = [
+      { path: 'script.py', modified: '2026-01-01T00:00:00.000Z' },
+      { path: 'content/index.html' },
+      { path: 'image.png' }
+    ];
+    const editor = await mountEditor();
+    editorApiMock.listNodeFiles
+      .mockResolvedValueOnce(editorApiMock.files)
+      .mockRejectedValueOnce(new Error('metadata refresh failed'));
+    editorApiMock.saveNodeFile.mockImplementation(async (path: string, content: string) => {
+      editorApiMock.contents.set(path, content);
+      editorApiMock.files = editorApiMock.files.map((file) => file.path === path
+        ? { ...file, modified: '2026-01-01T00:00:01.000Z' }
+        : file);
+      return '';
+    });
+    codeEditorMock.currentDoc = 'print("first save")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    await waitFor(() => editor.textContent?.includes('metadata refresh failed') ?? false);
+
+    codeEditorMock.currentDoc = 'print("second save")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 2);
+    expect(editorApiMock.saveNodeFile.mock.calls[1][1]).toBe('print("second save")');
+  });
+
+  it('revalidates metadata-free binary size after delete confirmation', async () => {
+    editorApiMock.files = [
+      { path: 'script.py' },
+      { path: 'image.png', size: 3 }
+    ];
+    const editor = await mountEditor();
+    let resolveDelete!: (confirmed: boolean) => void;
+    editor.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      resolveDelete = (event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve;
+    });
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => typeof resolveDelete === 'function');
+    editorApiMock.files = editorApiMock.files.map((file) => file.path === 'image.png' ? { ...file, size: 4 } : file);
+    resolveDelete(true);
+    await waitFor(() => editor.textContent?.includes('changed on the node') ?? false);
+    expect(editorApiMock.deleteNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('recreates a removed file from its preserved local buffer after confirmation', async () => {
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    editorApiMock.files = editorApiMock.files.filter((file) => file.path !== 'script.py');
+    await (editor as any).refreshAfterRestart();
+    editorApiMock.saveNodeFile.mockImplementationOnce(async (path: string, content: string) => {
+      editorApiMock.contents.set(path, content);
+      editorApiMock.files = [...editorApiMock.files, { path }];
+      return '';
+    });
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+    expect(codeEditorMock.currentDoc).toBe('print("hello")');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+  });
+
+  it('keeps create and delete success visible and restores safe focus', async () => {
+    const editor = await mountEditor();
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/success.txt';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    expect(document.querySelector<HTMLElement>('.nodel-editor-status')?.hidden).toBe(false);
+    expect(editor.textContent).toContain('Created content/success.txt.');
+
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => editorApiMock.deleteNodeFile.mock.calls.length === 1);
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(editor.textContent).toContain('Deleted image.png.');
+    expect(document.querySelector<HTMLElement>('.nodel-editor-status')?.hidden).toBe(false);
+    expect(document.activeElement).toBe(picker);
+  });
+
+  it('blocks overwrite of a listed mixed-case script alias', async () => {
+    editorApiMock.files = [{ path: 'Script.py', modified: '2026-01-01T00:00:00.000Z' }];
+    document.body.innerHTML = '<nodel-editor></nodel-editor>';
+    await waitFor(() => codeEditorMock.instance.setDocument.mock.calls.some((call) => call[1] === 'Script.py'));
+    const editor = document.querySelector('nodel-editor')!;
+    document.querySelector<HTMLButtonElement>('[data-editor-default]')?.click();
+    await flush();
+    expect(editorApiMock.getNodeFileContents.mock.calls.some((call) => call[0] === 'script.py')).toBe(false);
+    expect(codeEditorMock.currentDoc).toBe('Case-only script.py aliases are read-only in the browser editor.');
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'SCRIPT.PY';
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editor.textContent?.includes('cannot be overwritten safely') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('blocks metadata-free binary overwrite and delete', async () => {
+    editorApiMock.files = [{ path: 'script.py' }, { path: 'image.png' }];
+    const editor = await mountEditor();
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'image.png';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === 'Binary file - preview not available.');
+    document.querySelector<HTMLButtonElement>('[data-editor-delete]')?.click();
+    await waitFor(() => editor.textContent?.includes('no metadata for safe delete verification') ?? false);
+    expect(editorApiMock.deleteNodeFile).not.toHaveBeenCalled();
+
+    dispatchFileDrag(editor, 'drop', [new File(['replacement'], 'image.png')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editor.textContent?.includes('no metadata for safe overwrite verification') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+  });
+
+  it('enforces the text upload limit after decoding', async () => {
+    const editor = await mountEditor();
+    const upload = textFile('x'.repeat(1024 * 1024 + 1), 'expanded.txt');
+    Object.defineProperty(upload, 'size', { value: 1 });
+    dispatchFileDrag(editor, 'drop', [upload]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editor.textContent?.includes('text-upload limit after decoding') ?? false);
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
   });
 });

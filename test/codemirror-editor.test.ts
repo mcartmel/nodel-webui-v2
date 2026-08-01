@@ -54,6 +54,19 @@ describe('codemirror editor theme', () => {
     expect(highlighted).toEqual([]);
   });
 
+  it('uses strict JSON syntax rather than JavaScript syntax', async () => {
+    const valid = EditorState.create({ doc: '{"value": true}', extensions: [await languageExtensionForPath('settings.json')] });
+    const invalid = EditorState.create({ doc: "{value: 'yes'}", extensions: [await languageExtensionForPath('settings.json')] });
+    const validTree = ensureSyntaxTree(valid, valid.doc.length, 1000)!;
+    const invalidTree = ensureSyntaxTree(invalid, invalid.doc.length, 1000)!;
+    let validErrors = 0;
+    let invalidErrors = 0;
+    validTree.iterate({ enter: (node) => { if (node.type.isError) validErrors += 1; } });
+    invalidTree.iterate({ enter: (node) => { if (node.type.isError) invalidErrors += 1; } });
+    expect(validErrors).toBe(0);
+    expect(invalidErrors).toBeGreaterThan(0);
+  });
+
   it('does not let a stale asynchronous language load replace a newer plain document', async () => {
     const getClientRects = Object.getOwnPropertyDescriptor(Range.prototype, 'getClientRects');
     Object.defineProperty(Range.prototype, 'getClientRects', { configurable: true, value: () => [] });

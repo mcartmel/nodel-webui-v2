@@ -48,6 +48,7 @@ import type {
   NodelSignalDefinition,
   NodelToolkitResponse
 } from './nodel-types';
+import { MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
 
 export interface NodelReachabilityResult {
   host: string;
@@ -399,14 +400,61 @@ export async function listCustomUiEntries(init?: RequestInit): Promise<NodelCust
   return customUiEntriesFromFiles(await listNodeFiles(init));
 }
 
-export async function getNodeFileContents(path: string, init?: RequestInit): Promise<string> {
+async function readBoundedText(response: Response, path: string, maxBytes: number) {
+  const contentLengthHeader = response.headers.get('Content-Length');
+  const contentLength = contentLengthHeader === null ? undefined : Number(contentLengthHeader);
+  if (contentLength !== undefined && Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new NodeFileTooLargeError(path, maxBytes);
+  }
+
+  if (!response.body) {
+    if (contentLength === undefined || !Number.isFinite(contentLength)) {
+      throw new Error(`Cannot safely read ${path} without streaming or Content-Length`);
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new NodeFileTooLargeError(path, maxBytes);
+    }
+    return decodeNodeFileText(bytes, path);
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new NodeFileTooLargeError(path, maxBytes);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return decodeNodeFileText(bytes, path);
+}
+
+export async function getNodeFileContents(path: string, init?: RequestInit, maxBytes = MAX_NODE_TEXT_EDIT_BYTES): Promise<string> {
   assertSafeNodeFilePath(path);
   return runWithDeadline(async (signal) => {
     const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeURIComponent(path)}`, { ...init, signal });
     if (!response.ok) {
       throw await responseError(response);
     }
-    return response.text();
+    return readBoundedText(response, path, maxBytes);
   }, init?.signal, FILE_REQUEST_TIMEOUT_MS);
 }
 
@@ -642,5 +690,12 @@ export async function checkHostReachable(host: string, timeoutMs = 3000, signal?
     return { host, reachable: response.ok || response.type === 'opaque' };
   } catch {
     return { host, reachable: false };
+  }
+}
+function decodeNodeFileText(bytes: Uint8Array, path: string) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    throw new Error(`${path} is not valid UTF-8 text`);
   }
 }

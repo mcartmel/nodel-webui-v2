@@ -43,6 +43,8 @@ function normalizeTone(tone: NodelConfirmRequest['tone']): NodelToastTone {
 export class NodelConfirmHost extends HTMLElement {
   private state: ConfirmState | null = null;
   private codeSignalSubscription: { dispose(): void } | null = null;
+  private requestSignal: AbortSignal | null = null;
+  private requestAbort: (() => void) | null = null;
 
   connectedCallback() {
     this.classList.add('nodel-confirm-host');
@@ -59,6 +61,10 @@ export class NodelConfirmHost extends HTMLElement {
 
   confirm(detail: NodelConfirmDetail, trigger: Element | null = document.activeElement): void {
     this.resolve(false);
+    if (detail.signal?.aborted) {
+      detail.resolve(false);
+      return;
+    }
     this.state = {
       title: detail.title?.trim() || 'Confirm action',
       text: detail.text?.trim() || 'Continue?',
@@ -73,6 +79,11 @@ export class NodelConfirmHost extends HTMLElement {
       resolve: detail.resolve,
       trigger
     };
+    if (detail.signal) {
+      this.requestSignal = detail.signal;
+      this.requestAbort = () => this.resolve(false);
+      detail.signal.addEventListener('abort', this.requestAbort, { once: true });
+    }
     this.render();
     if (this.state.mode === 'code') {
       this.subscribeCodeSignal();
@@ -88,6 +99,11 @@ export class NodelConfirmHost extends HTMLElement {
 
     this.codeSignalSubscription?.dispose();
     this.codeSignalSubscription = null;
+    if (this.requestSignal && this.requestAbort) {
+      this.requestSignal.removeEventListener('abort', this.requestAbort);
+    }
+    this.requestSignal = null;
+    this.requestAbort = null;
     this.state = null;
     this.hidden = true;
     this.innerHTML = '';
@@ -320,8 +336,10 @@ export class NodelConfirmHost extends HTMLElement {
 
   private focusInitialControl() {
     const selector = this.state?.mode === 'code'
-      ? '[data-confirm-code-digit="1"]:not(:disabled), [data-confirm-action="cancel"]'
-      : '[data-confirm-action="confirm"]';
+      ? '[data-confirm-code-digit="1"]:not(:disabled), button[data-confirm-action="cancel"]'
+      : this.state?.tone === 'danger'
+        ? 'button[data-confirm-action="cancel"]'
+        : '[data-confirm-action="confirm"]';
     this.querySelector<HTMLButtonElement>(selector)?.focus();
   }
 

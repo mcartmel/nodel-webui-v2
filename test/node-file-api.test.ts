@@ -10,6 +10,7 @@ import {
   saveNodeFile
 } from '../src/api/nodel-host-client';
 import { isBinaryFile, isEditableFile, languageKindForPath, validateNodeFilePath } from '../src/editor/file-types';
+import { MAX_NODE_FILE_PATH_LENGTH, canonicalNodeFilePath, portableNodeFilePathKey } from '../src/utils/node-file-path';
 
 describe('node file api and utilities', () => {
   beforeEach(() => {
@@ -106,10 +107,23 @@ describe('node file api and utilities', () => {
     expect(validateNodeFilePath('')).toContain('required');
     expect(validateNodeFilePath('/absolute.py')).toContain('relative');
     expect(validateNodeFilePath('../secret.py')).toContain('parent-directory');
-    expect(validateNodeFilePath('content/./secret.py')).toContain('unsupported');
+    expect(validateNodeFilePath('content/./secret.py')).toContain('current-directory');
     expect(validateNodeFilePath('content/line\nbreak.py')).toContain('unsupported');
     expect(validateNodeFilePath('C:/outside.py')).toContain('unsupported');
     expect(validateNodeFilePath('content/script.py:stream')).toContain('unsupported');
+    expect(validateNodeFilePath(' content/index.html')).toContain('whitespace');
+    expect(validateNodeFilePath('content/index.html ')).toContain('whitespace');
+    expect(validateNodeFilePath('content/CON.txt')).toContain('unsupported');
+    expect(validateNodeFilePath('content/name.')).toContain('unsupported');
+    expect(validateNodeFilePath('content/a?.txt')).toContain('unsupported');
+    expect(validateNodeFilePath('content/a*.txt')).toContain('unsupported');
+    expect(validateNodeFilePath('content/a|b.txt')).toContain('unsupported');
+    expect(validateNodeFilePath(`content/${'a'.repeat(256)}.txt`)).toContain('unsupported');
+    expect(validateNodeFilePath(`content/${'é'.repeat(128)}.txt`)).toContain('unsupported');
+    expect(validateNodeFilePath(Array.from({ length: 5 }, () => `${'é'.repeat(120)}.txt`).join('/'))).toContain('unsupported');
+    expect(validateNodeFilePath('content／index.html')).toContain('unsupported');
+    expect(validateNodeFilePath(`content/${'a'.repeat(MAX_NODE_FILE_PATH_LENGTH)}.txt`)).toContain('unsupported');
+    expect(validateNodeFilePath('content/cafe\u0301.txt')).toContain('unsupported');
     expect(validateNodeFilePath('bad.exe/')).toContain('empty');
     expect(validateNodeFilePath('bad.nope')).toContain('extension');
     expect(languageKindForPath('script.py')).toBe('python');
@@ -126,6 +140,10 @@ describe('node file api and utilities', () => {
     expect(isEditableFile('data/table.csv')).toBe(true);
     expect(isBinaryFile('docs/manual.pdf')).toBe(true);
     expect(isBinaryFile('content/hero.webp')).toBe(true);
+    expect(canonicalNodeFilePath('Content/Index.HTML')).not.toBe(canonicalNodeFilePath('content/index.html'));
+    expect(portableNodeFilePathKey('Content/Index.HTML')).toBe(portableNodeFilePathKey('content/index.html'));
+    expect(portableNodeFilePathKey('content/οσ.txt')).toBe(portableNodeFilePathKey('content/ος.txt'));
+    expect(portableNodeFilePathKey('content/straße.txt')).toBe(portableNodeFilePathKey('content/STRASSE.txt'));
   });
 
   it('rejects unsafe file API paths before starting a request', async () => {
@@ -153,5 +171,51 @@ describe('node file api and utilities', () => {
       { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
       { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' }
     ]);
+  });
+
+  it('bounds text reads by content length and streamed bytes', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('123456', {
+      status: 200,
+      headers: { 'Content-Length': '6' }
+    })));
+    await expect(getNodeFileContents('script.py', undefined, 5)).rejects.toThrow('text-edit limit');
+
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('123'));
+        controller.enqueue(encoder.encode('456'));
+        controller.close();
+      }
+    }))));
+    await expect(getNodeFileContents('script.py', undefined, 5)).rejects.toThrow('text-edit limit');
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('12345')));
+    await expect(getNodeFileContents('script.py', undefined, 5)).resolves.toBe('12345');
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 200 })));
+    await expect(getNodeFileContents('script.py', undefined, 5)).rejects.toThrow('without streaming or Content-Length');
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array([0xff]))));
+    await expect(getNodeFileContents('script.py', undefined, 5)).rejects.toThrow('not valid UTF-8');
+  });
+
+  it('rejects unsafe file sizes from the backend contract', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { path: 'script.py', size: 1.5 }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+    await expect(listNodeFiles()).rejects.toThrow('non-negative safe integer');
+  });
+
+  it('retains transport-safe legacy host names while create validation stays portable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { path: 'content/CON.txt' },
+      { path: 'content/name.' },
+      { path: 'content/cafe\u0301.txt' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+    await expect(listNodeFiles()).resolves.toHaveLength(3);
+    expect(validateNodeFilePath('content/CON.txt')).toContain('unsupported');
+    expect(validateNodeFilePath('content/name.')).toContain('unsupported');
+    expect(validateNodeFilePath('content/cafe\u0301.txt')).toContain('unsupported');
   });
 });

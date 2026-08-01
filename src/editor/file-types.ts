@@ -1,4 +1,4 @@
-import { isSafeNodeFilePath } from '../utils/node-file-path';
+import { isPortableNodeFilePath } from '../utils/node-file-path';
 
 export const allowedTextExtensions = ['py', 'xml', 'xsl', 'svg', 'js', 'json', 'html', 'htm', 'css', 'java', 'groovy', 'sql', 'sh', 'cs', 'bat', 'ini', 'txt', 'md', 'cmd', 'yaml', 'yml', 'properties', 'log', 'csv'] as const;
 export const allowedBinaryExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'zip', '7z', 'exe', 'pdf'] as const;
@@ -36,15 +36,19 @@ export function validateNodeFilePath(path: string) {
     return 'File path must be relative.';
   }
 
+  if (path !== trimmed) {
+    return 'File path cannot start or end with whitespace.';
+  }
+
   if (trimmed.includes('\\')) {
     return 'File path must use forward slashes.';
   }
 
-  if (trimmed.split('/').some((part) => part === '..' || part === '')) {
-    return 'File path cannot contain empty or parent-directory segments.';
+  if (trimmed.split('/').some((part) => part === '.' || part === '..' || part === '')) {
+    return 'File path cannot contain empty, current-directory, or parent-directory segments.';
   }
 
-  if (!isSafeNodeFilePath(trimmed)) {
+  if (!isPortableNodeFilePath(trimmed)) {
     return 'File path contains unsupported path segments or characters.';
   }
 

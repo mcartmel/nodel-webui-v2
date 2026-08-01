@@ -1,6 +1,8 @@
 import type { NodelFileEntry } from '../api/nodel-types';
 import { deleteNodeFile, getNodeFileContents, listNodeFiles, saveNodeFile } from '../api/nodel-host-client';
+import { requestConfirm } from '../data/confirm';
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
+import { EditorOperationCoordinator, type EditorOperationKind, type EditorOperationTicket } from '../editor/editor-operation-coordinator';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
@@ -8,12 +10,16 @@ import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lif
 import { loadCodeEditorModule } from '../utils/dynamic-imports';
 import { renderComponentError } from '../utils/render-component-error';
 import { resetFileInput } from '../utils/file-input';
+import { formatFileSize, MAX_NODE_FILE_UPLOAD_BYTES, MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
+import { canonicalNodeFilePath, portableNodeFilePathKey } from '../utils/node-file-path';
 
 interface EditorFileView extends NodelFileEntry {
   active: boolean;
   binary: boolean;
   dirty: boolean;
   kindLabel: string;
+  missing: boolean;
+  sizeLabel: string;
 }
 
 interface EditorViewModel {
@@ -28,6 +34,7 @@ interface EditorViewModel {
   error: string;
   files: EditorFileView[];
   loading: boolean;
+  notice: boolean;
   pickerPath: string;
   saving: boolean;
   selectedPath: string;
@@ -43,7 +50,7 @@ const template = `
       <div class="nodel-editor-picker-wrap min-w-0 flex-1">
         <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="value{:pickerPath trigger=true} disabled{:loading || saving || deleting}">
           {^{for files}}
-            <option value="{{>path}}" data-link="selected{:active}">{^{>path}}{^{if dirty}} *{{/if}}</option>
+            <option value="{{>path}}" data-link="selected{:active}">{^{>path}}{^{if missing}} (local buffer){{else sizeLabel}} ({^{>sizeLabel}}){{/if}}{^{if dirty}} *{{/if}}</option>
           {{/for}}
         </select>
       </div>
@@ -73,7 +80,7 @@ const template = `
     {{/if}}
 
     <div class="nodel-editor-body relative">
-      <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && !loading && !saving && !deleting}">
+      <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && !notice && !loading && !saving && !deleting}">
         {^{if error}}
           {^{>error}}
         {{else}}
@@ -104,6 +111,8 @@ function toFileView(file: NodelFileEntry, selectedPath: string, dirtyPath: strin
     binary,
     dirty,
     kindLabel: binary ? 'binary' : 'text',
+    missing: false,
+    sizeLabel: typeof file.size === 'number' ? formatFileSize(file.size) : '',
   };
 }
 
@@ -112,12 +121,18 @@ export class NodelEditor extends HTMLElement {
     return ['default-file'];
   }
 
-  private abortController: AbortController | null = null;
+  private operations = new EditorOperationCoordinator();
   private editor: NodelCodeEditor | null = null;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
   private linked = false;
   private originalContent = '';
+  private openedModified: string | undefined;
+  private openedSize: number | undefined;
+  private metadataBaselineValid = false;
+  private documentRevision = 0;
+  private suppressEditorChange = false;
+  private unloadGuardActive = false;
   private selectedUpload: File | null = null;
   private uploadFocusFrame: number | null = null;
   private dragCancellationListenersActive = false;
@@ -133,6 +148,7 @@ export class NodelEditor extends HTMLElement {
     error: '',
     files: [],
     loading: false,
+    notice: false,
     pickerPath: '',
     saving: false,
     selectedPath: '',
@@ -151,6 +167,9 @@ export class NodelEditor extends HTMLElement {
     if (this.linked) {
       getJQuery().observable(this.state.files).refresh([]);
       this.originalContent = '';
+      this.openedModified = undefined;
+      this.openedSize = undefined;
+      this.metadataBaselineValid = false;
       this.setState({
         addFilePath: '',
         adding: false,
@@ -160,6 +179,7 @@ export class NodelEditor extends HTMLElement {
         deleting: false,
         dirty: false,
         loading: false,
+        notice: false,
         pickerPath: '',
         saving: false,
         selectedPath: '',
@@ -167,9 +187,9 @@ export class NodelEditor extends HTMLElement {
         uploadFileName: ''
       });
     }
+    this.operations.invalidateAll();
     this.lifecycle.disconnect();
-    this.abortController?.abort();
-    this.abortController = null;
+    this.syncBusyState();
     this.removeEventListeners();
     this.clearSelectedUpload();
     if (this.uploadFocusFrame !== null) {
@@ -257,6 +277,7 @@ export class NodelEditor extends HTMLElement {
   private setState(values: Partial<EditorViewModel>) {
     getJQuery().observable(this.state).setProperty(values);
     this.dataset.state = this.state.error ? 'error' : this.state.loading ? 'loading' : this.state.dirty ? 'dirty' : 'ready';
+    this.syncUnloadGuard();
   }
 
   private refreshFileViews(files: NodelFileEntry[] = this.state.files) {
@@ -267,26 +288,95 @@ export class NodelEditor extends HTMLElement {
   private updateAvailability() {
     const busy = this.state.loading || this.state.saving || this.state.deleting;
     this.setState({
-      canDelete: Boolean(this.state.selectedPath && this.state.selectedPath !== 'script.py' && !busy),
+      canDelete: Boolean(this.state.selectedPath && portableNodeFilePathKey(this.state.selectedPath) !== 'script.py' && !busy),
       canSave: Boolean(this.state.selectedPath && this.state.dirty && !this.state.binary && !busy)
     });
+  }
+
+  private beginOperation(kind: EditorOperationKind, scope: ConnectionScope) {
+    const ticket = this.operations.begin(kind, scope.signal);
+    this.syncBusyState();
+    return ticket;
+  }
+
+  private finishOperation(ticket: EditorOperationTicket) {
+    ticket.finish();
+    this.syncBusyState();
+  }
+
+  private operationIsCurrent(ticket: EditorOperationTicket, scope: ConnectionScope) {
+    return scope.isCurrent() && ticket.isCurrent();
+  }
+
+  private syncBusyState() {
+    if (!this.linked) {
+      return;
+    }
+    this.setState({
+      loading: this.operations.isActive('list') || this.operations.isActive('open'),
+      saving: this.operations.isActive('save') || this.operations.isActive('create'),
+      deleting: this.operations.isActive('delete')
+    });
+    this.updateAvailability();
+  }
+
+  private handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  private syncUnloadGuard() {
+    const shouldGuard = this.isConnected && (this.state.dirty || this.state.adding || this.selectedUpload !== null);
+    if (shouldGuard === this.unloadGuardActive) {
+      return;
+    }
+    this.unloadGuardActive = shouldGuard;
+    if (shouldGuard) {
+      window.addEventListener('beforeunload', this.handleBeforeUnload);
+    } else {
+      window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    }
+  }
+
+  private setEditorDocument(content: string, path: string) {
+    this.suppressEditorChange = true;
+    try {
+      this.editor?.setDocument(content, path);
+    } finally {
+      this.suppressEditorChange = false;
+    }
+    this.documentRevision += 1;
+  }
+
+  private fileForPath(path: string) {
+    const key = canonicalNodeFilePath(path);
+    return this.state.files.find((file) => canonicalNodeFilePath(file.path) === key);
+  }
+
+  private restoreTriggerFocus(trigger: Element | null) {
+    window.setTimeout(() => {
+      const candidates = [
+        trigger,
+        this.querySelector('[data-editor-file-picker]'),
+        this.querySelector('[data-editor-toggle-add]')
+      ];
+      const target = candidates.find((candidate): candidate is HTMLElement => (
+        candidate instanceof HTMLElement && candidate.isConnected && !candidate.hasAttribute('disabled')
+      ));
+      target?.focus();
+    }, 0);
   }
 
   private async loadFiles(preferredPath?: string, scope = this.lifecycle.current) {
     if (!scope) {
       return;
     }
-    this.abortController?.abort();
-    const controller = new AbortController();
-    this.abortController = controller;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    this.setState({ error: '', loading: true, status: 'Loading files...' });
-    this.updateAvailability();
+    const ticket = this.beginOperation('list', scope);
+    this.setState({ error: '', notice: false, status: 'Loading files...' });
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: controller.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
-      if (!scope.isCurrent() || controller !== this.abortController) {
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
       this.refreshFileViews(files);
@@ -294,66 +384,70 @@ export class NodelEditor extends HTMLElement {
       if (nextPath) {
         await this.openFile(nextPath, { skipDirtyPrompt: true }, scope);
       } else {
-        this.editor?.setDocument('', '');
+        this.setEditorDocument('', '');
         this.editor?.setReadOnly(true);
-        this.setState({ loading: false, status: files.length ? 'Files loaded.' : 'No editable node files found.' });
-        this.setSelectedState('', '', false, false, '');
+        this.setSelectedState('', '', false, false, files.length ? 'Files loaded.' : 'No editable node files found.');
       }
     } catch (error) {
-      if (!scope.isCurrent() || controller !== this.abortController) {
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
-      this.setState({ error: error instanceof Error ? error.message : 'Failed to load files', loading: false });
+      this.setState({ error: error instanceof Error ? error.message : 'Failed to load files' });
     } finally {
-      scope.signal.removeEventListener('abort', abort);
-      if (this.abortController === controller) {
-        this.abortController = null;
-      }
-      if (scope.isCurrent()) {
-        this.updateAvailability();
-      }
+      this.finishOperation(ticket);
     }
   }
 
-  private async refreshFilesPreservingEditor(scope: ConnectionScope) {
-    this.abortController?.abort();
-    const controller = new AbortController();
-    this.abortController = controller;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    this.setState({ error: '', loading: true, status: 'Refreshing files...' });
-    this.updateAvailability();
+  private async refreshFilesPreservingEditor(scope: ConnectionScope, quiet = false) {
+    const ticket = this.beginOperation('list', scope);
+    if (!quiet) {
+      this.setState({ error: '', notice: false, status: 'Refreshing files...' });
+    }
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: controller.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
-      if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      if (!this.operationIsCurrent(ticket, scope)) {
+        return false;
       }
       this.refreshFileViews(files);
-      this.setState({
-        loading: false,
-        pickerPath: this.state.selectedPath,
-        status: files.length ? 'Files refreshed.' : 'No editable node files found.'
-      });
+      const selectedMissing = Boolean(this.state.selectedPath)
+        && !files.some((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(this.state.selectedPath));
+      if (selectedMissing) {
+        this.operations.invalidate('open');
+        this.documentRevision += 1;
+        this.syncBusyState();
+        const orphan = toFileView({ path: this.state.selectedPath }, this.state.selectedPath, this.state.selectedPath);
+        orphan.missing = true;
+        getJQuery().observable(this.state.files).refresh([...this.state.files, orphan]);
+        this.setState({
+          dirty: true,
+          notice: true,
+          pickerPath: this.state.selectedPath,
+          status: `${this.state.selectedPath} no longer exists on the node; the local buffer remains unsaved.`
+        });
+        return true;
+      }
+      this.setState(quiet
+        ? { pickerPath: this.state.selectedPath }
+        : {
+            pickerPath: this.state.selectedPath,
+            status: files.length ? 'Files refreshed.' : 'No editable node files found.'
+          });
+      return true;
     } catch (error) {
-      if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+      if (!this.operationIsCurrent(ticket, scope)) {
+        return false;
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
+        return false;
       }
-      this.setState({ error: error instanceof Error ? error.message : 'Failed to refresh files', loading: false });
+      this.setState({ error: error instanceof Error ? error.message : 'Failed to refresh files' });
+      return false;
     } finally {
-      scope.signal.removeEventListener('abort', abort);
-      if (this.abortController === controller) {
-        this.abortController = null;
-      }
-      if (scope.isCurrent()) {
-        this.updateAvailability();
-      }
+      this.finishOperation(ticket);
     }
   }
 
@@ -366,12 +460,22 @@ export class NodelEditor extends HTMLElement {
       ?? '';
   }
 
-  private setSelectedState(path: string, content: string, binary: boolean, dirty: boolean, status: string) {
+  private scriptFilePath() {
+    return this.state.files.find((file) => file.path === 'script.py')?.path
+      ?? this.state.files.find((file) => portableNodeFilePathKey(file.path) === 'script.py')?.path
+      ?? 'script.py';
+  }
+
+  private setSelectedState(path: string, content: string, binary: boolean, dirty: boolean, status: string, modified?: string, size?: number) {
     this.originalContent = content;
+    this.openedModified = modified;
+    this.openedSize = size;
+    this.metadataBaselineValid = Boolean(path);
     this.setState({
       binary,
       dirty,
       error: '',
+      notice: false,
       selectedPath: path,
       pickerPath: path,
       status
@@ -380,71 +484,168 @@ export class NodelEditor extends HTMLElement {
     this.updateAvailability();
   }
 
-  private async openFile(path: string, options: { skipDirtyPrompt?: boolean } = {}, scope = this.lifecycle.current) {
+  private async openFile(path: string, options: {
+    skipDirtyPrompt?: boolean;
+    trigger?: Element | null;
+    expectedSourcePath?: string;
+    expectedSourceRevision?: number;
+  } = {}, scope = this.lifecycle.current) {
     if (!scope) {
       return;
     }
-    if (!options.skipDirtyPrompt && !this.confirmDiscardChanges()) {
+    const ticket = this.beginOperation('open', scope);
+    const sourcePath = options.expectedSourcePath ?? this.state.selectedPath;
+    const sourceRevision = options.expectedSourceRevision ?? this.documentRevision;
+    if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentRevision) {
+      this.finishOperation(ticket);
+      return;
+    }
+    if (!options.skipDirtyPrompt && !await this.confirmDiscardChanges(options.trigger ?? null, ticket.signal)) {
       this.setState({ pickerPath: this.state.selectedPath });
+      this.finishOperation(ticket);
+      this.restoreTriggerFocus(options.trigger ?? null);
+      return;
+    }
+    if (!this.operationIsCurrent(ticket, scope)
+      || sourcePath !== this.state.selectedPath
+      || sourceRevision !== this.documentRevision) {
+      this.finishOperation(ticket);
       return;
     }
 
-    if (isBinaryFile(path)) {
-      this.editor?.setDocument(binaryPlaceholder, path);
-      this.editor?.setReadOnly(true);
-      this.setSelectedState(path, '', true, false, 'Binary file preview is not available.');
-      return;
-    }
-
-    this.abortController?.abort();
-    const controller = new AbortController();
-    this.abortController = controller;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    this.setState({ error: '', loading: true, status: `Loading ${path}...` });
-    this.updateAvailability();
-
-    try {
-      const content = await getNodeFileContents(path, { signal: controller.signal });
-      if (!scope.isCurrent() || controller !== this.abortController) {
+    const file = this.fileForPath(path);
+    const resolvedPath = file?.path ?? path;
+    const applyReadOnlyDocument = (message: string, placeholder: string) => {
+      if (!this.operationIsCurrent(ticket, scope)
+        || sourcePath !== this.state.selectedPath
+        || sourceRevision !== this.documentRevision) {
         return;
       }
-      this.editor?.setDocument(content, path);
+      this.setEditorDocument(placeholder, resolvedPath);
+      this.editor?.setReadOnly(true);
+      this.setSelectedState(resolvedPath, '', true, false, message, file?.modified, file?.size);
+      this.setState({ notice: true, status: message });
+    };
+
+    if (portableNodeFilePathKey(resolvedPath) === 'script.py' && resolvedPath !== 'script.py') {
+      applyReadOnlyDocument(
+        `${resolvedPath} is a case-only script.py alias and cannot be edited safely across supported hosts.`,
+        'Case-only script.py aliases are read-only in the browser editor.'
+      );
+      this.finishOperation(ticket);
+      return;
+    }
+
+    if (isBinaryFile(resolvedPath)) {
+      applyReadOnlyDocument('Binary file preview is not available.', binaryPlaceholder);
+      this.finishOperation(ticket);
+      return;
+    }
+
+    if (typeof file?.size === 'number' && file.size > MAX_NODE_TEXT_EDIT_BYTES) {
+      applyReadOnlyDocument(
+        `${resolvedPath} is too large to edit (limit ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)}); download or manage it externally.`,
+        'File is too large to edit in the browser.'
+      );
+      this.finishOperation(ticket);
+      return;
+    }
+
+    this.setState({ error: '', notice: false, status: `Loading ${resolvedPath}...` });
+
+    try {
+      const content = await getNodeFileContents(resolvedPath, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+      if (!this.operationIsCurrent(ticket, scope)) {
+        return;
+      }
+      if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentRevision) {
+        this.setState({
+          notice: true,
+          pickerPath: this.state.selectedPath,
+          status: `${resolvedPath} loaded, but newer local edits remain. Choose the file again to discard them.`
+        });
+        return;
+      }
+      this.setEditorDocument(content, resolvedPath);
       this.editor?.setReadOnly(false);
-      this.setSelectedState(path, content, false, false, '');
+      this.setSelectedState(resolvedPath, content, false, false, '', file?.modified, file?.size);
       this.editor?.focus();
     } catch (error) {
-      if (!scope.isCurrent() || controller !== this.abortController) {
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
-      this.setState({ error: error instanceof Error ? error.message : `Failed to load ${path}` });
+      if (error instanceof NodeFileTooLargeError) {
+        applyReadOnlyDocument(
+          `${resolvedPath} is too large to edit (limit ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)}); download or manage it externally.`,
+          'File is too large to edit in the browser.'
+        );
+        return;
+      }
+      this.setState({
+        error: error instanceof Error ? error.message : `Failed to load ${resolvedPath}`,
+        pickerPath: this.state.selectedPath
+      });
     } finally {
-      scope.signal.removeEventListener('abort', abort);
-      const ownsRequest = this.abortController === controller;
-      if (ownsRequest) {
-        this.abortController = null;
-      }
-      if (scope.isCurrent() && ownsRequest) {
-        this.setState({ loading: false });
-        this.updateAvailability();
-      }
+      this.finishOperation(ticket);
     }
   }
 
-  private confirmDiscardChanges() {
-    return !this.state.dirty || window.confirm('Discard unsaved changes?');
+  private confirmDiscardChanges(trigger: Element | null, signal?: AbortSignal) {
+    if (!this.state.dirty) {
+      return Promise.resolve(true);
+    }
+    return requestConfirm(this, {
+      title: 'Discard unsaved changes?',
+      text: this.state.selectedPath
+        ? `Discard unsaved changes to ${this.state.selectedPath}?`
+        : 'Discard unsaved changes?',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    }, trigger, signal);
+  }
+
+  private async reloadFiles(trigger: Element | null) {
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
+    const path = this.state.selectedPath;
+    const revision = this.documentRevision;
+    if (!await this.confirmDiscardChanges(trigger, scope.signal)
+      || !scope.isCurrent()
+      || path !== this.state.selectedPath
+      || revision !== this.documentRevision) {
+      return;
+    }
+    await this.refreshFilesPreservingEditor(scope);
+    if (!scope.isCurrent() || path !== this.state.selectedPath || revision !== this.documentRevision) {
+      if (scope.isCurrent()) {
+        this.setState({ notice: true, status: 'Files refreshed; newer local edits remain unchanged.' });
+      }
+      return;
+    }
+    if (path) {
+      await this.openFile(path, {
+        skipDirtyPrompt: true,
+        expectedSourcePath: path,
+        expectedSourceRevision: revision,
+        trigger
+      }, scope);
+    }
   }
 
   private handleEditorChange = (content: string) => {
-    if (this.state.binary) {
+    if (this.suppressEditorChange || this.state.binary) {
       return;
     }
+    this.documentRevision += 1;
     const dirty = content !== this.originalContent;
-    if (dirty !== this.state.dirty) {
-      this.setState({ dirty, status: dirty ? 'Unsaved changes.' : 'No unsaved changes.' });
+    if (dirty !== this.state.dirty || this.state.notice) {
+      this.setState({ dirty, notice: false, status: dirty ? 'Unsaved changes.' : 'No unsaved changes.' });
       this.refreshFileViews();
       this.updateAvailability();
     }
@@ -457,9 +658,7 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (target.closest('[data-editor-refresh]')) {
-      if (this.confirmDiscardChanges()) {
-        void this.loadFiles(this.state.selectedPath);
-      }
+      void this.reloadFiles(target.closest('[data-editor-refresh]'));
       return;
     }
 
@@ -470,7 +669,7 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (target.closest('[data-editor-default]')) {
-      void this.openFile('script.py');
+      void this.openFile(this.scriptFilePath(), { trigger: target.closest('[data-editor-default]') });
       return;
     }
 
@@ -480,7 +679,7 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (target.closest('[data-editor-delete]')) {
-      void this.deleteSelectedFile();
+      void this.deleteSelectedFile(target.closest('[data-editor-delete]'));
       return;
     }
 
@@ -492,7 +691,7 @@ export class NodelEditor extends HTMLElement {
 
     if (target.closest('[data-editor-create-empty]')) {
       event.preventDefault();
-      void this.createFileFromState();
+      void this.createFileFromState(target.closest('[data-editor-create-empty]'));
       return;
     }
 
@@ -502,7 +701,7 @@ export class NodelEditor extends HTMLElement {
     const target = event.target;
     if (target instanceof Element && target.matches('[data-editor-add-form]')) {
       event.preventDefault();
-      void this.createFileFromState();
+      void this.createFileFromState(event instanceof SubmitEvent ? event.submitter : null);
     }
   };
 
@@ -512,7 +711,7 @@ export class NodelEditor extends HTMLElement {
       const nextPath = target.selectedOptions.item(0)?.getAttribute('value') ?? this.state.pickerPath;
       this.setState({ pickerPath: nextPath });
       if (nextPath && nextPath !== this.state.selectedPath) {
-        void this.openFile(nextPath);
+        void this.openFile(nextPath, { trigger: target });
       }
       return;
     }
@@ -621,6 +820,12 @@ export class NodelEditor extends HTMLElement {
       this.reportError('Wait for the current editor operation to finish before uploading.');
       return;
     }
+    const maxBytes = isEditableFile(file.name) ? MAX_NODE_TEXT_EDIT_BYTES : MAX_NODE_FILE_UPLOAD_BYTES;
+    if (file.size > maxBytes) {
+      this.clearSelectedUpload();
+      this.reportError(`${file.name} exceeds the ${formatFileSize(maxBytes)} upload limit.`);
+      return;
+    }
     this.clearSelectedUpload();
     this.selectedUpload = file;
     this.setState({ addFilePath: file.name, adding: true, error: '', uploadFileName: file.name });
@@ -692,6 +897,7 @@ export class NodelEditor extends HTMLElement {
   private clearSelectedUpload() {
     this.selectedUpload = null;
     this.resetUploadInput();
+    this.syncUnloadGuard();
   }
 
   private reportError(message: string) {
@@ -701,43 +907,122 @@ export class NodelEditor extends HTMLElement {
 
   async saveSelectedFile() {
     const scope = this.lifecycle.current;
-    if (!scope || !this.state.selectedPath || this.state.binary || !this.state.dirty || this.state.saving) {
+    if (!scope
+      || !this.state.selectedPath
+      || this.state.binary
+      || !this.state.dirty
+      || this.state.deleting
+      || this.operations.isActive('list')
+      || this.operations.isActive('open')
+      || this.operations.isActive('save')
+      || this.operations.isActive('create')) {
       return;
     }
 
     const path = this.state.selectedPath;
-    this.setState({ error: '', saving: true, status: `Saving ${path}...` });
-    this.updateAvailability();
+    const content = this.editor?.getDocument() ?? '';
+    if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
+      this.reportError(`${path} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit.`);
+      return;
+    }
+    const revision = this.documentRevision;
+    const originalContent = this.originalContent;
+    const openedModified = this.openedModified;
+    const openedSize = this.openedSize;
+    const metadataBaselineValid = this.metadataBaselineValid;
+    const ticket = this.beginOperation('save', scope);
+    this.setState({ error: '', notice: false, status: `Checking ${path} for remote changes...` });
     try {
-      const content = this.editor?.getDocument() ?? '';
-      await saveNodeFile(path, content, { signal: scope.signal });
-      if (!scope.isCurrent()) {
+      const files = await listNodeFiles({ signal: ticket.signal });
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      this.originalContent = content;
-      this.setState({ dirty: false, saving: false, status: `Saved ${path}.` });
-      this.refreshFileViews();
+      let remoteFile = files.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+      if (!remoteFile) {
+        const recreate = await requestConfirm(this, {
+          title: 'Recreate missing file?',
+          text: `${path} no longer exists on the node. Recreate it from this local buffer?`,
+          confirmLabel: 'Recreate',
+          cancelLabel: 'Cancel',
+          tone: 'warning'
+        }, null, ticket.signal);
+        if (!recreate
+          || !this.operationIsCurrent(ticket, scope)
+          || this.state.selectedPath !== path
+          || this.documentRevision !== revision) {
+          return;
+        }
+        const refreshedFiles = await listNodeFiles({ signal: ticket.signal });
+        if (!this.operationIsCurrent(ticket, scope)) {
+          return;
+        }
+        remoteFile = refreshedFiles.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+        if (remoteFile) {
+          throw new Error(`${path} was recreated on the node while confirmation was pending. Refresh before saving.`);
+        }
+      }
+      if (remoteFile && metadataBaselineValid && openedModified !== remoteFile.modified) {
+        throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
+      }
+      if (remoteFile && metadataBaselineValid && openedSize !== remoteFile.size) {
+        throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
+      }
+      if (remoteFile) {
+        const remoteContent = await getNodeFileContents(path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+        if (!this.operationIsCurrent(ticket, scope)) {
+          return;
+        }
+        if (remoteContent !== originalContent) {
+          throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
+        }
+      }
+
+      this.setState({ status: `Saving ${path}...` });
+      await saveNodeFile(path, content, { signal: ticket.signal });
+      if (!this.operationIsCurrent(ticket, scope)) {
+        return;
+      }
+      if (this.state.selectedPath === path) {
+        this.originalContent = content;
+        const newerEditsRemain = this.documentRevision !== revision || (this.editor?.getDocument() ?? '') !== content;
+        this.setState({
+          dirty: newerEditsRemain,
+          notice: newerEditsRemain,
+          status: newerEditsRemain
+            ? `Saved previous revision of ${path}; newer edits remain unsaved.`
+            : `Saved ${path}.`
+        });
+        this.refreshFileViews();
+      }
       this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path } }));
-      await this.loadFiles(path, scope);
+      const refreshed = await this.refreshFilesPreservingEditor(scope, true);
+      if (this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path) {
+        if (refreshed) {
+          const refreshedFile = this.fileForPath(path);
+          this.openedModified = refreshedFile?.modified;
+          this.openedSize = refreshedFile?.size;
+          this.metadataBaselineValid = true;
+        } else {
+          this.metadataBaselineValid = false;
+        }
+      }
     } catch (error) {
-      if (!scope.isCurrent()) {
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      this.setState({ error: error instanceof Error ? error.message : `Failed to save ${path}`, saving: false });
+      this.setState({ error: error instanceof Error ? error.message : `Failed to save ${path}` });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      if (scope.isCurrent()) {
-        this.updateAvailability();
-      }
+      this.finishOperation(ticket);
     }
   }
 
-  private async createFileFromState() {
+  private async createFileFromState(trigger: Element | null) {
     const scope = this.lifecycle.current;
-    if (!scope || this.state.saving) {
+    if (!scope || this.state.deleting || this.operations.isActive('save') || this.operations.isActive('create')) {
       return;
     }
-    const path = this.state.addFilePath.trim();
+    const path = this.state.addFilePath;
     const validation = validateNodeFilePath(path);
     if (validation) {
       this.setState({ error: validation });
@@ -748,87 +1033,262 @@ export class NodelEditor extends HTMLElement {
       this.setState({ error: 'Binary files must be uploaded from a local file.' });
       return;
     }
-
-    if (!this.confirmDiscardChanges()) {
-      return;
+    const upload = this.selectedUpload;
+    if (upload) {
+      const maxBytes = isEditableFile(path) ? MAX_NODE_TEXT_EDIT_BYTES : MAX_NODE_FILE_UPLOAD_BYTES;
+      if (upload.size > maxBytes) {
+        this.setState({ error: `${upload.name} exceeds the ${formatFileSize(maxBytes)} upload limit.` });
+        return;
+      }
     }
 
-    this.setState({ error: '', saving: true, status: `Creating ${path}...` });
-    this.updateAvailability();
+    const ticket = this.beginOperation('create', scope);
+    const requestedCanonicalPath = canonicalNodeFilePath(path);
+    const requestedPortableKey = portableNodeFilePathKey(path);
+    const requestIsCurrent = () => this.operationIsCurrent(ticket, scope)
+      && this.state.addFilePath === path
+      && this.selectedUpload === upload;
+    let restoreFocusAfterConfirmation = false;
+    this.setState({ error: '', notice: false, status: `Checking ${path}...` });
     try {
-      const content = await this.uploadContentForPath(path);
-      if (!scope.isCurrent()) {
+      const files = await listNodeFiles({ signal: ticket.signal });
+      if (!requestIsCurrent()) {
         return;
       }
-      await saveNodeFile(path, content, { signal: scope.signal });
-      if (!scope.isCurrent()) {
+      const exactExisting = files.find((file) => canonicalNodeFilePath(file.path) === requestedCanonicalPath);
+      const portableMatches = files.filter((file) => portableNodeFilePathKey(file.path) === requestedPortableKey);
+      if (!exactExisting && portableMatches.length > 1) {
+        throw new Error(`${path} is ambiguous because multiple case variants already exist on the node.`);
+      }
+      const existing = exactExisting ?? portableMatches[0];
+      const targetPath = existing?.path ?? path;
+      if (portableNodeFilePathKey(targetPath) === 'script.py' && targetPath !== 'script.py') {
+        throw new Error(`${targetPath} is a case-only script.py alias and cannot be overwritten safely.`);
+      }
+      let existingContent: string | undefined;
+      if (existing) {
+        if (isBinaryFile(existing.path) && existing.modified === undefined && existing.size === undefined) {
+          throw new Error(`${existing.path} has no metadata for safe overwrite verification; manage it externally.`);
+        }
+        if (isEditableFile(existing.path)) {
+          if (typeof existing.size === 'number' && existing.size > MAX_NODE_TEXT_EDIT_BYTES) {
+            throw new Error(`${existing.path} is too large to verify safely before overwrite.`);
+          }
+          existingContent = await getNodeFileContents(existing.path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+          if (!requestIsCurrent()) {
+            return;
+          }
+        }
+        const overwrite = await requestConfirm(this, {
+          title: 'Overwrite existing file?',
+          text: `${existing.path} already exists. Replace it?`,
+          confirmLabel: 'Overwrite',
+          cancelLabel: 'Cancel',
+          tone: 'danger'
+        }, trigger, ticket.signal);
+        if (!overwrite) {
+          this.restoreTriggerFocus(trigger);
+          return;
+        }
+        if (!requestIsCurrent()) {
+          return;
+        }
+        restoreFocusAfterConfirmation = true;
+      }
+
+      const refreshedFiles = await listNodeFiles({ signal: ticket.signal });
+      if (!requestIsCurrent()) {
         return;
+      }
+      const refreshedExact = refreshedFiles.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(targetPath));
+      const refreshedPortable = refreshedFiles.filter((file) => portableNodeFilePathKey(file.path) === requestedPortableKey);
+      if (!existing && refreshedPortable.length > 0) {
+        throw new Error(`${path} was created on the node while this operation was pending. Review it before overwriting.`);
+      }
+      if (existing) {
+        if (!refreshedExact) {
+          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review the file list and try again.`);
+        }
+        if (existing.modified !== refreshedExact.modified) {
+          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
+        }
+        if (existing.size !== refreshedExact.size) {
+          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
+        }
+        if (existingContent !== undefined) {
+          const refreshedContent = await getNodeFileContents(existing.path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+          if (!requestIsCurrent()) {
+            return;
+          }
+          if (existingContent !== refreshedContent) {
+            throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
+          }
+        }
+      }
+
+      const content = await this.uploadContentForPath(targetPath, upload);
+      if (!requestIsCurrent()) {
+        return;
+      }
+      this.setState({ status: `${existing ? 'Overwriting' : 'Creating'} ${targetPath}...` });
+      await saveNodeFile(targetPath, content, { signal: ticket.signal });
+      if (!requestIsCurrent()) {
+        return;
+      }
+      let overwriteNotice = '';
+      if (this.state.selectedPath && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath) && typeof content === 'string') {
+        this.originalContent = content;
+        const dirty = (this.editor?.getDocument() ?? '') !== content;
+        overwriteNotice = dirty ? `Overwrote ${targetPath}; current local edits remain unsaved.` : '';
+        this.setState({
+          dirty,
+          notice: dirty,
+          status: overwriteNotice || `Overwrote ${targetPath}.`
+        });
+        this.refreshFileViews();
       }
       this.clearSelectedUpload();
-      this.setState({ addFilePath: '', adding: false, saving: false, uploadFileName: '', status: `Created ${path}.` });
-      this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path } }));
-      await this.loadFiles(path, scope);
+      this.setState({
+        addFilePath: '',
+        adding: false,
+        notice: true,
+        uploadFileName: '',
+        status: overwriteNotice || (existing ? `Overwrote ${targetPath}.` : `Created ${targetPath}.`)
+      });
+      this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path: targetPath } }));
+      const refreshed = await this.refreshFilesPreservingEditor(scope, true);
+      if (this.operationIsCurrent(ticket, scope)
+        && this.state.selectedPath
+        && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath)) {
+        if (refreshed) {
+          const refreshedFile = this.fileForPath(this.state.selectedPath);
+          this.openedModified = refreshedFile?.modified;
+          this.openedSize = refreshedFile?.size;
+          this.metadataBaselineValid = true;
+        } else {
+          this.metadataBaselineValid = false;
+        }
+      }
     } catch (error) {
-      if (!scope.isCurrent()) {
+      if (!requestIsCurrent()) {
         return;
       }
-      this.setState({ error: error instanceof Error ? error.message : `Failed to create ${path}`, saving: false });
+      this.setState({ error: error instanceof Error ? error.message : `Failed to create ${path}` });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      if (scope.isCurrent()) {
-        this.updateAvailability();
+      this.finishOperation(ticket);
+      if (restoreFocusAfterConfirmation) {
+        this.restoreTriggerFocus(trigger);
       }
     }
   }
 
-  private async uploadContentForPath(path: string): Promise<BodyInit> {
-    if (!this.selectedUpload) {
+  private async uploadContentForPath(path: string, upload: File | null): Promise<BodyInit> {
+    if (!upload) {
       return '';
     }
 
     if (path === 'script.py' || isEditableFile(path)) {
-      return this.selectedUpload.text();
+      const content = await upload.text();
+      if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
+        throw new Error(`${upload.name} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit after decoding.`);
+      }
+      return content;
     }
 
-    return this.selectedUpload;
+    return upload;
   }
 
-  private async deleteSelectedFile() {
+  private async deleteSelectedFile(trigger: Element | null) {
     const scope = this.lifecycle.current;
-    if (!scope || this.state.deleting) {
+    if (!scope
+      || this.operations.isActive('save')
+      || this.operations.isActive('create')
+      || this.operations.isActive('delete')) {
       return;
     }
     const path = this.state.selectedPath;
     if (!path || path === 'script.py') {
       return;
     }
-
-    if (!window.confirm(`Delete ${path}?`)) {
+    if (this.state.binary && this.openedModified === undefined && this.openedSize === undefined) {
+      this.reportError(`${path} has no metadata for safe delete verification; manage it externally.`);
+      return;
+    }
+    const revision = this.documentRevision;
+    const openedModified = this.openedModified;
+    const openedSize = this.openedSize;
+    const metadataBaselineValid = this.metadataBaselineValid;
+    const originalContent = this.originalContent;
+    const ticket = this.beginOperation('delete', scope);
+    const confirmed = await requestConfirm(this, {
+      title: 'Delete file?',
+      text: this.state.dirty
+        ? `Delete ${path}? Unsaved changes will be lost. This cannot be undone.`
+        : `Delete ${path}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    }, trigger, ticket.signal);
+    if (!confirmed || !this.operationIsCurrent(ticket, scope)
+      || this.state.selectedPath !== path
+      || this.documentRevision !== revision) {
+      this.finishOperation(ticket);
+      if (!confirmed) {
+        this.restoreTriggerFocus(trigger);
+      }
       return;
     }
 
-    this.setState({ deleting: true, error: '', status: `Deleting ${path}...` });
-    this.updateAvailability();
+    this.setState({ error: '', notice: false, status: `Deleting ${path}...` });
     try {
-      await deleteNodeFile(path, { signal: scope.signal });
-      if (!scope.isCurrent()) {
+      const files = await listNodeFiles({ signal: ticket.signal });
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      this.editor?.setDocument('', '');
-      this.editor?.setReadOnly(true);
-      this.setSelectedState('', '', false, false, `Deleted ${path}.`);
+      const remoteFile = files.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+      if (!remoteFile) {
+        throw new Error(`${path} no longer exists on the node. Refresh before deleting.`);
+      }
+      if (metadataBaselineValid && openedModified !== remoteFile.modified) {
+        throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
+      }
+      if (metadataBaselineValid && openedSize !== remoteFile.size) {
+        throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
+      }
+      if (isEditableFile(path)) {
+        const remoteContent = await getNodeFileContents(path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+        if (!this.operationIsCurrent(ticket, scope)) {
+          return;
+        }
+        if (remoteContent !== originalContent) {
+          throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
+        }
+      }
+      await deleteNodeFile(path, { signal: ticket.signal });
+      if (!this.operationIsCurrent(ticket, scope)) {
+        return;
+      }
+      if (this.state.selectedPath === path && this.documentRevision === revision) {
+        this.setEditorDocument('', '');
+        this.editor?.setReadOnly(true);
+        this.setSelectedState('', '', false, false, `Deleted ${path}.`);
+        this.setState({ notice: true, status: `Deleted ${path}.` });
+      } else {
+        this.setState({ dirty: true, notice: true, status: `Deleted ${path}; newer local document state remains open and unsaved.` });
+      }
       this.dispatchEvent(new CustomEvent('nodel-editor-file-deleted', { bubbles: true, detail: { path } }));
-      await this.loadFiles(undefined, scope);
+      await this.refreshFilesPreservingEditor(scope, true);
     } catch (error) {
-      if (!scope.isCurrent()) {
+      if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : `Failed to delete ${path}` });
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
-      if (scope.isCurrent()) {
-        this.setState({ deleting: false });
-        this.updateAvailability();
+      this.finishOperation(ticket);
+      if (confirmed) {
+        this.restoreTriggerFocus(trigger);
       }
     }
   }

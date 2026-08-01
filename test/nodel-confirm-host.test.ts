@@ -103,6 +103,25 @@ describe('nodel-confirm-host', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('focuses Cancel first for destructive confirmations', async () => {
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    host.confirm({ title: 'Delete file?', text: 'Continue?', tone: 'danger', resolve: vi.fn() });
+    await flush();
+    expect(document.activeElement).toBe(host.querySelector('button[data-confirm-action="cancel"]'));
+  });
+
+  it('closes and cancels a confirmation when its operation aborts', async () => {
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const controller = new AbortController();
+    const resolve = vi.fn();
+    host.confirm({ title: 'Delete file?', text: 'Continue?', tone: 'danger', signal: controller.signal, resolve });
+    await flush();
+    expect(host.hidden).toBe(false);
+    controller.abort();
+    expect(resolve).toHaveBeenCalledWith(false);
+    expect(host.hidden).toBe(true);
+  });
+
   it('resolves false on cancel, backdrop, and Escape', () => {
     const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
     const resolutions: boolean[] = [];

@@ -1337,11 +1337,13 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Opens text files from relative `REST/files/contents`.
 - Saves `script.py` through relative `REST/script/save`, preserving v1 script behavior.
 - Saves other files through relative `REST/files/save`.
-- Creates empty text files or uploads local files through the accessible file input or single-file drag and drop.
-- Stages a selected or dropped file in the add-file form, using its filename as the initial editable path; the file is not saved until the operator activates Upload.
-- Rejects multiple dropped files, preserves path validation and binary handling, and confirms before replacing dirty editor content.
-- Deletes files through relative `REST/files/delete`, except `script.py` is protected.
-- Uses CodeMirror 6 for editing with Python, HTML, XML, JavaScript, JSON, CSS, Markdown, Java, Groovy, SQL, and shell highlighting. Unsupported editable extensions remain plain text.
+- Creates empty text files or uploads local files through the accessible file input or single-file drag and drop without replacing the currently open dirty buffer.
+- Stages a selected or dropped file in the add-file form, using its filename as the initial editable path; the file is not saved until the operator activates Upload, and staged work participates in the page-unload guard.
+- Rejects multiple dropped files, non-portable new paths, text reads/uploads above 1 MiB, and binary uploads above 8 MiB. Known file sizes are shown in the picker.
+- Requires explicit shared confirmation before discarding dirty content, overwriting a case-folded existing path, or deleting a file. Overwrite and delete revalidate available metadata/content after confirmation; unverifiable metadata-free binary mutations and case-only script aliases must be managed externally.
+- Deletes files through relative `REST/files/delete`; `script.py` and ambiguous case-only script aliases are protected.
+- Uses CodeMirror 6 for editing with Python, HTML, XML, JavaScript, strict JSON, CSS, Markdown, Java, Groovy, SQL, and shell highlighting. Unsupported editable extensions remain plain text.
+- Keeps newer edits visible and dirty when an older save completes, and performs best-effort modified-time/content conflict checks before unconditional Java Nodel saves.
 - Uses theme-aware editor colours for the cursor, selection, matching brackets, active line, search matches, and syntax highlighting.
 - Starts at a sensible editor height and supports vertical drag-resize.
 - Provides custom layout hints from `src/editor/nodel-document-definition.ts` for v2 `nodel-*` markup.

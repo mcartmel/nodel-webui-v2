@@ -457,8 +457,8 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
     const result = normalizeOptionalStrings(record, ['modified'], context, path);
     optionalTimestamp(record, 'modified', context, path);
     const size = optionalFiniteNumber(record, 'size', context, path);
-    if (size !== undefined && size < 0) {
-      invalid(context, `${path}.size`, 'expected a non-negative number');
+    if (size !== undefined && (!Number.isSafeInteger(size) || size < 0)) {
+      invalid(context, `${path}.size`, 'expected a non-negative safe integer');
     }
     return { ...result, path: filePath } as NodelFileEntry;
   });

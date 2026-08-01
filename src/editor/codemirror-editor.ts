@@ -66,8 +66,8 @@ export async function languageExtensionForKind(kind: EditorLanguageKind): Promis
       return javascript();
     }
     case 'json': {
-      const { javascript } = await import('@codemirror/lang-javascript');
-      return javascript();
+      const { json } = await import('@codemirror/lang-json');
+      return json();
     }
     case 'css': {
       const { css } = await import('@codemirror/lang-css');

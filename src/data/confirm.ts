@@ -16,6 +16,7 @@ export interface NodelConfirmRequest {
 
 export interface NodelConfirmDetail extends NodelConfirmRequest {
   trigger?: Element | null;
+  signal?: AbortSignal;
   resolve: (confirmed: boolean) => void;
 }
 
@@ -44,28 +45,43 @@ export function confirmRequestFromAttributes(element: HTMLElement, defaults: Nod
   };
 }
 
-export function requestConfirm(element: HTMLElement, request: NodelConfirmRequest, trigger?: Element | null): Promise<boolean> {
+export function requestConfirm(element: HTMLElement, request: NodelConfirmRequest, trigger?: Element | null, signal?: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
+    let handled = false;
+    let settled = false;
     const activeElement = document.activeElement;
     const focusTrigger = trigger
       ?? (activeElement instanceof Element && element.contains(activeElement) ? activeElement : null)
       ?? element.querySelector<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
       ?? element;
     const finish = (confirmed: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      signal?.removeEventListener('abort', abort);
       resolve(confirmed);
-      window.setTimeout(() => {
-        if (focusTrigger instanceof HTMLElement && focusTrigger.isConnected) {
-          focusTrigger.focus();
-        }
-      }, 0);
+      if (!handled) {
+        window.setTimeout(() => {
+          if (focusTrigger instanceof HTMLElement && focusTrigger.isConnected) {
+            focusTrigger.focus();
+          }
+        }, 0);
+      }
     };
+    const abort = () => finish(false);
+    if (signal?.aborted) {
+      finish(false);
+      return;
+    }
+    signal?.addEventListener('abort', abort, { once: true });
     const event = new CustomEvent<NodelConfirmDetail>(NODEL_CONFIRM, {
       bubbles: true,
       cancelable: true,
-      detail: { ...request, trigger: focusTrigger, resolve: finish }
+      detail: { ...request, trigger: focusTrigger, signal, resolve: finish }
     });
 
-    const handled = !element.dispatchEvent(event);
+    handled = !element.dispatchEvent(event);
     if (!handled) {
       finish(request.mode === 'code' ? false : window.confirm(request.text || request.title || 'Continue?'));
     }
