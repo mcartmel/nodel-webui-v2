@@ -157,11 +157,11 @@ This lets the custom content root override the built-in default document and vis
 
 ## Release Bundle
 
-Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `release.json`. The manifest identifies the package version, source commit, and generic Nodel API compatibility range used by the release.
+Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `release.json`. The manifest identifies the package version, source commit, and tested Java Nodel API contract range used by the release.
 
 The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, the user-facing `components.html` catalogue, and `RELEASE_NOTES.md`. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
 
-`/REST/capabilities` is not part of the current Java Nodel contract. The existing optional client probe is transitional and must not be used as evidence that Java Nodel advertises feature support. Capability negotiation will be removed before production readiness and can be redesigned later if a concrete alternative backend requires it.
+The runtime targets the tested Java Nodel API directly and does not perform generic feature negotiation. The release manifest schema is version 2 and records only the supported API contract range. This is a project-owned version for the source-backed REST/WebSocket contract recorded in `test/fixtures/java-nodel-api.json`, not the Java host's `nodelVersion` and not a value negotiated at runtime. A consuming Java build maps its implementation to this contract during packaging. Alternative-backend negotiation can be designed later from a concrete cross-backend requirement.
 
 This repository produces the web UI release bundle; it does not install production host files or mutate a Nodel service. The consuming Nodel build is responsible for packaging the complete support directory, MIME types, compression, cache policy, upgrade/rollback behavior, and deployment security headers.
 

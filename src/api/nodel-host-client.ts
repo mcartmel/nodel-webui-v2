@@ -26,10 +26,8 @@ import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, fetchWithDeadline,
 import type {
   NodelActivityLogEntry,
   NodelActionDefinition,
-  NodelCapabilities,
   NodelConsoleLogEntry,
   NodelBuildInfo,
-  NodelCapabilityFeatures,
   NodelDiagnosticMeasurement,
   NodelDiagnosticsResponse,
   NodelDuplicateFileFailure,
@@ -148,34 +146,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function legacyCapabilities(): NodelCapabilities {
-  return {
-    schemaVersion: null,
-    apiVersion: null,
-    features: {
-      consoleExec: true
-    }
-  };
-}
-
-export function normalizeNodelCapabilities(value: unknown): NodelCapabilities {
-  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.apiVersion !== 'string' || !isRecord(value.features)) {
-    return legacyCapabilities();
-  }
-
-  const featureSource = value.features;
-  const features: NodelCapabilityFeatures = { ...featureSource };
-  if (typeof featureSource.consoleExec !== 'boolean') {
-    features.consoleExec = true;
-  }
-
-  return {
-    schemaVersion: typeof value.schemaVersion === 'number' ? value.schemaVersion : null,
-    apiVersion: typeof value.apiVersion === 'string' ? value.apiVersion : null,
-    features
-  };
-}
-
 async function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -206,24 +176,6 @@ export async function waitForNodeReady(nodeUrl: string, attempts = 30, intervalM
 
 export async function getLocalRest(init?: RequestInit): Promise<NodelLocalRestResponse> {
   return decodeLocalRest(await fetchJson('/REST', init), 'GET /REST');
-}
-
-export async function getHostCapabilities(init?: RequestInit): Promise<NodelCapabilities> {
-  try {
-    return await runWithDeadline(async (signal) => {
-      const response = await fetchWithConnectivity('/REST/capabilities', { ...init, signal });
-      if (!response.ok) {
-        return legacyCapabilities();
-      }
-      return normalizeNodelCapabilities(await response.json() as unknown);
-    }, init?.signal);
-  } catch (error) {
-    if (init?.signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-      throw error;
-    }
-
-    return legacyCapabilities();
-  }
 }
 
 export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosticsResponse> {

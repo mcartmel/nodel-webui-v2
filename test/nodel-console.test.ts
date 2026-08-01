@@ -1,21 +1,14 @@
 const consoleMock = vi.hoisted(() => ({
-  capabilitiesListeners: [] as Array<(state: unknown) => void>,
+  dispose: vi.fn(),
   listeners: [] as Array<(state: unknown) => void>,
   execute: vi.fn(async () => ({}))
-}));
-
-vi.mock('../src/data/host-capabilities-source', () => ({
-  subscribeHostCapabilities: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
-    consoleMock.capabilitiesListeners.push(listener);
-    return { dispose: vi.fn(), refresh: vi.fn(), getState: vi.fn() };
-  })
 }));
 
 vi.mock('../src/data/node-console-source', () => ({
   refreshNodeConsole: vi.fn(async () => undefined),
   subscribeNodeConsole: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
     consoleMock.listeners.push(listener);
-    return { dispose: vi.fn(), refresh: vi.fn(), getState: vi.fn() };
+    return { dispose: consoleMock.dispose, refresh: vi.fn(), getState: vi.fn() };
   })
 }));
 
@@ -29,7 +22,7 @@ import '../src/components/nodel-console';
 describe('nodel-console', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
-    consoleMock.capabilitiesListeners = [];
+    consoleMock.dispose.mockClear();
     consoleMock.listeners = [];
     consoleMock.execute.mockClear();
   });
@@ -89,54 +82,71 @@ describe('nodel-console', () => {
     expect(input!.value).toBe('');
   });
 
-  it('hides command input and disables execution when capabilities disable console execution', async () => {
+  it('keeps execution controls available when console history is unavailable', async () => {
     document.body.innerHTML = '<nodel-console></nodel-console>';
     await customElements.whenDefined('nodel-console');
-    await waitFor(() => consoleMock.listeners.length === 1 && consoleMock.capabilitiesListeners.length === 1);
+    await waitFor(() => consoleMock.listeners.length === 1);
 
     const input = document.querySelector<HTMLInputElement>('[data-console-input]');
     expect(input).toBeTruthy();
-    input!.value = 'print("blocked")';
-    input!.dispatchEvent(new InputEvent('input', { bubbles: true }));
-    await flush();
-
-    consoleMock.capabilitiesListeners[0]?.({
-      loading: false,
-      active: false,
-      error: '',
-      data: {
-        schemaVersion: 1,
-        apiVersion: '1.0',
-        features: {
-          consoleHistory: true,
-          consoleExec: false
-        }
-      }
-    });
-    await flush();
-
-    expect(document.querySelector('[data-console-input]')).toBeNull();
-
-    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-    await flush();
-    expect(consoleMock.execute).not.toHaveBeenCalled();
 
     consoleMock.listeners[0]?.({
       loading: false,
-      active: true,
-      error: '',
-      data: {
-        entries: [
-          { seq: 1, timestamp: '2026-01-01T00:00:00Z', console: 'out', comment: 'history still loads' }
-        ],
-        replace: true,
-        nextSeq: 2
-      }
+      active: false,
+      error: 'Console history unavailable',
+      data: undefined
     });
     await flush();
 
-    expect(document.body.textContent).toContain('history still loads');
+    expect(document.querySelector('[data-console-input]')).toBe(input);
+    expect(document.querySelector('nodel-console')?.getAttribute('data-state')).toBe('error');
+
+    input!.value = 'print("still available")';
+    input!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flush();
+    input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flush();
+    expect(consoleMock.execute).toHaveBeenCalledWith('print("still available")');
+  });
+
+  it('disposes and reconnects once while preserving per-instance command history', async () => {
+    const console = document.createElement('nodel-console');
+    document.body.append(console);
+    await customElements.whenDefined('nodel-console');
+    await waitFor(() => consoleMock.listeners.length === 1);
+
+    const firstInput = console.querySelector<HTMLInputElement>('[data-console-input]')!;
+    firstInput.value = 'first command';
+    firstInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await flush();
+    firstInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flush();
+    expect(consoleMock.execute).toHaveBeenCalledTimes(1);
+
+    console.remove();
+    await flush();
+    expect(consoleMock.dispose).toHaveBeenCalledOnce();
+
+    document.body.append(console);
+    await waitFor(() => consoleMock.listeners.length === 2);
+    const reconnectedInput = console.querySelector<HTMLInputElement>('[data-console-input]')!;
+    reconnectedInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await flush();
+
+    expect(reconnectedInput.value).toBe('first command');
+    expect(consoleMock.execute).toHaveBeenCalledTimes(1);
+
+    console.remove();
+    await flush();
+    const freshConsole = document.createElement('nodel-console');
+    document.body.append(freshConsole);
+    await waitFor(() => consoleMock.listeners.length === 3);
+    const freshInput = freshConsole.querySelector<HTMLInputElement>('[data-console-input]')!;
+    freshInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await flush();
+
+    expect(freshInput.value).toBe('');
+    expect(consoleMock.dispose).toHaveBeenCalledTimes(2);
   });
 
   it('renders an empty state only after successful empty console history loads', async () => {

@@ -3,6 +3,10 @@
     "repository": "museumsvictoria/nodel",
     "commit": "19756071383d696682688ab436c77c0a1f80c783",
     "capturedAt": "2026-08-01",
+    "apiContract": {
+      "min": "1.0",
+      "maxExclusive": "2.0"
+    },
     "sources": [
       "nodel-jyhost/src/main/java/org/nodel/jyhost/NodelHostHTTPD.java",
       "nodel-jyhost/src/main/java/org/nodel/jyhost/PyNode.java",
@@ -20,8 +24,7 @@
   "transport": {
     "restMethods": ["GET", "POST"],
     "contentType": "application/json; charset=utf-8",
-    "cors": "*",
-    "unsupportedEndpoints": ["/REST/capabilities"]
+    "cors": "*"
   },
   "responses": {
     "localRest": {

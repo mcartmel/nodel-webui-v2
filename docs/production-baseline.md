@@ -51,10 +51,12 @@ The shipped-page capture used the built preview on Chromium, an 800 ms post-`DOM
 | No-build authored fixture | 4 | Fixture HTML, `v2/nodel-webui.css`, `v2/nodel-webui.js`, `v2/chunks/jsviews-*.js`; no REST request and no WebSocket for unbound controls. |
 | `components.html` | 5 | HTML, stable CSS/JS, logo, JsViews chunk; no REST request or WebSocket. |
 | `nodes.html` | 8 | HTML, stable CSS/JS, logo, JsViews chunk, `/REST/diagnostics`, `/build.json`, `/REST`. |
-| `/nodes/Demo/nodel.html` | 28 plus one WebSocket | HTML, node-relative stable CSS/JS and logo, JsViews and CodeMirror chunks, six node-detail `REST/` requests, restart status, two file-list requests, capabilities, console, actions, events, params schema/value, remote schema/value, five activity fallback requests, and one `/nodes/Demo` WebSocket attempt. The repeated initial calls are baseline behavior to remove or consolidate later, not a target. |
+| `/nodes/Demo/nodel.html` | 28 plus one WebSocket | HTML, node-relative stable CSS/JS and logo, JsViews and CodeMirror chunks, six node-detail `REST/` requests, restart status, two file-list requests, one unsupported host-feature probe, console, actions, events, params schema/value, remote schema/value, five activity fallback requests, and one `/nodes/Demo` WebSocket attempt. The repeated initial calls are baseline behavior to remove or consolidate later, not a target. |
 | `toolkit.html` | 9 | HTML, stable CSS/JS, logo, `/REST/toolkit`, CodeMirror, JsViews, and two CodeMirror language-support chunks. |
 
 `e2e/authored-page-contract.spec.ts` continuously verifies that a page unknown to Vite upgrades initial and later-inserted components through stable assets, contains no catalogue marker, imports no `/src/` module, and makes no REST call for unbound controls.
+
+Stage 2 removed the unsupported host-feature probe, reducing the corresponding current node-page topology by one request. The table remains the Stage 0 measurement for historical comparison.
 
 ## Polling And Reconnect Baseline
 

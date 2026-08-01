@@ -53,17 +53,14 @@ describe('prepare-release', () => {
     const target = await prepareRelease('valid');
     const manifest = JSON.parse(await readFile(join(target, 'release.json'), 'utf8'));
     const packageMetadata = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'));
+    const javaContract = JSON.parse(await readFile(join(projectRoot, 'test/fixtures/java-nodel-api.json'), 'utf8'));
 
-    expect(manifest).toMatchObject({
-      schemaVersion: 1,
+    expect(manifest).toEqual({
+      schemaVersion: 2,
       name: 'nodel-webui-v2',
       version: packageMetadata.version,
       commit: validCommit,
-      nodelApi: {
-        min: '1.0',
-        maxExclusive: '2.0',
-        requiredFeatures: []
-      }
+      nodelApi: javaContract.provenance.apiContract
     });
 
     await expect(readFile(join(target, 'THIRD-PARTY-NOTICES.md'), 'utf8')).resolves.toContain('Third-Party Notices');

@@ -23,8 +23,7 @@ const bundleRequiredFiles = [
 const retiredFiles = ['elements.html', 'example.html'];
 const nodelApiRange = Object.freeze({
   min: '1.0',
-  maxExclusive: '2.0',
-  requiredFeatures: []
+  maxExclusive: '2.0'
 });
 
 function parseArgs(argv) {
@@ -112,8 +111,8 @@ function validateReleaseManifest(manifest, expected) {
     throw new Error('release.json must contain an object');
   }
 
-  if (manifest.schemaVersion !== 1) {
-    throw new Error('release.json schemaVersion must be 1');
+  if (manifest.schemaVersion !== 2) {
+    throw new Error('release.json schemaVersion must be 2');
   }
 
   if (manifest.name !== expected.name) {
@@ -138,8 +137,9 @@ function validateReleaseManifest(manifest, expected) {
     throw new Error('release.json nodelApi range is invalid');
   }
 
-  if (!Array.isArray(manifest.nodelApi.requiredFeatures) || !manifest.nodelApi.requiredFeatures.every((feature) => typeof feature === 'string')) {
-    throw new Error('release.json nodelApi requiredFeatures must be a string array');
+  const nodelApiKeys = Object.keys(manifest.nodelApi).sort();
+  if (nodelApiKeys.length !== 2 || nodelApiKeys[0] !== 'maxExclusive' || nodelApiKeys[1] !== 'min') {
+    throw new Error('release.json nodelApi must contain only min and maxExclusive');
   }
 }
 
@@ -175,7 +175,7 @@ async function main() {
   await cp(join(projectRoot, 'RELEASE_NOTES.md'), join(options.target, 'RELEASE_NOTES.md'));
   await cp(join(projectRoot, 'THIRD-PARTY-NOTICES.md'), join(options.target, 'THIRD-PARTY-NOTICES.md'));
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     name: packageMetadata.name,
     version,
     commit: options.commit,

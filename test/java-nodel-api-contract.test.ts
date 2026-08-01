@@ -42,12 +42,15 @@ interface ContractFixture {
     repository: string;
     commit: string;
     sources: string[];
+    apiContract: {
+      min: string;
+      maxExclusive: string;
+    };
   };
   transport: {
     restMethods: string[];
     contentType: string;
     cors: string;
-    unsupportedEndpoints: string[];
   };
   responses: Record<string, unknown>;
 }
@@ -74,7 +77,11 @@ describe('Java Nodel API contract fixtures', () => {
   it('records source provenance and the actual Java transport boundary', () => {
     expect(fixture.provenance).toMatchObject({
       repository: 'museumsvictoria/nodel',
-      commit: '19756071383d696682688ab436c77c0a1f80c783'
+      commit: '19756071383d696682688ab436c77c0a1f80c783',
+      apiContract: {
+        min: '1.0',
+        maxExclusive: '2.0'
+      }
     });
     expect(fixture.provenance.sources).toEqual(expect.arrayContaining([
       expect.stringContaining('NodelHostHTTPD.java'),
@@ -84,8 +91,7 @@ describe('Java Nodel API contract fixtures', () => {
     expect(fixture.transport).toEqual(expect.objectContaining({
       restMethods: ['GET', 'POST'],
       contentType: 'application/json; charset=utf-8',
-      cors: '*',
-      unsupportedEndpoints: ['/REST/capabilities']
+      cors: '*'
     }));
   });
 

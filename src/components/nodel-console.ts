@@ -1,6 +1,5 @@
 import { executeNodeConsoleCommand } from '../api/nodel-host-client';
-import type { NodelCapabilities, NodelConsoleLogEntry } from '../api/nodel-types';
-import { subscribeHostCapabilities } from '../data/host-capabilities-source';
+import type { NodelConsoleLogEntry } from '../api/nodel-types';
 import { refreshNodeConsole, subscribeNodeConsole } from '../data/node-console-source';
 import { getJQuery, linkTemplate, unlinkTemplate } from '../jsviews/jsviews-runtime';
 
@@ -14,7 +13,6 @@ interface ConsoleEntryView {
 
 interface ConsoleViewModel {
   commandText: string;
-  consoleExecEnabled: boolean;
   empty: boolean;
   entries: ConsoleEntryView[];
   statusLabel: string;
@@ -37,11 +35,9 @@ const template = `
         {{/if}}
       </div>
     </div>
-    {^{if consoleExecEnabled}}
-      <div class="space-y-2">
-        <input id="nodel-console-input" data-console-input class="nodel-console-input nodel-field min-h-10 w-full font-mono" type="text" spellcheck="false" aria-label="Console input" data-link="commandText trigger=true" />
-      </div>
-    {{/if}}
+    <div class="space-y-2">
+      <input id="nodel-console-input" data-console-input class="nodel-console-input nodel-field min-h-10 w-full font-mono" type="text" spellcheck="false" aria-label="Console input" data-link="commandText trigger=true" />
+    </div>
   </div>
 `;
 
@@ -70,11 +66,9 @@ export class NodelConsole extends HTMLElement {
   private historyIndex = -1;
   private lastAppliedNextSeq: number | null = null;
   private linked = false;
-  private capabilitiesSource: ReturnType<typeof subscribeHostCapabilities> | null = null;
   private source: ReturnType<typeof subscribeNodeConsole> | null = null;
   private state: ConsoleViewModel = {
     commandText: '',
-    consoleExecEnabled: true,
     empty: false,
     entries: [],
     statusLabel: 'Loading console history',
@@ -86,8 +80,6 @@ export class NodelConsole extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.capabilitiesSource?.dispose();
-    this.capabilitiesSource = null;
     this.source?.dispose();
     this.source = null;
     this.removeEventListeners();
@@ -108,12 +100,6 @@ export class NodelConsole extends HTMLElement {
       return;
     }
 
-    this.capabilitiesSource = subscribeHostCapabilities(this, (state) => {
-      if (state.data) {
-        this.applyCapabilities(state.data);
-      }
-    });
-
     this.source = subscribeNodeConsole(this, (state) => {
       if (state.data) {
         if (state.data.replace || state.data.nextSeq !== this.lastAppliedNextSeq) {
@@ -133,25 +119,6 @@ export class NodelConsole extends HTMLElement {
 
   private removeEventListeners() {
     this.querySelector('[data-console-input]')?.removeEventListener('keydown', this.handleKeydownEvent);
-  }
-
-  private applyCapabilities(capabilities: NodelCapabilities) {
-    const consoleExecEnabled = capabilities.features.consoleExec !== false;
-    if (this.state.consoleExecEnabled === consoleExecEnabled) {
-      return;
-    }
-
-    this.history = [];
-    this.historyIndex = -1;
-    const $ = getJQuery();
-    $.observable(this.state).setProperty({
-      commandText: '',
-      consoleExecEnabled
-    });
-
-    if (consoleExecEnabled) {
-      this.bindEvents();
-    }
   }
 
   private get collapsePreviewMode() {
@@ -215,13 +182,6 @@ export class NodelConsole extends HTMLElement {
   };
 
   private handleKeydown = async (event: KeyboardEvent) => {
-    if (!this.state.consoleExecEnabled) {
-      if (event.key === 'Enter' || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-        event.preventDefault();
-      }
-      return;
-    }
-
     const command = this.state.commandText.replace(/\u00A0/g, ' ').trim();
 
     if (event.key === 'Enter') {
