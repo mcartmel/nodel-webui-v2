@@ -43,8 +43,13 @@ describe('Nodel API response codecs', () => {
     expect(decodeNodeDetails(responses.nodeDetails, 'node')).toMatchObject({ name: 'Contract Node' });
     expect(decodeRestartStatus(responses.restartStatus, 'restart').timestamp).toBeTypeOf('string');
     expect(decodeConsoleLogs(responses.console, 'console')).toHaveLength(2);
-    expect(decodeActivityLogs(responses.activity, 'activity')).toHaveLength(2);
-    expect(decodeActivityWebSocketMessage(responses.activityWebSocketHistory, 'websocket').activityHistory).toHaveLength(1);
+    const decodedActivity = decodeActivityLogs(responses.activity, 'activity');
+    expect(decodedActivity).toHaveLength(3);
+    expect(decodedActivity.some((entry) => entry.timestamp === undefined)).toBe(true);
+
+    const decodedActivityHistory = decodeActivityWebSocketMessage(responses.activityWebSocketHistory, 'websocket').activityHistory;
+    expect(decodedActivityHistory).toHaveLength(2);
+    expect(decodedActivityHistory?.some((entry) => entry.timestamp === undefined)).toBe(true);
     expect(decodeActivityWebSocketMessage(responses.activityWebSocketLive, 'websocket').activity?.seq).toBe(202);
     expect(Object.keys(decodeActions(responses.actions, 'actions'))).toContain('SetLevel');
     expect(Object.keys(decodeSignals(responses.events, 'events'))).toContain('Status');
@@ -61,6 +66,27 @@ describe('Nodel API response codecs', () => {
     const timestamp = '2026-08-01T00:00:00Z';
     expect(() => decodeActivityLogs([{ seq: Number.NaN, timestamp, source: 'local', type: 'event', alias: 'Status' }], 'activity')).toThrow(NodelApiDecodeError);
     expect(() => decodeActivityLogs([{ seq: 1, timestamp, source: 'unknown', type: 'event', alias: 'Status' }], 'activity')).toThrow('$[0].source');
+    expect(decodeActivityLogs([{ seq: 1, source: 'local', type: 'event', alias: 'Status' }], 'activity')[0]).toMatchObject({ seq: 1, source: 'local', type: 'event', alias: 'Status' });
+    expect(decodeActivityLogs([{ seq: 1, timestamp: null, source: 'local', type: 'event', alias: 'Status' }], 'activity')[0].timestamp).toBeUndefined();
+    expect(decodeActivityLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', source: 'local', type: 'event', alias: 'Status' }], 'activity')[0].timestamp).toBe('2026-08-01T00:00:00Z');
+    expect(() => decodeActivityLogs([{ seq: 1, timestamp: '', source: 'local', type: 'event', alias: 'Status' }], 'activity')).toThrow('non-empty string');
+
+    const malformedTimestamps: Array<{ label: string; value: string }> = [];
+    const baseTimestamp = '2026-08-01T00:00:00Z';
+    for (let code = 0; code < 0x20; code += 1) {
+      const character = String.fromCharCode(code);
+      const label = `U+${code.toString(16).toUpperCase().padStart(4, '0')}`;
+      malformedTimestamps.push({ label: `${label} prefix`, value: `${character}${baseTimestamp}` });
+      malformedTimestamps.push({ label: `${label} middle`, value: `2026-08-01T00${character}00:00Z` });
+      malformedTimestamps.push({ label: `${label} suffix`, value: `${baseTimestamp}${character}` });
+    }
+    const del = '\u007f';
+    malformedTimestamps.push({ label: 'U+007F prefix', value: `${del}2026-08-01T00:00:00Z` });
+    malformedTimestamps.push({ label: 'U+007F middle', value: `2026-08-01T00${del}00:00Z` });
+    malformedTimestamps.push({ label: 'U+007F suffix', value: `2026-08-01T00:00:00Z${del}` });
+    for (const { label, value } of malformedTimestamps) {
+      expect(() => decodeActivityLogs([{ seq: 1, timestamp: value, source: 'local', type: 'event', alias: 'Status' }], 'activity'), `rejects malformed timestamp ${label}`).toThrow();
+    }
     expect(() => decodeActivityLogs([{ seq: 1, timestamp: 'not-a-date', source: 'local', type: 'event', alias: 'Status' }], 'activity')).toThrow('valid timestamp');
     expect(() => decodeConsoleLogs([{ seq: 1, timestamp, console: 'debug', comment: 'line' }], 'console')).toThrow('$[0].console');
     expect(() => decodeDiagnosticMeasurements([{ name: 'Metric', isRate: false, values: [Number.POSITIVE_INFINITY] }], 'measurements')).toThrow('finite number');

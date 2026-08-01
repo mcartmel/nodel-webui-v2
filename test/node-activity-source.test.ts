@@ -272,6 +272,7 @@ describe('node-activity-source', () => {
       activity: { seq: 1, timestamp: 'not-a-date', source: 'local', type: 'event', alias: 'Status' }
     });
     expect(states.at(-1)?.error).toContain('WebSocket activity returned invalid data');
+    expect(states.at(-1)?.error.length).toBeLessThanOrEqual(500);
     expect(states.at(-1)?.batch).toBeNull();
 
     MockWebSocket.instances[0].message({
@@ -280,6 +281,23 @@ describe('node-activity-source', () => {
     expect(states.at(-1)?.error).toBe('');
     expect(states.at(-1)?.batch?.items[0].entry.alias).toBe('Status');
     expect(states.at(-1)?.batch?.transport).toBe('websocket');
+
+    subscription.dispose();
+  });
+
+  it('accepts initial WebSocket snapshots with uninitialized activity timestamps', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+
+    MockWebSocket.instances[0].message({
+      activityHistory: [
+        { seq: 1, source: 'local', type: 'event', alias: 'Boot', arg: 'ready' },
+      ]
+    });
+
+    expect(states.at(-1)?.error).toBe('');
+    expect(states.at(-1)?.batch?.items[0]?.entry.timestamp).toBeUndefined();
 
     subscription.dispose();
   });
@@ -350,6 +368,23 @@ describe('node-activity-source', () => {
     });
     expect(states.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
     expect(states.at(-1)?.transport).toBe('poll');
+
+    subscription.dispose();
+  });
+
+  it('accepts missing timestamps from polled REST activity without a source error', async () => {
+    activityMock.getNodeActivity.mockResolvedValue([
+      activityEntry({ seq: 10, timestamp: undefined })
+    ]);
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+
+    MockWebSocket.instances[0].closeFromServer();
+    await flushMicrotasks();
+
+    expect(states.at(-1)?.error).toBe('');
+    expect(states.at(-1)?.batch?.items[0].entry.timestamp).toBeUndefined();
 
     subscription.dispose();
   });

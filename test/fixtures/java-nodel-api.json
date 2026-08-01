@@ -144,20 +144,32 @@
         "type": "actionBinding",
         "alias": "SetPower",
         "arg": "Wired"
+      },
+      {
+        "seq": 0,
+        "source": "local",
+        "type": "action",
+        "alias": "ActionState"
       }
     ],
     "activityWebSocketHistory": {
       "node": "Contract Node",
       "activityHistory": [
         {
-          "seq": 200,
-          "timestamp": "2026-08-01T01:02:03.000Z",
+          "seq": 0,
+          "source": "remote",
+          "type": "actionBinding",
+          "alias": "SetPower",
+          "arg": "Empty"
+        },
+        {
+          "seq": 203,
+          "timestamp": "2026-08-01T01:02:06.000Z",
           "source": "local",
-          "type": "event",
-          "alias": "Status",
+          "type": "action",
+          "alias": "ActionState",
           "arg": {
-            "level": 0,
-            "message": "Ready"
+            "state": "Initialized"
           }
         }
       ]

@@ -144,6 +144,31 @@ describe('nodel-log', () => {
     expect(actionBinding.querySelector('[data-icon="arrow-right"]')).toBeNull();
   });
 
+  it('renders blank time for missing timestamps', async () => {
+    await mountLog();
+
+    activityMock.listeners[0]?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: {
+        replace: true,
+        transport: 'websocket',
+        nextSeq: 1,
+        items: [
+          {
+            entry: { seq: 1, source: 'local', type: 'event', alias: 'NoTime' },
+            changed: false,
+            live: false
+          }
+        ]
+      }
+    });
+
+    const time = document.querySelector<HTMLElement>('.nodel-log-time');
+    expect(time?.textContent).toBe(' - ');
+  });
+
   it('renders an empty state only after a successful empty activity load', async () => {
     await mountLog();
 

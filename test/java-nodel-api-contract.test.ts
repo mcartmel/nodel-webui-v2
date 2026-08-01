@@ -300,11 +300,18 @@ describe('Java Nodel API contract fixtures', () => {
   });
 
   it('captures both Java activity WebSocket envelope forms', () => {
+    const activityRows = fixture.responses.activity as Array<Record<string, unknown>> | undefined;
     const history = fixture.responses.activityWebSocketHistory as Record<string, unknown>;
     const live = fixture.responses.activityWebSocketLive as Record<string, unknown>;
 
+    const historyRows = history.activityHistory as Array<Record<string, unknown>> | undefined;
+    const initialBinding = historyRows?.find((entry) => entry.seq === 0 && entry.type === 'actionBinding');
+    const initialLocalAction = activityRows?.find((entry) => entry.seq === 0 && entry.type === 'action' && entry.source === 'local' && entry.alias === 'ActionState');
+
     expect(history.node).toBe('Contract Node');
     expect(history.activityHistory).toEqual(expect.any(Array));
+    expect(initialBinding).toEqual({ seq: 0, source: 'remote', type: 'actionBinding', alias: 'SetPower', arg: 'Empty' });
+    expect(initialLocalAction).toEqual({ seq: 0, source: 'local', type: 'action', alias: 'ActionState' });
     expect(live.node).toBe('Contract Node');
     expect(live.activity).toEqual(expect.objectContaining({ seq: 202, alias: 'Power' }));
   });

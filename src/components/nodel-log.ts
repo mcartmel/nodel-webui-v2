@@ -93,9 +93,18 @@ function rowKey(entry: NodelActivityLogEntry) {
 }
 
 function formatTimestamp(timestamp: unknown) {
-  const value = String(timestamp ?? '');
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(timestamp ?? '') : date.toLocaleTimeString();
+  if (timestamp === undefined || timestamp === null) {
+    return '';
+  }
+  if (typeof timestamp !== 'string') {
+    return String(timestamp);
+  }
+  if (!timestamp.trim()) {
+    return '';
+  }
+
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? timestamp : date.toLocaleTimeString();
 }
 
 function formatArg(arg: unknown) {

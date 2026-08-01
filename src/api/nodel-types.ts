@@ -64,7 +64,7 @@ export interface NodelHostLogEntry {
 
 export interface NodelActivityLogEntry {
   seq: number;
-  timestamp: string;
+  timestamp?: string;
   source: 'local' | 'remote' | 'unbound';
   type: 'action' | 'event' | 'actionBinding' | 'eventBinding';
   alias: string;

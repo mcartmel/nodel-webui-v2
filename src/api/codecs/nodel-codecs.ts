@@ -26,6 +26,7 @@ export const MAX_API_COLLECTION_ITEMS = 10_000;
 const MAX_SCHEMA_DEPTH = 32;
 const MAX_JSON_DEPTH = 64;
 const unsafeText = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+const unsafeActivityTimestampText = /[\u0000-\u001f\u007f]/;
 const unsafePathText = /[\u0000-\u001f\u007f]/;
 const schemaTypes = new Set(['array', 'boolean', 'integer', 'null', 'number', 'object', 'string']);
 
@@ -113,6 +114,21 @@ function optionalSequence(record: Record<string, unknown>, key: string, context:
 
 function requiredTimestamp(record: Record<string, unknown>, key: string, context: string, path: string) {
   const value = requiredString(record, key, context, path);
+  if (!Number.isFinite(Date.parse(value))) {
+    invalid(context, `${path}.${key}`, 'expected a valid timestamp');
+  }
+  return value;
+}
+
+function optionalActivityTimestamp(record: Record<string, unknown>, key: string, context: string, path: string) {
+  if (record[key] === undefined || record[key] === null) {
+    return undefined;
+  }
+
+  const value = requiredString(record, key, context, path);
+  if (unsafeActivityTimestampText.test(value)) {
+    invalid(context, `${path}.${key}`, 'expected a valid timestamp');
+  }
   if (!Number.isFinite(Date.parse(value))) {
     invalid(context, `${path}.${key}`, 'expected a valid timestamp');
   }
@@ -393,7 +409,7 @@ export function decodeActivityLogs(value: unknown, context: string): NodelActivi
     const path = `$[${index}]`;
     const record = asRecord(item, context, path);
     const seq = requiredSequence(record, 'seq', context, path);
-    const timestamp = requiredTimestamp(record, 'timestamp', context, path);
+    const timestamp = optionalActivityTimestamp(record, 'timestamp', context, path);
     const alias = requiredString(record, 'alias', context, path);
     if (typeof record.source !== 'string' || !sources.has(record.source)) {
       invalid(context, `${path}.source`, 'expected local, remote, or unbound');
@@ -404,7 +420,11 @@ export function decodeActivityLogs(value: unknown, context: string): NodelActivi
     if (record.arg !== undefined) {
       validateJsonBounds(record.arg, context, `${path}.arg`);
     }
-    return { ...record, seq, timestamp, alias, source: record.source, type: record.type } as NodelActivityLogEntry;
+    const result = { ...record } as Record<string, unknown>;
+    if (timestamp === undefined) {
+      delete result.timestamp;
+    }
+    return { ...result, seq, ...(timestamp !== undefined ? { timestamp } : {}), alias, source: record.source, type: record.type } as NodelActivityLogEntry;
   });
 }
 
