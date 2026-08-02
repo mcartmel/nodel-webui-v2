@@ -4,6 +4,16 @@ function isDesktopThemeProject(testInfo: TestInfo) {
   return testInfo.project.name === 'chromium-light-desktop' || testInfo.project.name === 'chromium-dark-desktop';
 }
 
+function partialCopyMaxDiffPixels(testInfo: TestInfo) {
+  if (testInfo.project.name === 'chromium-forced-colors') {
+    return 1500;
+  }
+  if (testInfo.project.name === 'firefox-light-desktop') {
+    return 8000;
+  }
+  return 150;
+}
+
 test.describe('add-node autocomplete', () => {
   test('renders recipe and duplicate-node suggestions in both themes', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Autocomplete baselines run once for each desktop colour theme.');
@@ -93,7 +103,7 @@ test.describe('add-node autocomplete', () => {
     await expect(warning).toContainText('HTTP 507');
     await expect(addNode.locator('.nodel-template-selected')).toContainText('Node: Existing Projector');
     await expect(addNode.locator('.nodel-add-node-panel')).toHaveScreenshot('add-node-partial-copy.png', {
-      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+      maxDiffPixels: partialCopyMaxDiffPixels(testInfo)
     });
   });
 

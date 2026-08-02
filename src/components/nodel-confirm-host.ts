@@ -108,9 +108,11 @@ export class NodelConfirmHost extends HTMLElement {
     this.hidden = true;
     this.innerHTML = '';
     state.resolve(confirmed);
-    if (state.trigger instanceof HTMLElement && state.trigger.isConnected) {
-      state.trigger.focus();
-    }
+    window.setTimeout(() => {
+      if (state.trigger instanceof HTMLElement && state.trigger.isConnected) {
+        state.trigger.focus();
+      }
+    }, 0);
   }
 
   private handleClick = (event: MouseEvent) => {

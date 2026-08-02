@@ -57,6 +57,10 @@ function clickDigit(host: NodelConfirmHostElement, digit: string) {
   host.querySelector<HTMLButtonElement>(`[data-confirm-code-digit="${digit}"]`)?.click();
 }
 
+function nextTimer() {
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
+}
+
 describe('nodel-confirm-host', () => {
   let restoreRuntime: (() => void) | null = null;
 
@@ -100,6 +104,26 @@ describe('nodel-confirm-host', () => {
 
     expect(resolutions).toEqual([true]);
     expect(host.hidden).toBe(true);
+    await nextTimer();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('restores trigger focus after the confirmed caller finishes rendering', async () => {
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const trigger = document.querySelector<HTMLButtonElement>('#trigger')!;
+    host.confirm({
+      text: 'Continue?',
+      resolve: () => {
+        trigger.disabled = true;
+        trigger.disabled = false;
+      }
+    }, trigger);
+    await flush();
+
+    host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')?.click();
+    expect(document.activeElement).not.toBe(trigger);
+    await nextTimer();
+
     expect(document.activeElement).toBe(trigger);
   });
 

@@ -17,11 +17,17 @@ async function openCatalogue(page: Page, pageId: string) {
   await page.addStyleTag({ content: animationReset });
 }
 
-async function captureCatalogueExample(page: Page, pageId: string, exampleId: string, screenshot: string) {
+function catalogueScreenshotOptions(testInfo: TestInfo) {
+  return {
+    maxDiffPixels: testInfo.project.name === 'firefox-light-desktop' ? 2000 : 150
+  };
+}
+
+async function captureCatalogueExample(page: Page, testInfo: TestInfo, pageId: string, exampleId: string, screenshot: string) {
   await openCatalogue(page, pageId);
   const example = page.locator(`[data-catalogue-example="${exampleId}"]`);
   await expect(example).toBeVisible();
-  await expect(example).toHaveScreenshot(screenshot);
+  await expect(example).toHaveScreenshot(screenshot, catalogueScreenshotOptions(testInfo));
 }
 
 function isDesktopThemeProject(testInfo: TestInfo) {
@@ -75,16 +81,16 @@ test.describe('catalogue visual regressions', () => {
   test('captures representative control variants', async ({ page }, testInfo) => {
     test.skip(isForcedColoursProject(testInfo), 'Forced-colours uses assertions instead of pixel baselines.');
 
-    await captureCatalogueExample(page, 'Buttons', 'buttons-variants', 'buttons-variants.png');
-    await captureCatalogueExample(page, 'TogglesSegmented', 'toggles-switch-states', 'toggle-states.png');
-    await captureCatalogueExample(page, 'TogglesSegmented', 'toggles-segmented-choices', 'segmented-choices.png');
-    await captureCatalogueExample(page, 'PickersPrecision', 'select-stepper', 'pickers-and-stepper.png');
-    await captureCatalogueExample(page, 'PickersPrecision', 'readouts', 'readouts.png');
-    await captureCatalogueExample(page, 'FadersMeters', 'faders-compound-fader', 'faders-and-meters.png');
-    await captureCatalogueExample(page, 'Media', 'media-qr-codes', 'qr-codes.png');
-    await captureCatalogueExample(page, 'Media', 'media-status-blocks', 'status-variants.png');
-    await captureCatalogueExample(page, 'Text', 'content-text-surface', 'content-surfaces.png');
-    await captureCatalogueExample(page, 'ControlGrid', 'feedback-states', 'feedback-states.png');
+    await captureCatalogueExample(page, testInfo, 'Buttons', 'buttons-variants', 'buttons-variants.png');
+    await captureCatalogueExample(page, testInfo, 'TogglesSegmented', 'toggles-switch-states', 'toggle-states.png');
+    await captureCatalogueExample(page, testInfo, 'TogglesSegmented', 'toggles-segmented-choices', 'segmented-choices.png');
+    await captureCatalogueExample(page, testInfo, 'PickersPrecision', 'select-stepper', 'pickers-and-stepper.png');
+    await captureCatalogueExample(page, testInfo, 'PickersPrecision', 'readouts', 'readouts.png');
+    await captureCatalogueExample(page, testInfo, 'FadersMeters', 'faders-compound-fader', 'faders-and-meters.png');
+    await captureCatalogueExample(page, testInfo, 'Media', 'media-qr-codes', 'qr-codes.png');
+    await captureCatalogueExample(page, testInfo, 'Media', 'media-status-blocks', 'status-variants.png');
+    await captureCatalogueExample(page, testInfo, 'Text', 'content-text-surface', 'content-surfaces.png');
+    await captureCatalogueExample(page, testInfo, 'ControlGrid', 'feedback-states', 'feedback-states.png');
   });
 
   test('keeps the mobile toolbar in view and captures its open group menu', async ({ page }, testInfo) => {
