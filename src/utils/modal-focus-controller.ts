@@ -144,7 +144,16 @@ export class ModalFocusController {
     restoreInert(layer);
     this.layer = null;
     if (options.restoreFocus !== false && wasTop && layer.trigger instanceof HTMLElement && layer.trigger.isConnected) {
-      queueMicrotask(() => layer.trigger instanceof HTMLElement && layer.trigger.isConnected && layer.trigger.focus());
+      window.setTimeout(() => {
+        const activeElement = document.activeElement;
+        if (
+          layer.trigger instanceof HTMLElement
+          && layer.trigger.isConnected
+          && (activeElement === document.body || activeElement === document.documentElement)
+        ) {
+          layer.trigger.focus();
+        }
+      }, 0);
     }
   }
 

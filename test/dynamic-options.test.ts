@@ -122,11 +122,11 @@ describe('dynamic options', () => {
     expect(controller.setBindingActive(true)).toBe('loading');
     expect(controller.setSourceState({ loading: false, connected: false, error: 'offline' })).toBe('error');
     expect(optionTexts(container)).toEqual(['Fallback:Fallback']);
-    expect(controller.setSourceState({ loading: false, connected: true, error: '' })).toBe('loading');
+    expect(controller.setSourceState({ loading: false, connected: false, error: '' })).toBe('loading');
 
     expect(controller.applyPayload(['A']).state).toBe('ready');
     expect(controller.setSourceState({ loading: false, connected: false, error: 'offline' })).toBe('error');
-    expect(controller.setSourceState({ loading: false, connected: true, error: '' })).toBe('ready');
+    expect(controller.setSourceState({ loading: false, connected: false, error: '' })).toBe('ready');
 
     controller.reset();
     expect(controller.getState()).toBe('static');

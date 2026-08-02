@@ -118,8 +118,10 @@ describe('nodel-confirm-host', () => {
     host.confirm({
       text: 'Continue?',
       resolve: () => {
-        trigger.disabled = true;
-        trigger.disabled = false;
+        queueMicrotask(() => {
+          trigger.disabled = true;
+          trigger.disabled = false;
+        });
       }
     }, trigger);
     await flush();
@@ -129,6 +131,23 @@ describe('nodel-confirm-host', () => {
     await nextTimer();
 
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('preserves focus explicitly moved by the confirmed caller', async () => {
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const trigger = document.querySelector<HTMLButtonElement>('#trigger')!;
+    const nextControl = document.createElement('button');
+    document.body.appendChild(nextControl);
+    host.confirm({
+      text: 'Continue?',
+      resolve: () => queueMicrotask(() => nextControl.focus())
+    }, trigger);
+    await flush();
+
+    host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')?.click();
+    await nextTimer();
+
+    expect(document.activeElement).toBe(nextControl);
   });
 
   it('focuses Cancel first for destructive confirmations', async () => {

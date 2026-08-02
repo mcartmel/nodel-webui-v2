@@ -55,7 +55,7 @@ async function openNetworkNodeList(page: Page) {
     body: JSON.stringify(networkNodes)
   }));
   await page.route('http://alpha.test:8085/REST', (route) => route.fulfill({ status: 200, body: '{}' }));
-  await page.route('http://beta.test:8085/REST', (route) => route.fulfill({ status: 503, body: '{}' }));
+  await page.route('http://beta.test:8085/REST', (route) => route.abort('failed'));
   await page.route('http://gamma.test:8085/REST', (route) => route.fulfill({ status: 200, body: '{}' }));
   await page.goto('/nodes.html#Network', { waitUntil: 'domcontentloaded' });
   return waitForNodeList(page, 'network', networkNodes.length);

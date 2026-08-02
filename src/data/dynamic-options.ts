@@ -197,7 +197,7 @@ export class DynamicOptionsController {
       return this.state;
     }
 
-    this.sourceError = Boolean(sourceState.error) || (!sourceState.connected && !sourceState.loading);
+    this.sourceError = Boolean(sourceState.error);
     this.state = this.effectiveState();
     return this.state;
   }
