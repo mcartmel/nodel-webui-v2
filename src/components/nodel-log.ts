@@ -198,7 +198,7 @@ function logIconMarkup(entry: NodelActivityLogEntry) {
   return { markup: `${baseIcon}${badgeIcon}`, label: descriptor.label };
 }
 
-function rowClass(entry: NodelActivityLogEntry, pulse: boolean) {
+function rowClass(pulse: boolean) {
   return `nodel-log-row${pulse ? ' is-pulsing' : ''}`;
 }
 
@@ -240,7 +240,7 @@ export class NodelLog extends HTMLElement {
     this.pulseTimers.clear();
     for (const row of this.rows.values()) {
       row.pulse = false;
-      row.rowClass = rowClass(row.entry, false);
+      row.rowClass = rowClass(false);
     }
     this.linked = false;
   }
@@ -369,7 +369,7 @@ export class NodelLog extends HTMLElement {
       iconMarkup: icon.markup,
       key,
       pulse,
-      rowClass: rowClass(entry, pulse),
+      rowClass: rowClass(pulse),
       source: entry.source,
       showArg: entry.arg !== undefined,
       type: entry.type
@@ -408,7 +408,7 @@ export class NodelLog extends HTMLElement {
       if (row) {
         getJQuery().observable(row).setProperty({
           pulse: false,
-          rowClass: rowClass(row.entry, false)
+          rowClass: rowClass(false)
         });
       }
     }, 700);

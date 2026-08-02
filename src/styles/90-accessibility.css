@@ -1,0 +1,146 @@
+@layer components {
+  @media (prefers-contrast: more) {
+    :root {
+      --nodel-control-border: rgb(var(--nodel-fg) / 0.8);
+      --nodel-card-border: rgb(var(--nodel-fg) / 0.58);
+      --nodel-panel-border: rgb(var(--nodel-fg) / 0.72);
+      --nodel-divider: rgb(var(--nodel-fg) / 0.45);
+    }
+
+    .nodel-button,
+    .nodel-field,
+    .nodel-list,
+    .nodel-list-item,
+    .nodel-menu-item,
+    .nodel-select-trigger,
+    .nodel-toggle-track,
+    .nodel-stepper-button,
+    .nodel-pad-button,
+    .nodel-fader-track,
+    .nodel-fader-nudge,
+    .nodel-meter-track,
+    .nodel-readout-visual,
+    .nodel-palette-custom-button,
+    .nodel-palette-custom-input,
+    .nodel-theme-switch,
+    .nodel-collapse-summary,
+    .nodel-status-shell {
+      border-color: rgb(var(--nodel-fg) / 0.78) !important;
+    }
+
+    .nodel-button:focus-visible,
+    .nodel-field:focus-visible,
+    .nodel-list-item:focus-visible,
+    .nodel-menu-item:focus-visible,
+    .nodel-select-trigger:focus-visible,
+    .nodel-toggle:focus-visible,
+    .nodel-fader-track:focus-visible,
+    .nodel-stepper-button:focus-visible,
+    .nodel-pad-button:focus-visible,
+    .nodel-palette-custom-button:focus-visible,
+    .nodel-palette-custom-input:focus-visible,
+    .nodel-theme-switch:focus-visible,
+    .nodel-collapse-summary:focus-visible,
+    .nodel-link:focus-visible,
+    .nodel-choice:focus-visible {
+      outline: 3px solid rgb(var(--nodel-focus)) !important;
+      outline-offset: 2px !important;
+    }
+
+    .nodel-collapse-summary:focus-visible {
+      outline-offset: -3px !important;
+    }
+
+    .nodel-list > li > .nodel-list-item:focus-visible {
+      outline-offset: -3px !important;
+    }
+  }
+
+  @media (forced-colors: active) {
+    body,
+    nodel-toolbar,
+    .nodel-card,
+    .nodel-panel,
+    .nodel-popover,
+    .nodel-options-status,
+    .nodel-list,
+    .nodel-button,
+    .nodel-field,
+    .nodel-list-item,
+    .nodel-alert,
+    .nodel-toast,
+    .nodel-select-trigger,
+    .nodel-toggle-track,
+    .nodel-stepper-button,
+    .nodel-pad-button,
+    .nodel-fader-track,
+    .nodel-fader-nudge,
+    .nodel-meter-track,
+    .nodel-readout-visual,
+    .nodel-palette-custom-button,
+    .nodel-palette-custom-input,
+    .nodel-theme-switch,
+    .nodel-collapse-summary,
+    .nodel-status-shell {
+      background: Canvas !important;
+      border-color: CanvasText !important;
+      box-shadow: none !important;
+      color: CanvasText !important;
+    }
+
+    .nodel-button.nodel-button-primary,
+    .nodel-button.nodel-button-success,
+    .nodel-button.nodel-button-info,
+    .nodel-button.nodel-button-warning,
+    .nodel-button.nodel-button-danger,
+    .nodel-menu-item.nodel-menu-item-active,
+    .nodel-button.is-active,
+    .nodel-segmented > nodel-button[active] .nodel-button-touch,
+    .nodel-segmented > nodel-button[data-active='true'] .nodel-button-touch {
+      background: Highlight !important;
+      border-color: Highlight !important;
+      color: HighlightText !important;
+      forced-color-adjust: none;
+    }
+
+    .nodel-button:focus-visible,
+    .nodel-field:focus-visible,
+    .nodel-list-item:focus-visible,
+    .nodel-menu-item:focus-visible,
+    .nodel-select-trigger:focus-visible,
+    .nodel-toggle:focus-visible,
+    .nodel-fader-track:focus-visible,
+    .nodel-stepper-button:focus-visible,
+    .nodel-pad-button:focus-visible,
+    .nodel-palette-custom-button:focus-visible,
+    .nodel-palette-custom-input:focus-visible,
+    .nodel-theme-switch:focus-visible,
+    .nodel-collapse-summary:focus-visible,
+    .nodel-link:focus-visible,
+    .nodel-choice:focus-visible {
+      outline: 3px solid Highlight !important;
+      outline-offset: 2px !important;
+    }
+
+    .nodel-collapse-summary:focus-visible {
+      outline-offset: -3px !important;
+    }
+
+    .nodel-list > li > .nodel-list-item:focus-visible {
+      outline-offset: -3px !important;
+    }
+
+    .nodel-list > li + li {
+      border-color: CanvasText !important;
+    }
+
+    .nodel-status-indicator-dot,
+    .nodel-status-scale span,
+    .nodel-meter-fill,
+    .nodel-readout-visual-inner {
+      forced-color-adjust: none;
+      background: Highlight !important;
+      border-color: HighlightText !important;
+    }
+  }
+}

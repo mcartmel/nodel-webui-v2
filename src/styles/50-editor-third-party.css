@@ -1,0 +1,54 @@
+@layer components {
+  .nodel-editor-current {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .nodel-editor-status,
+  .nodel-editor-reload-status {
+    @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surfaceRaised/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised) / 0.94));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+    max-width: min(28rem, calc(100% - 1.5rem));
+  }
+
+  .nodel-editor-status[hidden],
+  .nodel-editor-reload-status[hidden] {
+    display: none;
+  }
+
+  .nodel-editor-status.is-error,
+  .nodel-editor.is-error .nodel-editor-status {
+    @apply border-nodel-dangerBorder/55 bg-nodel-dangerBg/[0.94] text-nodel-danger;
+    background: rgb(var(--nodel-danger-bg) / 0.94);
+  }
+
+  .nodel-editor-drop-target {
+    @apply pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-card border-2 border-dashed border-nodel-accent bg-nodel-surfaceRaised/95 p-6 text-center text-sm font-semibold text-nodel-accent;
+    background: rgb(var(--nodel-surface-raised) / 0.95);
+  }
+
+  .nodel-editor-drop-target[hidden] {
+    display: none;
+  }
+
+  .nodel-editor-host {
+    --nodel-editor-font-size: 0.8125rem;
+    --nodel-editor-line-height: 1.45;
+    height: var(--nodel-editor-height, 28rem);
+    @apply max-h-[80vh] min-h-64 resize-y overflow-auto;
+  }
+
+  .nodel-editor-host .cm-editor {
+    @apply h-full min-h-full;
+  }
+
+  .nodel-editor-host .cm-scroller {
+    @apply min-h-full;
+    font-size: var(--nodel-editor-font-size);
+    line-height: var(--nodel-editor-line-height);
+  }
+
+  .nodel-toolkit-editor {
+    --nodel-editor-height: min(72vh, 44rem);
+  }
+}

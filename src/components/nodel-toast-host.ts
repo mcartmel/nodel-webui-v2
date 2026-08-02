@@ -1,4 +1,5 @@
 import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
+import { escapeHtml } from '../utils/html';
 
 export const NODEL_TOAST = 'nodel-toast';
 
@@ -33,16 +34,7 @@ const toneIconMarkup: Record<NodelToastTone, string> = {
   warning: renderFontAwesomeIcon(toastIcons.warning, 'h-4 w-4')
 };
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function normalizeTone(tone: NodelToastDetail['tone']): NodelToastTone {
+export function normalizeToastTone(tone: NodelToastDetail['tone']): NodelToastTone {
   return tone === 'success' || tone === 'warning' || tone === 'danger' ? tone : 'info';
 }
 
@@ -81,7 +73,7 @@ export class NodelToastHost extends HTMLElement {
       id,
       message: detail.message,
       detail: detail.detail ?? '',
-      tone: normalizeTone(detail.tone),
+      tone: normalizeToastTone(detail.tone),
       durationMs: detail.durationMs ?? (existing >= 0 ? updateToastDurationMs : defaultToastDurationMs),
       persistent: detail.persistent ?? false
     };

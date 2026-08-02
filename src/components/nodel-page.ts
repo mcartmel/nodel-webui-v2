@@ -1,10 +1,12 @@
-import { callActionBindings, parseActionArg, parseActionBindings, type ActionArgType } from '../data/action-bindings';
+import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { buildActionPayload, formatActionFailures } from '../data/control-actions';
+import type { ControlArgType } from '../utils/control-values';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 
-const actionArgTypes: ActionArgType[] = ['string', 'number', 'boolean', 'json'];
+const actionArgTypes: ControlArgType[] = ['string', 'number', 'boolean', 'json'];
 
-function normalizeArgType(value: string | null): ActionArgType {
-  return actionArgTypes.includes(value as ActionArgType) ? value as ActionArgType : 'string';
+function normalizeArgType(value: string | null): ControlArgType {
+  return actionArgTypes.includes(value as ControlArgType) ? value as ControlArgType : 'string';
 }
 
 export class NodelPage extends HTMLElement {
@@ -39,22 +41,29 @@ export class NodelPage extends HTMLElement {
     if (bindings.length === 0) {
       return;
     }
-    const payload = this.hasAttribute('arg')
-      ? { arg: parseActionArg(this.getAttribute('arg') ?? '', normalizeArgType(this.getAttribute('arg-type'))) }
-      : {};
+    const payloadResult = buildActionPayload(this.hasAttribute('arg') ? this.getAttribute('arg') ?? '' : null, normalizeArgType(this.getAttribute('arg-type')));
+    if (!payloadResult.ok) {
+      this.dispatchPageActionError(payloadResult.error);
+      return;
+    }
+    const payload = payloadResult.payload;
     const execution = await callActionBindings(bindings, 'activate', payload);
     if (generation === this.activationGeneration && this.isConnected && execution.failures.length > 0) {
-      this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
-        bubbles: true,
-        composed: true,
-        detail: {
-          message: 'Page action failed',
-          detail: execution.failures.map((failure) => `${failure.action}: ${failure.error ?? 'Failed to call action'}`).join('; '),
-          tone: 'danger',
-          durationMs: 7000
-        }
-      }));
+      this.dispatchPageActionError(formatActionFailures(execution.failures));
     }
+  }
+
+  private dispatchPageActionError(detail: string) {
+    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
+      bubbles: true,
+      composed: true,
+      detail: {
+        message: 'Page action failed',
+        detail,
+        tone: 'danger',
+        durationMs: 7000
+      }
+    }));
   }
 
   private render() {

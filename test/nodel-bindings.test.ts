@@ -808,12 +808,83 @@ describe('nodel-bindings', () => {
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
 
     await setInputValue(nodeInput, 'Lighti');
+    expect(nodeInput.getAttribute('aria-busy')).toBe('true');
     await pressKey(nodeInput, 'Escape');
+    expect(nodeInput.getAttribute('aria-busy')).toBe('false');
     pendingSearch.resolve([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }]);
     await flush();
 
     expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
     expect(rowInputs(firstAction).node.value).toBe('Lighti');
+  });
+
+  it('clears bulk node busy state synchronously on focusout', async () => {
+    const pendingSearch = deferred<any[]>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls.mockReturnValue(pendingSearch.promise);
+
+    await mountBindings();
+    const bulkNode = document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!;
+    await setInputValue(bulkNode, 'Light');
+    await waitFor(() => bindingsMock.searchNodeUrls.mock.calls.length === 1);
+    expect(bulkNode.getAttribute('aria-busy')).toBe('true');
+
+    bulkNode.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+    expect(bulkNode.getAttribute('aria-busy')).toBe('false');
+    pendingSearch.resolve([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }]);
+    await flush();
+
+    expect(document.querySelectorAll('[data-bindings-option="bulk-node"]')).toHaveLength(0);
+  });
+
+  it('clears target busy state synchronously on Escape before options appear', async () => {
+    const pendingTarget = deferred<Record<string, unknown>>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.getRemoteNodeActions.mockReturnValue(pendingTarget.promise);
+
+    await mountBindings();
+    const targetInput = rowInputs(rows('actions')[0]).target;
+    await setInputValue(targetInput, 'Dim');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+    expect(targetInput.getAttribute('aria-busy')).toBe('true');
+
+    await pressKey(targetInput, 'Escape');
+    expect(targetInput.getAttribute('aria-busy')).toBe('false');
+    pendingTarget.resolve({ dim: { name: 'dim', title: 'Dim Level' } });
+    await flush();
+
+    expect(targetInput.getAttribute('aria-busy')).toBe('false');
+    expect(rows('actions')[0].querySelectorAll('[data-bindings-option="target"]')).toHaveLength(0);
+  });
+
+  it('invalidates stale target completions when the row node changes', async () => {
+    const pendingTarget = deferred<Record<string, unknown>>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
+      events: {}
+    });
+    bindingsMock.getRemoteNodeActions.mockReturnValue(pendingTarget.promise);
+
+    await mountBindings();
+    const firstAction = rows('actions')[0];
+    const inputs = rowInputs(firstAction);
+    await setInputValue(inputs.target, 'Dim');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+    expect(inputs.target.getAttribute('aria-busy')).toBe('true');
+
+    await setInputValue(inputs.node, 'Projector');
+    expect(inputs.target.getAttribute('aria-busy')).toBe('false');
+    pendingTarget.resolve({ dim: { name: 'dim', title: 'Stale Dim' } });
+    await flush();
+
+    expect(firstAction.querySelectorAll('[data-bindings-option="target"]')).toHaveLength(0);
+    expect(inputs.target.getAttribute('aria-busy')).toBe('false');
   });
 
   it('clears the shared filter from the search control and clear button', async () => {
@@ -867,6 +938,114 @@ describe('nodel-bindings', () => {
       setLevel: { node: 'Lighting', action: 'setLevel' },
       powerOn: { node: 'Lighting', action: 'powerOn' }
     });
+  });
+
+  it('ignores an abort-insensitive suggestion after the row node changes', async () => {
+    const pendingSuggestion = deferred<Record<string, unknown>>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
+    bindingsMock.getRemoteNodeActions.mockReturnValue(pendingSuggestion.promise);
+
+    await mountBindings();
+    const row = rows('actions')[0];
+    await selectRow(row);
+    document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+
+    const nodeInput = rowInputs(row).node;
+    expect(document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.disabled).toBe(true);
+    await setInputValue(nodeInput, 'Projector');
+    expect(document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.disabled).toBe(false);
+
+    pendingSuggestion.resolve({ setLevel: { name: 'setLevel', title: 'Set Level' } });
+    await flush();
+
+    expect(row.querySelector('.nodel-bindings-suggestion')?.textContent?.trim()).toBe('-');
+    expect(document.body.textContent).not.toContain('suggestion ready.');
+  });
+
+  it('ignores an abort-insensitive suggestion after the target text changes', async () => {
+    const pendingSuggestion = deferred<Record<string, unknown>>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
+    bindingsMock.getRemoteNodeActions.mockReturnValue(pendingSuggestion.promise);
+
+    await mountBindings();
+    const row = rows('actions')[0];
+    await selectRow(row);
+    document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+
+    const targetInput = rowInputs(row).target;
+    await setInputValue(targetInput, 'Manual');
+    expect(document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.disabled).toBe(false);
+
+    pendingSuggestion.resolve({ setLevel: { name: 'setLevel', title: 'Set Level' } });
+    await flush();
+
+    expect(targetInput.value).toBe('Manual');
+    expect(row.querySelector('.nodel-bindings-suggestion')?.textContent?.trim()).toBe('-');
+    expect(document.body.textContent).not.toContain('suggestion ready.');
+  });
+
+  it('ignores an abort-insensitive suggestion after a target option selection', async () => {
+    const pendingSuggestion = deferred<Record<string, unknown>>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({
+      actions: { setLevel: { node: 'Lighting' } },
+      events: { statusChanged: { node: 'Sensor' } }
+    });
+    bindingsMock.getRemoteNodeActions.mockReturnValue(pendingSuggestion.promise);
+    bindingsMock.getRemoteNodeSignals.mockResolvedValue({
+      status: { name: 'status', title: 'Status' }
+    });
+
+    await mountBindings();
+    const actionRow = rows('actions')[0];
+    const eventRow = rows('events')[0];
+    await setInputValue(rowInputs(eventRow).target, 'Sta');
+    await waitFor(() => eventRow.querySelectorAll('[data-bindings-option="target"]').length === 1);
+    await selectRow(actionRow);
+    await selectRow(eventRow);
+
+    document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
+
+    eventRow.querySelector<HTMLButtonElement>('[data-bindings-option="target"]')?.click();
+    expect(document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.disabled).toBe(false);
+
+    pendingSuggestion.resolve({ setLevel: { name: 'setLevel', title: 'Set Level' } });
+    await flush();
+
+    expect(rowInputs(eventRow).target.value).toBe('status');
+    expect(actionRow.querySelector('.nodel-bindings-suggestion')?.textContent?.trim()).toBe('-');
+    expect(document.body.textContent).not.toContain('suggestions ready.');
+  });
+
+  it('clears and ignores an abort-insensitive suggestion after disconnect', async () => {
+    const pendingSuggestion = deferred<Record<string, unknown>>();
+    let suggestionSignal: AbortSignal | null = null;
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
+    bindingsMock.getRemoteNodeActions.mockImplementation((_url: string, init?: RequestInit) => {
+      suggestionSignal = init?.signal ?? null;
+      return pendingSuggestion.promise;
+    });
+
+    const bindings = await mountBindings();
+    await selectRow(rows('actions')[0]);
+    document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
+    await waitFor(() => suggestionSignal !== null);
+
+    bindings.remove();
+    expect((suggestionSignal as AbortSignal | null)?.aborted).toBe(true);
+    expect((bindings as any).state.busy).toBe(false);
+
+    pendingSuggestion.resolve({ setLevel: { name: 'setLevel', title: 'Set Level' } });
+    await flush();
+
+    expect((bindings as any).state.busy).toBe(false);
+    expect((bindings as any).state.message).toBe('');
   });
 
   it('updates row status from remote binding activity entries', async () => {
@@ -961,5 +1140,23 @@ describe('nodel-bindings', () => {
 
     expect(bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     expect(bindings.textContent).not.toContain('Bindings saved.');
+  });
+
+  it('aborts shared target discovery when disconnected', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} }, events: {} });
+    const localRest = deferred<{ nodes: Record<string, { name: string }> }>();
+    bindingsMock.getLocalRest.mockReturnValue(localRest.promise);
+
+    const bindings = await mountBindings();
+    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    await waitFor(() => bindingsMock.getLocalRest.mock.calls.length === 1);
+    const sharedSignal = bindingsMock.getLocalRest.mock.calls[0][0].signal as AbortSignal;
+
+    bindings.remove();
+
+    expect(sharedSignal.aborted).toBe(true);
+    localRest.resolve({ nodes: {} });
+    await flush();
   });
 });

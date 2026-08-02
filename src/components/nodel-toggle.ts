@@ -55,13 +55,11 @@ export class NodelToggle extends HTMLElement {
   private stateIconNode: HTMLElement | null = null;
   private stateNode: HTMLElement | null = null;
   private busy = false;
-  private connected = false;
   private state: ToggleState = 'off';
   private signalBindings = createSignalBindingController(this);
   private actionController = new ControlActionController();
 
   connectedCallback() {
-    this.connected = true;
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -69,7 +67,6 @@ export class NodelToggle extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
     this.removeEventListener('click', this.handleClick);
     this.signalBindings.dispose();
   }
@@ -79,7 +76,7 @@ export class NodelToggle extends HTMLElement {
       this.state = this.stateFromValue(this.getAttribute('value') ?? '');
     }
 
-    if (this.connected) {
+    if (this.isConnected) {
       this.render();
       this.syncSignalSubscription();
     }

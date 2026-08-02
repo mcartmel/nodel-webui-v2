@@ -13,6 +13,8 @@ import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { apiErrorMessage, isAbortError } from '../utils/errors';
+import { hasOwn } from '../utils/records';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
   createSchemaForm,
@@ -250,10 +252,6 @@ function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition 
   };
 }
 
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 export class NodelActSig extends HTMLElement {
   private abortController: AbortController | null = null;
   private linked = false;
@@ -283,14 +281,6 @@ export class NodelActSig extends HTMLElement {
     this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
-    this.source?.dispose();
-    this.source = null;
-    this.removeEventListener('submit', this.handleSubmit);
-    this.removeEventListener('input', this.handleInput);
-    this.removeEventListener('change', this.handleChange);
-    this.removeEventListener('click', this.handleClick);
-    this.removeEventListener('toggle', this.handleToggle, true);
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     for (const timer of this.materializeTimers.values()) {
       window.clearTimeout(timer);
     }
@@ -375,7 +365,7 @@ export class NodelActSig extends HTMLElement {
       if (!scope.isCurrent() || controller !== this.abortController) {
         return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return { status: 'aborted', detail: 'Actions and signals refresh was canceled.' };
       }
       const detail = apiErrorMessage(error, 'Failed to load actions and signals');
@@ -571,7 +561,7 @@ export class NodelActSig extends HTMLElement {
         continue;
       }
 
-      if (Object.prototype.hasOwnProperty.call(entry, 'arg')) {
+      if (hasOwn(entry, 'arg')) {
         this.latestArgs.set(formKey(entry.type, String(entry.alias ?? '')), entry.arg);
       }
       const form = this.findForm(entry.type, String(entry.alias ?? ''));

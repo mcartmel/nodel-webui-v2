@@ -107,7 +107,7 @@ export class NodelReadout extends HTMLElement {
     return max > min ? { min, max } : defaults;
   }
 
-  private formatted(type: ReadoutType, rawValue: string, unit: LevelUnit) {
+  private formatted(type: ReadoutType, rawValue: string) {
     const empty = this.getAttribute('empty') ?? '--';
     const prefix = this.getAttribute('prefix') ?? '';
     const suffix = this.getAttribute('suffix') ?? '';
@@ -155,7 +155,7 @@ export class NodelReadout extends HTMLElement {
     const tone = normalizeTone(this.getAttribute('tone'));
     const unit = type === 'db' ? 'db' : type === 'percent' ? 'percent' : normalizeLevelUnit(this.getAttribute('unit'));
     const rawValue = this.getAttribute('value') ?? '';
-    const formatted = this.formatted(type, rawValue, unit);
+    const formatted = this.formatted(type, rawValue);
     const { min, max } = this.range(type, unit);
     const fraction = Number.isFinite(formatted.numeric) ? valueToFraction(clampValue(formatted.numeric, min, max), min, max) : 0;
     const warn = parseNumber(this.getAttribute('warn'), min + (max - min) * 0.8);

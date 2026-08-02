@@ -1,18 +1,14 @@
-import type { NodelJsonSchema } from '../api/nodel-types';
 import {
   attachSchemaFormContext,
   buildArrayEntry,
   buildMapEntry,
   enumRawKey,
-  hasOwn,
-  isRecord,
-  setOwn,
   type SchemaArrayEntry,
   type SchemaField,
   type SchemaFormModel,
-  type SchemaPresenceState,
-  type SchemaMapEntry
+  type SchemaPresenceState
 } from './schema-model';
+import { hasOwn, isRecord, setOwn } from '../utils/records';
 
 export function cloneSchemaValue<T>(value: T): T {
   if (Array.isArray(value)) {

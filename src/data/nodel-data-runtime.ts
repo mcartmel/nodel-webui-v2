@@ -150,7 +150,7 @@ function scheduleNext<T>(entry: SourceEntry<T>) {
   }, delay);
 }
 
-function resolveRefreshWaiters<T>(entry: SourceEntry<T>, waiters: RefreshWaiter[], result: NodelSourceRefreshResult) {
+function resolveRefreshWaiters(waiters: RefreshWaiter[], result: NodelSourceRefreshResult) {
   for (const waiter of waiters) {
     if (waiter.settled) {
       continue;
@@ -238,7 +238,7 @@ async function refreshSource<T>(entry: SourceEntry<T>, force = false) {
       emit(entry);
     })
     .finally(() => {
-      resolveRefreshWaiters(entry, refreshWaiters, outcome);
+      resolveRefreshWaiters(refreshWaiters, outcome);
       if (entry.inFlight === inFlight) {
         entry.inFlight = null;
         entry.abortController = null;
@@ -315,7 +315,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
     entry.failureCount = 0;
     entry.pendingRefresh = false;
     entry.pendingRefreshForce = false;
-    resolveRefreshWaiters(entry, entry.refreshWaiters.splice(0), { status: 'superseded', detail: 'The source refresh was superseded.' });
+    resolveRefreshWaiters(entry.refreshWaiters.splice(0), { status: 'superseded', detail: 'The source refresh was superseded.' });
     try {
       entry.options.onIdle?.();
     } catch (error) {
@@ -341,7 +341,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
       entry.inFlight = null;
       entry.refreshToken += 1;
       entry.pendingRefreshForce = false;
-      resolveRefreshWaiters(entry, entry.refreshWaiters.splice(0), { status: 'aborted', detail: 'The source refresh was aborted.' });
+      resolveRefreshWaiters(entry.refreshWaiters.splice(0), { status: 'aborted', detail: 'The source refresh was aborted.' });
       emit(entry);
       return;
     }

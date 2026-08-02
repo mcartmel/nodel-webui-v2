@@ -393,6 +393,48 @@ describe('nodel-segmented', () => {
     expect(host.querySelector('.nodel-options-status')?.textContent).toBe('Broken');
   });
 
+  it('reports an invalid first dynamic segmented payload and recovers', async () => {
+    document.body.innerHTML = `
+      <nodel-segmented options-signal="Modes">
+        <nodel-button value="Fallback">Fallback</nodel-button>
+      </nodel-segmented>
+    `;
+    await customElements.whenDefined('nodel-segmented');
+    await flush();
+
+    const host = document.querySelector('nodel-segmented') as HTMLElement;
+    emitSignal('Modes', ['A', 'A']);
+    await flush();
+    expect(host.dataset.optionsState).toBe('error');
+    expect(host.querySelector('nodel-button')?.textContent).toBe('Fallback');
+
+    emitSignal('Modes', ['A']);
+    await flush();
+    expect(host.dataset.optionsState).toBe('ready');
+    expect(host.querySelector('nodel-button')?.textContent).toBe('A');
+  });
+
+  it('recovers from a source error before the first dynamic payload', async () => {
+    document.body.innerHTML = `
+      <nodel-segmented options-signal="Modes">
+        <nodel-button value="Fallback">Fallback</nodel-button>
+      </nodel-segmented>
+    `;
+    await customElements.whenDefined('nodel-segmented');
+    await flush();
+
+    const host = document.querySelector('nodel-segmented') as HTMLElement;
+    emitActivityState({ loading: false, connected: false, error: 'offline', batch: null });
+    expect(host.dataset.optionsState).toBe('error');
+    expect(host.querySelector('nodel-button')?.textContent).toBe('Fallback');
+
+    emitActivityState({ loading: false, connected: true, error: '', batch: null });
+    expect(host.dataset.optionsState).toBe('loading');
+    emitSignal('Modes', ['A']);
+    await flush();
+    expect(host.dataset.optionsState).toBe('ready');
+  });
+
   it('preserves selected value when dynamic segmented options remove it', async () => {
     document.body.innerHTML = '<nodel-segmented signals="Modes:options" value="B"></nodel-segmented>';
     await customElements.whenDefined('nodel-segmented');

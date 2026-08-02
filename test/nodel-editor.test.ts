@@ -1136,7 +1136,7 @@ describe('nodel-editor', () => {
   });
 
   it('does not overwrite a file created after the initial create check', async () => {
-    const editor = await mountEditor();
+    await mountEditor();
     const initialFiles = [...editorApiMock.files];
     editorApiMock.listNodeFiles
       .mockResolvedValueOnce(initialFiles)

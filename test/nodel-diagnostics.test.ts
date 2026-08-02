@@ -47,8 +47,6 @@ describe('nodel-diagnostics', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
     document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
     await waitForDiagnostics();
@@ -87,8 +85,6 @@ describe('nodel-diagnostics', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
     document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
     await waitForDiagnostics();
@@ -131,8 +127,6 @@ describe('nodel-diagnostics', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
     document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
     await waitForDiagnostics();

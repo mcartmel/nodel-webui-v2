@@ -34,7 +34,7 @@ function emitSignals(entries: Array<{ alias: string; arg: unknown }>) {
       error: '',
       batch: {
         items: [
-          ...entries.map(({ alias, arg }, index) => ({
+          ...entries.map(({ alias, arg }) => ({
             entry: {
               seq: 1,
               timestamp: '2026-06-06T00:00:00Z',

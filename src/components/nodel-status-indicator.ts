@@ -6,7 +6,6 @@ type NodelStatusTone = 'success' | 'info' | 'warning' | 'danger';
 type NodelStatusState = 'on' | 'off' | 'partially-on' | 'partially-off';
 
 const truthyValues = new Set(['true', '1', 'on', 'yes', 'active', 'present', 'available', 'signal']);
-const falseyValues = new Set(['', 'false', '0', 'off', 'no', 'inactive', 'absent']);
 
 function normalizeTone(value: string | null): NodelStatusTone {
   return value === 'info' || value === 'warning' || value === 'danger' ? value : 'success';
@@ -28,9 +27,6 @@ function stateFromValue(value: string, partialOnValue: string | null, partialOff
   }
   if (truthyValues.has(normalized)) {
     return 'on';
-  }
-  if (falseyValues.has(normalized)) {
-    return 'off';
   }
   return 'off';
 }

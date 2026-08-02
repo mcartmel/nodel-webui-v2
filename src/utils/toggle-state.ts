@@ -10,7 +10,6 @@ export interface ToggleStateOptions {
 }
 
 const onValues = new Set(['on', 'true', '1', 'yes', 'active', 'enabled']);
-const offValues = new Set(['off', 'false', '0', 'no', 'inactive', 'disabled']);
 const partialOnValues = new Set(['partiallyon', 'partially-on', 'partial-on', 'mixed-on']);
 const partialOffValues = new Set(['partiallyoff', 'partially-off', 'partial-off', 'mixed-off']);
 
@@ -52,7 +51,7 @@ export function resolveToggleState(value: unknown, options: ToggleStateOptions =
     return 'on';
   }
 
-  return offValues.has(next) ? 'off' : 'off';
+  return 'off';
 }
 
 export function isToggleOnish(state: ToggleState) {

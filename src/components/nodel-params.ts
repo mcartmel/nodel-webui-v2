@@ -22,6 +22,8 @@ import {
   type SchemaFormModel,
   validateAndUpdateSchemaForm
 } from '../schema/schema-form';
+import { apiErrorMessage, isAbortError } from '../utils/errors';
+import { renderComponentError } from '../utils/render-component-error';
 
 interface ParamsViewModel {
   loading: boolean;
@@ -62,10 +64,6 @@ const template = `
   </div>
 `;
 
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 function hasSchemaFields(schema: NodelJsonSchema | null | undefined) {
   return Boolean(schema?.properties && Object.keys(schema.properties).length > 0);
 }
@@ -100,11 +98,6 @@ export class NodelParams extends HTMLElement {
     this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
-    this.removeEventListener('submit', this.handleSubmit);
-    this.removeEventListener('input', this.handleInput);
-    this.removeEventListener('change', this.handleInput);
-    this.removeEventListener('click', this.handleClick);
-    this.removeEventListener('toggle', this.handleToggle, true);
     if (this.saveMessageTimer !== null) {
       window.clearTimeout(this.saveMessageTimer);
       this.saveMessageTimer = null;
@@ -183,7 +176,7 @@ export class NodelParams extends HTMLElement {
       if (!scope.isCurrent() || controller !== this.abortController) {
         return { status: 'superseded', detail: 'Parameters refresh was superseded.' };
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return { status: 'aborted', detail: 'Parameters refresh was canceled.' };
       }
       const detail = apiErrorMessage(error, 'Failed to load parameters');
@@ -289,11 +282,7 @@ export class NodelParams extends HTMLElement {
       this.setState({ loading: false, error: message });
     } else {
       this.dataset.state = 'error';
-      this.innerHTML = '<div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert"></div>';
-      const alert = this.firstElementChild;
-      if (alert) {
-        alert.textContent = message;
-      }
+      renderComponentError(this, message);
     }
   }
 

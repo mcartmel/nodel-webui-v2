@@ -1,5 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readStyleSource } from './style-source';
 
 const activityMock = vi.hoisted(() => ({
   listeners: [] as Array<(state: any) => void>,
@@ -74,7 +73,7 @@ describe('nodel-readout', () => {
   });
 
   it('keeps a local-surface ring fallback when CSS masks are unavailable', async () => {
-    const styles = await readFile(resolve(process.cwd(), 'src/styles.css'), 'utf8');
+    const styles = await readStyleSource();
 
     expect(styles).toContain("nodel-readout[data-visual='ring'] .nodel-readout-visual::after");
     expect(styles).toContain('background: rgb(var(--nodel-surface));');

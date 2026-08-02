@@ -32,7 +32,6 @@ export class NodelSelect extends HTMLElement {
   private dynamicOptions: DynamicOptionsController | null = null;
   private optionsState: DynamicOptionsState = 'static';
   private optionsBindingKey = '';
-  private optionsSourceError = false;
   private inheritedOptionAttributes = new WeakMap<HTMLElement, Map<string, string>>();
   private placementListenersActive = false;
   private placementResizeObserver: ResizeObserver | null = null;
@@ -50,10 +49,9 @@ export class NodelSelect extends HTMLElement {
 
   disconnectedCallback() {
     this.signalBindings.dispose();
-    this.dynamicOptions?.dispose();
+    this.dynamicOptions?.reset();
     this.actionController.invalidate();
     this.optionsBindingKey = '';
-    this.optionsSourceError = false;
     this.triggerNode?.removeEventListener('click', this.handleTriggerClick);
     this.removeEventListener('click', this.handleOptionClick, true);
     this.removeEventListener('keydown', this.handleKeyDown);
@@ -287,13 +285,12 @@ export class NodelSelect extends HTMLElement {
     const optionsBindingChanged = nextOptionsBindingKey !== this.optionsBindingKey;
     if (optionsBindingChanged) {
       if (this.optionsBindingKey !== '' || nextOptionsBindingKey === '') {
-        this.dynamicOptions?.clear();
+        this.dynamicOptions?.reset();
       }
-      this.optionsSourceError = false;
       this.optionsBindingKey = nextOptionsBindingKey;
     }
     const nextState = this.dynamicOptions?.setBindingActive(hasOptionsBinding) ?? 'static';
-    this.setOptionsState(this.optionsSourceError && hasOptionsBinding ? 'error' : nextState);
+    this.setOptionsState(nextState);
     this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'value', {
       disabled: (value) => truthy(value) ? this.setAttribute('disabled', '') : this.removeAttribute('disabled'),
       label: (value) => this.setAttribute('label', value),
@@ -304,22 +301,8 @@ export class NodelSelect extends HTMLElement {
       optionsSignal: this.getAttribute('options-signal'),
       aggregators: { disabled: { evaluate: truthy } },
       onSourceState: (state) => {
-        if (!this.hasOptionsBinding()) {
-          return;
-        }
-        if (state.error) {
-          this.optionsSourceError = true;
-          this.setOptionsState('error');
-          this.render();
-        } else if (state.loading && this.dynamicOptions?.getState() === 'loading') {
-          this.optionsSourceError = false;
-          this.setOptionsState('loading');
-          this.render();
-        } else {
-          this.optionsSourceError = false;
-          this.setOptionsState(this.dynamicOptions?.getState() ?? 'static');
-          this.render();
-        }
+        this.setOptionsState(this.dynamicOptions?.setSourceState(state) ?? 'static');
+        this.render();
       }
     });
     if (optionsBindingChanged) {

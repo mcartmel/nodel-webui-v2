@@ -85,7 +85,6 @@ export class NodelButton extends HTMLElement {
   private contentNode: HTMLElement | null = null;
   private defaultLabel = 'Button';
   private busy = false;
-  private connected = false;
   private momentaryActive = false;
   private momentaryStarting = false;
   private momentaryReleaseRequested = false;
@@ -94,7 +93,6 @@ export class NodelButton extends HTMLElement {
   private actionController = new ControlActionController();
 
   connectedCallback() {
-    this.connected = true;
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -105,7 +103,6 @@ export class NodelButton extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('keydown', this.handleKeyDown);
@@ -119,7 +116,7 @@ export class NodelButton extends HTMLElement {
   }
 
   attributeChangedCallback() {
-    if (this.connected) {
+    if (this.isConnected) {
       this.render();
       this.syncSignalSubscription();
     }

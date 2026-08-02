@@ -42,7 +42,6 @@ export class NodelMeter extends HTMLElement {
   static observedAttributes = ['signal', 'signals', 'value', 'min', 'max', 'unit', 'curve', 'orientation', 'warn', 'danger', 'peak', 'readout', 'label', 'aria-label', 'aria-labelledby'];
 
   private shellReady = false;
-  private trackNode: HTMLElement | null = null;
   private fillNode: HTMLElement | null = null;
   private peakNode: HTMLElement | null = null;
   private readoutNode: HTMLElement | null = null;
@@ -120,7 +119,6 @@ export class NodelMeter extends HTMLElement {
         <div class="nodel-meter-readout" hidden></div>
       </div>
     `;
-    this.trackNode = this.querySelector('.nodel-meter-track');
     this.fillNode = this.querySelector('.nodel-meter-fill');
     this.peakNode = this.querySelector('.nodel-meter-peak');
     this.readoutNode = this.querySelector('.nodel-meter-readout');

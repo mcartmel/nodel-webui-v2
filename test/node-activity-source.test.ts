@@ -1,6 +1,7 @@
 import { flushMicrotasks } from './helpers';
 import type { NodelActivityLogEntry } from '../src/api/nodel-types';
 import type { NodeActivityBatch, NodeActivityTransport } from '../src/data/node-activity-source';
+import { localNodePath } from '../src/utils/urls';
 
 const activityMock = vi.hoisted(() => ({
   disposeVisibility: vi.fn(),
@@ -130,7 +131,7 @@ describe('node-activity-source', () => {
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
     expect(MockWebSocket.instances).toHaveLength(1);
-    expect(MockWebSocket.instances[0].url).toBe(`ws://${window.location.host}/nodes/TestUI`);
+    expect(MockWebSocket.instances[0].url).toBe(`ws://${window.location.host}${localNodePath('TestUI')}`);
 
     MockWebSocket.instances[0].open();
 

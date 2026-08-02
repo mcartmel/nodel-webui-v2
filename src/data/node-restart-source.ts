@@ -1,5 +1,6 @@
 import { getNodeRestartStatus } from '../api/nodel-host-client';
 import { getNodePathName } from '../utils/node-name';
+import { isAbortError } from '../utils/errors';
 
 export interface NodeRestartDetail {
   previousTimestamp: string | null;
@@ -105,11 +106,6 @@ interface InternalExpectation {
   replacesExpectationGeneration: number | null;
   observedAt?: number;
   deadlineTimer: number | null;
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === 'AbortError'
-    || error instanceof Error && error.name === 'AbortError';
 }
 
 export class NodeRestartExpectationCoordinator {

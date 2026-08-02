@@ -20,7 +20,6 @@ import {
   type PreparedNodeRestartExpectation
 } from '../data/node-restart-source';
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
-import { EditorOperationCoordinator, type EditorOperationKind, type EditorOperationTicket } from '../editor/editor-operation-coordinator';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
@@ -30,6 +29,11 @@ import { renderComponentError } from '../utils/render-component-error';
 import { resetFileInput } from '../utils/file-input';
 import { formatFileSize, MAX_NODE_FILE_UPLOAD_BYTES, MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
 import { canonicalNodeFilePath, portableNodeFilePathKey } from '../utils/node-file-path';
+import { isAbortError } from '../utils/errors';
+import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
+
+type EditorOperationKind = 'list' | 'open' | 'save' | 'create' | 'delete';
+type EditorOperationTicket = LatestOperationTicket<EditorOperationKind>;
 
 interface EditorFileView extends NodelFileEntry {
   active: boolean;
@@ -146,11 +150,10 @@ export class NodelEditor extends HTMLElement {
     return ['default-file'];
   }
 
-  private operations = new EditorOperationCoordinator();
+  private operations = new LatestOperationCoordinator<EditorOperationKind>();
   private editor: NodelCodeEditor | null = null;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
-  private restartSubscription: { dispose(): void } | null = null;
   private linked = false;
   private originalContent = '';
   private openedModified: string | undefined;
@@ -160,10 +163,8 @@ export class NodelEditor extends HTMLElement {
   private suppressEditorChange = false;
   private unloadGuardActive = false;
   private selectedUpload: File | null = null;
-  private scriptExpectationCommitted = false;
   private scriptExpectationGeneration: number | null = null;
   private scriptExpectationId: number | null = null;
-  private preparationExpectationGeneration: number | null = null;
   private preparationExpectationId: number | null = null;
   private scriptExpectationOwned = false;
   private ownedPreparedExpectation: PreparedNodeRestartExpectation | null = null;
@@ -196,8 +197,7 @@ export class NodelEditor extends HTMLElement {
   connectedCallback() {
     const scope = this.lifecycle.connect();
     if (scope) {
-      this.restartSubscription = subscribeNodeRestart(this.handleRestartEvent);
-      scope.own(this.restartSubscription);
+      scope.own(subscribeNodeRestart(this.handleRestartEvent));
       void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
     }
   }
@@ -233,19 +233,14 @@ export class NodelEditor extends HTMLElement {
     if (expectation && expectation.id === this.preparationExpectationId && this.scriptExpectationOwned) {
       cancelNodeRestartExpectation(expectation);
     }
-    this.restartSubscription?.dispose();
-    this.restartSubscription = null;
-    this.scriptExpectationCommitted = false;
     this.scriptExpectationOwned = false;
     this.ownedPreparedExpectation = null;
     this.scriptExpectationGeneration = null;
     this.scriptExpectationId = null;
-    this.preparationExpectationGeneration = null;
     this.preparationExpectationId = null;
     this.scriptReloadState = 'idle';
     this.lifecycle.disconnect();
     this.syncBusyState();
-    this.removeEventListeners();
     this.clearSelectedUpload();
     if (this.uploadFocusFrame !== null) {
       window.cancelAnimationFrame(this.uploadFocusFrame);
@@ -408,7 +403,6 @@ export class NodelEditor extends HTMLElement {
   private handleRestartEvent = (event: NodeRestartEvent) => {
     if (event.type === 'expected-preparing') {
       this.preparationExpectationId = event.expectation.id;
-      this.preparationExpectationGeneration = event.expectation.generation;
       this.scriptExpectationOwned = false;
       this.scriptReloadState = 'pending';
       this.setState({ reloadStatus: '' });
@@ -419,8 +413,6 @@ export class NodelEditor extends HTMLElement {
       this.scriptExpectationId = event.expectation.id;
       this.scriptExpectationGeneration = event.expectation.generation;
       this.preparationExpectationId = null;
-      this.preparationExpectationGeneration = null;
-      this.scriptExpectationCommitted = true;
       this.scriptReloadState = event.expectation.state;
       this.setState({ reloadStatus: '' });
       this.updateAvailability();
@@ -448,7 +440,6 @@ export class NodelEditor extends HTMLElement {
     if (event.type === 'expected-verified' && this.acceptRestartExpectation(event.expectation.id)) {
       this.scriptExpectationId = event.expectation.id;
       this.scriptExpectationGeneration = event.expectation.generation;
-      this.scriptExpectationCommitted = false;
       this.scriptExpectationOwned = false;
       this.scriptReloadState = event.expectation.state;
       this.setState({ reloadStatus: '' });
@@ -466,7 +457,6 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (event.type === 'expected-superseded' && event.expectation.id === this.scriptExpectationId) {
-      this.scriptExpectationCommitted = false;
       this.scriptExpectationGeneration = null;
       this.scriptExpectationId = null;
       this.scriptReloadState = 'idle';
@@ -477,7 +467,6 @@ export class NodelEditor extends HTMLElement {
     if (event.type === 'expected-superseded' && event.expectation.id === this.preparationExpectationId) {
       this.scriptExpectationOwned = false;
       this.ownedPreparedExpectation = null;
-      this.preparationExpectationGeneration = null;
       this.preparationExpectationId = null;
       this.scriptReloadState = 'idle';
       this.setState({ reloadStatus: '' });
@@ -496,7 +485,6 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
-    this.scriptExpectationCommitted = true;
     this.scriptExpectationOwned = false;
     this.scriptExpectationGeneration = expectation.generation;
     this.scriptExpectationId = expectation.id;
@@ -630,7 +618,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return;
       }
       this.setState({ error: error instanceof Error ? error.message : 'Failed to load files' });
@@ -679,7 +667,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.operationIsCurrent(ticket, scope)) {
         return false;
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return false;
       }
       this.setState({ error: error instanceof Error ? error.message : 'Failed to refresh files' });
@@ -815,7 +803,7 @@ export class NodelEditor extends HTMLElement {
         if (!this.restartRefreshIsCurrent(scope, ticket, context, contentTicket)) {
           return { status: 'superseded', detail: 'The script refresh was superseded.' };
         }
-        if (error instanceof DOMException && error.name === 'AbortError') {
+        if (isAbortError(error)) {
           return { status: 'aborted', detail: 'The script refresh was canceled.' };
         }
         const detail = error instanceof Error ? error.message : 'Failed to refresh script.py';
@@ -828,7 +816,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
         return { status: 'superseded', detail: 'The editor refresh was superseded.' };
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return { status: 'aborted', detail: 'The editor refresh was canceled.' };
       }
       const detail = error instanceof Error ? error.message : 'Failed to refresh files';
@@ -969,7 +957,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return;
       }
       if (error instanceof NodeFileTooLargeError) {
@@ -1378,8 +1366,6 @@ export class NodelEditor extends HTMLElement {
       }
 
       this.preparationExpectationId = prepared.id;
-      this.preparationExpectationGeneration = prepared.generation;
-      this.scriptExpectationCommitted = false;
       this.scriptExpectationOwned = true;
       this.ownedPreparedExpectation = prepared;
       this.scriptReloadState = 'pending';
@@ -1403,7 +1389,6 @@ export class NodelEditor extends HTMLElement {
       committed = true;
       this.scriptExpectationOwned = false;
       this.ownedPreparedExpectation = null;
-      this.scriptExpectationCommitted = true;
       return committedExpectation;
     } catch (error) {
       if (committedExpectation && !committed) {
@@ -1422,7 +1407,6 @@ export class NodelEditor extends HTMLElement {
     }
     this.scriptExpectationOwned = false;
     this.ownedPreparedExpectation = null;
-    this.preparationExpectationGeneration = null;
     this.preparationExpectationId = null;
     this.scriptReloadState = 'idle';
     this.setState({ reloadStatus: '' });

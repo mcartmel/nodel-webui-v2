@@ -1,6 +1,7 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import { getControlRuntime } from './control-runtime';
 import { asciiToken } from '../utils/text-normalization';
+import { hasOwn, isRecord } from '../utils/records';
 
 export interface SignalBinding {
   signal: string;
@@ -143,8 +144,8 @@ function extractSignalValue(value: unknown, path?: string[]) {
       continue;
     }
 
-    if (typeof current === 'object' && Object.prototype.hasOwnProperty.call(current, segment)) {
-      current = (current as Record<string, unknown>)[segment];
+    if (isRecord(current) && hasOwn(current, segment)) {
+      current = current[segment];
       continue;
     }
 

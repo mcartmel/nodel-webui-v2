@@ -74,6 +74,21 @@ describe('nodel-params', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders normalized Java Nodel hint metadata as a placeholder', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      title: 'Parameters',
+      properties: {
+        port: { type: 'integer', hint: '9999', title: 'port', order: 0 }
+      }
+    });
+
+    await mountParams();
+
+    expect(document.body.textContent).not.toContain('This form cannot be edited');
+    expect(document.querySelector<HTMLInputElement>('[data-schema-field-input]')?.placeholder).toBe('9999');
+  });
+
   it('loads schema and params, hydrates values, and saves raw parameter payloads', async () => {
     paramsMock.getNodeParamsSchema.mockResolvedValue({
       type: 'object',

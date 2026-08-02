@@ -4,11 +4,10 @@ import {
   normalizeSchema,
   type SchemaField,
   type SchemaFormModel,
-  type SchemaValidationIssue,
-  hasOwn,
-  isRecord
+  type SchemaValidationIssue
 } from './schema-model';
 import { parseStrictNumber, serializeSchemaFieldModel } from './schema-values';
+import { hasOwn, isRecord } from '../utils/records';
 
 export function validateSchemaForm(form: SchemaFormModel): SchemaValidationIssue[] {
   if (form.unsupported) {
@@ -151,7 +150,7 @@ function validateRaw(value: unknown, schema: NodelJsonSchema, type: string, null
       if (item.unsupportedReason) issues.push(rawIssue(pointer, item.unsupportedReason));
       else {
         for (const [key, child] of Object.entries(value)) {
-          if (!Object.prototype.hasOwnProperty.call(schema.properties ?? {}, key)) issues.push(...validateRaw(child, item.schema, item.type, item.nullable, `${pointer}/${escapePointer(key)}`));
+          if (!hasOwn(schema.properties ?? {}, key)) issues.push(...validateRaw(child, item.schema, item.type, item.nullable, `${pointer}/${escapePointer(key)}`));
         }
       }
     }

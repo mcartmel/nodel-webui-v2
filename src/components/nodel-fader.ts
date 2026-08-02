@@ -75,14 +75,9 @@ export class NodelFader extends HTMLElement {
   static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'aria-labelledby', 'title', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
-  private shellNode: HTMLElement | null = null;
-  private bodyNode: HTMLElement | null = null;
-  private controlNode: HTMLElement | null = null;
   private decreaseNode: HTMLButtonElement | null = null;
   private increaseNode: HTMLButtonElement | null = null;
   private trackNode: HTMLElement | null = null;
-  private fillNode: HTMLElement | null = null;
-  private thumbNode: HTMLElement | null = null;
   private railNode: HTMLElement | null = null;
   private readoutNode: HTMLElement | null = null;
   private defaultLabel = '';
@@ -159,14 +154,9 @@ export class NodelFader extends HTMLElement {
       </div>
     `;
 
-    this.shellNode = this.querySelector('.nodel-fader-shell');
-    this.bodyNode = this.querySelector('.nodel-fader-body');
-    this.controlNode = this.querySelector('.nodel-fader-control');
     this.decreaseNode = this.querySelector('.nodel-fader-nudge-down');
     this.increaseNode = this.querySelector('.nodel-fader-nudge-up');
     this.trackNode = this.querySelector('.nodel-fader-track');
-    this.fillNode = this.querySelector('.nodel-fader-fill');
-    this.thumbNode = this.querySelector('.nodel-fader-thumb');
     this.railNode = this.querySelector('.nodel-fader-rail');
     this.readoutNode = this.querySelector('.nodel-fader-readout');
     this.shellReady = true;

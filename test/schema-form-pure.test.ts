@@ -3,6 +3,7 @@ import {
   escapePointerSegment,
   enumRawKey
 } from '../src/schema/schema-model';
+import { decodeSchema } from '../src/api/codecs/nodel-codecs';
 import { hydrateSchemaFormModel, serializeSchemaFormModel, setSchemaFieldPresence } from '../src/schema/schema-values';
 import { validateSchemaForm } from '../src/schema/schema-validation';
 import { syncSchemaFormControls } from '../src/schema/schema-form';
@@ -12,6 +13,22 @@ function field(form: ReturnType<typeof createSchemaForm>, key: string) {
 }
 
 describe('schema form pure layers', () => {
+  it('accepts Java Nodel hint metadata after codec normalization', () => {
+    const schema = decodeSchema({
+      type: 'object',
+      title: 'Parameters',
+      properties: {
+        ipAddress: { type: 'string', title: 'IP Address', order: 0 },
+        port: { type: 'integer', hint: 9999, title: 'port', order: 0 },
+        disabled: { type: 'boolean', title: 'disabled', desc: 'Disables this node', order: 0 }
+      }
+    }, 'GET REST/params/schema');
+    const form = createSchemaForm(schema);
+
+    expect(form.unsupported).toBe(false);
+    expect(field(form, 'port').hint).toBe('9999');
+  });
+
   it('round-trips presence-distinct supported values and unknown nested properties', () => {
     const schema = {
       type: 'object' as const,
@@ -364,7 +381,7 @@ describe('schema form pure layers', () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed % limit;
     };
-    const scalar = (depth: number): { schema: any; value: unknown } => {
+    const scalar = (_depth: number): { schema: any; value: unknown } => {
       const choice = next(5);
       if (choice === 0) return { schema: { type: 'string' }, value: next(3) === 0 ? '' : `s${next(8)}` };
       if (choice === 1) return { schema: { type: 'integer' }, value: next(3) === 0 ? 0 : next(21) - 10 };

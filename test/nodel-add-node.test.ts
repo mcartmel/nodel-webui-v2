@@ -66,6 +66,83 @@ describe('nodel-add-node', () => {
     expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('GET /REST/recipes/list returned invalid data');
   });
 
+  it('ignores an abort-insensitive stale prefetch after closing and reopening', async () => {
+    let firstResolve!: (response: Response) => void;
+    let secondResolve!: (response: Response) => void;
+    let recipeCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) !== '/REST/recipes/list') {
+        throw new Error(`Unexpected fetch: ${String(input)}`);
+      }
+
+      recipeCalls += 1;
+      return new Promise<Response>((resolve) => {
+        if (recipeCalls === 1) {
+          firstResolve = resolve;
+        } else {
+          secondResolve = resolve;
+        }
+      });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    await openAddNodePanel();
+    await waitFor(() => recipeCalls === 1);
+    const toggle = document.querySelector('.nodel-add-node-toggle') as HTMLButtonElement;
+    toggle.click();
+    await flush();
+    toggle.click();
+    await waitFor(() => recipeCalls === 2);
+
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    templateInput.focus();
+    firstResolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+
+    expect(document.activeElement).toBe(templateInput);
+    expect(document.querySelector('.nodel-add-node-error')).toBeNull();
+
+    secondResolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+  });
+
+  it('does not show an abort-insensitive stale prefetch error after close', async () => {
+    let rejectFirst!: (error: Error) => void;
+    let secondResolve!: (response: Response) => void;
+    let recipeCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) !== '/REST/recipes/list') {
+        throw new Error(`Unexpected fetch: ${String(input)}`);
+      }
+
+      recipeCalls += 1;
+      return new Promise<Response>((resolve, reject) => {
+        if (recipeCalls === 1) {
+          rejectFirst = reject;
+        } else {
+          secondResolve = resolve;
+        }
+      });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    await openAddNodePanel();
+    await waitFor(() => recipeCalls === 1);
+    const toggle = document.querySelector('.nodel-add-node-toggle') as HTMLButtonElement;
+    toggle.click();
+    await flush();
+    toggle.click();
+    await waitFor(() => recipeCalls === 2);
+
+    rejectFirst(new Error('stale recipe failure'));
+    await flush();
+
+    expect(document.querySelector('.nodel-add-node-error')).toBeNull();
+
+    secondResolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+  });
+
   it('shows a bounded error when the node discovery response is malformed', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -156,6 +233,44 @@ describe('nodel-add-node', () => {
     expect((readSignal as AbortSignal | null)?.aborted).toBe(true);
     await waitFor(() => document.querySelector('.nodel-add-node-error')?.textContent?.includes('canceled') ?? false);
     expect(document.querySelector('.nodel-add-node-created-link')?.getAttribute('href')).toContain('/nodes/CanceledCopy/');
+  });
+
+  it('ignores an abort-insensitive create completion after cancel', async () => {
+    let resolveReady!: (response: Response) => void;
+    let readySignal: AbortSignal | null = null;
+    const createdListener = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === `${window.location.origin}/nodes/Cancelled/REST/`) {
+        readySignal = init?.signal ?? null;
+        return new Promise<Response>((resolve) => {
+          resolveReady = resolve;
+        }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const element = document.querySelector('nodel-add-node')!;
+    element.addEventListener('nodel-node-created', createdListener);
+    await setInputValue(document.querySelector('.nodel-add-node-name') as HTMLInputElement, 'Cancelled');
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => readySignal !== null);
+
+    document.querySelector<HTMLButtonElement>('.nodel-add-node-cancel')?.click();
+    expect((readySignal as AbortSignal | null)?.aborted).toBe(true);
+    resolveReady(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+
+    expect(createdListener).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain('Node created');
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('Operation canceled.');
   });
 
   it('creates a node from a recipe path', async () => {
@@ -469,6 +584,71 @@ describe('nodel-add-node', () => {
         failed: [expect.objectContaining({ path: 'broken.bin', phase: 'save', status: 507 })]
       })
     }));
+  });
+
+  it('does not report a canceled duplicate after a replacement submit starts', async () => {
+    let resolveOldSave!: (response: Response) => void;
+    let oldSaveSignal: AbortSignal | null = null;
+    const oldSave = new Promise<Response>((resolve) => {
+      resolveOldSave = resolve;
+    });
+    const errorListener = vi.fn();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Existing Node', address: 'http://host/nodes/Existing%20Node/', host: 'host' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files') {
+        return new Response(JSON.stringify([{ path: 'script.py' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.endsWith('/nodes/OldCopy/REST/') || url.endsWith('/nodes/Replacement/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://host/nodes/Existing%20Node/REST/files/contents?path=script.py') {
+        return new Response('print("old")', { status: 200 }) as never;
+      }
+      if (url.endsWith('/nodes/OldCopy/REST/files/save?path=script.py')) {
+        oldSaveSignal = init?.signal ?? null;
+        return oldSave as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel('<nodel-add-node redirect="false"></nodel-add-node>');
+    const element = document.querySelector('nodel-add-node')!;
+    element.addEventListener('nodel-add-node-error', errorListener);
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Old Copy');
+    await setInputValue(templateInput, 'Existing');
+    await waitFor(() => document.querySelectorAll('[data-template-result-index]').length === 1, { attempts: 80, intervalMs: 5 });
+    document.querySelector<HTMLButtonElement>('[data-template-result-index]')?.click();
+    document.querySelector<HTMLFormElement>('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => oldSaveSignal !== null, { attempts: 80, intervalMs: 5 });
+
+    document.querySelector<HTMLButtonElement>('.nodel-add-node-cancel')?.click();
+    expect((oldSaveSignal as AbortSignal | null)?.aborted).toBe(true);
+    await setInputValue(nameInput, 'Replacement');
+    await setInputValue(templateInput, '');
+    document.querySelector<HTMLFormElement>('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => document.body.textContent?.includes('Node created') === true, { attempts: 80, intervalMs: 5 });
+
+    resolveOldSave(new Response(JSON.stringify({ message: 'old copy failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    await flush();
+
+    expect(errorListener).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Node created');
+    expect(document.body.textContent).not.toContain('created but is incomplete');
   });
 
   it('shows the created-node link when script.py makes duplication fatal', async () => {

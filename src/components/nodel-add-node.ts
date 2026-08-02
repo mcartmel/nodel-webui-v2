@@ -1,34 +1,21 @@
-import { createNode, duplicateNode, listRecipes, NodelDuplicateNodeError, searchNodeUrls, waitForNodeReady } from '../api/nodel-host-client';
-import type { NodelDuplicateFileFailure, NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
+import type { NodelDuplicateFileFailure } from '../api/nodel-types';
+import {
+  refreshAddNodeRecipes,
+  searchAddNodeTemplates,
+  templateResultViews,
+  type AddNodeSelection,
+  type TemplateResult,
+  type TemplateResultView
+} from '../features/add-node';
+import { createAddNodeFromTemplate, duplicateAddNodeFromSource, NodelDuplicateNodeError } from '../features/add-node-use-cases';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
-import { getVerySimpleName } from '../utils/node-name';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
-import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
-import { isAbortError } from '../utils/errors';
-
-type Selection =
-  | { type: 'recipe'; path: string }
-  | { type: 'node'; address: string; name: string; host: string }
-  | null;
-
-interface RecipeCache {
-  data: NodelRecipeEntry[] | null;
-  fetchedAt: number;
-  promise: Promise<NodelRecipeEntry[]> | null;
-}
-
-type TemplateResult =
-  | { type: 'recipe'; path: string }
-  | { type: 'node'; address: string; name: string; host: string };
-
-type TemplateResultView = TemplateResult & {
-  index: number;
-  primary: string;
-  secondary: string;
-};
+import { safeNavigationHref } from '../utils/urls';
+import { boundedErrorMessage, isAbortError } from '../utils/errors';
+import { LatestOperationCoordinator } from '../utils/latest-operation-coordinator';
 
 interface AddNodeViewModel {
   createdUrl: string;
@@ -52,14 +39,8 @@ interface AddNodeViewModel {
   warning: string;
 }
 
-const recipeCache: RecipeCache = {
-  data: null,
-  fetchedAt: 0,
-  promise: null
-};
-
-const recipeCacheTtlMs = 60 * 1000;
 const debounceMs = 200;
+type AddNodeOperationKind = 'open' | 'search' | 'submit';
 
 const template = `
   <div class="nodel-add-node space-y-3">
@@ -156,45 +137,17 @@ const template = `
   </div>
 `;
 
-async function refreshRecipes(force = false, init?: RequestInit) {
-  const now = Date.now();
-  if (!force && recipeCache.data && now - recipeCache.fetchedAt < recipeCacheTtlMs) {
-    return recipeCache.data;
-  }
-
-  if (recipeCache.promise) {
-    return recipeCache.promise;
-  }
-
-  recipeCache.promise = listRecipes(init)
-    .then((data) => {
-      recipeCache.data = data || [];
-      recipeCache.fetchedAt = Date.now();
-      return recipeCache.data;
-    })
-    .finally(() => {
-      recipeCache.promise = null;
-    });
-
-  return recipeCache.promise;
-}
-
-function lookupErrorMessage(error: unknown) {
-  return (error instanceof Error ? error.message : 'Template lookup failed').replace(/\s+/g, ' ').trim().slice(0, 500) || 'Template lookup failed';
-}
-
 export class NodelAddNode extends HTMLElement {
   static observedAttributes = ['redirect', 'recipes', 'duplicate'];
 
-  private connected = false;
   private debounceTimer: number | null = null;
   private linked = false;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
-  private operationAbortController: AbortController | null = null;
-  private searchAbortController: AbortController | null = null;
-  private searchToken = 0;
-  private selection: Selection = null;
+  private operations = new LatestOperationCoordinator<AddNodeOperationKind>();
+  private submitGeneration: number | null = null;
+  private canceledSubmitGeneration: number | null = null;
+  private selection: AddNodeSelection = null;
   private templateResults: TemplateResult[] = [];
   private state: AddNodeViewModel = {
     createdUrl: '',
@@ -219,11 +172,10 @@ export class NodelAddNode extends HTMLElement {
   };
 
   connectedCallback() {
-    this.connected = true;
     const scope = this.lifecycle.connect();
     if (scope) {
       void scope.run(() => this.initialize(scope), (error) => {
-        const message = lookupErrorMessage(error);
+        const message = boundedErrorMessage(error, 'Template lookup failed');
         if (this.linked) {
           this.setState({ error: message });
         } else {
@@ -235,25 +187,19 @@ export class NodelAddNode extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
-    this.invalidateSearch();
-    this.cancelOperation();
+    this.clearDebounceTimer();
+    this.operations.invalidateAll();
+    this.submitGeneration = null;
+    this.canceledSubmitGeneration = null;
     if (this.linked) {
       this.setState({ open: false, showAutocomplete: false, status: '', submitting: false });
     }
     this.lifecycle.disconnect();
-    this.clearDebounceTimer();
-    this.removeEventListener('click', this.handleClick);
-    this.removeEventListener('submit', this.handleSubmit);
-    this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.removeEventListener('keydown', this.handleKeydown);
-    this.querySelector<HTMLInputElement>('.nodel-add-node-template')?.removeEventListener('keydown', this.handleKeydown);
-    this.unobserveControls();
-    document.removeEventListener('click', this.handleDocumentClick);
     this.linked = false;
   }
 
   attributeChangedCallback() {
-    if (this.connected) {
+    if (this.isConnected) {
       this.syncAttributeState();
     }
   }
@@ -327,15 +273,21 @@ export class NodelAddNode extends HTMLElement {
   }
 
   private invalidateSearch() {
-    this.searchToken += 1;
     this.clearDebounceTimer();
-    this.searchAbortController?.abort();
-    this.searchAbortController = null;
+    this.operations.invalidate('search');
+    this.operations.invalidate('open');
   }
 
   private cancelOperation() {
-    this.operationAbortController?.abort();
-    this.operationAbortController = null;
+    this.canceledSubmitGeneration = this.submitGeneration;
+    this.operations.invalidate('submit');
+    this.setState({
+      createdUrl: '',
+      error: 'Operation canceled.',
+      status: '',
+      submitting: false,
+      warning: ''
+    });
   }
 
   private handleClick = (event: MouseEvent) => {
@@ -471,37 +423,45 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
     const open = !this.state.open;
-    this.setState({ open });
+    if (!open) {
+      this.closePanel();
+      return;
+    }
 
-    if (open) {
-      this.selection = null;
-      this.templateResults = [];
-      this.setState({
-        createdUrl: '',
-        duplicateMode: false,
-        error: '',
-        failedFiles: [],
-        nodeName: '',
-        hasNodeResults: false,
-        hasRecipeResults: false,
-        includeNodeConfig: false,
-        nodeResults: [],
-        recipeResults: [],
-        selectionText: '',
-        showAutocomplete: false,
-        showSelection: false,
-        status: '',
-        templateQuery: '',
-        warning: ''
-      });
-      try {
-        await refreshRecipes(true, { signal: scope.signal });
-      } catch (error) {
-        if (scope.isCurrent()) {
-          this.setState({ error: lookupErrorMessage(error) });
-        }
+    this.setState({ open: true });
+
+    this.selection = null;
+    this.templateResults = [];
+    this.setState({
+      createdUrl: '',
+      duplicateMode: false,
+      error: '',
+      failedFiles: [],
+      nodeName: '',
+      hasNodeResults: false,
+      hasRecipeResults: false,
+      includeNodeConfig: false,
+      nodeResults: [],
+      recipeResults: [],
+      selectionText: '',
+      showAutocomplete: false,
+      showSelection: false,
+      status: '',
+      templateQuery: '',
+      warning: ''
+    });
+
+    const ticket = this.operations.begin('open', scope.signal);
+    try {
+      await refreshAddNodeRecipes(true, { signal: ticket.signal });
+    } catch (error) {
+      if (scope.isCurrent() && ticket.isCurrent() && this.state.open) {
+        this.setState({ error: boundedErrorMessage(error, 'Template lookup failed') });
       }
-      if (scope.isCurrent() && this.state.open) {
+    } finally {
+      const current = ticket.isCurrent();
+      ticket.finish();
+      if (scope.isCurrent() && current && this.state.open) {
         this.querySelector<HTMLInputElement>('.nodel-add-node-name')?.focus();
       }
     }
@@ -515,18 +475,18 @@ export class NodelAddNode extends HTMLElement {
   private scheduleSearch() {
     this.invalidateSearch();
     const scope = this.lifecycle.current;
-    const token = this.searchToken;
     this.debounceTimer = scope?.setTimeout(() => {
       this.debounceTimer = null;
-      void this.searchTemplates(token);
+      void this.searchTemplates();
     }, debounceMs) ?? null;
   }
 
-  private async searchTemplates(token: number) {
+  private async searchTemplates() {
     const scope = this.lifecycle.current;
     if (!scope) {
       return;
     }
+    this.operations.invalidate('open');
     const query = this.state.templateQuery.trim();
 
     if (!query) {
@@ -535,79 +495,36 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
-    const controller = new AbortController();
-    this.searchAbortController = controller;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    const recipesPromise = this.allowRecipes ? refreshRecipes(false, { signal: controller.signal }) : Promise.resolve([] as NodelRecipeEntry[]);
-    const nodesPromise = searchNodeUrls(query, { signal: controller.signal });
-    const [recipesResult, nodesResult] = await Promise.allSettled([recipesPromise, nodesPromise]);
-    scope.signal.removeEventListener('abort', abort);
-    if (this.searchAbortController === controller) {
-      this.searchAbortController = null;
+    const ticket = this.operations.begin('search', scope.signal);
+    const originalQuery = this.state.templateQuery;
+    try {
+      const result = await searchAddNodeTemplates({
+        allowDuplicate: this.allowDuplicate,
+        allowRecipes: this.allowRecipes,
+        query,
+        signal: ticket.signal
+      });
+
+      if (!scope.isCurrent() || !ticket.isCurrent() || this.state.templateQuery !== originalQuery) {
+        return;
+      }
+
+      this.refreshResultViews(result.results);
+      this.setState({ error: result.error, showAutocomplete: result.results.length > 0 });
+    } finally {
+      ticket.finish();
     }
-
-    if (!scope.isCurrent() || token !== this.searchToken) {
-      return;
-    }
-
-    const failures = [recipesResult, nodesResult]
-      .filter((result): result is PromiseRejectedResult => result.status === 'rejected' && !isAbortError(result.reason));
-    if (recipesResult.status === 'rejected' && nodesResult.status === 'rejected') {
-      this.refreshResultViews([]);
-      this.setState({ error: lookupErrorMessage(recipesResult.reason), showAutocomplete: false });
-      return;
-    }
-
-    const recipes = recipesResult.status === 'fulfilled' ? recipesResult.value : [];
-    const nodes = nodesResult.status === 'fulfilled' ? nodesResult.value : [];
-
-    const searchLower = query.toLocaleLowerCase();
-    const recipeResults = (recipes || [])
-      .filter((recipe) => recipe.path.toLocaleLowerCase().includes(searchLower))
-      .slice(0, 10)
-      .map((recipe) => ({ type: 'recipe' as const, path: recipe.path }));
-
-    const nodeResults = this.allowDuplicate
-      ? (nodes || [])
-          .filter((node) => (node.name || node.node || '').toLocaleLowerCase().includes(searchLower))
-          .slice(0, 10)
-          .map((node) => this.normalizeNodeResult(node))
-          .filter((node): node is { type: 'node'; address: string; name: string; host: string } => node !== null)
-      : [];
-
-    this.refreshResultViews([...recipeResults, ...nodeResults]);
-    this.setState({ error: failures.length > 0 ? lookupErrorMessage(failures[0].reason) : '' });
-  }
-
-  private normalizeNodeResult(node: NodelNodeUrlEntry): { type: 'node'; address: string; name: string; host: string } | null {
-    const url = safeRemoteNodeUrl(node.address);
-    if (!url) {
-      return null;
-    }
-    const address = url.href;
-    const name = node.name || node.node || '';
-    const host = node.host || url.host;
-    return { type: 'node', address, name, host };
   }
 
   private refreshResultViews(results: TemplateResult[]) {
     this.templateResults = results;
-    const views = results.map((result, index): TemplateResultView => ({
-      ...result,
-      index,
-      primary: result.type === 'recipe' ? result.path : result.name,
-      secondary: result.type === 'recipe' ? 'Recipe' : result.host
-    }));
-
-    const recipeViews = views.filter((result) => result.type === 'recipe');
-    const nodeViews = views.filter((result) => result.type === 'node');
+    const { nodeViews, recipeViews } = templateResultViews(results);
     getJQuery().observable(this.state.recipeResults).refresh(recipeViews);
     getJQuery().observable(this.state.nodeResults).refresh(nodeViews);
     this.setState({
       hasNodeResults: nodeViews.length > 0,
       hasRecipeResults: recipeViews.length > 0,
-      showAutocomplete: views.length > 0,
+      showAutocomplete: nodeViews.length > 0 || recipeViews.length > 0,
       showSelection: false
     });
   }
@@ -673,21 +590,22 @@ export class NodelAddNode extends HTMLElement {
 
     getJQuery().observable(this.state.failedFiles).refresh([]);
     this.setState({ createdUrl: '', error: '', status: '', submitting: true, warning: '' });
-    const operationController = new AbortController();
-    this.operationAbortController = operationController;
-    const abortOperation = () => operationController.abort();
-    scope.signal.addEventListener('abort', abortOperation, { once: true });
+    const ticket = this.operations.begin('submit', scope.signal);
+    this.submitGeneration = ticket.generation;
+    this.canceledSubmitGeneration = null;
 
     try {
       let url = '';
 
       if (this.selection?.type === 'node' && this.allowDuplicate) {
         this.setState({ status: 'Duplicating node...' });
-        const result = await duplicateNode(this.selection.address, name, {
+        const result = await duplicateAddNodeFromSource({
+          sourceAddress: this.selection.address,
+          name,
           includeNodeConfig: this.state.includeNodeConfig,
-          signal: operationController.signal,
+          signal: ticket.signal,
           onProgress: (progress) => {
-            if (scope.isCurrent() && this.operationAbortController === operationController) {
+            if (scope.isCurrent() && ticket.isCurrent()) {
               this.setState({ status: progress.message });
             }
           }
@@ -696,6 +614,9 @@ export class NodelAddNode extends HTMLElement {
           return;
         }
         url = result.url;
+        if (!scope.isCurrent() || !ticket.isCurrent()) {
+          return;
+        }
         if (result.failed.length > 0) {
           getJQuery().observable(this.state.failedFiles).refresh(result.failed);
           this.setState({
@@ -712,20 +633,30 @@ export class NodelAddNode extends HTMLElement {
       } else {
         const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
         this.setState({ status: 'Creating node...' });
-        await createNode(name, base || undefined, { signal: operationController.signal });
-        if (!scope.isCurrent()) {
-          return;
-        }
-        url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
-        this.setState({ status: 'Waiting for node to become available...' });
-        await waitForNodeReady(new URL(url, window.location.origin).href, 30, 1000, { signal: operationController.signal });
-        if (!scope.isCurrent()) {
+        const result = await createAddNodeFromTemplate({
+          name,
+          base,
+          signal: ticket.signal,
+          onWaiting: () => {
+            if (scope.isCurrent() && ticket.isCurrent()) {
+              this.setState({ status: 'Waiting for node to become available...' });
+            }
+          }
+        });
+        url = result.url;
+        if (!scope.isCurrent() || !ticket.isCurrent()) {
           return;
         }
       }
 
+      if (!scope.isCurrent() || !ticket.isCurrent()) {
+        return;
+      }
       this.dispatchEvent(new CustomEvent('nodel-node-created', { bubbles: true, detail: { url } }));
       if (this.allowRedirect) {
+        if (!scope.isCurrent() || !ticket.isCurrent()) {
+          return;
+        }
         const redirectUrl = safeNavigationHref(url);
         if (!redirectUrl) {
           throw new Error('Created node URL is invalid');
@@ -736,13 +667,16 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ createdUrl: url, status: 'Node created' });
       }
     } catch (error) {
-      if (!scope.isCurrent()) {
+      const destinationUrl = error instanceof NodelDuplicateNodeError ? error.destinationUrl : '';
+      const incompleteDuplicate = error instanceof NodelDuplicateNodeError && Boolean(destinationUrl);
+      const ownsCanceledIncompleteDuplicate = incompleteDuplicate
+        && this.canceledSubmitGeneration === ticket.generation
+        && this.submitGeneration === ticket.generation;
+      if (!scope.isCurrent() || (!ticket.isCurrent() && !ownsCanceledIncompleteDuplicate)) {
         return;
       }
       const message = error instanceof Error ? error.message : 'Node add failed';
-      const destinationUrl = error instanceof NodelDuplicateNodeError ? error.destinationUrl : '';
       if (isAbortError(error) && !destinationUrl) {
-        this.setState({ createdUrl: '', error: '', status: 'Operation canceled.' });
         return;
       }
       if (error instanceof NodelDuplicateNodeError) {
@@ -762,12 +696,13 @@ export class NodelAddNode extends HTMLElement {
         detail
       }));
     } finally {
-      scope.signal.removeEventListener('abort', abortOperation);
-      if (this.operationAbortController === operationController) {
-        this.operationAbortController = null;
-      }
-      if (scope.isCurrent()) {
+      const current = ticket.isCurrent();
+      ticket.finish();
+      if (scope.isCurrent() && current) {
         this.setState({ submitting: false });
+      }
+      if (this.submitGeneration === ticket.generation) {
+        this.submitGeneration = null;
       }
     }
   }

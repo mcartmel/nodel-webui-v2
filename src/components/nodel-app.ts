@@ -31,6 +31,7 @@ import {
   slugPageTitle
 } from '../navigation/navigation';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
+import { errorMessage } from '../utils/errors';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail } from '../data/app-title';
 import { updateHostFavicon } from '../icons/favicon';
@@ -75,10 +76,6 @@ const restartRefreshLabels: Record<string, string> = {
   'nodel-editor': 'Editor'
 };
 
-function messageFromUnknown(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim() ? error.message : fallback;
-}
-
 function restartRefreshLabel(element: Element) {
   return restartRefreshLabels[element.localName] ?? element.localName;
 }
@@ -98,7 +95,7 @@ function isRestartRefreshResult(value: unknown): value is NodeRestartRefreshResu
 
 function normalizeRestartRefreshOutcome(label: string, settled: PromiseSettledResult<void | boolean | NodeRestartRefreshResult>): RestartRefreshOutcome {
   if (settled.status === 'rejected') {
-    return { label, result: { status: 'failed', detail: messageFromUnknown(settled.reason, `${label} refresh failed.`) } };
+    return { label, result: { status: 'failed', detail: errorMessage(settled.reason, `${label} refresh failed.`) } };
   }
 
   if (settled.value === true) {
@@ -116,7 +113,7 @@ function normalizeRestartRefreshOutcome(label: string, settled: PromiseSettledRe
 
 function normalizeSourceRefreshOutcome(label: string, settled: PromiseSettledResult<NodelSourceRefreshResult>): SourceRefreshOutcome {
   if (settled.status === 'rejected') {
-    return { label, result: { status: 'failed', detail: messageFromUnknown(settled.reason, `${label} refresh failed.`) } };
+    return { label, result: { status: 'failed', detail: errorMessage(settled.reason, `${label} refresh failed.`) } };
   }
 
   if (settled.value && typeof settled.value === 'object') {
@@ -192,12 +189,9 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private signalTitle: string | null = null;
   private systemThemeMediaQuery: MediaQueryList | null = null;
   private titleLoadToken = 0;
-  private confirmHost: NodelConfirmHostElement | null = null;
-  private connectivityHost: NodelConnectivityHostElement | null = null;
   private connectivityModalActive = false;
   private connectivityState: NodelConnectivityState = { offline: false, reason: '', retryAttempt: 0 };
   private connectivitySubscription: { dispose(): void } | null = null;
-  private toastHost: NodelToastHost | null = null;
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
@@ -266,9 +260,6 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.connectivityModalActive = false;
     this.stopThemeSynchronization();
     this.signalBindings.dispose();
-    this.confirmHost = null;
-    this.connectivityHost = null;
-    this.toastHost = null;
   }
 
   attributeChangedCallback(name: string) {
@@ -538,7 +529,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   }
 
   private async refreshAfterNodeRestart(
-    detail: NodeRestartDetail,
+    _detail: NodeRestartDetail,
     context?: NodeRestartRefreshContext,
     refreshGeneration = this.restartRefreshGeneration,
     signal?: AbortSignal
@@ -654,39 +645,33 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private ensureToastHost() {
     const existing = Array.from(this.children).find((child): child is NodelToastHost => child.localName === 'nodel-toast-host');
     if (existing) {
-      this.toastHost = existing;
       return existing;
     }
 
     const host = document.createElement('nodel-toast-host') as NodelToastHost;
     this.appendChild(host);
-    this.toastHost = host;
     return host;
   }
 
   private ensureConfirmHost() {
     const existing = Array.from(this.children).find((child): child is NodelConfirmHostElement => child.localName === 'nodel-confirm-host');
     if (existing) {
-      this.confirmHost = existing;
       return existing;
     }
 
     const host = document.createElement('nodel-confirm-host') as NodelConfirmHostElement;
     this.appendChild(host);
-    this.confirmHost = host;
     return host;
   }
 
   private ensureConnectivityHost() {
     const existing = Array.from(this.children).find((child): child is NodelConnectivityHostElement => child.localName === 'nodel-connectivity-host');
     if (existing) {
-      this.connectivityHost = existing;
       return existing;
     }
 
     const host = document.createElement('nodel-connectivity-host') as NodelConnectivityHostElement;
     this.prepend(host);
-    this.connectivityHost = host;
     return host;
   }
 

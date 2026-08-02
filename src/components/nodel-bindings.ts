@@ -1,13 +1,24 @@
 import {
-  getLocalRest,
   getNodeRemoteBindings,
   getNodeRemoteSchema,
-  getRemoteNodeActions,
-  getRemoteNodeSignals,
-  saveNodeRemoteBindings,
-  searchNodeUrls
+  saveNodeRemoteBindings
 } from '../api/nodel-host-client';
-import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelLocalNodeEntry, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
+import type { NodelActivityLogEntry } from '../api/nodel-types';
+import {
+  bindingStatusClass,
+  bindingStatusLinkProperties,
+  bindingSuggestionClass,
+  createBindingSections,
+  hasBindingSchema,
+  normalizeBindingStatus,
+  serializeBindingPayload,
+  validateBindingRow,
+  type BindingKind,
+  type BindingOption,
+  type BindingRow,
+  type BindingSection
+} from '../features/bindings-model';
+import { BindingLookupService } from '../features/bindings-lookup';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
@@ -15,83 +26,13 @@ import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
-import { getSimpleName, getVerySimpleName } from '../utils/node-name';
-import { networkNodeSearchHref } from '../navigation/node-links';
-import { activateActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
-import { safeRemoteNodeUrl } from '../utils/urls';
+import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 import { cloneSchemaValue } from '../schema/schema-values';
-import { validateValueAgainstSchema } from '../schema/schema-validation';
 import { normalizeSchema } from '../schema/schema-model';
-import { runWithDeadline } from '../api/request';
-import { codePoints, unicodeSearchKey } from '../utils/text-normalization';
+import { apiErrorMessage, isAbortError } from '../utils/errors';
+import { LatestOperationCoordinator } from '../utils/latest-operation-coordinator';
 
-type BindingKind = 'actions' | 'events';
-type BindingTargetKey = 'action' | 'event';
-type SuggestionConfidence = '' | 'high' | 'medium' | 'ambiguous' | 'none';
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
-
-interface BindingOption {
-  label: string;
-  value: string;
-  address: string;
-  detail: string;
-}
-
-interface TargetOption {
-  label: string;
-  value: string;
-  detail: string;
-}
-
-interface BindingRow {
-  id: string;
-  kind: BindingKind;
-  targetKey: BindingTargetKey;
-  targetLabel: string;
-  alias: string;
-  title: string;
-  description: string;
-  node: string;
-  nodeAddress: string;
-  target: string;
-  selected: boolean;
-  status: string;
-  statusClass: string;
-  statusHref: string;
-  statusLinkLabel: string;
-  nodeOptions: BindingOption[];
-  targetOptions: TargetOption[];
-  showNodeOptions: boolean;
-  showTargetOptions: boolean;
-  searchingNode: boolean;
-  searchingTarget: boolean;
-  suggestionValue: string;
-  suggestionLabel: string;
-  suggestionConfidence: SuggestionConfidence;
-  suggestionClass: string;
-  schema: NodelJsonSchema;
-  originalValue: Record<string, unknown>;
-  rowPresent: boolean;
-  nodePresent: boolean;
-  targetPresent: boolean;
-  dirty: boolean;
-  nodeDirty: boolean;
-  targetDirty: boolean;
-  nodeError: string;
-  targetError: string;
-}
-
-interface BindingSection {
-  kind: BindingKind;
-  title: string;
-  targetKey: BindingTargetKey;
-  targetLabel: string;
-  rows: BindingRow[];
-  visibleRows: BindingRow[];
-  selectedCount: number;
-  visibleCount: number;
-  unboundCount: number;
-}
 
 interface BindingsViewModel {
   loading: boolean;
@@ -115,36 +56,6 @@ interface BindingsViewModel {
   toolbarError: string;
   invalid: boolean;
 }
-
-interface TargetDefinition {
-  name: string;
-  title: string;
-  group: string;
-}
-
-interface TargetCacheEntry {
-  expiresAt: number;
-  definitions: TargetDefinition[];
-}
-
-interface TargetFetchResult {
-  definitions: TargetDefinition[];
-  url: string;
-}
-
-interface LocalNodeCandidate {
-  key: string;
-  entry: NodelLocalNodeEntry;
-  name: string;
-}
-
-interface LookupSlot {
-  controller: AbortController;
-  token: number;
-}
-
-const targetCacheTtlMs = 30 * 1000;
-const targetLookupTimeoutMs = 3000;
 
 const template = `
   <div class="nodel-bindings" data-link="class{:loading ? 'nodel-bindings is-loading' : 'nodel-bindings'}">
@@ -284,299 +195,13 @@ const template = `
   </div>
 `;
 
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function nextBindingId(kind: BindingKind, alias: string) {
-  return `nodel-bindings-${kind}-${alias.replace(/[^a-zA-Z0-9_-]+/g, '-')}-${bindingHash(`${kind}:${alias}`)}`;
-}
-
-function bindingHash(value: string) {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0)!;
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-function sectionTitle(kind: BindingKind) {
-  return kind === 'actions' ? 'Actions' : 'Events';
-}
-
-function targetKeyFor(kind: BindingKind): BindingTargetKey {
-  return kind === 'actions' ? 'action' : 'event';
-}
-
-function targetLabelFor(kind: BindingKind) {
-  return kind === 'actions' ? 'Action' : 'Event';
-}
-
-function hasBindingSchema(schema: NodelJsonSchema | null | undefined) {
-  const properties = schema?.properties ?? {};
-  return Boolean(properties.actions?.properties && Object.keys(properties.actions.properties).length > 0)
-    || Boolean(properties.events?.properties && Object.keys(properties.events.properties).length > 0);
-}
-
-function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function isRecordValue(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function validateBindingRow(row: BindingRow) {
-  // Java RemoteBindingValues serialises a declared but unbound row as an empty
-  // object; BaseNode treats that state as valid and reports it as unbound.
-  if (!row.nodePresent && !row.targetPresent && !row.nodeDirty && !row.targetDirty) return [];
-  const value: Record<string, unknown> = cloneSchemaValue(row.originalValue);
-  if (row.nodeDirty || row.nodePresent) value.node = row.node;
-  if (row.targetDirty || row.targetPresent) value[row.targetKey] = row.target;
-  return validateValueAgainstSchema(value, row.schema, row.id).map((issue) => ({
-    ...issue,
-    fieldId: issue.fieldId.startsWith(row.id) ? issue.fieldId : `${row.id}${issue.pointer}`,
-    pointer: issue.pointer.startsWith(row.id) ? issue.pointer : `${row.id}${issue.pointer}`
-  }));
-}
-
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function titleFor(alias: string, schema: NodelJsonSchema) {
-  return schema.title || alias;
-}
-
-function normalizeStatus(status: unknown) {
-  return status === 'Wired' ? 'Wired' : 'Unwired';
-}
-
-function statusClass(status: string) {
-  return status === 'Wired' ? 'nodel-bindings-status is-wired' : 'nodel-bindings-status is-unwired';
-}
-
-function statusLinkProperties(node: string) {
-  const name = node.trim();
-  return {
-    statusHref: name ? networkNodeSearchHref(name) : '',
-    statusLinkLabel: name ? `Open ${name} in Network nodes` : ''
-  };
-}
-
-function getNodeOptionValue(entry: NodelNodeUrlEntry) {
-  return getSimpleName(entry.node || entry.name || '');
-}
-
-function optionFromNode(entry: NodelNodeUrlEntry): BindingOption {
-  const url = safeRemoteNodeUrl(entry.address);
-  if (!url) {
-    throw new Error('Discovered node URL is invalid');
-  }
-  const label = getNodeOptionValue(entry) || getSimpleName(entry.address);
-  return {
-    label,
-    value: label,
-    address: url.href,
-    detail: entry.host || url.host
-  };
-}
-
-function normalizeText(value: string) {
-  return unicodeSearchKey(value);
-}
-
-function normalizeNodeIdentity(value: string) {
-  return normalizeText(getVerySimpleName(getSimpleName(value)));
-}
-
-function nodeNameMatches(left: string, right: string) {
-  const normalizedLeft = normalizeNodeIdentity(left);
-  const normalizedRight = normalizeNodeIdentity(right);
-  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
-}
-
-function nodeUrlMatches(entry: NodelNodeUrlEntry, node: string) {
-  return nodeNameMatches(entry.node || entry.name || getSimpleName(entry.address), node);
-}
-
-function localNodeName(key: string, entry: NodelLocalNodeEntry) {
-  return entry.name || entry.node || key;
-}
-
-function nodeBaseUrl(nodeUrl: string) {
-  return nodeUrl.replace(/\/?$/, '/');
-}
-
-function localNodeUrl(name: string) {
-  return new URL(`/nodes/${encodeURIComponent(getVerySimpleName(name))}/`, window.location.origin).href;
-}
-
-function uniqueUrls(urls: string[]) {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-  for (const url of urls) {
-    const normalized = safeRemoteNodeUrl(new URL(nodeBaseUrl(url), window.location.origin).href)?.href;
-    if (!normalized) {
-      continue;
-    }
-    if (seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    unique.push(normalized);
-  }
-  return unique;
-}
-
-function mergeDefinitions(results: TargetFetchResult[]) {
-  const byName = new Map<string, TargetDefinition>();
-  for (const result of results) {
-    for (const definition of result.definitions) {
-      if (!byName.has(definition.name)) {
-        byName.set(definition.name, definition);
-      }
-    }
-  }
-  return Array.from(byName.values());
-}
-
-function levenshtein(a: string, b: string) {
-  if (a === b) {
-    return 0;
-  }
-  const left = codePoints(a);
-  const right = codePoints(b);
-  if (!a) {
-    return right.length;
-  }
-  if (!b) {
-    return left.length;
-  }
-
-  const previous = Array.from({ length: right.length + 1 }, (_value, index) => index);
-  const current = Array.from({ length: right.length + 1 }, () => 0);
-
-  for (let i = 0; i < left.length; i += 1) {
-    current[0] = i + 1;
-    for (let j = 0; j < right.length; j += 1) {
-      const cost = left[i] === right[j] ? 0 : 1;
-      current[j + 1] = Math.min(
-        current[j] + 1,
-        previous[j + 1] + 1,
-        previous[j] + cost
-      );
-    }
-    previous.splice(0, previous.length, ...current);
-  }
-
-  return previous[right.length];
-}
-
-function similarity(a: string, b: string) {
-  const left = normalizeText(a);
-  const right = normalizeText(b);
-  if (!left || !right) {
-    return 0;
-  }
-  if (left === right) {
-    return 1;
-  }
-  if (left.includes(right) || right.includes(left)) {
-    return 0.82;
-  }
-  const maxLength = Math.max(left.length, right.length);
-  return 1 - levenshtein(left, right) / maxLength;
-}
-
-function definitionsToOptions(definitions: TargetDefinition[], query: string) {
-  const normalized = query.toLocaleLowerCase();
-  return definitions
-    .filter((definition) => {
-      if (!normalized) {
-        return true;
-      }
-      return definition.name.toLocaleLowerCase().includes(normalized)
-        || definition.title.toLocaleLowerCase().includes(normalized)
-        || definition.group.toLocaleLowerCase().includes(normalized);
-    })
-    .slice(0, 20)
-    .map((definition) => ({
-      label: definition.title || definition.name,
-      value: definition.name,
-      detail: [definition.group ? `[${definition.group}]` : '', definition.name].filter(Boolean).join(' ')
-    }));
-}
-
-function normalizeDefinitions(definitions: Record<string, NodelActionDefinition | NodelSignalDefinition> | Array<NodelActionDefinition | NodelSignalDefinition>) {
-  const entries = Array.isArray(definitions)
-    ? definitions.map((definition) => [definition.name, definition] as const)
-    : Object.entries(definitions);
-
-  return entries.map(([key, definition]) => {
-    const name = definition.name || key;
-    return {
-      name,
-      title: definition.title || name,
-      group: definition.group || ''
-    };
-  });
-}
-
-function buildSuggestion(row: BindingRow, definitions: TargetDefinition[]) {
-  const candidates = definitions
-    .map((definition) => ({
-      definition,
-      score: Math.max(
-        similarity(row.alias, definition.name),
-        similarity(row.alias, definition.title),
-        similarity(row.title, definition.name),
-        similarity(row.title, definition.title)
-      )
-    }))
-    .sort((a, b) => b.score - a.score);
-
-  const best = candidates[0];
-  if (!best || best.score < 0.55) {
-    return {
-      value: '',
-      label: 'No match',
-      confidence: 'none' as SuggestionConfidence
-    };
-  }
-
-  const tied = candidates.filter((candidate) => Math.abs(candidate.score - best.score) < 0.02);
-  if (tied.length > 1) {
-    return {
-      value: '',
-      label: `Ambiguous (${tied.length} matches)`,
-      confidence: 'ambiguous' as SuggestionConfidence
-    };
-  }
-
-  const confidence: SuggestionConfidence = best.score >= 0.8 ? 'high' : 'medium';
-  return {
-    value: best.definition.name,
-    label: `${confidence}: ${best.definition.name}`,
-    confidence
-  };
-}
-
-function suggestionClass(confidence: SuggestionConfidence) {
-  if (confidence === 'high') {
-    return 'nodel-bindings-suggestion is-high';
-  }
-  if (confidence === 'medium') {
-    return 'nodel-bindings-suggestion is-medium';
-  }
-  if (confidence === 'ambiguous') {
-    return 'nodel-bindings-suggestion is-ambiguous';
-  }
-  if (confidence === 'none') {
-    return 'nodel-bindings-suggestion is-none';
-  }
-  return 'nodel-bindings-suggestion';
+function optionFromModelEntry<T extends { value: string; label: string }>(
+  entries: readonly T[],
+  index: number,
+  element: HTMLElement,
+  fallback: (value: string) => T
+) {
+  return entries[index] ?? fallback(element.dataset.optionValue ?? '');
 }
 
 export class NodelBindings extends HTMLElement {
@@ -588,10 +213,9 @@ export class NodelBindings extends HTMLElement {
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private filterInput: HTMLInputElement | null = null;
   private observingControls = false;
-  private targetCache = new Map<string, TargetCacheEntry>();
-  private localNodesPromise: Promise<LocalNodeCandidate[]> | null = null;
-  private lookupSlots = new Map<string, LookupSlot>();
-  private lookupToken = 0;
+  private bindingLookup = new BindingLookupService();
+  private lookupOperations = new LatestOperationCoordinator<string>();
+  private suggestionOperations = new LatestOperationCoordinator<'suggestions'>();
   private state: BindingsViewModel = {
     loading: true,
     error: '',
@@ -624,23 +248,17 @@ export class NodelBindings extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.abortAllLookups();
+    this.invalidateSuggestionWork();
+    this.lookupOperations.invalidateAll();
+    this.clearAutocompleteState();
+    this.clearLookupCaches();
     if (this.linked) {
       this.setState({ busy: false, loading: false, saving: false, searchingBulkNode: false, showBulkNodeOptions: false });
     }
     this.lifecycle.disconnect();
     this.abortController?.abort();
     this.abortController = null;
-    this.source?.dispose();
-    this.source = null;
-    this.unobserveControls();
     this.unbindFilterInput();
-    this.removeEventListener('submit', this.handleSubmit);
-    this.removeEventListener('input', this.handleInput);
-    this.removeEventListener('change', this.handleChange);
-    this.removeEventListener('click', this.handleClick);
-    this.removeEventListener('keydown', this.handleKeydown);
-    this.removeEventListener('focusout', this.handleFocusOut);
     if (this.saveMessageTimer !== null) {
       window.clearTimeout(this.saveMessageTimer);
       this.saveMessageTimer = null;
@@ -685,7 +303,8 @@ export class NodelBindings extends HTMLElement {
     const abort = () => controller.abort();
     scope.signal.addEventListener('abort', abort, { once: true });
     this.clearLookupCaches();
-    this.abortAllLookups();
+    this.lookupOperations.invalidateAll();
+    this.invalidateSuggestionWork();
     this.setState({
       busy: false,
       loading: true,
@@ -740,7 +359,10 @@ export class NodelBindings extends HTMLElement {
       }
 
       this.sourceBindings = cloneSchemaValue(values);
-      const sections = this.createSections(normalizedSchema.schema, values);
+      const sections = createBindingSections(normalizedSchema.schema, values);
+      for (const section of sections) {
+        this.updateSectionSummary(section);
+      }
       this.setState({
         loading: false,
         empty: sections.every((section) => section.rows.length === 0),
@@ -755,7 +377,7 @@ export class NodelBindings extends HTMLElement {
       if (!scope.isCurrent() || controller !== this.abortController) {
         return { status: 'superseded', detail: 'Bindings refresh was superseded.' };
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return { status: 'aborted', detail: 'Bindings refresh was canceled.' };
       }
       const detail = apiErrorMessage(error, 'Failed to load bindings');
@@ -775,73 +397,6 @@ export class NodelBindings extends HTMLElement {
         this.abortController = null;
       }
     }
-  }
-
-  private createSections(schema: NodelJsonSchema, values: Record<string, unknown>) {
-    return (['actions', 'events'] as BindingKind[])
-      .map((kind) => this.createSection(kind, schema.properties?.[kind], objectValue(values[kind])))
-      .filter((section) => section.rows.length > 0);
-  }
-
-  private createSection(kind: BindingKind, schema: NodelJsonSchema | undefined, values: Record<string, unknown>): BindingSection {
-    const targetKey = targetKeyFor(kind);
-    const targetLabel = targetLabelFor(kind);
-    const rows = Object.entries(schema?.properties ?? {})
-      .map(([alias, rowSchema]) => {
-        const value = objectValue(values[alias]);
-        const node = stringValue(value.node);
-        const row: BindingRow = {
-          id: nextBindingId(kind, alias),
-          kind,
-          targetKey,
-          targetLabel,
-          alias,
-          title: titleFor(alias, rowSchema),
-          description: typeof rowSchema.desc === 'string' ? rowSchema.desc : '',
-          node,
-          nodeAddress: '',
-          target: stringValue(value[targetKey]),
-          schema: rowSchema,
-          originalValue: cloneSchemaValue(value),
-          rowPresent: Object.prototype.hasOwnProperty.call(values, alias),
-          nodePresent: Object.prototype.hasOwnProperty.call(value, 'node'),
-          targetPresent: Object.prototype.hasOwnProperty.call(value, targetKey),
-          dirty: false,
-          nodeDirty: false,
-          targetDirty: false,
-          nodeError: '',
-          targetError: '',
-          selected: false,
-          status: normalizeStatus(''),
-          statusClass: statusClass(normalizeStatus('')),
-          ...statusLinkProperties(node),
-          nodeOptions: [],
-          targetOptions: [],
-          showNodeOptions: false,
-          showTargetOptions: false,
-          searchingNode: false,
-          searchingTarget: false,
-          suggestionValue: '',
-          suggestionLabel: '',
-          suggestionConfidence: '',
-          suggestionClass: suggestionClass('')
-        };
-        return row;
-      });
-
-    const section: BindingSection = {
-      kind,
-      title: sectionTitle(kind),
-      targetKey,
-      targetLabel,
-      rows,
-      visibleRows: rows.slice(),
-      selectedCount: 0,
-      visibleCount: rows.length,
-      unboundCount: rows.length
-    };
-    this.updateSectionSummary(section);
-    return section;
   }
 
   private handleSubmit = (event: Event) => {
@@ -883,14 +438,16 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (target.hasAttribute('data-bindings-node')) {
+      this.invalidateSuggestionWork();
       this.clearLookupCaches();
+      this.invalidateRowLookup(row, 'target');
       getJQuery().observable(row).setProperty({
         node: target.value,
         nodeAddress: '',
         nodePresent: true,
         dirty: true,
         nodeDirty: true,
-        ...statusLinkProperties(target.value)
+        ...bindingStatusLinkProperties(target.value)
       });
       this.validateBindings();
       void this.searchRowNodes(row, target.value);
@@ -898,6 +455,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (target.hasAttribute('data-bindings-target')) {
+      this.invalidateSuggestionWork();
       getJQuery().observable(row).setProperty({
         target: target.value,
         targetPresent: true,
@@ -906,7 +464,7 @@ export class NodelBindings extends HTMLElement {
         suggestionValue: '',
         suggestionLabel: '',
         suggestionConfidence: '',
-        suggestionClass: suggestionClass('')
+        suggestionClass: bindingSuggestionClass('')
       });
       this.validateBindings();
       void this.searchTargets(row, target.value);
@@ -921,6 +479,7 @@ export class NodelBindings extends HTMLElement {
 
     const row = this.rowForElement(target);
     if (row) {
+      this.invalidateSuggestionWork();
       getJQuery().observable(row).setProperty('selected', target.checked);
     }
 
@@ -933,42 +492,6 @@ export class NodelBindings extends HTMLElement {
 
   private lookupKey(row: BindingRow | null, field: 'node' | 'target' | 'bulk-node') {
     return field === 'bulk-node' ? 'bulk:node' : `${row?.id ?? 'missing'}:${field}`;
-  }
-
-  private startLookup(key: string, scope: ConnectionScope) {
-    this.abortLookup(key);
-    const controller = new AbortController();
-    const token = ++this.lookupToken;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    controller.signal.addEventListener('abort', () => scope.signal.removeEventListener('abort', abort), { once: true });
-    this.lookupSlots.set(key, { controller, token });
-    return {
-      signal: controller.signal,
-      isCurrent: () => scope.isCurrent() && this.lookupSlots.get(key)?.token === token,
-      finish: () => {
-        scope.signal.removeEventListener('abort', abort);
-        if (this.lookupSlots.get(key)?.token === token) {
-          this.lookupSlots.delete(key);
-        }
-      }
-    };
-  }
-
-  private abortLookup(key: string) {
-    const slot = this.lookupSlots.get(key);
-    if (!slot) {
-      return;
-    }
-    slot.controller.abort();
-    this.lookupSlots.delete(key);
-  }
-
-  private abortAllLookups() {
-    for (const slot of this.lookupSlots.values()) {
-      slot.controller.abort();
-    }
-    this.lookupSlots.clear();
   }
 
   private handleFocusOut = (event: FocusEvent) => {
@@ -984,23 +507,17 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (combobox.querySelector('[data-bindings-bulk-node]')) {
-      this.abortLookup(this.lookupKey(null, 'bulk-node'));
-      this.setState({
-        bulkNodeOptions: [],
-        showBulkNodeOptions: false
-      });
+      this.invalidateBulkLookup();
       return;
     }
 
     const row = this.rowForElement(combobox);
     if (row) {
       if (combobox.querySelector('[data-bindings-node]')) {
-        this.abortLookup(this.lookupKey(row, 'node'));
-        getJQuery().observable(row).setProperty({ nodeOptions: [], showNodeOptions: false });
+        this.invalidateRowLookup(row, 'node');
       }
       if (combobox.querySelector('[data-bindings-target]')) {
-        this.abortLookup(this.lookupKey(row, 'target'));
-        getJQuery().observable(row).setProperty({ targetOptions: [], showTargetOptions: false });
+        this.invalidateRowLookup(row, 'target');
       }
     }
   };
@@ -1031,9 +548,21 @@ export class NodelBindings extends HTMLElement {
       return;
     }
 
-    if (event.key === 'Escape' && getPopoverOptions(combobox, '[data-bindings-option]').length > 0) {
-      event.preventDefault();
-      this.closeAutocompleteForInput(target);
+    if (event.key === 'Escape') {
+      const hasOptions = getPopoverOptions(combobox, '[data-bindings-option]').length > 0;
+      const row = this.rowForElement(target);
+      const searching = target.hasAttribute('data-bindings-bulk-node')
+        ? this.state.searchingBulkNode
+        : target.hasAttribute('data-bindings-node')
+          ? Boolean(row?.searchingNode)
+          : Boolean(row?.searchingTarget);
+      if (hasOptions || searching) {
+        event.preventDefault();
+        if (hasOptions) {
+          clearActivePopoverOption(combobox, '[data-bindings-option]');
+        }
+        this.closeAutocompleteForInput(target);
+      }
     }
   };
 
@@ -1088,22 +617,20 @@ export class NodelBindings extends HTMLElement {
 
     const $ = getJQuery();
     if (optionType === 'bulk-node') {
-      this.clearLookupCaches();
-      this.abortLookup(this.lookupKey(null, 'bulk-node'));
-      const selected = this.state.bulkNodeOptions[index] ?? {
-        value: option.dataset.optionValue ?? '',
-        label: option.dataset.optionValue ?? '',
+      const selected = optionFromModelEntry(this.state.bulkNodeOptions, index, option, (value) => ({
+        value,
+        label: value,
         address: option.dataset.optionAddress ?? '',
         detail: ''
-      };
-      if (selected) {
-        this.setState({
-          bulkNode: selected.value,
-          bulkNodeAddress: selected.address,
-          bulkNodeOptions: [],
-          showBulkNodeOptions: false
-        });
-      }
+      }));
+      this.clearLookupCaches();
+      this.invalidateBulkLookup();
+      this.setState({
+        bulkNode: selected.value,
+        bulkNodeAddress: selected.address,
+        bulkNodeOptions: [],
+        showBulkNodeOptions: false
+      });
       return;
     }
 
@@ -1113,52 +640,51 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (optionType === 'node') {
-      this.clearLookupCaches();
-      this.abortLookup(this.lookupKey(row, 'node'));
-      const selected = row.nodeOptions[index] ?? {
-        value: option.dataset.optionValue ?? '',
-        label: option.dataset.optionValue ?? '',
+      const selected = optionFromModelEntry(row.nodeOptions, index, option, (value) => ({
+        value,
+        label: value,
         address: option.dataset.optionAddress ?? '',
         detail: ''
-      };
-      if (selected) {
-        $.observable(row).setProperty({
-          node: selected.value,
-          nodeAddress: selected.address,
-          nodePresent: true,
-          dirty: true,
-          nodeDirty: true,
-          ...statusLinkProperties(selected.value),
-          nodeOptions: [],
-          showNodeOptions: false
-        });
-        this.validateBindings();
-      }
+      }));
+      this.invalidateSuggestionWork();
+      this.clearLookupCaches();
+      this.invalidateRowLookup(row, 'node');
+      this.invalidateRowLookup(row, 'target');
+      $.observable(row).setProperty({
+        node: selected.value,
+        nodeAddress: selected.address,
+        nodePresent: true,
+        dirty: true,
+        nodeDirty: true,
+        ...bindingStatusLinkProperties(selected.value),
+        nodeOptions: [],
+        showNodeOptions: false
+      });
+      this.validateBindings();
       return;
     }
 
     if (optionType === 'target') {
-      this.abortLookup(this.lookupKey(row, 'target'));
-      const selected = row.targetOptions[index] ?? {
-        value: option.dataset.optionValue ?? '',
-        label: option.dataset.optionValue ?? '',
+      const selected = optionFromModelEntry(row.targetOptions, index, option, (value) => ({
+        value,
+        label: value,
         detail: ''
-      };
-      if (selected) {
-        $.observable(row).setProperty({
-          target: selected.value,
-          targetPresent: true,
-          dirty: true,
-          targetDirty: true,
-          targetOptions: [],
-          showTargetOptions: false,
-          suggestionValue: '',
-          suggestionLabel: '',
-          suggestionConfidence: '',
-          suggestionClass: suggestionClass('')
-        });
-        this.validateBindings();
-      }
+      }));
+      this.invalidateSuggestionWork();
+      this.invalidateRowLookup(row, 'target');
+      $.observable(row).setProperty({
+        target: selected.value,
+        targetPresent: true,
+        dirty: true,
+        targetDirty: true,
+        targetOptions: [],
+        showTargetOptions: false,
+        suggestionValue: '',
+        suggestionLabel: '',
+        suggestionConfidence: '',
+        suggestionClass: bindingSuggestionClass('')
+      });
+      this.validateBindings();
     }
   }
 
@@ -1170,11 +696,7 @@ export class NodelBindings extends HTMLElement {
 
   private closeAutocompleteForInput(input: HTMLInputElement) {
     if (input.hasAttribute('data-bindings-bulk-node')) {
-      this.abortLookup(this.lookupKey(null, 'bulk-node'));
-      this.setState({
-        bulkNodeOptions: [],
-        showBulkNodeOptions: false
-      });
+      this.invalidateBulkLookup();
       return;
     }
 
@@ -1184,20 +706,12 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (input.hasAttribute('data-bindings-node')) {
-      this.abortLookup(this.lookupKey(row, 'node'));
-      getJQuery().observable(row).setProperty({
-        nodeOptions: [],
-        showNodeOptions: false
-      });
+      this.invalidateRowLookup(row, 'node');
       return;
     }
 
     if (input.hasAttribute('data-bindings-target')) {
-      this.abortLookup(this.lookupKey(row, 'target'));
-      getJQuery().observable(row).setProperty({
-        targetOptions: [],
-        showTargetOptions: false
-      });
+      this.invalidateRowLookup(row, 'target');
     }
   }
 
@@ -1206,11 +720,11 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const lookup = this.startLookup(this.lookupKey(null, 'bulk-node'), scope);
+    const lookup = this.lookupOperations.begin(this.lookupKey(null, 'bulk-node'), scope.signal);
     const originalQuery = query;
     this.setState({ searchingBulkNode: true, toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query, { signal: lookup.signal })).slice(0, 20).map(optionFromNode) : [];
+      const options = await this.bindingLookup.searchNodeOptions(query, lookup.signal);
       if (lookup.isCurrent() && this.state.bulkNode === originalQuery) {
         this.setState({
           bulkNodeOptions: options,
@@ -1238,12 +752,12 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const lookup = this.startLookup(this.lookupKey(row, 'node'), scope);
+    const lookup = this.lookupOperations.begin(this.lookupKey(row, 'node'), scope.signal);
     const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingNode: true });
     this.setState({ toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query, { signal: lookup.signal })).slice(0, 20).map(optionFromNode) : [];
+      const options = await this.bindingLookup.searchNodeOptions(query, lookup.signal);
       if (lookup.isCurrent() && row.node === originalQuery) {
         getJQuery().observable(row).setProperty({
           nodeOptions: options,
@@ -1271,21 +785,28 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const lookup = this.startLookup(this.lookupKey(row, 'target'), scope);
+    const lookup = this.lookupOperations.begin(this.lookupKey(row, 'target'), scope.signal);
     const originalQuery = query;
+    const originalNode = row.node;
+    const originalNodeAddress = row.nodeAddress;
+    const isCurrentTargetLookup = () => lookup.isCurrent()
+      && row.target === originalQuery
+      && row.node === originalNode
+      && row.nodeAddress === originalNodeAddress;
     getJQuery().observable(row).setProperty({ searchingTarget: true });
     this.setState({ toolbarError: '' });
     try {
-      const definitions = row.node ? await this.getTargetDefinitions(row, scope, lookup.signal) : [];
-      const options = definitionsToOptions(definitions, query);
-      if (lookup.isCurrent() && row.target === originalQuery) {
+      const options = originalNode
+        ? await this.bindingLookup.getTargetOptions({ kind: row.kind, node: originalNode, nodeAddress: originalNodeAddress }, query, lookup.signal)
+        : [];
+      if (isCurrentTargetLookup()) {
         getJQuery().observable(row).setProperty({
           targetOptions: options,
           showTargetOptions: options.length > 0
         });
       }
     } catch (error) {
-      if (lookup.isCurrent()) {
+      if (isCurrentTargetLookup()) {
         getJQuery().observable(row).setProperty({
           targetOptions: [],
           showTargetOptions: false
@@ -1301,6 +822,7 @@ export class NodelBindings extends HTMLElement {
   }
 
   private selectRows(mode: string) {
+    this.invalidateSuggestionWork();
     const rows = mode === 'visible'
       ? this.state.sections.flatMap((section) => section.visibleRows)
       : mode === 'unbound'
@@ -1318,20 +840,22 @@ export class NodelBindings extends HTMLElement {
       return;
     }
 
+    this.invalidateSuggestionWork();
     this.clearLookupCaches();
     for (const row of this.allRows()) {
       if (row.selected) {
+        this.invalidateRowLookup(row, 'target');
         getJQuery().observable(row).setProperty({
           node: this.state.bulkNode,
           nodeAddress: this.state.bulkNodeAddress,
           nodePresent: true,
           dirty: true,
           nodeDirty: true,
-          ...statusLinkProperties(this.state.bulkNode),
+          ...bindingStatusLinkProperties(this.state.bulkNode),
           suggestionValue: '',
           suggestionLabel: '',
           suggestionConfidence: '',
-          suggestionClass: suggestionClass('')
+          suggestionClass: bindingSuggestionClass('')
         });
       }
     }
@@ -1343,14 +867,33 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const rows = this.allRows().filter((row) => row.selected && row.node);
-    if (rows.length === 0) {
+    const snapshots = this.allRows()
+      .filter((row) => row.selected && row.node)
+      .map((row) => ({
+        row,
+        kind: row.kind,
+        node: row.node,
+        nodeAddress: row.nodeAddress,
+        alias: row.alias,
+        title: row.title
+      }));
+    if (snapshots.length === 0) {
       this.setState({
         message: 'Select rows with a node before suggesting matches.',
         toolbarError: ''
       });
       return;
     }
+
+    const ticket = this.suggestionOperations.begin('suggestions', scope.signal);
+    const isCurrentSnapshot = (snapshot: typeof snapshots[number]) => scope.isCurrent()
+      && ticket.isCurrent()
+      && snapshot.row.selected
+      && snapshot.row.kind === snapshot.kind
+      && snapshot.row.node === snapshot.node
+      && snapshot.row.nodeAddress === snapshot.nodeAddress
+      && snapshot.row.alias === snapshot.alias
+      && snapshot.row.title === snapshot.title;
 
     this.setState({
       busy: true,
@@ -1360,29 +903,42 @@ export class NodelBindings extends HTMLElement {
 
     try {
       let suggested = 0;
-      for (const row of rows) {
-        const definitions = await this.getTargetDefinitions(row, scope);
-        if (!scope.isCurrent()) {
+      for (const snapshot of snapshots) {
+        if (!isCurrentSnapshot(snapshot)) {
           return;
         }
-        const suggestion = buildSuggestion(row, definitions);
+        const suggestion = await this.bindingLookup.getSuggestion({
+          kind: snapshot.kind,
+          node: snapshot.node,
+          nodeAddress: snapshot.nodeAddress,
+          alias: snapshot.alias,
+          title: snapshot.title
+        }, ticket.signal);
+        if (!isCurrentSnapshot(snapshot)) {
+          return;
+        }
         if (suggestion.confidence === 'high' || suggestion.confidence === 'medium') {
           suggested += 1;
         }
-        getJQuery().observable(row).setProperty({
+        getJQuery().observable(snapshot.row).setProperty({
           suggestionValue: suggestion.value,
           suggestionLabel: suggestion.label,
           suggestionConfidence: suggestion.confidence,
-          suggestionClass: suggestionClass(suggestion.confidence)
+          suggestionClass: bindingSuggestionClass(suggestion.confidence)
         });
+      }
+      if (!scope.isCurrent() || !ticket.isCurrent()) {
+        return;
       }
       this.setState({ message: `${suggested} suggestion${suggested === 1 ? '' : 's'} ready.` });
     } catch (error) {
-      if (scope.isCurrent()) {
+      if (scope.isCurrent() && ticket.isCurrent()) {
         this.setState({ toolbarError: apiErrorMessage(error, 'Failed to suggest matches') });
       }
     } finally {
-      if (scope.isCurrent()) {
+      const current = ticket.isCurrent();
+      ticket.finish();
+      if (scope.isCurrent() && current) {
         this.setState({ busy: false });
       }
     }
@@ -1404,97 +960,61 @@ export class NodelBindings extends HTMLElement {
     this.validateBindings();
   }
 
-  private async getTargetDefinitions(row: BindingRow, scope: ConnectionScope, signal: AbortSignal = scope.signal) {
-    const key = this.targetCacheKey(row);
-    const cached = this.targetCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.definitions;
-    }
+  private clearLookupCaches() {
+    this.bindingLookup.clear();
+  }
 
-    const definitions = await this.loadTargetDefinitions(row, scope, signal);
-    this.targetCache.set(key, {
-      expiresAt: Date.now() + targetCacheTtlMs,
-      definitions
+  private invalidateSuggestionWork() {
+    this.suggestionOperations.invalidate('suggestions');
+    if (this.state.busy) {
+      this.setState({ busy: false });
+    }
+  }
+
+  private clearAutocompleteState() {
+    this.setState({
+      bulkNodeOptions: [],
+      showBulkNodeOptions: false,
+      searchingBulkNode: false
     });
-    return definitions;
-  }
-
-  private targetCacheKey(row: BindingRow) {
-    return `${row.kind}:${normalizeNodeIdentity(row.node)}:${row.nodeAddress}`;
-  }
-
-  private async loadTargetDefinitions(row: BindingRow, scope: ConnectionScope, signal: AbortSignal) {
-    const localNode = await this.findLocalNode(row.node, scope);
-    if (!scope.isCurrent()) {
-      return [];
-    }
-    if (localNode) {
-      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name), scope, signal);
-      return result.definitions;
-    }
-
-    const entries = await searchNodeUrls(row.node, { signal });
-    if (!scope.isCurrent()) {
-      return [];
-    }
-    const discoveredUrls = entries
-      .filter((entry) => nodeUrlMatches(entry, row.node))
-      .map((entry) => entry.address);
-    const candidateUrls = uniqueUrls([
-      row.nodeAddress,
-      ...discoveredUrls,
-      discoveredUrls.length === 0 && entries[0] ? entries[0].address : '',
-      discoveredUrls.length === 0 && entries.length === 0 ? localNodeUrl(row.node) : ''
-    ].filter((url): url is string => Boolean(url)));
-
-    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url, scope, signal).then(
-      (result) => result,
-      () => null
-    )));
-    const successful = results.filter((result): result is TargetFetchResult => Boolean(result));
-    if (successful.length === 0) {
-      throw new Error('Failed to load target definitions');
-    }
-
-    return mergeDefinitions(successful);
-  }
-
-  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string, scope: ConnectionScope, signal: AbortSignal): Promise<TargetFetchResult> {
-    const definitions = await runWithDeadline(
-      (deadlineSignal) => (kind === 'actions' ? getRemoteNodeActions(nodeUrl, { signal: deadlineSignal }) : getRemoteNodeSignals(nodeUrl, { signal: deadlineSignal })),
-      signal,
-      targetLookupTimeoutMs
-    );
-    return {
-      definitions: normalizeDefinitions(definitions),
-      url: nodeBaseUrl(nodeUrl)
-    };
-  }
-
-  private async findLocalNode(node: string, scope: ConnectionScope) {
-    const localNodes = await this.getLocalNodes(scope).catch(() => []);
-    return localNodes.find((item) => nodeNameMatches(item.name, node)) ?? null;
-  }
-
-  private getLocalNodes(scope: ConnectionScope) {
-    if (!this.localNodesPromise) {
-      this.localNodesPromise = getLocalRest({ signal: scope.signal }).then((rest) => {
-        return Object.entries(rest.nodes ?? {}).map(([key, entry]) => ({
-          key,
-          entry,
-          name: localNodeName(key, entry)
-        }));
-      }).catch((error) => {
-        this.localNodesPromise = null;
-        throw error;
+    const $ = getJQuery();
+    for (const row of this.allRows()) {
+      $.observable(row).setProperty({
+        nodeOptions: [],
+        showNodeOptions: false,
+        searchingNode: false,
+        targetOptions: [],
+        showTargetOptions: false,
+        searchingTarget: false
       });
     }
-    return this.localNodesPromise;
   }
 
-  private clearLookupCaches() {
-    this.targetCache.clear();
-    this.localNodesPromise = null;
+  private invalidateBulkLookup() {
+    this.lookupOperations.invalidate(this.lookupKey(null, 'bulk-node'));
+    this.setState({
+      bulkNodeOptions: [],
+      showBulkNodeOptions: false,
+      searchingBulkNode: false
+    });
+  }
+
+  private invalidateRowLookup(row: BindingRow, field: 'node' | 'target') {
+    this.lookupOperations.invalidate(this.lookupKey(row, field));
+    const $ = getJQuery();
+    if (field === 'node') {
+      $.observable(row).setProperty({
+        nodeOptions: [],
+        showNodeOptions: false,
+        searchingNode: false
+      });
+      return;
+    }
+    $.observable(row).setProperty({
+      targetOptions: [],
+      showTargetOptions: false,
+      searchingTarget: false
+    });
   }
 
   private async saveBindings() {
@@ -1505,7 +1025,7 @@ export class NodelBindings extends HTMLElement {
     if (this.validateBindings().length > 0) {
       return;
     }
-    const payload = this.serializePayload();
+    const payload = serializeBindingPayload(this.sourceBindings, this.state.sections);
     this.setState({
       saving: true,
       saveError: '',
@@ -1544,29 +1064,6 @@ export class NodelBindings extends HTMLElement {
         this.setState({ saving: false });
       }
     }
-  }
-
-  private serializePayload() {
-    const payload: Record<string, unknown> = cloneSchemaValue(this.sourceBindings);
-
-    for (const section of this.state.sections) {
-      const sourceSectionPresent = Object.prototype.hasOwnProperty.call(payload, section.kind);
-      if (!sourceSectionPresent && !section.rows.some((row) => row.dirty)) continue;
-      const sectionPayload: Record<string, unknown> = isRecordValue(payload[section.kind]) ? cloneSchemaValue(payload[section.kind]) as Record<string, unknown> : {};
-      for (const row of section.rows) {
-        if (!row.dirty && row.rowPresent) {
-          continue;
-        }
-        if (!row.dirty) continue;
-        const rowPayload: Record<string, unknown> = cloneSchemaValue(row.originalValue);
-        if (row.nodeDirty) rowPayload.node = row.node;
-        if (row.targetDirty) rowPayload[row.targetKey] = row.target;
-        sectionPayload[row.alias] = rowPayload;
-      }
-      payload[section.kind] = sectionPayload;
-    }
-
-    return payload;
   }
 
   private validateBindings() {
@@ -1625,10 +1122,10 @@ export class NodelBindings extends HTMLElement {
         continue;
       }
 
-      const status = normalizeStatus(entry.arg);
+      const status = normalizeBindingStatus(entry.arg);
       getJQuery().observable(row).setProperty({
         status,
-        statusClass: statusClass(status)
+        statusClass: bindingStatusClass(status)
       });
       const section = this.state.sections.find((item) => item.kind === kind);
       if (section) {

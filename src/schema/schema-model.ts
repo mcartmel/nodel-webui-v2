@@ -1,4 +1,5 @@
 import type { NodelJsonSchema } from '../api/nodel-types';
+import { hasOwn, isRecord, setOwn } from '../utils/records';
 
 export type SchemaFieldKind = 'null' | 'string' | 'number' | 'boolean' | 'object' | 'array';
 export type SchemaPresenceState = 'missing' | 'null' | 'value';
@@ -112,7 +113,7 @@ const supportedTypes = new Set(['array', 'boolean', 'integer', 'null', 'number',
 const scalarTypes = new Set(['null', 'string', 'number', 'integer', 'boolean']);
 /** Java Nodel's bounded schema dialect, not generic JSON Schema. */
 const schemaDialectKeywords = new Set([
-  'type', 'title', 'desc', 'format', 'group', 'enum', 'properties', 'items',
+  'type', 'title', 'desc', 'hint', 'caution', 'format', 'group', 'enum', 'properties', 'items',
   'order', 'required', 'advanced', 'min', 'max', 'step', 'minItems', 'maxItems'
 ]);
 
@@ -252,7 +253,7 @@ function normalizeConcrete(schema: NodelJsonSchema, type: string): SchemaNormali
 }
 
 function validateMetadata(schema: NodelJsonSchema) {
-  for (const key of ['title', 'desc', 'format', 'group'] as const) {
+  for (const key of ['title', 'desc', 'hint', 'caution', 'format', 'group'] as const) {
     if (schema[key] !== undefined && typeof schema[key] !== 'string') {
       return `${key} must be a string.`;
     }
@@ -439,7 +440,7 @@ export function buildArrayEntry(field: SchemaField, value: unknown, index: numbe
   const unknownProperties: Record<string, unknown> = {};
   if (isRecord(value) && normalized.type === 'object') {
     for (const key of Object.keys(value)) {
-      if (!Object.prototype.hasOwnProperty.call(normalized.schema.properties ?? {}, key)) {
+      if (!hasOwn(normalized.schema.properties ?? {}, key)) {
         setOwn(unknownProperties, key, value[key]);
       }
     }
@@ -596,18 +597,6 @@ function isSupportedEnumValue(value: unknown): boolean {
 
 function enumValueMatchesType(value: unknown, type: string) {
   return typeof value === 'number' && Number.isFinite(value) && (type !== 'integer' || Number.isSafeInteger(value));
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function hasOwn(value: unknown, key: string): boolean {
-  return isRecord(value) && Object.prototype.hasOwnProperty.call(value, key);
-}
-
-export function setOwn(target: Record<string, unknown>, key: string, value: unknown) {
-  Object.defineProperty(target, key, { value, enumerable: true, configurable: true, writable: true });
 }
 
 /** Attach the form context without making the public model cyclic during JSON/debug serialization. */

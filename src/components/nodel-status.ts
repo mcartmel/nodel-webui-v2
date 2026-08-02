@@ -190,7 +190,6 @@ export class NodelStatus extends HTMLElement {
   private bodyNode: HTMLElement | null = null;
   private labelId = '';
   private messageSetBySignal = false;
-  private stateSetBySignal = false;
   private levelSetBySignal = false;
 
   connectedCallback() {
@@ -208,7 +207,6 @@ export class NodelStatus extends HTMLElement {
       this.messageSetBySignal = false;
     }
     if (name === 'state' && !this.isConnected) {
-      this.stateSetBySignal = false;
     }
     if (name === 'level' && !this.isConnected) {
       this.levelSetBySignal = false;
@@ -347,7 +345,6 @@ export class NodelStatus extends HTMLElement {
         this.setSignalAttribute('message', value);
       },
       state: (value) => {
-        this.stateSetBySignal = true;
         this.setSignalAttribute('state', value);
       },
       value: (value) => this.setSignalAttribute('value', value)

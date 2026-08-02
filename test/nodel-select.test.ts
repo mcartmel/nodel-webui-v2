@@ -308,6 +308,27 @@ describe('nodel-select', () => {
     expect(Array.from(select.querySelectorAll('nodel-button')).map((option) => option.textContent)).toEqual(['A', 'B']);
   });
 
+  it('reports an invalid first dynamic select payload and recovers', async () => {
+    document.body.innerHTML = `
+      <nodel-select options-signal="Sources">
+        <nodel-button value="Fallback">Fallback</nodel-button>
+      </nodel-select>
+    `;
+    await customElements.whenDefined('nodel-select');
+    await flush();
+
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    emitSignal('Sources', ['A', 'A']);
+    await flush();
+    expect(select.dataset.optionsState).toBe('error');
+    expect(select.querySelector('nodel-button')?.textContent).toBe('Fallback');
+
+    emitSignal('Sources', ['A']);
+    await flush();
+    expect(select.dataset.optionsState).toBe('ready');
+    expect(select.querySelector('nodel-button')?.textContent).toBe('A');
+  });
+
   it('restores authored select fallback when the options binding is removed', async () => {
     document.body.innerHTML = `
       <nodel-select options-signal="Sources" value="Fallback">
@@ -501,6 +522,27 @@ describe('nodel-select', () => {
     expect(trigger.disabled).toBe(false);
     expect(select.querySelector('.nodel-options-status')?.textContent).toBe('');
     expect(select.querySelector('.nodel-select-value')?.textContent).toBe('Fallback');
+  });
+
+  it('recovers from a source error before the first dynamic payload', async () => {
+    document.body.innerHTML = `
+      <nodel-select options-signal="Sources">
+        <nodel-button value="Fallback">Fallback</nodel-button>
+      </nodel-select>
+    `;
+    await customElements.whenDefined('nodel-select');
+    await flush();
+
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    emitActivityState({ loading: false, connected: false, error: 'offline', batch: null });
+    expect(select.dataset.optionsState).toBe('error');
+    expect(select.querySelector('nodel-button')?.textContent).toBe('Fallback');
+
+    emitActivityState({ loading: false, connected: true, error: '', batch: null });
+    expect(select.dataset.optionsState).toBe('loading');
+    emitSignal('Sources', ['A']);
+    await flush();
+    expect(select.dataset.optionsState).toBe('ready');
   });
 
   it('preserves and reactivates a selected select value when dynamic options reintroduce it', async () => {

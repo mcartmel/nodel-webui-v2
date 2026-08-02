@@ -107,6 +107,7 @@ export interface NodelJsonSchema {
   title?: string;
   desc?: string;
   hint?: string;
+  caution?: string;
   format?: string;
   enum?: unknown[];
   properties?: Record<string, NodelJsonSchema>;

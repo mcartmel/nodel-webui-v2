@@ -1,16 +1,18 @@
-export interface DynamicOptionRecord {
+import type { SignalBindingSourceState } from './signal-bindings';
+
+interface DynamicOptionRecord {
   value: string;
   label: string;
 }
 
-export interface DynamicOptionIssue {
+interface DynamicOptionIssue {
   index?: number;
   message: string;
 }
 
 export type DynamicOptionsState = 'static' | 'loading' | 'ready' | 'empty' | 'error';
 
-export interface DynamicOptionsApplyResult {
+interface DynamicOptionsApplyResult {
   ok: boolean;
   state: DynamicOptionsState;
   count: number;
@@ -141,6 +143,8 @@ export class DynamicOptionsController {
   private generatedByValue = new Map<string, HTMLElement>();
   private dynamicApplied = false;
   private bindingActive = false;
+  private payloadState: DynamicOptionsState = 'static';
+  private sourceError = false;
   private state: DynamicOptionsState = 'static';
 
   constructor(private readonly container: HTMLElement, private readonly createOption: (option: DynamicOptionRecord) => HTMLElement) {}
@@ -154,11 +158,13 @@ export class DynamicOptionsController {
     this.bindingActive = active;
     if (!active) {
       this.restoreFallback();
+      this.payloadState = 'static';
+      this.sourceError = false;
       this.state = 'static';
       return this.state;
     }
 
-    this.state = this.dynamicApplied ? this.state : 'loading';
+    this.state = this.effectiveState();
     return this.state;
   }
 
@@ -174,24 +180,47 @@ export class DynamicOptionsController {
   applyPayload(payload: unknown): DynamicOptionsApplyResult {
     const normalized = normalizeDynamicOptions(payload);
     if (!normalized.ok) {
-      this.state = 'error';
+      this.payloadState = 'error';
+      this.state = this.effectiveState();
       return { ok: false, state: this.state, count: this.currentOptions().length, issues: normalized.issues, removedFocused: false, removedFocusedIndex: -1, previousFocusedValue: '', retainedFocused: false };
     }
 
     const result = this.reconcile(normalized.options);
     this.dynamicApplied = true;
-    this.state = normalized.options.length > 0 ? 'ready' : 'empty';
+    this.payloadState = normalized.options.length > 0 ? 'ready' : 'empty';
+    this.state = this.effectiveState();
     return { ok: true, state: this.state, count: normalized.options.length, issues: [], ...result };
   }
 
-  clear() {
+  setSourceState(sourceState: SignalBindingSourceState) {
+    if (!this.bindingActive) {
+      return this.state;
+    }
+
+    this.sourceError = Boolean(sourceState.error) || (!sourceState.connected && !sourceState.loading);
+    this.state = this.effectiveState();
+    return this.state;
+  }
+
+  reset() {
     this.restoreFallback();
     this.bindingActive = false;
+    this.payloadState = 'static';
+    this.sourceError = false;
     this.state = 'static';
   }
 
-  dispose() {
-    this.clear();
+  private effectiveState(): DynamicOptionsState {
+    if (!this.bindingActive) {
+      return 'static';
+    }
+    if (this.sourceError) {
+      return 'error';
+    }
+    if (this.payloadState === 'error') {
+      return 'error';
+    }
+    return this.dynamicApplied ? this.payloadState : 'loading';
   }
 
   private captureFallbackNodes() {

@@ -1,8 +1,9 @@
-import { NODEL_CONFIRM, type NodelConfirmDetail, type NodelConfirmRequest } from '../data/confirm';
+import type { NodelConfirmDetail } from '../data/confirm';
 import { getControlRuntime } from '../data/control-runtime';
 import { renderFontAwesomeIcon, toastIcons } from '../icons/fontawesome';
-import type { NodelToastTone } from './nodel-toast-host';
+import { normalizeToastTone, type NodelToastTone } from './nodel-toast-host';
 import { ModalFocusController } from '../utils/modal-focus-controller';
+import { escapeHtml } from '../utils/html';
 
 type CodeStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -27,19 +28,6 @@ const toneIconMarkup: Record<NodelToastTone, string> = {
   success: renderFontAwesomeIcon(toastIcons.success, 'h-5 w-5'),
   warning: renderFontAwesomeIcon(toastIcons.warning, 'h-5 w-5')
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function normalizeTone(tone: NodelConfirmRequest['tone']): NodelToastTone {
-  return tone === 'success' || tone === 'warning' || tone === 'danger' ? tone : 'info';
-}
 
 export class NodelConfirmHost extends HTMLElement {
   private state: ConfirmState | null = null;
@@ -72,7 +60,7 @@ export class NodelConfirmHost extends HTMLElement {
       text: detail.text?.trim() || 'Continue?',
       confirmLabel: detail.confirmLabel?.trim() || 'Confirm',
       cancelLabel: detail.cancelLabel?.trim() || 'Cancel',
-      tone: normalizeTone(detail.tone),
+      tone: normalizeToastTone(detail.tone),
       mode: detail.mode === 'code' ? 'code' : 'standard',
       codeSignal: detail.codeSignal?.trim() || 'ConfirmCode',
       codeStatus: 'loading',

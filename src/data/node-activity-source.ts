@@ -6,7 +6,8 @@ import { createActivityAccumulator } from './activity-accumulator';
 import { reportConnectivityFailure } from './connectivity';
 import { observeNodelVisibility } from './visibility-scope';
 import type { NodelSourceRefreshOptions, NodelSourceRefreshResult } from './nodel-data-runtime';
-import { isAbortError, reportBoundedListenerError } from '../utils/errors';
+import { boundedErrorMessage, isAbortError, reportBoundedListenerError } from '../utils/errors';
+import { localNodePath } from '../utils/urls';
 
 export interface NodeActivityBatch {
   items: Array<{ entry: NodelActivityLogEntry; changed: boolean; live: boolean }>;
@@ -532,7 +533,7 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
       enqueueLiveEntry(data.activity);
     }
   } catch (caught) {
-    error = (caught instanceof Error ? caught.message : 'WebSocket activity returned invalid data').replace(/\s+/g, ' ').slice(0, 500);
+    error = boundedErrorMessage(caught, 'WebSocket activity returned invalid data');
     emit(null);
   }
 }
@@ -558,7 +559,7 @@ async function openWebSocket() {
   let socket: WebSocket;
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/nodes/${encodeURIComponent(nodeName)}`;
+    const url = `${protocol}//${window.location.host}${localNodePath(nodeName)}`;
     socket = new WebSocket(url);
     ws = socket;
   } catch (connectError) {

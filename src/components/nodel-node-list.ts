@@ -5,10 +5,9 @@ import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
-import { getHostFromAddress, getSimpleName, getVerySimpleName } from '../utils/node-name';
-import { escapeHtml } from '../utils/html';
+import { getHostFromAddress, getSimpleName } from '../utils/node-name';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
+import { localNodePath, safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
@@ -21,7 +20,6 @@ interface NodeListStateItem {
   iconHost: string;
   reachable: boolean;
   reachability: NodeReachability;
-  highlightedName: string;
   sortKey: string;
 }
 
@@ -111,7 +109,6 @@ export class NodelNodeList extends HTMLElement {
 
   private static nextSourceId = 0;
 
-  private connected = false;
   private appliedQueryParam: string | undefined;
   private debounceTimer: number | null = null;
   private connectionLifecycle = new ComponentLifecycle();
@@ -138,24 +135,21 @@ export class NodelNodeList extends HTMLElement {
     if (!scope) {
       return;
     }
-    this.connected = true;
     this.appliedQueryParam = undefined;
     this.queueInitialize();
   }
 
   disconnectedCallback() {
-    this.connected = false;
     this.initializeToken += 1;
     this.appliedQueryParam = undefined;
     this.clearDebounceTimer();
     this.disposeSource();
-    this.removeEventListener('click', this.handleClick);
     this.connectionLifecycle.disconnect();
     this.linked = false;
   }
 
   attributeChangedCallback() {
-    if (this.connected) {
+    if (this.isConnected) {
       this.queueInitialize();
     }
   }
@@ -420,7 +414,7 @@ export class NodelNodeList extends HTMLElement {
 
   private async expandReachability(rows: NodeListStateItem[], hosts: string[], token: number, signal: AbortSignal) {
     const results = await this.probeHosts(hosts, signal);
-    if (signal.aborted || token !== this.reachabilityToken || !this.connected) {
+    if (signal.aborted || token !== this.reachabilityToken || !this.isConnected) {
       return;
     }
     this.applyReachability(rows, results);
@@ -438,7 +432,7 @@ export class NodelNodeList extends HTMLElement {
   private toLocalRow(entry: NodelLocalNodeEntry, host: string, iconHost: string): NodeListStateItem {
     const name = entry.name || entry.node || '';
     const nodeName = getSimpleName(name);
-    const address = safeNavigationHref(entry.address || `/nodes/${encodeURIComponent(getVerySimpleName(name))}`);
+    const address = safeNavigationHref(entry.address || localNodePath(name));
     if (!address) {
       throw new Error('Local node address is invalid');
     }
@@ -450,7 +444,6 @@ export class NodelNodeList extends HTMLElement {
       iconHost,
       reachable: true,
       reachability: 'reachable',
-      highlightedName: escapeHtml(name),
       sortKey: nodeName,
     };
   }
@@ -471,7 +464,6 @@ export class NodelNodeList extends HTMLElement {
       iconHost: host,
       reachable: false,
       reachability: 'unknown',
-      highlightedName: escapeHtml(name),
       sortKey: entry.node || getSimpleName(name),
     };
   }

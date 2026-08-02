@@ -103,4 +103,60 @@ describe('dynamic options', () => {
     expect(result.removedFocused).toBe(false);
     expect(document.activeElement).toBe(focusedButton);
   });
+
+  it('keeps source errors separate from payload state and resets both', () => {
+    const container = document.createElement('div');
+    const fallback = document.createElement('nodel-button');
+    fallback.setAttribute('value', 'Fallback');
+    fallback.textContent = 'Fallback';
+    container.appendChild(fallback);
+    document.body.appendChild(container);
+
+    const controller = new DynamicOptionsController(container, (option) => {
+      const node = document.createElement('nodel-button');
+      node.setAttribute('value', option.value);
+      node.textContent = option.label;
+      return node;
+    });
+
+    expect(controller.setBindingActive(true)).toBe('loading');
+    expect(controller.setSourceState({ loading: false, connected: false, error: 'offline' })).toBe('error');
+    expect(optionTexts(container)).toEqual(['Fallback:Fallback']);
+    expect(controller.setSourceState({ loading: false, connected: true, error: '' })).toBe('loading');
+
+    expect(controller.applyPayload(['A']).state).toBe('ready');
+    expect(controller.setSourceState({ loading: false, connected: false, error: 'offline' })).toBe('error');
+    expect(controller.setSourceState({ loading: false, connected: true, error: '' })).toBe('ready');
+
+    controller.reset();
+    expect(controller.getState()).toBe('static');
+    expect(optionTexts(container)).toEqual(['Fallback:Fallback']);
+    expect(controller.setBindingActive(true)).toBe('loading');
+  });
+
+  it('reports a first invalid payload and recovers after a valid payload', () => {
+    const container = document.createElement('div');
+    const fallback = document.createElement('nodel-button');
+    fallback.setAttribute('value', 'Fallback');
+    fallback.textContent = 'Fallback';
+    container.appendChild(fallback);
+    document.body.appendChild(container);
+
+    const controller = new DynamicOptionsController(container, (option) => {
+      const node = document.createElement('nodel-button');
+      node.setAttribute('value', option.value);
+      node.textContent = option.label;
+      return node;
+    });
+
+    expect(controller.setBindingActive(true)).toBe('loading');
+    expect(controller.applyPayload(['A', 'A']).state).toBe('error');
+    expect(controller.getState()).toBe('error');
+    expect(optionTexts(container)).toEqual(['Fallback:Fallback']);
+
+    expect(controller.setSourceState({ loading: false, connected: false, error: 'offline' })).toBe('error');
+    expect(controller.applyPayload(['A']).state).toBe('error');
+    expect(controller.setSourceState({ loading: false, connected: true, error: '' })).toBe('ready');
+    expect(optionTexts(container)).toEqual(['A:A']);
+  });
 });

@@ -2,6 +2,7 @@ import { getNodeDetails } from '../api/nodel-host-client';
 import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { renderMarkdown } from '../utils/markdown';
+import { isAbortError } from '../utils/errors';
 
 const defaultCollapsedHeight = '8rem';
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
@@ -102,7 +103,7 @@ export class NodelDescription extends HTMLElement {
       if (token !== this.loadingToken) {
         return { status: 'superseded', detail: 'Description refresh was superseded.' };
       }
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         return { status: 'aborted', detail: 'Description refresh was canceled.' };
       }
       this.hidden = true;

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { nodelDocumentElements, completeNodelDocument } from '../src/editor/nodel-document-definition';
+import { readStyleSource } from './style-source';
 
 function fakeCompletionContext(text: string, explicit = true) {
   return {
@@ -185,7 +186,7 @@ describe('nodel document definition', () => {
     const [mainSource, docsSource, stylesSource] = await Promise.all([
       readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8'),
       readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8'),
-      readFile(resolve(process.cwd(), 'src/styles.css'), 'utf8')
+      readStyleSource()
     ]);
     const importedComponents = Array.from(mainSource.matchAll(/\.\/components\/(nodel-[^']+)'/g)).map((match) => match[1]);
     const documentedComponents = new Set(Array.from(docsSource.matchAll(/`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1]));

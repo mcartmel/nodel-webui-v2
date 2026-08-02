@@ -1,0 +1,394 @@
+@layer components {
+  .nodel-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  nodel-toolbar {
+    position: static;
+    border-bottom: 1px solid var(--nodel-toolbar-border, rgb(var(--nodel-border)));
+    background: var(--nodel-toolbar-background, rgb(var(--nodel-surface)));
+  }
+
+  .nodel-toolbar-shell {
+    @apply grid min-h-16 items-center gap-x-3 gap-y-2 py-2;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nodel-toolbar-brand {
+    @apply flex min-w-0 items-center gap-2;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .nodel-toolbar-nav {
+    @apply min-w-0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .nodel-toolbar-nav-list {
+    @apply flex min-w-0 items-center gap-1 overflow-x-auto pb-1;
+    overscroll-behavior-x: contain;
+  }
+
+  .nodel-toolbar-nav-list > .nodel-button,
+  .nodel-toolbar-nav-group {
+    @apply shrink-0;
+  }
+
+  .nodel-toolbar-actions {
+    @apply flex shrink-0 flex-wrap items-center justify-end gap-2;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .nodel-toolbar-nav-group {
+    @apply relative;
+  }
+
+  .nodel-toolbar-group-menu {
+    @apply absolute left-0 top-full z-20 mt-2 min-w-48 p-1;
+  }
+
+  @media (max-width: 639px) {
+    .nodel-toolbar-shell {
+      @apply min-h-14 gap-x-2 gap-y-1 py-1.5;
+    }
+
+    .nodel-toolbar-brand {
+      @apply gap-1.5;
+    }
+
+    .nodel-toolbar-brand [data-toolbar-icon] {
+      @apply h-9 w-16;
+    }
+
+    .nodel-toolbar-brand .nodel-toolbar-host-icon {
+      scale: 0.84;
+    }
+
+    .nodel-toolbar-brand [data-toolbar-title] {
+      @apply text-sm;
+    }
+
+    .nodel-toolbar-actions {
+      @apply gap-1;
+    }
+
+    .nodel-toolbar-group-menu {
+      position: fixed;
+      top: var(--nodel-toolbar-menu-top, 0px);
+      right: max(1rem, env(safe-area-inset-right));
+      left: max(1rem, env(safe-area-inset-left));
+      max-height: calc(100dvh - var(--nodel-toolbar-menu-top, 0px) - 1rem);
+      overflow-y: auto;
+    }
+  }
+
+  @media (max-width: 399px) {
+    .nodel-toolbar-brand [data-toolbar-icon] {
+      display: none;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .nodel-toolbar-shell {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .nodel-toolbar-nav {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .nodel-toolbar-nav-list {
+      @apply flex-wrap overflow-visible pb-0;
+    }
+
+    .nodel-toolbar-actions {
+      grid-column: 3;
+    }
+  }
+
+  .nodel-section-heading {
+    @apply text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-catalogue-header {
+    @apply max-w-3xl space-y-2;
+  }
+
+  .nodel-catalogue-title {
+    @apply m-0 text-2xl font-semibold leading-8 tracking-tight text-nodel-fg;
+  }
+
+  .nodel-catalogue-subtitle {
+    @apply m-0 text-lg font-semibold leading-7 text-nodel-fg;
+    letter-spacing: -0.01em;
+  }
+
+  .nodel-catalogue-description {
+    @apply m-0 text-sm leading-6 text-nodel-muted;
+  }
+
+  .nodel-catalogue-examples {
+    @apply space-y-4;
+  }
+
+  .nodel-catalogue-section {
+    @apply space-y-4;
+  }
+
+  .nodel-catalogue-code {
+    @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-card;
+    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+  }
+
+  .nodel-button {
+    @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
+    --nodel-button-tone-rgb: var(--nodel-fg);
+    background: var(--nodel-control-background, rgb(var(--nodel-surface)));
+    border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
+    box-shadow: var(--nodel-shadow-control, none);
+    touch-action: manipulation;
+    translate: 0 0;
+  }
+
+  .nodel-button:not(:disabled):not(.is-disabled) {
+    @apply cursor-pointer;
+  }
+
+  .nodel-button-content {
+    @apply flex min-w-0 flex-wrap items-center justify-center gap-2 text-center;
+  }
+
+  nodel-button[data-layout='stack'] .nodel-button-content {
+    @apply flex-col flex-nowrap gap-1;
+  }
+
+  nodel-button[data-layout='stack'] .nodel-button-content nodel-icon,
+  nodel-button[data-layout='stack'] .nodel-button-content nodel-image {
+    @apply mb-1;
+  }
+
+  .nodel-button:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-accent text-nodel-accent;
+    background: var(--nodel-control-hover-background, rgb(var(--nodel-border) / 0.18));
+    border-color: var(--nodel-control-hover-border, rgb(var(--nodel-accent)));
+  }
+
+  .nodel-button:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus;
+  }
+
+  .nodel-button:disabled,
+  .nodel-button.is-disabled {
+    @apply cursor-not-allowed opacity-disabled;
+  }
+
+  .nodel-button-compact {
+    @apply px-2 py-1 text-xs leading-5;
+  }
+
+  .nodel-button-touch {
+    @apply h-full min-h-14 w-full px-4 py-3 text-base leading-6;
+  }
+
+  nodel-button[data-size='sm'] .nodel-button-touch {
+    @apply h-auto min-h-9 px-2.5 py-1.5 text-sm leading-5;
+  }
+
+  nodel-button[data-size='md'] .nodel-button-touch {
+    @apply h-auto min-h-11 px-3 py-2 text-sm leading-5;
+  }
+
+  nodel-button[data-size='lg'] .nodel-button-touch {
+    @apply h-full min-h-14 px-4 py-3 text-base leading-6;
+  }
+
+  .nodel-button.is-busy {
+    @apply cursor-wait opacity-attention;
+  }
+
+  .nodel-button-primary {
+    @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
+    --nodel-button-tone-rgb: var(--nodel-accent);
+    background: rgb(var(--nodel-accent-fill));
+  }
+
+  .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
+    background: rgb(var(--nodel-accent-fill));
+    filter: brightness(0.95);
+  }
+
+  .nodel-button-success {
+    @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
+    --nodel-button-tone-rgb: var(--nodel-success);
+    background: rgb(var(--nodel-success-fill));
+  }
+
+  .nodel-button-success:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
+    background: rgb(var(--nodel-success-fill));
+    filter: brightness(0.95);
+  }
+
+  .nodel-button-info {
+    @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
+    --nodel-button-tone-rgb: var(--nodel-info);
+    background: rgb(var(--nodel-info-fill));
+  }
+
+  .nodel-button-info:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
+    background: rgb(var(--nodel-info-fill));
+    filter: brightness(0.95);
+  }
+
+  .nodel-button-warning {
+    @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
+    --nodel-button-tone-rgb: var(--nodel-warning);
+    background: rgb(var(--nodel-warning-fill));
+  }
+
+  .nodel-button-warning:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
+    background: rgb(var(--nodel-warning-fill));
+    filter: brightness(0.95);
+  }
+
+  .nodel-button-danger {
+    @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
+    --nodel-button-tone-rgb: var(--nodel-danger);
+    background: rgb(var(--nodel-danger-fill));
+  }
+
+  .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
+    background: rgb(var(--nodel-danger-fill));
+    filter: brightness(0.95);
+  }
+
+  .nodel-button-ghost {
+    @apply border-transparent bg-nodel-border/20 text-nodel-fg;
+    background: var(--nodel-subtle-background, rgb(var(--nodel-border) / 0.2));
+    box-shadow: none;
+  }
+
+  .nodel-button-ghost:hover:not(:disabled):not(.is-disabled) {
+    @apply border-nodel-border bg-nodel-border/35 text-nodel-accent;
+    background: var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.35));
+  }
+
+  .nodel-button-link {
+    @apply border-transparent bg-transparent text-nodel-accent underline-offset-4 shadow-none;
+    background: transparent;
+  }
+
+  .nodel-button-link:hover:not(:disabled):not(.is-disabled) {
+    @apply border-transparent bg-transparent text-nodel-accent underline;
+    background: transparent;
+  }
+
+  .nodel-actsig-copy {
+    @apply border-transparent bg-transparent text-nodel-muted opacity-faint shadow-none no-underline;
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nodel-actsig-copy:hover:not(:disabled):not(.is-disabled),
+  .nodel-actsig-copy:focus-visible {
+    @apply border-transparent bg-transparent text-nodel-accent opacity-100 no-underline;
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nodel-actsig-copy:active:not(:disabled):not(.is-disabled) {
+    @apply border-transparent bg-transparent text-nodel-accent no-underline;
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .nodel-button-soft:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.28);
+    background: rgb(var(--nodel-button-tone-rgb) / 0.1);
+    color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  .nodel-button-soft:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.42);
+    background: rgb(var(--nodel-button-tone-rgb) / 0.15);
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
+  .nodel-button-outline:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-width: 2px;
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.65);
+    background: rgb(var(--nodel-button-tone-rgb) / 0.05);
+    color: rgb(var(--nodel-button-tone-rgb));
+  }
+
+  .nodel-button-outline:hover:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.12);
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
+  .nodel-button:active:not(:disabled):not(.is-disabled) {
+    translate: 0 1px;
+    box-shadow: var(--nodel-shadow-control-active, var(--nodel-shadow-control, none));
+  }
+
+  .nodel-button:not(.nodel-button-primary):not(.nodel-button-success):not(.nodel-button-info):not(.nodel-button-warning):not(.nodel-button-danger):not(.nodel-button-ghost):not(.nodel-button-link):not(.nodel-button-soft):not(.nodel-button-outline):active:not(:disabled):not(.is-disabled) {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.12));
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-button-primary:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-success:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-info:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-warning:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
+  .nodel-button-danger:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline) {
+    filter: brightness(0.9);
+  }
+
+  .nodel-button-ghost:active:not(:disabled):not(.is-disabled) {
+    border-color: var(--nodel-control-active-border, rgb(var(--nodel-accent)));
+    background: var(--nodel-control-active-background, var(--nodel-subtle-hover-background, rgb(var(--nodel-border) / 0.35)));
+    color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-button-link:active:not(:disabled):not(.is-disabled) {
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    translate: 0 0;
+  }
+
+  .nodel-button-soft:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link),
+  .nodel-button-outline:active:not(:disabled):not(.is-disabled):not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.18);
+    color: rgb(var(--nodel-button-tone-rgb));
+    filter: none;
+  }
+
+  .nodel-button.is-active {
+    border-color: rgb(var(--nodel-button-tone-rgb) / 0.8);
+    background: rgb(var(--nodel-button-tone-rgb) / 0.15);
+    color: rgb(var(--nodel-button-tone-rgb));
+    box-shadow: var(--nodel-shadow-control, none);
+  }
+
+  .nodel-button-soft.is-active:not(.nodel-button-ghost):not(.nodel-button-link),
+  .nodel-button-outline.is-active:not(.nodel-button-ghost):not(.nodel-button-link) {
+    border-color: rgb(var(--nodel-button-tone-rgb));
+    background: rgb(var(--nodel-button-tone-rgb) / 0.16);
+    color: rgb(var(--nodel-button-tone-rgb));
+  }
+}

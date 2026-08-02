@@ -5,21 +5,22 @@ import {
   type ActionBindingResult
 } from './action-bindings';
 import { parseTypedArgStrict, type ControlArgType } from '../utils/control-values';
+import { apiErrorMessage } from '../utils/errors';
 
-export interface ControlActionPayloadSuccess {
+interface ControlActionPayloadSuccess {
   ok: true;
   payload: Record<string, unknown>;
   arg?: unknown;
 }
 
-export interface ControlActionPayloadFailure {
+interface ControlActionPayloadFailure {
   ok: false;
   error: string;
 }
 
-export type ControlActionPayloadResult = ControlActionPayloadSuccess | ControlActionPayloadFailure;
+type ControlActionPayloadResult = ControlActionPayloadSuccess | ControlActionPayloadFailure;
 
-export interface ControlActionErrorOptions {
+interface ControlActionErrorOptions {
   eventName: string;
   action?: string;
   phase?: string;
@@ -70,7 +71,7 @@ export function actionName(bindings: readonly ActionBinding[], fallback = '') {
 }
 
 export function actionErrorMessage(error: unknown, fallback = 'Failed to call action') {
-  return error instanceof Error ? error.message : fallback;
+  return apiErrorMessage(error, fallback);
 }
 
 export function formatActionFailures(failures: ReadonlyArray<{ action: string; error?: string }>, fallback = 'Failed to call action') {

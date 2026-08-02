@@ -149,6 +149,6 @@ describe('nodel-page activation actions', () => {
 
     expect(document.querySelector('nodel-app')?.getAttribute('data-active-page')).toBe('Details');
     await waitFor(() => document.querySelector('.nodel-toast-message')?.textContent === 'Page action failed');
-    expect(document.querySelector('.nodel-toast-detail')?.textContent).toContain('OpenDetails: controller unavailable');
+    expect(document.querySelector('.nodel-toast-detail')?.textContent).toContain('controller unavailable');
   });
 });

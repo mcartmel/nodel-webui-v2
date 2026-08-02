@@ -1,4 +1,5 @@
 import { isToggleOnish, resolveToggleState, toggleAriaChecked } from '../src/utils/toggle-state';
+import { truthy } from '../src/utils/control-values';
 
 describe('toggle-state', () => {
   it('resolves common boolean-like states', () => {
@@ -27,5 +28,10 @@ describe('toggle-state', () => {
     expect(toggleAriaChecked('on')).toBe('true');
     expect(toggleAriaChecked('off')).toBe('false');
     expect(toggleAriaChecked('partially-off')).toBe('mixed');
+  });
+
+  it('keeps display-state and control-truthiness vocabularies distinct', () => {
+    expect(resolveToggleState('disabled')).toBe('off');
+    expect(truthy('disabled')).toBe(true);
   });
 });

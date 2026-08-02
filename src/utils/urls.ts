@@ -1,3 +1,5 @@
+import { getVerySimpleName } from './node-name';
+
 const unsafeUrlCharacters = /[\u0000-\u001f\u007f]/;
 const dataImagePattern = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$/i;
 
@@ -26,6 +28,14 @@ function parseUrl(value: string, base: string | URL | undefined, protocols: Read
 
 const httpProtocols = new Set(['http:', 'https:']);
 const markdownProtocols = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+export function localNodePath(name: string) {
+  return `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
+}
+
+export function localNodeUrl(name: string, base: string | URL = window.location.origin) {
+  return new URL(localNodePath(name), base).href;
+}
 
 export function safeNavigationUrl(value: string, base: string | URL = window.location.href) {
   return parseUrl(value, base, httpProtocols);

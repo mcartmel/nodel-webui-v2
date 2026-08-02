@@ -1,9 +1,6 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import type { NodelControlRuntime, NodelControlSignalState } from '../data/control-runtime';
-
-interface PayloadRecord {
-  [key: string]: unknown;
-}
+import { hasOwn, isRecord } from '../utils/records';
 
 interface SignalListener {
   listener: (state: NodelControlSignalState) => void;
@@ -60,12 +57,8 @@ const initialSignals: Record<string, unknown> = {
   Output6: true
 };
 
-function isRecord(value: unknown): value is PayloadRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function hasPayloadArg(payload: unknown): payload is PayloadRecord & { arg: unknown } {
-  return isRecord(payload) && Object.prototype.hasOwnProperty.call(payload, 'arg');
+function hasPayloadArg(payload: unknown): payload is Record<string, unknown> & { arg: unknown } {
+  return isRecord(payload) && hasOwn(payload, 'arg');
 }
 
 function nextBooleanValue(value: unknown) {

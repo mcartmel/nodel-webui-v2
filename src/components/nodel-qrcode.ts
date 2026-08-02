@@ -30,10 +30,8 @@ function createSvgElement<K extends keyof SVGElementTagNameMap>(name: K) {
 export class NodelQRCode extends HTMLElement {
   static observedAttributes = ['value', 'size', 'help', 'label', 'aria-label', 'aria-labelledby', 'signal', 'signals'];
 
-  private connected = false;
   private shellReady = false;
   private svgNode: SVGSVGElement | null = null;
-  private pathNode: SVGPathElement | null = null;
   private helpNode: HTMLElement | null = null;
   private errorNode: HTMLElement | null = null;
   private helpId = '';
@@ -44,7 +42,6 @@ export class NodelQRCode extends HTMLElement {
   private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
-    this.connected = true;
     this.ensureShell();
     this.syncSignalSubscription();
     this.renderValue(true);
@@ -52,12 +49,11 @@ export class NodelQRCode extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
     this.signalBindings.dispose();
   }
 
   attributeChangedCallback(name: string) {
-    if (!this.connected) {
+    if (!this.isConnected) {
       return;
     }
 
@@ -163,7 +159,6 @@ export class NodelQRCode extends HTMLElement {
     background.setAttribute('fill', 'white');
     this.svgNode.appendChild(background);
 
-    this.pathNode = null;
     if (!this.matrix) {
       return;
     }
@@ -183,7 +178,6 @@ export class NodelQRCode extends HTMLElement {
     path.setAttribute('fill', 'black');
     path.setAttribute('stroke', 'none');
     this.svgNode.appendChild(path);
-    this.pathNode = path;
   }
 
   private renderMetadata() {

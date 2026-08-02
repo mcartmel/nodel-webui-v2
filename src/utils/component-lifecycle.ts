@@ -1,3 +1,5 @@
+import { isAbortError } from './errors';
+
 export type LifecycleDisposer = (() => void) | { dispose(): void };
 type LifecycleEventListener = EventListenerOrEventListenerObject | ((event: any) => void);
 
@@ -14,10 +16,6 @@ export interface ConnectionScope {
 
 function disposerFunction(disposer: LifecycleDisposer) {
   return typeof disposer === 'function' ? disposer : () => disposer.dispose();
-}
-
-function isAbortError(error: unknown) {
-  return (error instanceof DOMException || error instanceof Error) && error.name === 'AbortError';
 }
 
 class ConnectionScopeImpl implements ConnectionScope {

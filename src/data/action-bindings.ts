@@ -22,26 +22,6 @@ export interface ActionBindingExecution {
   failures: ActionBindingResult[];
 }
 
-export type ActionArgType = 'string' | 'number' | 'boolean' | 'json';
-
-export function parseActionArg(value: string, type: ActionArgType) {
-  if (type === 'number') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : value;
-  }
-  if (type === 'boolean') {
-    return ['true', '1', 'on', 'yes'].includes(value.trim().toLowerCase());
-  }
-  if (type === 'json') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
-  }
-  return value;
-}
-
 function parseBindingList(value: string | null, defaultPhase: string) {
   const bindings: ActionBinding[] = [];
 

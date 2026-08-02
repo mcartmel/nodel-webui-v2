@@ -1,5 +1,7 @@
 import {
   appendUrlPath,
+  localNodePath,
+  localNodeUrl,
   remoteNodeEndpoint,
   safeAbsoluteHttpUrl,
   safeHostRestUrl,
@@ -91,5 +93,15 @@ describe('URL policies', () => {
     expect(safeHostRestUrl('user@display.test')).toBeNull();
     expect(safeHostRestUrl('display.test/path')).toBeNull();
     expect(safeHostRestUrl('display.test\\admin')).toBeNull();
+  });
+
+  it('generates canonical local node paths and URLs', () => {
+    expect(localNodePath('Living Room')).toBe('/nodes/LivingRoom/');
+    expect(localNodePath('Café Δ')).toBe('/nodes/Caf%C3%A9%CE%94/');
+    expect(localNodePath('Kitchen: A/B?')).toBe('/nodes/KitchenAB/');
+    expect(localNodePath('A--B')).toBe('/nodes/A/');
+    expect(localNodePath('Demo')).toMatch(/^\/nodes\/[^/]+\/$/);
+    expect(localNodeUrl('Demo')).toBe(new URL(localNodePath('Demo'), window.location.origin).href);
+    expect(localNodeUrl('Demo', 'https://example.test/base/')).toBe('https://example.test/nodes/Demo/');
   });
 });

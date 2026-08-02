@@ -97,7 +97,3 @@ function notify(entry: VisibilityObserverEntry, visible: boolean) {
     window.dispatchEvent(new CustomEvent('nodel-visibility-listener-error', { detail: { error } }));
   }
 }
-
-export function elementIsVisibleInNodelApp(element: HTMLElement) {
-  return isVisibleInTree(element);
-}

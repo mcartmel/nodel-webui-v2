@@ -54,18 +54,15 @@ export class NodelSegmented extends HTMLElement {
     'allow-deselect', 'label', 'aria-label', 'aria-labelledby', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'
   ];
 
-  private connected = false;
   private busy = false;
   private signalBindings = createSignalBindingController(this);
   private dynamicOptions: DynamicOptionsController | null = null;
   private statusNode: HTMLElement | null = null;
   private optionsState: DynamicOptionsState = 'static';
   private optionsBindingKey = '';
-  private optionsSourceError = false;
   private actionController = new ControlActionController();
 
   connectedCallback() {
-    this.connected = true;
     this.classList.add('nodel-segmented');
     this.setAttribute('role', 'radiogroup');
     this.ensureDynamicOptions();
@@ -76,18 +73,16 @@ export class NodelSegmented extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
     this.removeEventListener('click', this.handleClick, true);
     this.removeEventListener('keydown', this.handleKeyDown);
     this.actionController.invalidate();
     this.signalBindings.dispose();
-    this.dynamicOptions?.dispose();
+    this.dynamicOptions?.reset();
     this.optionsBindingKey = '';
-    this.optionsSourceError = false;
   }
 
   attributeChangedCallback() {
-    if (this.connected) {
+    if (this.isConnected) {
       this.render();
       this.syncSignalSubscription();
     }
@@ -318,13 +313,12 @@ export class NodelSegmented extends HTMLElement {
     const optionsBindingChanged = nextOptionsBindingKey !== this.optionsBindingKey;
     if (optionsBindingChanged) {
       if (this.optionsBindingKey !== '' || nextOptionsBindingKey === '') {
-        this.dynamicOptions?.clear();
+        this.dynamicOptions?.reset();
       }
-      this.optionsSourceError = false;
       this.optionsBindingKey = nextOptionsBindingKey;
     }
     const nextState = this.dynamicOptions?.setBindingActive(hasOptionsBinding) ?? 'static';
-    this.setOptionsState(this.optionsSourceError && hasOptionsBinding ? 'error' : nextState);
+    this.setOptionsState(nextState);
     this.signalBindings.sync(this.getAttribute('signal'), this.getAttribute('signals'), 'value', {
       value: (value) => this.setAttribute('value', value),
       disabled: (value) => this.setDisabledFromValue(value),
@@ -337,31 +331,13 @@ export class NodelSegmented extends HTMLElement {
         disabled: { evaluate: truthy }
       },
       onSourceState: (state) => {
-        if (!this.hasOptionsBinding()) {
-          return;
-        }
-        if (state.error) {
-          this.optionsSourceError = true;
-          this.setOptionsState('error');
-          this.render();
-        } else if (state.loading && this.dynamicOptions?.getState() === 'loading') {
-          this.optionsSourceError = false;
-          this.setOptionsState('loading');
-          this.render();
-        } else {
-          this.optionsSourceError = false;
-          this.setOptionsState(this.dynamicOptions?.getState() ?? 'static');
-          this.render();
-        }
+        this.setOptionsState(this.dynamicOptions?.setSourceState(state) ?? 'static');
+        this.render();
       }
     });
     if (optionsBindingChanged) {
       this.render();
     }
-  }
-
-  private hasOptionsBinding() {
-    return this.optionsBindingIdentity() !== '';
   }
 
   private optionsBindingIdentity() {

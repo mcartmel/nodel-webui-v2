@@ -13,9 +13,10 @@ import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
-import { getNodePathName, getVerySimpleName } from '../utils/node-name';
-import { safeNavigationHref } from '../utils/urls';
+import { getNodePathName } from '../utils/node-name';
+import { localNodeUrl, safeNavigationHref } from '../utils/urls';
 import { ModalFocusController } from '../utils/modal-focus-controller';
+import { apiErrorMessage } from '../utils/errors';
 import './nodel-theme-toggle';
 
 interface NodeMenuState {
@@ -122,12 +123,7 @@ const template = `
   </div>
 `;
 
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 export class NodelNodeMenu extends HTMLElement {
-  private connected = false;
   private linked = false;
   private lastFocused: Element | null = null;
   private lifecycle = new ComponentLifecycle();
@@ -148,7 +144,6 @@ export class NodelNodeMenu extends HTMLElement {
   };
 
   connectedCallback() {
-    this.connected = true;
     this.classList.add('nodel-node-menu');
     const scope = this.lifecycle.connect();
     if (scope) {
@@ -165,7 +160,6 @@ export class NodelNodeMenu extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.connected = false;
     if (this.linked) {
       this.setState({ open: false, deleteConfirming: false, deleting: false, renaming: false, restarting: false });
     }
@@ -375,7 +369,7 @@ export class NodelNodeMenu extends HTMLElement {
       if (!scope.isCurrent()) {
         return;
       }
-      const nextUrl = `${window.location.origin}/nodes/${encodeURIComponent(getVerySimpleName(newName))}/`;
+      const nextUrl = localNodeUrl(newName);
       this.showToast({ message: 'Rename successful. Redirecting...', tone: 'success', persistent: true });
       await waitForNodeReady(nextUrl, 30, 1000, { signal: scope.signal });
       if (scope.isCurrent()) {

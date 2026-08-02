@@ -28,8 +28,6 @@ describe('nodel-node-list', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
 
     document.body.innerHTML = '<nodel-node-list scope="local" poll-interval="999999" page-size="10"></nodel-node-list>';
@@ -47,7 +45,7 @@ describe('nodel-node-list', () => {
     expect(Array.from(collection?.children ?? []).every((child) => child.tagName === 'LI')).toBe(true);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(2);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(2);
-    expect(links[0].getAttribute('href')).toBe('/nodes/AlphaNode');
+    expect(links[0].getAttribute('href')).toBe('/nodes/AlphaNode/');
     expect(links[0].textContent).toContain('localhost');
     expect(links[0].querySelector('nodel-host-icon img')?.getAttribute('src')).toBe(
       generateHostIconDataUri(window.location.host)
@@ -123,8 +121,6 @@ describe('nodel-node-list', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
 
     document.body.innerHTML = '<nodel-node-list scope="network" poll-interval="999999" page-size="10"></nodel-node-list>';
@@ -362,8 +358,6 @@ describe('nodel-node-list', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
 
     document.body.innerHTML = '<nodel-page hidden><nodel-node-list scope="local" poll-interval="999999"></nodel-node-list></nodel-page>';
@@ -375,7 +369,7 @@ describe('nodel-node-list', () => {
 
     document.querySelector('nodel-page')?.removeAttribute('hidden');
 
-    await waitFor(() => mockedFetch.mock.calls.length > 0, { attempts: 20, intervalMs: 25 });
+    await waitFor(() => (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.length > 0, { attempts: 20, intervalMs: 25 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain('Alpha Node');
@@ -396,8 +390,6 @@ describe('nodel-node-list', () => {
 
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
-    const mockedFetch = fetchMock as unknown as ReturnType<typeof vi.fn>;
-
     vi.stubGlobal('fetch', fetchMock);
 
     document.body.innerHTML = '<nodel-page hidden><nodel-node-list scope="network" poll-interval="999999"></nodel-node-list></nodel-page>';

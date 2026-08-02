@@ -2,15 +2,14 @@ import { getNodeEventBinding, getNodeUrlsForNode } from '../api/nodel-host-clien
 import type { NodelNodeUrlEntry } from '../api/nodel-types';
 import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
 import { networkNodeSearchHref } from '../navigation/node-links';
+import { isRecord } from '../utils/records';
+import { isAbortError } from '../utils/errors';
 import { safeNavigationHref, safeNavigationUrl } from '../utils/urls';
+import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
 
 type LinkState = 'idle' | 'loading' | 'ready' | 'error';
 
 let linkStatusId = 0;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function preferredNodeAddress(entries: unknown) {
   if (!Array.isArray(entries)) {
@@ -24,37 +23,27 @@ function preferredNodeAddress(entries: unknown) {
   return valid.find((url) => url.origin === window.location.origin) ?? valid[0] ?? null;
 }
 
-function isAbortError(error: unknown) {
-  return error instanceof Error && error.name === 'AbortError';
-}
-
 export class NodelLink extends HTMLElement {
   static observedAttributes = ['href', 'node', 'event-binding', 'target', 'rel', 'aria-label', 'aria-labelledby', 'aria-describedby', 'title'];
 
-  private abortController: AbortController | null = null;
   private anchor: HTMLAnchorElement | null = null;
-  private connected = false;
   private indicator: HTMLElement | null = null;
+  private operations = new LatestOperationCoordinator<'resolve'>();
   private status: HTMLElement | null = null;
-  private token = 0;
 
   connectedCallback() {
-    this.connected = true;
     this.ensureShell();
     this.addEventListener('click', this.handleClick);
     void this.resolveDestination();
   }
 
   disconnectedCallback() {
-    this.connected = false;
-    this.token += 1;
-    this.abortController?.abort();
-    this.abortController = null;
+    this.operations.invalidateAll();
     this.removeEventListener('click', this.handleClick);
   }
 
   attributeChangedCallback(name: string) {
-    if (this.connected) {
+    if (this.isConnected && this.anchor) {
       this.syncAnchorMetadata();
       if (name === 'href' || name === 'node' || name === 'event-binding') {
         void this.resolveDestination();
@@ -147,38 +136,37 @@ export class NodelLink extends HTMLElement {
 
   private async resolveDestination() {
     this.ensureShell();
-    const token = ++this.token;
-    this.abortController?.abort();
-    const controller = new AbortController();
-    this.abortController = controller;
-    const destinations = this.destinationAttributes();
-    if (destinations.length !== 1) {
-      this.setState('error', destinations.length === 0 ? 'Link destination is not configured.' : 'Link has multiple destination attributes.', '');
-      return;
-    }
-
-    const destination = destinations[0];
-    const value = this.getAttribute(destination)?.trim() ?? '';
-    if (!value) {
-      this.setState('error', 'Link destination is empty.', '');
-      return;
-    }
-
-    if (destination === 'href') {
-      const href = safeNavigationHref(value);
-      if (!href) {
-        this.setState('error', 'Link destination uses an unsupported URL scheme.', '');
+    const ticket = this.operations.begin('resolve');
+    let destination: 'href' | 'node' | 'event-binding' = 'href';
+    let value = '';
+    try {
+      const destinations = this.destinationAttributes();
+      if (destinations.length !== 1) {
+        this.setState('error', destinations.length === 0 ? 'Link destination is not configured.' : 'Link has multiple destination attributes.', '');
         return;
       }
-      this.setState('ready', '', href);
-      return;
-    }
 
-    try {
+      destination = destinations[0];
+      value = this.getAttribute(destination)?.trim() ?? '';
+      if (!value) {
+        this.setState('error', 'Link destination is empty.', '');
+        return;
+      }
+
+      if (destination === 'href') {
+        const href = safeNavigationHref(value);
+        if (!href) {
+          this.setState('error', 'Link destination uses an unsupported URL scheme.', '');
+          return;
+        }
+        this.setState('ready', '', href);
+        return;
+      }
+
       if (destination === 'event-binding') {
         this.setState('loading', `Resolving event binding ${value}...`, '');
-        const binding = await getNodeEventBinding(value, { signal: controller.signal });
-        if (!this.isCurrent(token, controller)) {
+        const binding = await getNodeEventBinding(value, { signal: ticket.signal });
+        if (!this.isCurrent(ticket)) {
           return;
         }
         if (!binding) {
@@ -190,34 +178,36 @@ export class NodelLink extends HTMLElement {
           this.setState('error', `Event binding ${value} has no target node.`, '');
           return;
         }
-        await this.resolveNode(node, token, controller);
+        await this.resolveNode(node, ticket);
         return;
       }
 
-      await this.resolveNode(value, token, controller);
+      await this.resolveNode(value, ticket);
     } catch (error) {
-      if (!this.isCurrent(token, controller) || isAbortError(error)) {
+      if (!this.isCurrent(ticket) || isAbortError(error)) {
         return;
       }
       const fallback = destination === 'node' ? networkNodeSearchHref(value) : '';
       this.setState('error', fallback ? 'Direct address unavailable. Opens Network node search.' : 'Link destination could not be resolved.', fallback);
+    } finally {
+      ticket.finish();
     }
   }
 
-  private async resolveNode(node: string, token: number, controller: AbortController) {
+  private async resolveNode(node: string, ticket: LatestOperationTicket<'resolve'>) {
     const fallback = networkNodeSearchHref(node);
     this.setState('loading', `Resolving node ${node}...`, fallback);
     let entries: NodelNodeUrlEntry[];
     try {
-      entries = await getNodeUrlsForNode(node, { signal: controller.signal });
+      entries = await getNodeUrlsForNode(node, { signal: ticket.signal });
     } catch (error) {
-      if (!this.isCurrent(token, controller) || isAbortError(error)) {
+      if (!this.isCurrent(ticket) || isAbortError(error)) {
         return;
       }
       this.setState('error', 'Direct address unavailable. Opens Network node search.', fallback);
       return;
     }
-    if (!this.isCurrent(token, controller)) {
+    if (!this.isCurrent(ticket)) {
       return;
     }
     const address = preferredNodeAddress(entries);
@@ -228,8 +218,8 @@ export class NodelLink extends HTMLElement {
     this.setState('ready', '', address.href);
   }
 
-  private isCurrent(token: number, controller: AbortController) {
-    return this.connected && token === this.token && controller === this.abortController && !controller.signal.aborted;
+  private isCurrent(ticket: LatestOperationTicket<'resolve'>) {
+    return this.isConnected && ticket.isCurrent();
   }
 
   private setState(state: LinkState, message: string, href: string) {

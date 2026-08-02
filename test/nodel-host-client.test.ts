@@ -29,8 +29,12 @@ describe('nodel host client', () => {
 
   it('propagates cancellation through node creation, readiness, and duplication', async () => {
     const createController = new AbortController();
-    await createNode('Cancelled Node', undefined, { signal: createController.signal });
-    expect(fetch).toHaveBeenCalledWith('/REST/newNode', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    await createNode('Cancelled Node', 'Template', { signal: createController.signal });
+    expect(fetch).toHaveBeenCalledWith('/REST/newNode', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ value: 'Cancelled Node', base: 'Template' }),
+      signal: expect.any(AbortSignal)
+    }));
 
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
     const readyController = new AbortController();
@@ -134,6 +138,7 @@ describe('nodel host client', () => {
     const saved = new Map<string, number[]>();
     const saveOrder: string[] = [];
     const progress: string[] = [];
+    const creationRequests: Record<string, unknown>[] = [];
 
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -141,6 +146,7 @@ describe('nodel host client', () => {
         return new Response(JSON.stringify(files), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
       if (url === '/REST/newNode') {
+        creationRequests.push(JSON.parse(String(init?.body)));
         return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
       }
       if (url.endsWith('/nodes/BinaryCopy/REST/')) {
@@ -166,6 +172,7 @@ describe('nodel host client', () => {
     });
 
     expect(saveOrder).toEqual(['docs/readme.txt', 'assets/image.png', 'bundles/archive.zip', 'script.py']);
+    expect(creationRequests).toEqual([{ value: 'Binary Copy' }]);
     expect(Object.fromEntries(saved)).toEqual(Object.fromEntries(payloads));
     expect(result).toMatchObject({
       copied: saveOrder,

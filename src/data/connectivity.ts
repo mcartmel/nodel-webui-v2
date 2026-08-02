@@ -1,4 +1,5 @@
 import { getNodePathName } from '../utils/node-name';
+import { isAbortError } from '../utils/errors';
 
 export type NodelConnectivityReason = '' | 'browser' | 'network';
 
@@ -40,12 +41,6 @@ function requestUrl(input: RequestInfo | URL) {
 
 function isSameOriginRequest(input: RequestInfo | URL) {
   return requestUrl(input)?.origin === window.location.origin;
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof DOMException
-    ? error.name === 'AbortError'
-    : error instanceof Error && error.name === 'AbortError';
 }
 
 function clearRetryTimer() {

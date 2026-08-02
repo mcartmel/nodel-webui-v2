@@ -7,17 +7,17 @@ export const controlTones: ControlTone[] = ['solid', 'soft', 'outline'];
 const truthyTokens = ['true', '1', 'on', 'yes', 'active', 'present', 'available', 'signal', 'disabled'] as const;
 const falseyTokens = ['', 'false', '0', 'off', 'no', 'inactive', 'absent', 'none'] as const;
 
-export interface ControlArgParseSuccess {
+interface ControlArgParseSuccess {
   ok: true;
   value: unknown;
 }
 
-export interface ControlArgParseFailure {
+interface ControlArgParseFailure {
   ok: false;
   error: string;
 }
 
-export type ControlArgParseResult = ControlArgParseSuccess | ControlArgParseFailure;
+type ControlArgParseResult = ControlArgParseSuccess | ControlArgParseFailure;
 
 export function normalizeFromList<T extends string>(value: string | null, values: readonly T[], fallback: T): T {
   return values.includes(value as T) ? (value as T) : fallback;
@@ -47,27 +47,6 @@ export function parseBoolean(value: string) {
   return truthy(value);
 }
 
-export function parseTypedArg(value: string, type: ControlArgType): unknown {
-  if (type === 'number') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : value;
-  }
-
-  if (type === 'boolean') {
-    return parseBoolean(value);
-  }
-
-  if (type === 'json') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
-  }
-
-  return value;
-}
-
 export function parseTypedArgStrict(value: string, type: ControlArgType): ControlArgParseResult {
   if (type === 'number') {
     const trimmed = value.trim();
@@ -93,17 +72,6 @@ export function parseTypedArgStrict(value: string, type: ControlArgType): Contro
   }
 
   return { ok: true, value };
-}
-
-export function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
-export function formatBindingFailures(failures: ReadonlyArray<{ action: string; error?: string }>, fallback = 'Failed to call action') {
-  if (failures.length === 1) {
-    return failures[0].error ?? fallback;
-  }
-  return failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
 }
 
 export function syncInheritedAttributes(

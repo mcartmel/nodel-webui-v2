@@ -101,7 +101,6 @@ export class NodelConsole extends HTMLElement {
       getJQuery().observable(this.state).setProperty('commandError', '');
     }
     this.lifecycle.disconnect();
-    this.removeEventListeners();
     this.linked = false;
   }
 
@@ -138,10 +137,6 @@ export class NodelConsole extends HTMLElement {
     if (input) {
       scope.listen(input, 'keydown', this.handleKeydownEvent);
     }
-  }
-
-  private removeEventListeners() {
-    this.querySelector('[data-console-input]')?.removeEventListener('keydown', this.handleKeydownEvent);
   }
 
   private get collapsePreviewMode() {
