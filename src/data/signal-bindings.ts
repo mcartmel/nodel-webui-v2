@@ -1,5 +1,6 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import { getControlRuntime } from './control-runtime';
+import { asciiToken } from '../utils/text-normalization';
 
 export interface SignalBinding {
   signal: string;
@@ -165,7 +166,7 @@ function parseTarget(value: string): { target: string; mode: SignalBindingMode }
 
   return {
     target: modeMatch[1].trim(),
-    mode: modeMatch[2].toLocaleLowerCase() as SignalBindingMode
+    mode: asciiToken(modeMatch[2]) as SignalBindingMode
   };
 }
 
@@ -326,7 +327,7 @@ const visibilityTarget = 'visibility';
 const visibilityBindings = new WeakMap<HTMLElement, VisibilityBindingState>();
 
 function visibilityState(value: string) {
-  const normalized = value.trim().toLocaleLowerCase();
+  const normalized = asciiToken(value);
 
   if (normalized === 'visible' || normalized === 'true' || normalized === '1') {
     return true;

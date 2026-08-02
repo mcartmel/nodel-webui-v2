@@ -15,6 +15,10 @@ import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail, type NodelAppTi
 
 type NavigationAppElement = HTMLElement & NodelNavigationHost & NodelAppTitleHost;
 
+function selectorString(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 export class NodelToolbar extends HTMLElement {
   static observedAttributes = ['title', 'icon-src', 'icon-alt'];
 
@@ -39,6 +43,7 @@ export class NodelToolbar extends HTMLElement {
     this.render();
     void this.loadDefaultTitle();
     this.addEventListener('click', this.handleClick);
+    this.addEventListener('keydown', this.handleKeydown);
     this.appNode?.addEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     this.appNode?.addEventListener(NODEL_APP_TITLE_CHANGE, this.handleAppTitleChange as EventListener);
     document.addEventListener('click', this.handleDocumentClick);
@@ -51,6 +56,7 @@ export class NodelToolbar extends HTMLElement {
   disconnectedCallback() {
     this.titleLoadToken += 1;
     this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('keydown', this.handleKeydown);
     this.appNode?.removeEventListener(NODEL_NAVIGATION_CHANGE, this.handleNavigationChange as EventListener);
     this.appNode?.removeEventListener(NODEL_APP_TITLE_CHANGE, this.handleAppTitleChange as EventListener);
     document.removeEventListener('click', this.handleDocumentClick);
@@ -169,8 +175,12 @@ export class NodelToolbar extends HTMLElement {
       event.preventDefault();
       event.stopPropagation();
       const groupId = groupButton.dataset.navGroupId ?? '';
-      this.openGroupId = this.openGroupId === groupId ? '' : groupId;
+      const opening = this.openGroupId !== groupId;
+      this.openGroupId = opening ? groupId : '';
       this.renderNavigation();
+      if (opening) {
+        queueMicrotask(() => this.focusOpenGroupItem(groupId));
+      }
       return;
     }
 
@@ -188,6 +198,59 @@ export class NodelToolbar extends HTMLElement {
       );
       return;
     }
+  };
+
+  private handleKeydown = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const groupButton = target.closest<HTMLElement>('[data-nav-group-id]');
+    if (groupButton && this.contains(groupButton)) {
+      const groupId = groupButton.dataset.navGroupId ?? '';
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.openGroupId = groupId;
+        this.renderNavigation();
+        queueMicrotask(() => this.focusOpenGroupItem(groupId, event.key === 'ArrowUp' ? 'last' : 'active'));
+      }
+      return;
+    }
+
+    const menu = target.closest<HTMLElement>('[data-nav-group-menu-id]');
+    if (!menu || !this.contains(menu)) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      const groupId = menu.dataset.navGroupMenuId ?? '';
+      this.openGroupId = '';
+      this.renderNavigation();
+      queueMicrotask(() => this.querySelector<HTMLElement>(`[data-nav-group-id="${selectorString(groupId)}"]`)?.focus());
+      return;
+    }
+
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') {
+      return;
+    }
+
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    if (items.length === 0) {
+      return;
+    }
+    const current = items.indexOf(target);
+    let next = 0;
+    if (event.key === 'End') {
+      next = items.length - 1;
+    } else if (event.key === 'ArrowUp') {
+      next = current <= 0 ? items.length - 1 : current - 1;
+    } else if (event.key === 'ArrowDown') {
+      next = current < 0 || current >= items.length - 1 ? 0 : current + 1;
+    }
+    event.preventDefault();
+    items[next]?.focus();
   };
 
   private handleDocumentClick = (event: MouseEvent) => {
@@ -262,6 +325,8 @@ export class NodelToolbar extends HTMLElement {
       return;
     }
 
+    const focusToken = this.navigationFocusToken(document.activeElement);
+
     this.navNode.innerHTML = '';
 
     if (this.navItems.length === 0) {
@@ -280,6 +345,44 @@ export class NodelToolbar extends HTMLElement {
     }
 
     this.positionOpenGroupMenu();
+    this.restoreNavigationFocus(focusToken);
+  }
+
+  private navigationFocusToken(element: Element | null) {
+    if (!(element instanceof HTMLElement) || !this.contains(element)) {
+      return null;
+    }
+    const pageId = element.dataset.navPageId;
+    if (pageId) {
+      return `page:${pageId}`;
+    }
+    const groupId = element.dataset.navGroupId;
+    if (groupId) {
+      return `group:${groupId}`;
+    }
+    return null;
+  }
+
+  private restoreNavigationFocus(token: string | null) {
+    if (!token) {
+      return;
+    }
+    const [type, id] = token.split(':');
+    const selector = type === 'group'
+      ? `[data-nav-group-id="${selectorString(id ?? '')}"]`
+      : `[data-nav-page-id="${selectorString(id ?? '')}"]`;
+    queueMicrotask(() => this.querySelector<HTMLElement>(selector)?.focus());
+  }
+
+  private focusOpenGroupItem(groupId: string, preference: 'active' | 'last' = 'active') {
+    const menu = this.querySelector<HTMLElement>(`[data-nav-group-menu-id="${selectorString(groupId)}"]`);
+    if (!menu || menu.hidden) {
+      return;
+    }
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    const active = items.find((item) => item.dataset.navPageId === this.activePageId);
+    const target = preference === 'last' ? items[items.length - 1] : active ?? items[0];
+    target?.focus();
   }
 
   private createPageButton(item: NodelNavItem) {

@@ -23,6 +23,10 @@ import { safeAbsoluteHttpUrl, safeHostRestUrl, safeNavigationHref, safeRemoteNod
 import { isSafeNodeFilePath, MAX_NODE_FILE_PATH_LENGTH } from '../../utils/node-file-path';
 
 export const MAX_API_COLLECTION_ITEMS = 10_000;
+export const MAX_DIAGNOSTIC_MEASUREMENTS = 1000;
+export const MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES = 5000;
+export const MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES = 50_000;
+export const MAX_DIAGNOSTIC_MEASUREMENT_NAME_BYTES = 512;
 const MAX_SCHEMA_DEPTH = 32;
 const MAX_JSON_DEPTH = 64;
 const unsafeText = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
@@ -354,14 +358,35 @@ export function decodeDiagnostics(value: unknown, context: string): NodelDiagnos
 }
 
 export function decodeDiagnosticMeasurements(value: unknown, context: string): NodelDiagnosticMeasurement[] {
-  return asArray(value, context).map((item, index) => {
+  const items = asArray(value, context);
+  if (items.length > MAX_DIAGNOSTIC_MEASUREMENTS) {
+    invalid(context, '$', `expected at most ${MAX_DIAGNOSTIC_MEASUREMENTS} measurements`);
+  }
+  const names = new Set<string>();
+  let totalSamples = 0;
+  return items.map((item, index) => {
     const path = `$[${index}]`;
     const record = asRecord(item, context, path);
     const name = requiredString(record, 'name', context, path);
+    if (new TextEncoder().encode(name).byteLength > MAX_DIAGNOSTIC_MEASUREMENT_NAME_BYTES) {
+      invalid(context, `${path}.name`, `expected at most ${MAX_DIAGNOSTIC_MEASUREMENT_NAME_BYTES} UTF-8 bytes`);
+    }
+    if (names.has(name)) {
+      invalid(context, `${path}.name`, 'expected a unique measurement name');
+    }
+    names.add(name);
     if (typeof record.isRate !== 'boolean') {
       invalid(context, `${path}.isRate`, 'expected a boolean');
     }
-    const values = asArray(record.values, context, `${path}.values`).map((entry, valueIndex) => {
+    const rawValues = asArray(record.values, context, `${path}.values`);
+    if (rawValues.length > MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES) {
+      invalid(context, `${path}.values`, `expected at most ${MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES} samples`);
+    }
+    totalSamples += rawValues.length;
+    if (totalSamples > MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES) {
+      invalid(context, '$', `expected at most ${MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES} total samples`);
+    }
+    const values = rawValues.map((entry, valueIndex) => {
       if (typeof entry !== 'number' || !Number.isFinite(entry)) {
         invalid(context, `${path}.values[${valueIndex}]`, 'expected a finite number');
       }
@@ -541,7 +566,7 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
     if (size !== undefined && (!Number.isSafeInteger(size) || size < 0)) {
       invalid(context, `${path}.size`, 'expected a non-negative safe integer');
     }
-    return { ...result, path: filePath } as NodelFileEntry;
+    return { ...result, path: filePath, ...(size !== undefined ? { size } : {}) } as NodelFileEntry;
   });
 }
 

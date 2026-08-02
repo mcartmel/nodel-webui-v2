@@ -49,4 +49,22 @@ describe('nodel-editor import lifecycle', () => {
     expect(editorImportMock.editor.destroy).not.toHaveBeenCalled();
     expect(editorImportMock.editor.setDocument).toHaveBeenCalledWith('print("current")', 'script.py');
   });
+
+  it('shows and retries an editor import failure', async () => {
+    editorImportMock.create.mockClear();
+    editorImportMock.editor.setDocument.mockClear();
+    editorImportMock.load.mockReset()
+      .mockRejectedValueOnce(new Error('Editor chunk unavailable'))
+      .mockResolvedValue({ createNodelCodeEditor: editorImportMock.create });
+
+    document.body.innerHTML = '<nodel-editor></nodel-editor>';
+    await waitFor(() => document.querySelector('[data-editor-retry-import]') !== null);
+
+    expect(document.querySelector('nodel-editor')?.textContent).toContain('Editor chunk unavailable');
+    document.querySelector<HTMLButtonElement>('[data-editor-retry-import]')?.click();
+
+    await waitFor(() => editorImportMock.create.mock.calls.length === 1);
+    await waitFor(() => editorImportMock.editor.setDocument.mock.calls.length > 0);
+    expect(editorImportMock.editor.setDocument).toHaveBeenCalledWith('print("current")', 'script.py');
+  });
 });

@@ -1,5 +1,5 @@
 import '../src/components/nodel-toast-host';
-import type { NodelToastHost } from '../src/components/nodel-toast-host';
+import { MAX_NODEL_TOASTS, type NodelToastHost } from '../src/components/nodel-toast-host';
 
 describe('nodel-toast-host', () => {
   beforeEach(() => {
@@ -99,5 +99,33 @@ describe('nodel-toast-host', () => {
     expect(host.textContent).not.toContain('Transient');
     expect(host.textContent).toContain('Persistent');
     expect(host.textContent).not.toContain('Detached');
+  });
+
+  it('bounds persistent toasts with deterministic oldest-first eviction', () => {
+    const host = mountToastHost();
+
+    for (let index = 0; index < MAX_NODEL_TOASTS + 3; index += 1) {
+      host.show({ id: `persistent-${index}`, message: `Persistent ${index}`, persistent: true });
+    }
+
+    const messages = Array.from(document.querySelectorAll('.nodel-toast-message')).map((node) => node.textContent?.trim());
+    expect(document.querySelectorAll('.nodel-toast')).toHaveLength(MAX_NODEL_TOASTS);
+    expect(messages).not.toContain('Persistent 0');
+    expect(messages).not.toContain('Persistent 1');
+    expect(messages).not.toContain('Persistent 2');
+    expect(messages).toContain(`Persistent ${MAX_NODEL_TOASTS + 2}`);
+  });
+
+  it('replaces a persistent toast with a transient timer at capacity', async () => {
+    const host = mountToastHost();
+    for (let index = 0; index < MAX_NODEL_TOASTS; index += 1) {
+      host.show({ id: `toast-${index}`, message: `Persistent ${index}`, persistent: true });
+    }
+
+    host.show({ id: 'toast-0', message: 'Now transient', durationMs: 20 });
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(host.textContent).not.toContain('Now transient');
+    expect(document.querySelectorAll('.nodel-toast')).toHaveLength(MAX_NODEL_TOASTS - 1);
   });
 });

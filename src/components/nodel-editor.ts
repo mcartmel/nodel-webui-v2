@@ -49,6 +49,7 @@ interface EditorViewModel {
   deleting: boolean;
   dirty: boolean;
   dragActive: boolean;
+  editorImportError: boolean;
   error: string;
   files: EditorFileView[];
   loading: boolean;
@@ -103,6 +104,9 @@ const template = `
       <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && !notice && !loading && !saving && !deleting}">
         {^{if error}}
           {^{>error}}
+          {^{if editorImportError}}
+            <button data-editor-retry-import type="button" class="nodel-button nodel-button-compact ml-2">Retry editor</button>
+          {{/if}}
         {{else}}
           {^{>status}}
         {{/if}}
@@ -176,6 +180,7 @@ export class NodelEditor extends HTMLElement {
     deleting: false,
     dirty: false,
     dragActive: false,
+    editorImportError: false,
     error: '',
     files: [],
     loading: false,
@@ -212,6 +217,7 @@ export class NodelEditor extends HTMLElement {
         canSave: false,
         deleting: false,
         dirty: false,
+        editorImportError: false,
         loading: false,
         notice: false,
         pickerPath: '',
@@ -297,6 +303,12 @@ export class NodelEditor extends HTMLElement {
     this.syncCurrentRestartExpectation();
     this.bindEventListeners();
     scope.own(() => this.removeEventListeners());
+    await this.initializeCodeEditor(scope);
+
+    await this.loadFiles(undefined, scope);
+  }
+
+  private async initializeCodeEditor(scope: ConnectionScope) {
     const host = this.querySelector<HTMLElement>('[data-editor-host]');
     if (host) {
       const { createNodelCodeEditor } = await loadCodeEditorModule();
@@ -322,9 +334,8 @@ export class NodelEditor extends HTMLElement {
           this.editor = null;
         }
       });
+      this.setState({ editorImportError: false, error: '' });
     }
-
-    await this.loadFiles(undefined, scope);
   }
 
   private bindEventListeners() {
@@ -1046,6 +1057,11 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
+    if (target.closest('[data-editor-retry-import]')) {
+      void this.retryEditorImport();
+      return;
+    }
+
     if (target.closest('[data-editor-toggle-add]')) {
       this.clearSelectedUpload();
       this.setState({ addFilePath: '', adding: !this.state.adding, error: '', uploadFileName: '' });
@@ -1080,6 +1096,20 @@ export class NodelEditor extends HTMLElement {
     }
 
   };
+
+  private async retryEditorImport() {
+    const scope = this.lifecycle.current;
+    if (!scope || this.editor) {
+      return;
+    }
+    this.setState({ editorImportError: false, error: '', loading: true, status: 'Loading editor...' });
+    await scope.run(async () => {
+      await this.initializeCodeEditor(scope);
+      if (scope.isCurrent() && this.state.files.length === 0) {
+        await this.loadFiles(undefined, scope);
+      }
+    }, (error) => this.handleInitializationError(error));
+  }
 
   private handleSubmit = (event: Event) => {
     const target = event.target;
@@ -1870,7 +1900,7 @@ export class NodelEditor extends HTMLElement {
   private handleInitializationError(error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to initialize editor';
     if (this.linked) {
-      this.setState({ error: message, loading: false });
+      this.setState({ editorImportError: !this.editor, error: message, loading: false });
     } else {
       this.dataset.state = 'error';
       renderComponentError(this, message);

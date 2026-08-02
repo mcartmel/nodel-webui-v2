@@ -35,12 +35,14 @@ export class NodelToolkit extends HTMLElement {
       return;
     }
     this.renderShell();
+    this.addEventListener('click', this.handleClick);
     void scope.run(() => this.initializeEditor(scope), (error) => this.renderEditorError(error));
     this.bindSource(scope);
   }
 
   disconnectedCallback() {
     this.lifecycle.disconnect();
+    this.removeEventListener('click', this.handleClick);
     this.editor?.destroy();
     this.editor = null;
     this.editorHost = null;
@@ -112,6 +114,20 @@ export class NodelToolkit extends HTMLElement {
     this.renderState();
   }
 
+  private handleClick = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest('[data-toolkit-retry-editor]')) {
+      return;
+    }
+    const scope = this.lifecycle.current;
+    if (!scope) {
+      return;
+    }
+    this.editorError = '';
+    this.renderState();
+    void scope.run(() => this.initializeEditor(scope), (error) => this.renderEditorError(error));
+  };
+
   private renderState() {
     const script = typeof this.state.data?.script === 'string' ? this.state.data.script : '';
     const loaded = Boolean(script);
@@ -122,7 +138,18 @@ export class NodelToolkit extends HTMLElement {
       if (error) {
         this.statusNode.hidden = false;
         this.statusNode.className = 'nodel-alert nodel-alert-danger nodel-alert-md';
-        this.statusNode.textContent = error;
+        if (this.editorError) {
+          this.statusNode.innerHTML = '';
+          this.statusNode.append(document.createTextNode(error), ' ');
+          const retry = document.createElement('button');
+          retry.type = 'button';
+          retry.className = 'nodel-button nodel-button-compact';
+          retry.dataset.toolkitRetryEditor = 'true';
+          retry.textContent = 'Retry editor';
+          this.statusNode.append(retry);
+        } else {
+          this.statusNode.textContent = error;
+        }
       } else if (this.state.loading || !loaded) {
         this.statusNode.hidden = false;
         this.statusNode.className = 'nodel-alert nodel-alert-md';

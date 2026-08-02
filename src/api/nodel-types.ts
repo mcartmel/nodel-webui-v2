@@ -198,6 +198,8 @@ export interface NodelDuplicateProgress {
 
 export interface NodelDuplicateNodeOptions {
   includeNodeConfig?: boolean;
+  maxFileBytes?: number;
+  maxTotalBytes?: number;
   onProgress?: (progress: NodelDuplicateProgress) => void;
   signal?: AbortSignal;
 }

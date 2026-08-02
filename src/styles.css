@@ -281,8 +281,11 @@
   nodel-page,
   nodel-row,
   nodel-column,
+  nodel-footer,
   nodel-control-grid,
   nodel-control-space,
+  nodel-group,
+  nodel-template,
   nodel-button,
   nodel-toggle,
   nodel-segmented,
@@ -301,8 +304,11 @@
   nodel-collapse,
   nodel-description,
   nodel-text,
+  nodel-markdown,
   nodel-title,
+  nodel-clock,
   nodel-host-icon,
+  nodel-link,
   nodel-node-list,
   nodel-add-node,
   nodel-node-menu,
@@ -318,7 +324,8 @@
   nodel-editor,
   nodel-theme-toggle,
   nodel-toast-host,
-  nodel-confirm-host {
+  nodel-confirm-host,
+  nodel-connectivity-host {
     @apply block;
   }
 
@@ -327,8 +334,10 @@
   nodel-page:not(:defined),
   nodel-row:not(:defined),
   nodel-column:not(:defined),
+  nodel-footer:not(:defined),
   nodel-control-grid:not(:defined),
   nodel-control-space:not(:defined),
+  nodel-group:not(:defined),
   nodel-template:not(:defined),
   nodel-button:not(:defined),
   nodel-toggle:not(:defined),
@@ -340,16 +349,19 @@
   nodel-pad:not(:defined),
   nodel-readout:not(:defined),
   nodel-palette:not(:defined),
-    nodel-image:not(:defined),
-    nodel-icon:not(:defined),
-    nodel-qrcode:not(:defined),
-    nodel-status-indicator:not(:defined),
-    nodel-status:not(:defined),
-    nodel-collapse:not(:defined),
+  nodel-image:not(:defined),
+  nodel-icon:not(:defined),
+  nodel-qrcode:not(:defined),
+  nodel-status-indicator:not(:defined),
+  nodel-status:not(:defined),
+  nodel-collapse:not(:defined),
   nodel-description:not(:defined),
   nodel-text:not(:defined),
+  nodel-markdown:not(:defined),
   nodel-title:not(:defined),
+  nodel-clock:not(:defined),
   nodel-host-icon:not(:defined),
+  nodel-link:not(:defined),
   nodel-node-list:not(:defined),
   nodel-add-node:not(:defined),
   nodel-node-menu:not(:defined),
@@ -365,7 +377,8 @@
   nodel-editor:not(:defined),
   nodel-theme-toggle:not(:defined),
   nodel-toast-host:not(:defined),
-  nodel-confirm-host:not(:defined) {
+  nodel-confirm-host:not(:defined),
+  nodel-connectivity-host:not(:defined) {
     visibility: hidden;
   }
 

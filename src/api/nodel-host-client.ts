@@ -21,7 +21,7 @@ import {
   decodeSignals,
   decodeToolkit
 } from './codecs/nodel-codecs';
-import { assertSafeNodeFilePath } from '../utils/node-file-path';
+import { assertSafeNodeFilePath, portableNodeFilePathKey } from '../utils/node-file-path';
 import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, fetchWithDeadline, runWithDeadline } from './request';
 import type {
   NodelActivityLogEntry,
@@ -48,7 +48,7 @@ import type {
   NodelSignalDefinition,
   NodelToolkitResponse
 } from './nodel-types';
-import { MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
+import { formatFileSize, MAX_NODE_DUPLICATE_FILE_BYTES, MAX_NODE_DUPLICATE_TOTAL_BYTES, MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
 
 export interface NodelReachabilityResult {
   host: string;
@@ -71,6 +71,11 @@ export class NodelDuplicateNodeError extends Error {
     this.destinationUrl = destinationUrl;
     this.failed = failed;
   }
+}
+
+interface DuplicateFilePlan {
+  filesToCopy: NodelFileEntry[];
+  skipped: string[];
 }
 
 async function responseError(response: Response) {
@@ -379,7 +384,13 @@ export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUi
   ]);
 
   return files
-    .filter((file) => /^content\/\w+\.(xml|html|htm)$/i.test(file.path) && !excluded.has(file.path))
+    .filter((file) => {
+      if (!file.path.startsWith('content/') || excluded.has(file.path)) {
+        return false;
+      }
+      const title = file.path.slice('content/'.length);
+      return title.length > 0 && /\.(xml|html|htm)$/i.test(title);
+    })
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((file) => {
       const title = file.path.replace(/^content\//, '');
@@ -447,6 +458,50 @@ async function readBoundedText(response: Response, path: string, maxBytes: numbe
   return decodeNodeFileText(bytes, path);
 }
 
+async function readBoundedBinary(response: Response, path: string, maxBytes: number) {
+  const contentLengthHeader = response.headers.get('Content-Length');
+  const contentLength = contentLengthHeader === null ? undefined : Number(contentLengthHeader);
+  if (contentLength !== undefined && Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new NodeFileTooLargeError(path, maxBytes, 'duplicate-copy');
+  }
+
+  if (!response.body) {
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength > maxBytes) {
+      throw new NodeFileTooLargeError(path, maxBytes, 'duplicate-copy');
+    }
+    return bytes;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new NodeFileTooLargeError(path, maxBytes, 'duplicate-copy');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
+}
+
 export async function getNodeFileContents(path: string, init?: RequestInit, maxBytes = MAX_NODE_TEXT_EDIT_BYTES): Promise<string> {
   assertSafeNodeFilePath(path);
   return runWithDeadline(async (signal) => {
@@ -488,8 +543,8 @@ export async function getNodeUrlsForNode(name: string, init?: RequestInit): Prom
   return decodeNodeUrls(await postJson('/REST/nodeURLsForNode', { name }, init), 'POST /REST/nodeURLsForNode');
 }
 
-export async function listRecipes(): Promise<NodelRecipeEntry[]> {
-  return decodeRecipes(await fetchJson('/REST/recipes/list'), 'GET /REST/recipes/list');
+export async function listRecipes(init?: RequestInit): Promise<NodelRecipeEntry[]> {
+  return decodeRecipes(await fetchJson('/REST/recipes/list', init), 'GET /REST/recipes/list');
 }
 
 export async function createNode(value: string, base?: string, init?: RequestInit): Promise<unknown> {
@@ -543,7 +598,7 @@ function reportDuplicateProgress(options: NodelDuplicateNodeOptions, progress: N
   }
 }
 
-async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string, signal?: AbortSignal): Promise<NodelDuplicateFileFailure | null> {
+async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: string, path: string, maxBytes: number, signal?: AbortSignal): Promise<{ failure: NodelDuplicateFileFailure | null; bytes: number }> {
   throwIfAborted(signal);
   let contents: ArrayBuffer;
   try {
@@ -552,15 +607,15 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
       if (!response.ok) {
         return { failure: await duplicateFileFailure(path, 'read', response), contents: null };
       }
-      return { failure: null, contents: await response.arrayBuffer() };
+      return { failure: null, contents: await readBoundedBinary(response, path, maxBytes) };
     }, signal, FILE_REQUEST_TIMEOUT_MS);
     if (result.failure) {
-      return result.failure;
+      return { failure: result.failure, bytes: 0 };
     }
     contents = result.contents;
   } catch (error) {
     throwIfAborted(signal);
-    return networkDuplicateFileFailure(path, 'read', error);
+    return { failure: networkDuplicateFileFailure(path, 'read', error), bytes: 0 };
   }
 
   try {
@@ -574,14 +629,58 @@ async function copyDuplicateFile(sourceNodeUrl: string, destinationNodeUrl: stri
       return response.ok ? null : duplicateFileFailure(path, 'save', response);
     }, signal, FILE_REQUEST_TIMEOUT_MS);
     if (failure) {
-      return failure;
+      return { failure, bytes: contents.byteLength };
     }
   } catch (error) {
     throwIfAborted(signal);
-    return networkDuplicateFileFailure(path, 'save', error);
+    return { failure: networkDuplicateFileFailure(path, 'save', error), bytes: contents.byteLength };
   }
 
-  return null;
+  return { failure: null, bytes: contents.byteLength };
+}
+
+function duplicateCanceledError(newNodeName: string, destinationUrl: string, failed: NodelDuplicateFileFailure[] = []) {
+  return new NodelDuplicateNodeError(
+    `Node "${newNodeName}" copy was canceled after the destination was created. The node may be incomplete; no cleanup was attempted automatically.`,
+    destinationUrl,
+    failed
+  );
+}
+
+function planDuplicateFiles(files: NodelFileEntry[], includeNodeConfig: boolean, maxFileBytes: number, maxTotalBytes: number): DuplicateFilePlan {
+  const skipped: string[] = [];
+  const byKey = new Map<string, NodelFileEntry>();
+  let knownTotal = 0;
+
+  for (const file of files) {
+    if (!shouldCopyDuplicateFile(file.path, includeNodeConfig)) {
+      skipped.push(file.path);
+      continue;
+    }
+    const key = portableNodeFilePathKey(file.path);
+    const existing = byKey.get(key);
+    if (existing) {
+      if (existing.path === file.path) {
+        skipped.push(file.path);
+        continue;
+      }
+      throw new Error(`Source node file list contains ambiguous duplicate paths: ${existing.path} and ${file.path}`);
+    }
+    if (typeof file.size === 'number') {
+      if (file.size > maxFileBytes) {
+        throw new Error(`${file.path} exceeds the ${formatFileSize(maxFileBytes)} duplicate-copy limit.`);
+      }
+      knownTotal += file.size;
+      if (knownTotal > maxTotalBytes) {
+        throw new Error(`Source files exceed the ${formatFileSize(maxTotalBytes)} duplicate-copy total limit.`);
+      }
+    }
+    byKey.set(key, file);
+  }
+
+  const filesToCopy = Array.from(byKey.values())
+    .sort((left, right) => Number(left.path === 'script.py') - Number(right.path === 'script.py'));
+  return { filesToCopy, skipped };
 }
 
 export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, options: NodelDuplicateNodeOptions = {}): Promise<NodelDuplicateNodeResult> {
@@ -599,10 +698,9 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
     throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`);
   }
   const includeNodeConfig = options.includeNodeConfig === true;
-  const skipped = files.filter((file) => !shouldCopyDuplicateFile(file.path, includeNodeConfig)).map((file) => file.path);
-  const filesToCopy = files
-    .filter((file) => shouldCopyDuplicateFile(file.path, includeNodeConfig))
-    .sort((left, right) => Number(left.path === 'script.py') - Number(right.path === 'script.py'));
+  const maxFileBytes = options.maxFileBytes ?? MAX_NODE_DUPLICATE_FILE_BYTES;
+  const maxTotalBytes = options.maxTotalBytes ?? MAX_NODE_DUPLICATE_TOTAL_BYTES;
+  const { filesToCopy, skipped } = planDuplicateFiles(files, includeNodeConfig, maxFileBytes, maxTotalBytes);
 
   reportDuplicateProgress(options, {
     phase: 'creating',
@@ -628,7 +726,9 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
   try {
     await waitForNodeReady(newNodeUrl, 30, 1000, { signal: options.signal });
   } catch (error) {
-    throwIfAborted(options.signal);
+    if (options.signal?.aborted) {
+      throw duplicateCanceledError(newNodeName, newNodeUrl);
+    }
     throw new NodelDuplicateNodeError(
       `Node "${newNodeName}" was created but may be incomplete because it did not become available: ${boundedErrorMessage(error, 'readiness check failed')}`,
       newNodeUrl
@@ -637,8 +737,11 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
 
   const copied: string[] = [];
   const failed: NodelDuplicateFileFailure[] = [];
+  let copiedBytes = 0;
   for (const [index, file] of filesToCopy.entries()) {
-    throwIfAborted(options.signal);
+    if (options.signal?.aborted) {
+      throw duplicateCanceledError(newNodeName, newNodeUrl, failed);
+    }
     reportDuplicateProgress(options, {
       phase: 'copying',
       message: `Copying ${file.path} (${index + 1} of ${filesToCopy.length})...`,
@@ -647,7 +750,15 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
       path: file.path
     });
 
-    const failure = await copyDuplicateFile(safeSourceUrl.href, newNodeUrl, file.path, options.signal);
+    const remainingBytes = Math.max(0, maxTotalBytes - copiedBytes);
+    const result = await copyDuplicateFile(safeSourceUrl.href, newNodeUrl, file.path, Math.min(maxFileBytes, remainingBytes), options.signal).catch((error) => {
+      if (options.signal?.aborted) {
+        throw duplicateCanceledError(newNodeName, newNodeUrl, failed);
+      }
+      throw error;
+    });
+    copiedBytes += result.bytes;
+    const failure = result.failure;
     if (!failure) {
       copied.push(file.path);
       continue;

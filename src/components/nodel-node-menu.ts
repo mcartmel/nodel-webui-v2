@@ -15,6 +15,7 @@ import { renderComponentError } from '../utils/render-component-error';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { getNodePathName, getVerySimpleName } from '../utils/node-name';
 import { safeNavigationHref } from '../utils/urls';
+import { ModalFocusController } from '../utils/modal-focus-controller';
 import './nodel-theme-toggle';
 
 interface NodeMenuState {
@@ -131,6 +132,7 @@ export class NodelNodeMenu extends HTMLElement {
   private lastFocused: Element | null = null;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
+  private modal = new ModalFocusController();
   private state: NodeMenuState = {
     customUis: [],
     deleteConfirming: false,
@@ -168,6 +170,7 @@ export class NodelNodeMenu extends HTMLElement {
       this.setState({ open: false, deleteConfirming: false, deleting: false, renaming: false, restarting: false });
     }
     this.lifecycle.disconnect();
+    this.modal.deactivate({ restoreFocus: false });
     this.setPageScrollLocked(false);
     this.lastFocused = null;
     this.linked = false;
@@ -239,12 +242,14 @@ export class NodelNodeMenu extends HTMLElement {
     if (target.closest('[data-node-menu-delete-start]')) {
       event.preventDefault();
       this.setState({ deleteConfirming: true, error: '' });
+      this.lifecycle.current?.setTimeout(() => this.restoreDrawerFocus(), 0);
       return;
     }
 
     if (target.closest('[data-node-menu-delete-cancel]')) {
       event.preventDefault();
       this.setState({ deleteConfirming: false });
+      this.lifecycle.current?.setTimeout(() => this.restoreDrawerFocus(), 0);
       return;
     }
 
@@ -265,9 +270,14 @@ export class NodelNodeMenu extends HTMLElement {
   };
 
   private handleDocumentKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && this.state.open) {
-      event.preventDefault();
-      this.close();
+    if (!this.state.open) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+      this.moveDrawerFocus(event);
     }
   };
 
@@ -275,19 +285,72 @@ export class NodelNodeMenu extends HTMLElement {
     this.lastFocused = document.activeElement;
     this.setPageScrollLocked(true);
     this.setState({ open: true, deleteConfirming: false });
-    this.lifecycle.current?.setTimeout(() => {
-      this.querySelector<HTMLElement>('[data-node-menu-close]')?.focus();
-    }, 0);
+    this.activateDrawerModal();
+    this.modal.focusInitial(this.querySelector<HTMLElement>('[data-node-menu-close]'));
   }
 
   private close() {
     this.setPageScrollLocked(false);
     this.setState({ open: false, deleteConfirming: false });
-    if (this.lastFocused instanceof HTMLElement && this.contains(this.lastFocused)) {
+    this.modal.deactivate({ restoreFocus: false });
+    const fallback = this.querySelector<HTMLElement>('[data-node-menu-open]');
+    if (this.lastFocused instanceof HTMLElement && this.lastFocused.isConnected) {
       this.lastFocused.focus();
     } else {
-      this.querySelector<HTMLElement>('[data-node-menu-open]')?.focus();
+      fallback?.focus();
     }
+  }
+
+  private activateDrawerModal() {
+    const layer = this.querySelector<HTMLElement>('.nodel-node-menu-layer');
+    const drawer = this.querySelector<HTMLElement>('.nodel-node-menu-drawer');
+    if (!this.state.open || !layer || !drawer) {
+      this.modal.deactivate({ restoreFocus: false });
+      return;
+    }
+
+    this.modal.activate({
+      container: this,
+      dialog: drawer,
+      inertRoot: this.closest('nodel-app') ?? this.parentElement ?? document.body,
+      onCancel: () => this.close(),
+      trigger: this.lastFocused
+    });
+  }
+
+  private drawerFocusables() {
+    const drawer = this.querySelector<HTMLElement>('.nodel-node-menu-drawer');
+    if (!drawer) {
+      return [];
+    }
+    return Array.from(drawer.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), nodel-theme-toggle, [tabindex]:not([tabindex="-1"])'))
+      .filter((element) => !element.hidden && !element.closest('[hidden]'));
+  }
+
+  private moveDrawerFocus(event: KeyboardEvent) {
+    const items = this.drawerFocusables();
+    if (items.length === 0) {
+      return;
+    }
+    const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const currentIndex = current ? items.indexOf(current) : -1;
+    let nextIndex = 0;
+    if (event.key === 'End') {
+      nextIndex = items.length - 1;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+    } else if (event.key === 'ArrowDown') {
+      nextIndex = currentIndex < 0 || currentIndex >= items.length - 1 ? 0 : currentIndex + 1;
+    }
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  }
+
+  private restoreDrawerFocus() {
+    if (!this.state.open || this.querySelector('.nodel-node-menu-drawer')?.contains(document.activeElement)) {
+      return;
+    }
+    this.drawerFocusables()[0]?.focus();
   }
 
   private setPageScrollLocked(locked: boolean) {

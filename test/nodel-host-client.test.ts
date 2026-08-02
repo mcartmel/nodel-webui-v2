@@ -209,6 +209,63 @@ describe('nodel host client', () => {
     expect(saves).toEqual(['nodeConfig.json']);
   });
 
+  it('deduplicates exact duplicate source paths before copying', async () => {
+    const source = 'http://source/nodes/Original/';
+    const saves: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${source}REST/files`) {
+        return new Response(JSON.stringify([{ path: 'same.txt' }, { path: 'same.txt' }, { path: 'script.py' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/DedupedCopy/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.startsWith(`${source}REST/files/contents?path=`)) {
+        return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
+      }
+      if (url.includes('/nodes/DedupedCopy/REST/files/save?path=')) {
+        saves.push(decodeURIComponent(url.split('path=')[1]));
+        expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    const result = await duplicateNode(source, 'Deduped Copy');
+
+    expect(saves).toEqual(['same.txt', 'script.py']);
+    expect(result.skipped).toEqual(['same.txt']);
+  });
+
+  it('rejects ambiguous duplicate source paths and oversized metadata before creating the destination', async () => {
+    const source = 'http://source/nodes/Original/';
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === `${source}REST/files`) {
+        return new Response(JSON.stringify([{ path: 'content/é.txt' }, { path: 'content/é.txt' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await expect(duplicateNode(source, 'Ambiguous Copy')).rejects.toThrow('ambiguous duplicate paths');
+    expect(calls).toEqual([`${source}REST/files`]);
+
+    calls.length = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === `${source}REST/files`) {
+        return new Response(JSON.stringify([{ path: 'huge.bin', size: 12 }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await expect(duplicateNode(source, 'Huge Copy', { maxFileBytes: 8 })).rejects.toThrow('duplicate-copy limit');
+    expect(calls).toEqual([`${source}REST/files`]);
+  });
+
   it('continues after non-script failures and reports structured partial results', async () => {
     const source = 'http://source/nodes/Original/';
     const saves: string[] = [];

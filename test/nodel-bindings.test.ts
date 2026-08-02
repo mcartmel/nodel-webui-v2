@@ -132,6 +132,7 @@ describe('nodel-bindings', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -445,6 +446,32 @@ describe('nodel-bindings', () => {
     expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
+  it('keeps row node autocomplete lookups independent', async () => {
+    const firstSearch = deferred<any[]>();
+    const secondSearch = deferred<any[]>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls
+      .mockReturnValueOnce(firstSearch.promise)
+      .mockReturnValueOnce(secondSearch.promise);
+
+    await mountBindings();
+
+    const [firstAction, secondAction] = rows('actions');
+    await setInputValue(rowInputs(firstAction).node, 'Light');
+    expect(rowInputs(firstAction).node.getAttribute('aria-busy')).toBe('true');
+    await setInputValue(rowInputs(secondAction).node, 'Projector');
+
+    secondSearch.resolve([{ node: 'Projector', address: 'http://host/nodes/Projector/', host: 'host' }]);
+    await waitFor(() => secondAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+    firstSearch.resolve([{ node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }]);
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
+
+    expect(firstAction.querySelector('[data-bindings-option="node"]')?.textContent).toContain('Lighting');
+    expect(secondAction.querySelector('[data-bindings-option="node"]')?.textContent).toContain('Projector');
+    expect(rowInputs(firstAction).node.getAttribute('aria-busy')).toBe('false');
+  });
+
   it('uses action/event autocomplete from the selected target node', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({
@@ -473,6 +500,33 @@ describe('nodel-bindings', () => {
     expect(rowInputs(rows('actions')[0]).target.value).toBe('dim');
     expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
   });
+
+  it('aborts target definition requests when lookup timeout elapses', async () => {
+    let targetSignal: AbortSignal | null = null;
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} }, events: {} });
+    bindingsMock.getLocalRest.mockResolvedValue({ nodes: { Lighting: { name: 'Lighting' } } });
+    bindingsMock.getRemoteNodeActions.mockImplementation((_url: string, init?: RequestInit) => {
+      targetSignal = init?.signal ?? null;
+      return new Promise((_resolve, reject) => {
+        targetSignal?.addEventListener('abort', () => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      });
+    });
+
+    await mountBindings();
+    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    expect(targetSignal).not.toBeNull();
+
+    await new Promise((resolve) => window.setTimeout(resolve, 3100));
+    await flush();
+
+    expect((targetSignal as AbortSignal | null)?.aborted).toBe(true);
+    expect(document.body.textContent).toContain('Request timed out after 3000 ms');
+  }, 7000);
 
   it('selects a row target autocomplete option with the keyboard', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);

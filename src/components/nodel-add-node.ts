@@ -7,6 +7,7 @@ import { renderComponentError } from '../utils/render-component-error';
 import { getVerySimpleName } from '../utils/node-name';
 import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOptions, moveActivePopoverOption } from '../utils/popover-keyboard';
 import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
+import { isAbortError } from '../utils/errors';
 
 type Selection =
   | { type: 'recipe'; path: string }
@@ -121,6 +122,13 @@ const template = `
               {^{if createdUrl}}
                 <a class="nodel-add-node-created-link nodel-link mt-1 inline-block text-sm" data-link="href{:createdUrl}">Open created node</a>
               {{/if}}
+              {^{if failedFiles.length}}
+                <ul class="mt-1 list-disc space-y-0.5 pl-5 text-sm text-nodel-muted">
+                  {^{for failedFiles}}
+                    <li><strong>{^{>path}}</strong>: {^{>phase}} failed{^{if status}} (HTTP {^{>status}}){{/if}} - {^{>message}}</li>
+                  {{/for}}
+                </ul>
+              {{/if}}
             {{else warning}}
               <div class="nodel-add-node-warning nodel-alert nodel-alert-warning nodel-alert-sm space-y-1" role="alert">
                 <p>{^{>warning}}</p>
@@ -139,7 +147,7 @@ const template = `
             {{/if}}
           </div>
           <div class="flex items-center gap-2">
-            <button type="button" class="nodel-add-node-cancel nodel-button" data-link="disabled{:submitting}">Cancel</button>
+            <button type="button" class="nodel-add-node-cancel nodel-button">{^{if submitting}}Cancel operation{{else}}Cancel{{/if}}</button>
             <button type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:submitting}">Add</button>
           </div>
         </div>
@@ -148,7 +156,7 @@ const template = `
   </div>
 `;
 
-async function refreshRecipes(force = false) {
+async function refreshRecipes(force = false, init?: RequestInit) {
   const now = Date.now();
   if (!force && recipeCache.data && now - recipeCache.fetchedAt < recipeCacheTtlMs) {
     return recipeCache.data;
@@ -158,7 +166,7 @@ async function refreshRecipes(force = false) {
     return recipeCache.promise;
   }
 
-  recipeCache.promise = listRecipes()
+  recipeCache.promise = listRecipes(init)
     .then((data) => {
       recipeCache.data = data || [];
       recipeCache.fetchedAt = Date.now();
@@ -183,6 +191,8 @@ export class NodelAddNode extends HTMLElement {
   private linked = false;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
+  private operationAbortController: AbortController | null = null;
+  private searchAbortController: AbortController | null = null;
   private searchToken = 0;
   private selection: Selection = null;
   private templateResults: TemplateResult[] = [];
@@ -226,7 +236,8 @@ export class NodelAddNode extends HTMLElement {
 
   disconnectedCallback() {
     this.connected = false;
-    this.searchToken += 1;
+    this.invalidateSearch();
+    this.cancelOperation();
     if (this.linked) {
       this.setState({ open: false, showAutocomplete: false, status: '', submitting: false });
     }
@@ -315,6 +326,18 @@ export class NodelAddNode extends HTMLElement {
     }
   }
 
+  private invalidateSearch() {
+    this.searchToken += 1;
+    this.clearDebounceTimer();
+    this.searchAbortController?.abort();
+    this.searchAbortController = null;
+  }
+
+  private cancelOperation() {
+    this.operationAbortController?.abort();
+    this.operationAbortController = null;
+  }
+
   private handleClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) {
@@ -329,6 +352,11 @@ export class NodelAddNode extends HTMLElement {
 
     if (target.closest('.nodel-add-node-cancel')) {
       event.preventDefault();
+      if (this.state.submitting) {
+        this.setState({ status: 'Canceling operation...' });
+        this.cancelOperation();
+        return;
+      }
       this.closePanel();
       return;
     }
@@ -467,7 +495,7 @@ export class NodelAddNode extends HTMLElement {
         warning: ''
       });
       try {
-        await refreshRecipes(true);
+        await refreshRecipes(true, { signal: scope.signal });
       } catch (error) {
         if (scope.isCurrent()) {
           this.setState({ error: lookupErrorMessage(error) });
@@ -480,48 +508,59 @@ export class NodelAddNode extends HTMLElement {
   }
 
   private closePanel() {
+    this.invalidateSearch();
     this.setState({ open: false, showAutocomplete: false });
   }
 
   private scheduleSearch() {
-    this.clearDebounceTimer();
+    this.invalidateSearch();
     const scope = this.lifecycle.current;
+    const token = this.searchToken;
     this.debounceTimer = scope?.setTimeout(() => {
       this.debounceTimer = null;
-      void this.searchTemplates();
+      void this.searchTemplates(token);
     }, debounceMs) ?? null;
   }
 
-  private async searchTemplates() {
+  private async searchTemplates(token: number) {
     const scope = this.lifecycle.current;
     if (!scope) {
       return;
     }
-    const token = ++this.searchToken;
     const query = this.state.templateQuery.trim();
 
     if (!query) {
       this.refreshResultViews([]);
+      this.setState({ error: '' });
       return;
     }
 
-    let recipes: NodelRecipeEntry[];
-    let nodes: NodelNodeUrlEntry[];
-    try {
-      const recipesPromise = this.allowRecipes ? refreshRecipes(false) : Promise.resolve([] as NodelRecipeEntry[]);
-      const nodesPromise = searchNodeUrls(query, { signal: scope.signal });
-      [recipes, nodes] = await Promise.all([recipesPromise, nodesPromise]);
-    } catch (error) {
-      if (scope.isCurrent() && token === this.searchToken) {
-        this.refreshResultViews([]);
-        this.setState({ error: lookupErrorMessage(error), showAutocomplete: false });
-      }
-      return;
+    const controller = new AbortController();
+    this.searchAbortController = controller;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
+    const recipesPromise = this.allowRecipes ? refreshRecipes(false, { signal: controller.signal }) : Promise.resolve([] as NodelRecipeEntry[]);
+    const nodesPromise = searchNodeUrls(query, { signal: controller.signal });
+    const [recipesResult, nodesResult] = await Promise.allSettled([recipesPromise, nodesPromise]);
+    scope.signal.removeEventListener('abort', abort);
+    if (this.searchAbortController === controller) {
+      this.searchAbortController = null;
     }
 
     if (!scope.isCurrent() || token !== this.searchToken) {
       return;
     }
+
+    const failures = [recipesResult, nodesResult]
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected' && !isAbortError(result.reason));
+    if (recipesResult.status === 'rejected' && nodesResult.status === 'rejected') {
+      this.refreshResultViews([]);
+      this.setState({ error: lookupErrorMessage(recipesResult.reason), showAutocomplete: false });
+      return;
+    }
+
+    const recipes = recipesResult.status === 'fulfilled' ? recipesResult.value : [];
+    const nodes = nodesResult.status === 'fulfilled' ? nodesResult.value : [];
 
     const searchLower = query.toLocaleLowerCase();
     const recipeResults = (recipes || [])
@@ -538,6 +577,7 @@ export class NodelAddNode extends HTMLElement {
       : [];
 
     this.refreshResultViews([...recipeResults, ...nodeResults]);
+    this.setState({ error: failures.length > 0 ? lookupErrorMessage(failures[0].reason) : '' });
   }
 
   private normalizeNodeResult(node: NodelNodeUrlEntry): { type: 'node'; address: string; name: string; host: string } | null {
@@ -633,6 +673,10 @@ export class NodelAddNode extends HTMLElement {
 
     getJQuery().observable(this.state.failedFiles).refresh([]);
     this.setState({ createdUrl: '', error: '', status: '', submitting: true, warning: '' });
+    const operationController = new AbortController();
+    this.operationAbortController = operationController;
+    const abortOperation = () => operationController.abort();
+    scope.signal.addEventListener('abort', abortOperation, { once: true });
 
     try {
       let url = '';
@@ -641,9 +685,9 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ status: 'Duplicating node...' });
         const result = await duplicateNode(this.selection.address, name, {
           includeNodeConfig: this.state.includeNodeConfig,
-          signal: scope.signal,
+          signal: operationController.signal,
           onProgress: (progress) => {
-            if (scope.isCurrent()) {
+            if (scope.isCurrent() && this.operationAbortController === operationController) {
               this.setState({ status: progress.message });
             }
           }
@@ -668,13 +712,13 @@ export class NodelAddNode extends HTMLElement {
       } else {
         const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
         this.setState({ status: 'Creating node...' });
-        await createNode(name, base || undefined, { signal: scope.signal });
+        await createNode(name, base || undefined, { signal: operationController.signal });
         if (!scope.isCurrent()) {
           return;
         }
         url = `/nodes/${encodeURIComponent(getVerySimpleName(name))}/`;
         this.setState({ status: 'Waiting for node to become available...' });
-        await waitForNodeReady(new URL(url, window.location.origin).href, 30, 1000, { signal: scope.signal });
+        await waitForNodeReady(new URL(url, window.location.origin).href, 30, 1000, { signal: operationController.signal });
         if (!scope.isCurrent()) {
           return;
         }
@@ -697,6 +741,10 @@ export class NodelAddNode extends HTMLElement {
       }
       const message = error instanceof Error ? error.message : 'Node add failed';
       const destinationUrl = error instanceof NodelDuplicateNodeError ? error.destinationUrl : '';
+      if (isAbortError(error) && !destinationUrl) {
+        this.setState({ createdUrl: '', error: '', status: 'Operation canceled.' });
+        return;
+      }
       if (error instanceof NodelDuplicateNodeError) {
         getJQuery().observable(this.state.failedFiles).refresh(error.failed);
       }
@@ -714,6 +762,10 @@ export class NodelAddNode extends HTMLElement {
         detail
       }));
     } finally {
+      scope.signal.removeEventListener('abort', abortOperation);
+      if (this.operationAbortController === operationController) {
+        this.operationAbortController = null;
+      }
       if (scope.isCurrent()) {
         this.setState({ submitting: false });
       }

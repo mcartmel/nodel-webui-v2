@@ -92,6 +92,8 @@ describe('nodel-confirm-host', () => {
     expect(host.hidden).toBe(false);
     expect(host.textContent).toContain('Confirm power');
     expect(host.querySelector('.nodel-confirm-warning')).not.toBeNull();
+    expect(trigger.inert).toBe(true);
+    expect(trigger.hasAttribute('inert')).toBe(true);
     const confirm = host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')!;
     const cancel = host.querySelector<HTMLButtonElement>('button[data-confirm-action="cancel"]')!;
     expect(document.activeElement).toBe(confirm);
@@ -105,6 +107,8 @@ describe('nodel-confirm-host', () => {
     expect(resolutions).toEqual([true]);
     expect(host.hidden).toBe(true);
     await nextTimer();
+    expect(trigger.inert).toBe(false);
+    expect(trigger.hasAttribute('inert')).toBe(false);
     expect(document.activeElement).toBe(trigger);
   });
 

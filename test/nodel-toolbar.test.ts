@@ -1,5 +1,7 @@
 import { flush, waitFor } from './helpers';
 import '../src/components/nodel-toolbar';
+import '../src/components/nodel-app';
+import { NODEL_NAVIGATION_CHANGE } from '../src/navigation/navigation';
 
 describe('nodel-toolbar', () => {
   beforeEach(() => {
@@ -86,5 +88,40 @@ describe('nodel-toolbar', () => {
     expect(toolbar.dataset.iconState).toBe('error');
     expect(icon.hasAttribute('src')).toBe(false);
     expect(icon.classList.contains('hidden')).toBe(true);
+  });
+
+  it('supports keyboard navigation inside grouped page menus', async () => {
+    document.body.innerHTML = '<nodel-app><nodel-toolbar title="Pages"></nodel-toolbar></nodel-app>';
+    await customElements.whenDefined('nodel-toolbar');
+    const app = document.querySelector('nodel-app')!;
+    app.dispatchEvent(new CustomEvent(NODEL_NAVIGATION_CHANGE, {
+      detail: {
+        activePageId: 'settings',
+        items: [{
+          type: 'group',
+          id: 'admin',
+          title: 'Admin',
+          children: [
+            { type: 'page', id: 'overview', title: 'Overview' },
+            { type: 'page', id: 'settings', title: 'Settings' },
+            { type: 'page', id: 'logs', title: 'Logs' }
+          ]
+        }]
+      }
+    }));
+    await flush();
+
+    const group = document.querySelector<HTMLElement>('[data-nav-group-id="admin"]')!;
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    await flush();
+    expect(document.activeElement?.textContent).toBe('Settings');
+
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement?.textContent).toBe('Logs');
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(document.activeElement).toBe(document.querySelector('[data-nav-group-id="admin"]'));
+    expect(document.querySelector<HTMLElement>('[data-nav-group-menu-id="admin"]')?.hidden).toBe(true);
   });
 });

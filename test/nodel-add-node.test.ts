@@ -48,6 +48,7 @@ describe('nodel-add-node', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -83,6 +84,78 @@ describe('nodel-add-node', () => {
 
     expect(document.querySelector('.nodel-add-node-error')?.textContent).not.toContain('javascript:');
     expect(document.querySelector('.nodel-template-autocomplete')?.classList.contains('hidden')).toBe(true);
+  });
+
+  it('aborts an obsolete node search as soon as the query changes', async () => {
+    let firstSignal: AbortSignal | null = null;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        firstSignal ??= init?.signal ?? null;
+        return new Promise<Response>(() => undefined) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(templateInput, 'Light');
+    await waitFor(() => firstSignal !== null, { attempts: 30, intervalMs: 10 });
+    expect(firstSignal).not.toBeNull();
+
+    await setInputValue(templateInput, 'Lighting');
+
+    expect((firstSignal as AbortSignal | null)?.aborted).toBe(true);
+  });
+
+  it('cancels an in-flight duplicate after creating the destination and reports it as incomplete', async () => {
+    let readSignal: AbortSignal | null = null;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response(JSON.stringify([{ node: 'Original', address: 'http://source/nodes/Original/', host: 'source' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://source/nodes/Original/REST/files') {
+        return new Response(JSON.stringify([{ path: 'script.py' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/CanceledCopy/REST/')) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === 'http://source/nodes/Original/REST/files/contents?path=script.py') {
+        readSignal = init?.signal ?? null;
+        return new Promise<Response>((_resolve, reject) => {
+          readSignal?.addEventListener('abort', () => {
+            const error = new Error('aborted');
+            error.name = 'AbortError';
+            reject(error);
+          }, { once: true });
+        }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Canceled Copy');
+    await setInputValue(templateInput, 'Original');
+    await waitFor(() => document.querySelectorAll('[data-template-result-index]').length === 1, { attempts: 30, intervalMs: 25 });
+    document.querySelector<HTMLButtonElement>('[data-template-result-index]')?.click();
+    document.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+    await waitFor(() => readSignal !== null);
+
+    document.querySelector<HTMLButtonElement>('.nodel-add-node-cancel')?.click();
+    await flush();
+
+    expect((readSignal as AbortSignal | null)?.aborted).toBe(true);
+    await waitFor(() => document.querySelector('.nodel-add-node-error')?.textContent?.includes('canceled') ?? false);
+    expect(document.querySelector('.nodel-add-node-created-link')?.getAttribute('href')).toContain('/nodes/CanceledCopy/');
   });
 
   it('creates a node from a recipe path', async () => {

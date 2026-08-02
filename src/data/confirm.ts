@@ -1,4 +1,5 @@
 import type { NodelToastTone } from '../components/nodel-toast-host';
+import { asciiToken } from '../utils/text-normalization';
 
 export const NODEL_CONFIRM = 'nodel-confirm';
 
@@ -29,7 +30,7 @@ export function shouldConfirm(element: HTMLElement) {
 }
 
 function normalizeConfirmMode(value: string | null | undefined): NodelConfirmMode {
-  return value?.trim().toLocaleLowerCase() === 'code' ? 'code' : 'standard';
+  return asciiToken(value) === 'code' ? 'code' : 'standard';
 }
 
 export function confirmRequestFromAttributes(element: HTMLElement, defaults: NodelConfirmRequest = {}): NodelConfirmRequest {

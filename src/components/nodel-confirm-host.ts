@@ -2,6 +2,7 @@ import { NODEL_CONFIRM, type NodelConfirmDetail, type NodelConfirmRequest } from
 import { getControlRuntime } from '../data/control-runtime';
 import { renderFontAwesomeIcon, toastIcons } from '../icons/fontawesome';
 import type { NodelToastTone } from './nodel-toast-host';
+import { ModalFocusController } from '../utils/modal-focus-controller';
 
 type CodeStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -43,6 +44,7 @@ function normalizeTone(tone: NodelConfirmRequest['tone']): NodelToastTone {
 export class NodelConfirmHost extends HTMLElement {
   private state: ConfirmState | null = null;
   private codeSignalSubscription: { dispose(): void } | null = null;
+  private modal = new ModalFocusController();
   private requestSignal: AbortSignal | null = null;
   private requestAbort: (() => void) | null = null;
 
@@ -107,12 +109,8 @@ export class NodelConfirmHost extends HTMLElement {
     this.state = null;
     this.hidden = true;
     this.innerHTML = '';
+    this.modal.deactivate({ restoreFocus: true });
     state.resolve(confirmed);
-    window.setTimeout(() => {
-      if (state.trigger instanceof HTMLElement && state.trigger.isConnected) {
-        state.trigger.focus();
-      }
-    }, 0);
   }
 
   private handleClick = (event: MouseEvent) => {
@@ -159,8 +157,6 @@ export class NodelConfirmHost extends HTMLElement {
     }
 
     if (event.key === 'Escape') {
-      event.preventDefault();
-      this.resolve(false);
       return;
     }
 
@@ -192,25 +188,6 @@ export class NodelConfirmHost extends HTMLElement {
       }
     }
 
-    if (event.key !== 'Tab') {
-      return;
-    }
-
-    const focusables = Array.from(this.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
-      .filter((element) => !element.hasAttribute('disabled'));
-    if (focusables.length === 0) {
-      return;
-    }
-
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   };
 
   private subscribeCodeSignal() {
@@ -345,6 +322,23 @@ export class NodelConfirmHost extends HTMLElement {
     this.querySelector<HTMLButtonElement>(selector)?.focus();
   }
 
+  private syncModalFocus() {
+    const state = this.state;
+    const dialog = this.querySelector<HTMLElement>('.nodel-confirm-dialog');
+    if (!state || !dialog) {
+      this.modal.deactivate({ restoreFocus: false });
+      return;
+    }
+
+    this.modal.activate({
+      container: this,
+      dialog,
+      inertRoot: this.closest('nodel-app') ?? this.parentElement ?? document.body,
+      onCancel: () => this.resolve(false),
+      trigger: state.trigger
+    });
+  }
+
   private render() {
     const state = this.state;
     this.hidden = !state;
@@ -387,6 +381,7 @@ export class NodelConfirmHost extends HTMLElement {
         </div>
       </section>
     `;
+    this.syncModalFocus();
   }
 }
 

@@ -22,6 +22,8 @@ import { safeRemoteNodeUrl } from '../utils/urls';
 import { cloneSchemaValue } from '../schema/schema-values';
 import { validateValueAgainstSchema } from '../schema/schema-validation';
 import { normalizeSchema } from '../schema/schema-model';
+import { runWithDeadline } from '../api/request';
+import { codePoints, unicodeSearchKey } from '../utils/text-normalization';
 
 type BindingKind = 'actions' | 'events';
 type BindingTargetKey = 'action' | 'event';
@@ -122,7 +124,7 @@ interface TargetDefinition {
 
 interface TargetCacheEntry {
   expiresAt: number;
-  promise: Promise<TargetDefinition[]>;
+  definitions: TargetDefinition[];
 }
 
 interface TargetFetchResult {
@@ -134,6 +136,11 @@ interface LocalNodeCandidate {
   key: string;
   entry: NodelLocalNodeEntry;
   name: string;
+}
+
+interface LookupSlot {
+  controller: AbortController;
+  token: number;
 }
 
 const targetCacheTtlMs = 30 * 1000;
@@ -164,7 +171,7 @@ const template = `
             </div>
             <div class="nodel-bindings-toolbar">
               <div class="nodel-bindings-combobox">
-                <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="Search node" data-bindings-bulk-node data-link="bulkNode" />
+                <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="Search node" data-bindings-bulk-node data-link="{:bulkNode:} aria-busy{:searchingBulkNode ? 'true' : 'false'}" />
                 {^{if showBulkNodeOptions}}
                   <div class="nodel-bindings-popover nodel-popover">
                     {^{for bulkNodeOptions}}
@@ -222,7 +229,7 @@ const template = `
                             {^{if description}}<span class="block truncate text-xs text-nodel-muted">{^{>description}}</span>{{/if}}
                           </span>
                            <span class="nodel-bindings-combobox">
-                             <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="{:node:} id{:id + '-node'} aria-invalid{:nodeError ? 'true' : 'false'} aria-describedby{:nodeError ? id + '-node-error' : ''}" />
+                              <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" placeholder="node" data-bindings-node data-link="{:node:} id{:id + '-node'} aria-busy{:searchingNode ? 'true' : 'false'} aria-invalid{:nodeError ? 'true' : 'false'} aria-describedby{:nodeError ? id + '-node-error' : ''}" />
                             {^{if showNodeOptions}}
                               <div class="nodel-bindings-popover nodel-popover">
                                 {^{for nodeOptions}}
@@ -236,7 +243,7 @@ const template = `
                            {^{if nodeError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert" data-link="id{:id + '-node-error'} text{:nodeError}"></span>{{/if}}
                            </span>
                            <span class="nodel-bindings-combobox">
-                             <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} id{:id + '-target'} placeholder{:targetLabel} aria-invalid{:targetError ? 'true' : 'false'} aria-describedby{:targetError ? id + '-target-error' : ''}" />
+                              <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} id{:id + '-target'} placeholder{:targetLabel} aria-busy{:searchingTarget ? 'true' : 'false'} aria-invalid{:targetError ? 'true' : 'false'} aria-describedby{:targetError ? id + '-target-error' : ''}" />
                             {^{if showTargetOptions}}
                               <div class="nodel-bindings-popover nodel-popover">
                                 {^{for targetOptions}}
@@ -377,7 +384,7 @@ function optionFromNode(entry: NodelNodeUrlEntry): BindingOption {
 }
 
 function normalizeText(value: string) {
-  return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '');
+  return unicodeSearchKey(value);
 }
 
 function normalizeNodeIdentity(value: string) {
@@ -435,40 +442,26 @@ function mergeDefinitions(results: TargetFetchResult[]) {
   return Array.from(byName.values());
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error('Target lookup timed out')), timeoutMs);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
-}
-
 function levenshtein(a: string, b: string) {
   if (a === b) {
     return 0;
   }
+  const left = codePoints(a);
+  const right = codePoints(b);
   if (!a) {
-    return b.length;
+    return right.length;
   }
   if (!b) {
-    return a.length;
+    return left.length;
   }
 
-  const previous = Array.from({ length: b.length + 1 }, (_value, index) => index);
-  const current = Array.from({ length: b.length + 1 }, () => 0);
+  const previous = Array.from({ length: right.length + 1 }, (_value, index) => index);
+  const current = Array.from({ length: right.length + 1 }, () => 0);
 
-  for (let i = 0; i < a.length; i += 1) {
+  for (let i = 0; i < left.length; i += 1) {
     current[0] = i + 1;
-    for (let j = 0; j < b.length; j += 1) {
-      const cost = a[i] === b[j] ? 0 : 1;
+    for (let j = 0; j < right.length; j += 1) {
+      const cost = left[i] === right[j] ? 0 : 1;
       current[j + 1] = Math.min(
         current[j] + 1,
         previous[j + 1] + 1,
@@ -478,7 +471,7 @@ function levenshtein(a: string, b: string) {
     previous.splice(0, previous.length, ...current);
   }
 
-  return previous[b.length];
+  return previous[right.length];
 }
 
 function similarity(a: string, b: string) {
@@ -597,8 +590,8 @@ export class NodelBindings extends HTMLElement {
   private observingControls = false;
   private targetCache = new Map<string, TargetCacheEntry>();
   private localNodesPromise: Promise<LocalNodeCandidate[]> | null = null;
-  private nodeSearchToken = 0;
-  private targetSearchToken = 0;
+  private lookupSlots = new Map<string, LookupSlot>();
+  private lookupToken = 0;
   private state: BindingsViewModel = {
     loading: true,
     error: '',
@@ -631,8 +624,7 @@ export class NodelBindings extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.nodeSearchToken += 1;
-    this.targetSearchToken += 1;
+    this.abortAllLookups();
     if (this.linked) {
       this.setState({ busy: false, loading: false, saving: false, searchingBulkNode: false, showBulkNodeOptions: false });
     }
@@ -693,6 +685,7 @@ export class NodelBindings extends HTMLElement {
     const abort = () => controller.abort();
     scope.signal.addEventListener('abort', abort, { once: true });
     this.clearLookupCaches();
+    this.abortAllLookups();
     this.setState({
       busy: false,
       loading: true,
@@ -938,6 +931,46 @@ export class NodelBindings extends HTMLElement {
     }
   };
 
+  private lookupKey(row: BindingRow | null, field: 'node' | 'target' | 'bulk-node') {
+    return field === 'bulk-node' ? 'bulk:node' : `${row?.id ?? 'missing'}:${field}`;
+  }
+
+  private startLookup(key: string, scope: ConnectionScope) {
+    this.abortLookup(key);
+    const controller = new AbortController();
+    const token = ++this.lookupToken;
+    const abort = () => controller.abort();
+    scope.signal.addEventListener('abort', abort, { once: true });
+    controller.signal.addEventListener('abort', () => scope.signal.removeEventListener('abort', abort), { once: true });
+    this.lookupSlots.set(key, { controller, token });
+    return {
+      signal: controller.signal,
+      isCurrent: () => scope.isCurrent() && this.lookupSlots.get(key)?.token === token,
+      finish: () => {
+        scope.signal.removeEventListener('abort', abort);
+        if (this.lookupSlots.get(key)?.token === token) {
+          this.lookupSlots.delete(key);
+        }
+      }
+    };
+  }
+
+  private abortLookup(key: string) {
+    const slot = this.lookupSlots.get(key);
+    if (!slot) {
+      return;
+    }
+    slot.controller.abort();
+    this.lookupSlots.delete(key);
+  }
+
+  private abortAllLookups() {
+    for (const slot of this.lookupSlots.values()) {
+      slot.controller.abort();
+    }
+    this.lookupSlots.clear();
+  }
+
   private handleFocusOut = (event: FocusEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) {
@@ -951,7 +984,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (combobox.querySelector('[data-bindings-bulk-node]')) {
-      this.nodeSearchToken += 1;
+      this.abortLookup(this.lookupKey(null, 'bulk-node'));
       this.setState({
         bulkNodeOptions: [],
         showBulkNodeOptions: false
@@ -961,14 +994,14 @@ export class NodelBindings extends HTMLElement {
 
     const row = this.rowForElement(combobox);
     if (row) {
-      this.nodeSearchToken += 1;
-      this.targetSearchToken += 1;
-      getJQuery().observable(row).setProperty({
-        nodeOptions: [],
-        showNodeOptions: false,
-        targetOptions: [],
-        showTargetOptions: false
-      });
+      if (combobox.querySelector('[data-bindings-node]')) {
+        this.abortLookup(this.lookupKey(row, 'node'));
+        getJQuery().observable(row).setProperty({ nodeOptions: [], showNodeOptions: false });
+      }
+      if (combobox.querySelector('[data-bindings-target]')) {
+        this.abortLookup(this.lookupKey(row, 'target'));
+        getJQuery().observable(row).setProperty({ targetOptions: [], showTargetOptions: false });
+      }
     }
   };
 
@@ -1056,7 +1089,7 @@ export class NodelBindings extends HTMLElement {
     const $ = getJQuery();
     if (optionType === 'bulk-node') {
       this.clearLookupCaches();
-      this.nodeSearchToken += 1;
+      this.abortLookup(this.lookupKey(null, 'bulk-node'));
       const selected = this.state.bulkNodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -1081,7 +1114,7 @@ export class NodelBindings extends HTMLElement {
 
     if (optionType === 'node') {
       this.clearLookupCaches();
-      this.nodeSearchToken += 1;
+      this.abortLookup(this.lookupKey(row, 'node'));
       const selected = row.nodeOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -1105,7 +1138,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (optionType === 'target') {
-      this.targetSearchToken += 1;
+      this.abortLookup(this.lookupKey(row, 'target'));
       const selected = row.targetOptions[index] ?? {
         value: option.dataset.optionValue ?? '',
         label: option.dataset.optionValue ?? '',
@@ -1137,7 +1170,7 @@ export class NodelBindings extends HTMLElement {
 
   private closeAutocompleteForInput(input: HTMLInputElement) {
     if (input.hasAttribute('data-bindings-bulk-node')) {
-      this.nodeSearchToken += 1;
+      this.abortLookup(this.lookupKey(null, 'bulk-node'));
       this.setState({
         bulkNodeOptions: [],
         showBulkNodeOptions: false
@@ -1151,7 +1184,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (input.hasAttribute('data-bindings-node')) {
-      this.nodeSearchToken += 1;
+      this.abortLookup(this.lookupKey(row, 'node'));
       getJQuery().observable(row).setProperty({
         nodeOptions: [],
         showNodeOptions: false
@@ -1160,7 +1193,7 @@ export class NodelBindings extends HTMLElement {
     }
 
     if (input.hasAttribute('data-bindings-target')) {
-      this.targetSearchToken += 1;
+      this.abortLookup(this.lookupKey(row, 'target'));
       getJQuery().observable(row).setProperty({
         targetOptions: [],
         showTargetOptions: false
@@ -1173,19 +1206,19 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const token = ++this.nodeSearchToken;
+    const lookup = this.startLookup(this.lookupKey(null, 'bulk-node'), scope);
     const originalQuery = query;
     this.setState({ searchingBulkNode: true, toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query, { signal: scope.signal })).slice(0, 20).map(optionFromNode) : [];
-      if (scope.isCurrent() && token === this.nodeSearchToken && this.state.bulkNode === originalQuery) {
+      const options = query.trim() ? (await searchNodeUrls(query, { signal: lookup.signal })).slice(0, 20).map(optionFromNode) : [];
+      if (lookup.isCurrent() && this.state.bulkNode === originalQuery) {
         this.setState({
           bulkNodeOptions: options,
           showBulkNodeOptions: options.length > 0
         });
       }
     } catch (error) {
-      if (scope.isCurrent() && token === this.nodeSearchToken) {
+      if (lookup.isCurrent()) {
         this.setState({
           bulkNodeOptions: [],
           showBulkNodeOptions: false,
@@ -1193,9 +1226,10 @@ export class NodelBindings extends HTMLElement {
         });
       }
     } finally {
-      if (scope.isCurrent() && token === this.nodeSearchToken) {
+      if (lookup.isCurrent()) {
         this.setState({ searchingBulkNode: false });
       }
+      lookup.finish();
     }
   }
 
@@ -1204,20 +1238,20 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const token = ++this.nodeSearchToken;
+    const lookup = this.startLookup(this.lookupKey(row, 'node'), scope);
     const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingNode: true });
     this.setState({ toolbarError: '' });
     try {
-      const options = query.trim() ? (await searchNodeUrls(query, { signal: scope.signal })).slice(0, 20).map(optionFromNode) : [];
-      if (scope.isCurrent() && token === this.nodeSearchToken && row.node === originalQuery) {
+      const options = query.trim() ? (await searchNodeUrls(query, { signal: lookup.signal })).slice(0, 20).map(optionFromNode) : [];
+      if (lookup.isCurrent() && row.node === originalQuery) {
         getJQuery().observable(row).setProperty({
           nodeOptions: options,
           showNodeOptions: options.length > 0
         });
       }
     } catch (error) {
-      if (scope.isCurrent() && token === this.nodeSearchToken) {
+      if (lookup.isCurrent()) {
         getJQuery().observable(row).setProperty({
           nodeOptions: [],
           showNodeOptions: false
@@ -1225,9 +1259,10 @@ export class NodelBindings extends HTMLElement {
         this.setState({ toolbarError: apiErrorMessage(error, 'Failed to search nodes') });
       }
     } finally {
-      if (scope.isCurrent() && token === this.nodeSearchToken) {
+      if (lookup.isCurrent()) {
         getJQuery().observable(row).setProperty({ searchingNode: false });
       }
+      lookup.finish();
     }
   }
 
@@ -1236,21 +1271,21 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    const token = ++this.targetSearchToken;
+    const lookup = this.startLookup(this.lookupKey(row, 'target'), scope);
     const originalQuery = query;
     getJQuery().observable(row).setProperty({ searchingTarget: true });
     this.setState({ toolbarError: '' });
     try {
-      const definitions = row.node ? await this.getTargetDefinitions(row, scope) : [];
+      const definitions = row.node ? await this.getTargetDefinitions(row, scope, lookup.signal) : [];
       const options = definitionsToOptions(definitions, query);
-      if (scope.isCurrent() && token === this.targetSearchToken && row.target === originalQuery) {
+      if (lookup.isCurrent() && row.target === originalQuery) {
         getJQuery().observable(row).setProperty({
           targetOptions: options,
           showTargetOptions: options.length > 0
         });
       }
     } catch (error) {
-      if (scope.isCurrent() && token === this.targetSearchToken) {
+      if (lookup.isCurrent()) {
         getJQuery().observable(row).setProperty({
           targetOptions: [],
           showTargetOptions: false
@@ -1258,9 +1293,10 @@ export class NodelBindings extends HTMLElement {
         this.setState({ toolbarError: apiErrorMessage(error, 'Failed to load target definitions') });
       }
     } finally {
-      if (scope.isCurrent() && token === this.targetSearchToken) {
+      if (lookup.isCurrent()) {
         getJQuery().observable(row).setProperty({ searchingTarget: false });
       }
+      lookup.finish();
     }
   }
 
@@ -1368,43 +1404,36 @@ export class NodelBindings extends HTMLElement {
     this.validateBindings();
   }
 
-  private async getTargetDefinitions(row: BindingRow, scope: ConnectionScope) {
+  private async getTargetDefinitions(row: BindingRow, scope: ConnectionScope, signal: AbortSignal = scope.signal) {
     const key = this.targetCacheKey(row);
     const cached = this.targetCache.get(key);
     if (cached && cached.expiresAt > Date.now()) {
-      return cached.promise;
+      return cached.definitions;
     }
 
-    const promise = this.loadTargetDefinitions(row, scope);
+    const definitions = await this.loadTargetDefinitions(row, scope, signal);
     this.targetCache.set(key, {
       expiresAt: Date.now() + targetCacheTtlMs,
-      promise
+      definitions
     });
-
-    promise.catch(() => {
-      if (this.targetCache.get(key)?.promise === promise) {
-        this.targetCache.delete(key);
-      }
-    });
-
-    return promise;
+    return definitions;
   }
 
   private targetCacheKey(row: BindingRow) {
     return `${row.kind}:${normalizeNodeIdentity(row.node)}:${row.nodeAddress}`;
   }
 
-  private async loadTargetDefinitions(row: BindingRow, scope: ConnectionScope) {
+  private async loadTargetDefinitions(row: BindingRow, scope: ConnectionScope, signal: AbortSignal) {
     const localNode = await this.findLocalNode(row.node, scope);
     if (!scope.isCurrent()) {
       return [];
     }
     if (localNode) {
-      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name), scope);
+      const result = await this.fetchTargetDefinitions(row.kind, localNodeUrl(localNode.name), scope, signal);
       return result.definitions;
     }
 
-    const entries = await searchNodeUrls(row.node, { signal: scope.signal });
+    const entries = await searchNodeUrls(row.node, { signal });
     if (!scope.isCurrent()) {
       return [];
     }
@@ -1418,7 +1447,7 @@ export class NodelBindings extends HTMLElement {
       discoveredUrls.length === 0 && entries.length === 0 ? localNodeUrl(row.node) : ''
     ].filter((url): url is string => Boolean(url)));
 
-    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url, scope).then(
+    const results = await Promise.all(candidateUrls.map((url) => this.fetchTargetDefinitions(row.kind, url, scope, signal).then(
       (result) => result,
       () => null
     )));
@@ -1430,9 +1459,10 @@ export class NodelBindings extends HTMLElement {
     return mergeDefinitions(successful);
   }
 
-  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string, scope: ConnectionScope): Promise<TargetFetchResult> {
-    const definitions = await withTimeout(
-      kind === 'actions' ? getRemoteNodeActions(nodeUrl, { signal: scope.signal }) : getRemoteNodeSignals(nodeUrl, { signal: scope.signal }),
+  private async fetchTargetDefinitions(kind: BindingKind, nodeUrl: string, scope: ConnectionScope, signal: AbortSignal): Promise<TargetFetchResult> {
+    const definitions = await runWithDeadline(
+      (deadlineSignal) => (kind === 'actions' ? getRemoteNodeActions(nodeUrl, { signal: deadlineSignal }) : getRemoteNodeSignals(nodeUrl, { signal: deadlineSignal })),
+      signal,
       targetLookupTimeoutMs
     );
     return {

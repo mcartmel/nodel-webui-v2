@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   MAX_API_COLLECTION_ITEMS,
+  MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES,
+  MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES,
+  MAX_DIAGNOSTIC_MEASUREMENTS,
   NodelApiDecodeError,
   decodeActions,
   decodeActivityLogs,
@@ -153,7 +156,9 @@ describe('Nodel API response codecs', () => {
     expect(() => decodeFiles(Array.from({ length: MAX_API_COLLECTION_ITEMS + 1 }, () => ({ path: 'script.py' })), 'files')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
     expect(() => decodeNodeUrls(Array.from({ length: MAX_API_COLLECTION_ITEMS + 1 }, () => ({ node: 'Node', address: 'https://example.test/nodes/Node/' })), 'nodes')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
     expect(() => decodeActivityLogs(Array.from({ length: MAX_API_COLLECTION_ITEMS + 1 }, () => ({})), 'activity')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
-    expect(() => decodeDiagnosticMeasurements([{ name: 'Metric', isRate: false, values: Array(MAX_API_COLLECTION_ITEMS + 1).fill(1) }], 'measurements')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
+    expect(() => decodeDiagnosticMeasurements(Array.from({ length: MAX_DIAGNOSTIC_MEASUREMENTS + 1 }, (_, index) => ({ name: `Metric${index}`, isRate: false, values: [] })), 'measurements')).toThrow(`at most ${MAX_DIAGNOSTIC_MEASUREMENTS}`);
+    expect(() => decodeDiagnosticMeasurements([{ name: 'Metric', isRate: false, values: Array(MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES + 1).fill(1) }], 'measurements')).toThrow(`at most ${MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES}`);
+    expect(() => decodeDiagnosticMeasurements(Array.from({ length: 11 }, (_, index) => ({ name: `Metric${index}`, isRate: false, values: Array(Math.ceil(MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES / 10)).fill(1) })), 'measurements')).toThrow(`at most ${MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES}`);
     expect(() => decodeSchema({ type: 'string', enum: Array(MAX_API_COLLECTION_ITEMS + 1).fill('value') }, 'schema')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
     expect(() => decodeDiagnostics({ httpAddresses: Array(MAX_API_COLLECTION_ITEMS + 1).fill('https://example.test/') }, 'diagnostics')).toThrow(`at most ${MAX_API_COLLECTION_ITEMS}`);
     const oversizedDefinitions = Object.fromEntries(Array.from({ length: MAX_API_COLLECTION_ITEMS + 1 }, (_, index) => [`Action${index}`, { name: `Action${index}` }]));
@@ -166,6 +171,13 @@ describe('Nodel API response codecs', () => {
       schema = { type: 'object', properties: { nested: schema } };
     }
     expect(() => decodeSchema(schema, 'schema')).toThrow('schema exceeds 32 levels');
+  });
+
+  it('rejects duplicate diagnostic measurement names', () => {
+    expect(() => decodeDiagnosticMeasurements([
+      { name: 'Runtime.cpu', isRate: false, values: [1] },
+      { name: 'Runtime.cpu', isRate: true, values: [2] }
+    ], 'measurements')).toThrow('unique measurement name');
   });
 
   it('bounds unknown remote-binding metadata before preserving it', () => {

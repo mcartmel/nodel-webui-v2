@@ -1,13 +1,16 @@
 import type { NodelConnectivityState } from '../data/connectivity';
 import { renderFontAwesomeIcon, toastIcons } from '../icons/fontawesome';
+import { ModalFocusController } from '../utils/modal-focus-controller';
+import { asciiToken } from '../utils/text-normalization';
 
 export type NodelOfflineMode = 'modal' | 'overlay';
 
 export function normalizeOfflineMode(value: string | null | undefined): NodelOfflineMode {
-  return value?.trim().toLocaleLowerCase() === 'overlay' ? 'overlay' : 'modal';
+  return asciiToken(value) === 'overlay' ? 'overlay' : 'modal';
 }
 
 export class NodelConnectivityHost extends HTMLElement {
+  private modal = new ModalFocusController();
   private state: NodelConnectivityState = { offline: false, reason: '', retryAttempt: 0 };
   private mode: NodelOfflineMode = 'modal';
 
@@ -26,7 +29,11 @@ export class NodelConnectivityHost extends HTMLElement {
   }
 
   focusDialog() {
-    this.querySelector<HTMLElement>('[role="alertdialog"]')?.focus();
+    this.modal.focusInitial(this.querySelector<HTMLElement>('[role="alertdialog"]'));
+  }
+
+  disconnectedCallback() {
+    this.modal.deactivate({ restoreFocus: false });
   }
 
   private render() {
@@ -35,6 +42,7 @@ export class NodelConnectivityHost extends HTMLElement {
     this.classList.toggle('is-overlay', this.mode === 'overlay');
     if (!this.state.offline) {
       this.innerHTML = '';
+      this.modal.deactivate({ restoreFocus: true });
       return;
     }
 
@@ -58,6 +66,18 @@ export class NodelConnectivityHost extends HTMLElement {
         </div>
       </div>
     `;
+
+    const dialog = this.querySelector<HTMLElement>('[role="alertdialog"]');
+    if (this.mode === 'modal' && dialog) {
+      this.modal.activate({
+        container: this,
+        dialog,
+        inertRoot: this.closest('nodel-app') ?? this.parentElement ?? document.body,
+        trigger: document.activeElement
+      });
+    } else {
+      this.modal.deactivate({ restoreFocus: true });
+    }
   }
 }
 

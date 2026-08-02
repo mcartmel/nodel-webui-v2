@@ -24,6 +24,7 @@ interface ToastItem {
 
 const defaultToastDurationMs = 3500;
 const updateToastDurationMs = 3200;
+export const MAX_NODEL_TOASTS = 20;
 const closeIconMarkup = renderFontAwesomeIcon(uiIcons.xmark, 'h-3.5 w-3.5');
 const toneIconMarkup: Record<NodelToastTone, string> = {
   danger: renderFontAwesomeIcon(toastIcons.danger, 'h-4 w-4'),
@@ -91,7 +92,10 @@ export class NodelToastHost extends HTMLElement {
       this.toasts = [...this.toasts, toast];
     }
 
-    this.schedule(toast);
+    this.enforceLimit();
+    if (this.toasts.some((item) => item.id === toast.id)) {
+      this.schedule(toast);
+    }
     this.render();
     return id;
   }
@@ -124,6 +128,22 @@ export class NodelToastHost extends HTMLElement {
 
     const timer = window.setTimeout(() => this.dismiss(toast.id), Math.max(0, toast.durationMs));
     this.timers.set(toast.id, timer);
+  }
+
+  private enforceLimit() {
+    while (this.toasts.length > MAX_NODEL_TOASTS) {
+      const index = this.toasts.findIndex((toast) => !toast.persistent);
+      const removeIndex = index >= 0 ? index : 0;
+      const [removed] = this.toasts.splice(removeIndex, 1);
+      if (!removed) {
+        return;
+      }
+      const timer = this.timers.get(removed.id);
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        this.timers.delete(removed.id);
+      }
+    }
   }
 
   private handleClick = (event: MouseEvent) => {

@@ -684,6 +684,11 @@ export const nodelDocumentElements: NodelElementDefinition[] = [
     name: 'nodel-confirm-host',
     description: 'App-level confirmation dialog host.',
     attributes: []
+  },
+  {
+    name: 'nodel-connectivity-host',
+    description: 'App-level host-connectivity presentation.',
+    attributes: []
   }
 ];
 

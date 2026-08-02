@@ -49,6 +49,7 @@ import './components/nodel-editor';
 import './components/nodel-theme-toggle';
 import './components/nodel-toast-host';
 import './components/nodel-confirm-host';
+import './components/nodel-connectivity-host';
 
 import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';
 import { bootstrapJsViews } from './jsviews/jsviews-runtime';

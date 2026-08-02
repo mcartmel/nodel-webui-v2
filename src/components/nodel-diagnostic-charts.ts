@@ -24,6 +24,7 @@ interface CategorizedMeasurement extends NodelDiagnosticMeasurement {
 
 interface DiagnosticChartsViewModel {
   categories: ChartCategoryView[];
+  chartImportError: boolean;
   empty: boolean;
   error: string;
   hasCategories: boolean;
@@ -54,7 +55,12 @@ const template = `
       </div>
     {{/if}}
     {^{if error}}
-      <div class="nodel-alert nodel-alert-danger nodel-alert-md">{^{>error}}</div>
+      <div class="nodel-alert nodel-alert-danger nodel-alert-md">
+        {^{>error}}
+        {^{if chartImportError}}
+          <button type="button" class="nodel-button nodel-button-compact ml-2" data-diagnostic-chart-retry>Retry charts</button>
+        {{/if}}
+      </div>
     {{else loading}}
       <div class="nodel-alert nodel-alert-md">Loading diagnostic measurements...</div>
     {{else empty}}
@@ -144,8 +150,10 @@ export class NodelDiagnosticCharts extends HTMLElement {
     active: false,
     updatedAt: null
   };
+  private chartError = '';
   private view: DiagnosticChartsViewModel = {
     categories: [],
+    chartImportError: false,
     empty: false,
     error: '',
     hasCategories: false,
@@ -175,10 +183,12 @@ export class NodelDiagnosticCharts extends HTMLElement {
     this.categoryKey = '';
     this.visibleMeasurementKey = '';
     this.lastAppliedData = null;
+    this.chartError = '';
     getJQuery().observable(this.view.categories).refresh([]);
     getJQuery().observable(this.view.visibleMeasurements).refresh([]);
     getJQuery().observable(this.view).setProperty({
       empty: false,
+      chartImportError: false,
       error: '',
       hasCategories: false,
       loading: true,
@@ -264,6 +274,17 @@ export class NodelDiagnosticCharts extends HTMLElement {
     }
 
     const button = target.closest<HTMLButtonElement>('[data-diagnostic-chart-select]');
+    const retry = target.closest<HTMLButtonElement>('[data-diagnostic-chart-retry]');
+    if (retry) {
+      this.chartError = '';
+      this.chartImportPromise = null;
+      this.updateView();
+      const scope = this.lifecycle.current;
+      if (scope) {
+        void scope.run(() => this.drawCharts(scope), (error) => this.handleInitializationError(error));
+      }
+      return;
+    }
     if (!button) {
       return;
     }
@@ -325,10 +346,12 @@ export class NodelDiagnosticCharts extends HTMLElement {
     const nextCategoryKey = categories.join('\n');
     const $ = getJQuery();
 
-    this.dataset.state = this.state.error ? 'error' : this.state.loading ? 'loading' : categories.length > 0 ? 'ready' : 'empty';
+    const error = this.chartError || this.state.error;
+    this.dataset.state = error ? 'error' : this.state.loading ? 'loading' : categories.length > 0 ? 'ready' : 'empty';
     $.observable(this.view).setProperty({
+      chartImportError: Boolean(this.chartError),
       empty: !this.state.loading && !this.state.error && categories.length === 0,
-      error: this.state.error,
+      error,
       hasCategories: categories.length > 0,
       loading: this.state.loading,
       noSelection: !this.state.loading && !this.state.error && categories.length > 0 && visibleMeasurements.length === 0
@@ -351,7 +374,7 @@ export class NodelDiagnosticCharts extends HTMLElement {
       this.visibleMeasurementKey = nextVisibleMeasurementKey;
       $.observable(this.view.visibleMeasurements).refresh(visibleMeasurements);
     }
-    if (this.state.error) {
+    if (error) {
       this.destroyCharts();
       return;
     }
@@ -499,7 +522,7 @@ export class NodelDiagnosticCharts extends HTMLElement {
 
   private handleInitializationError(error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to render diagnostic charts';
-    this.state = { ...this.state, loading: false, error: message };
+    this.chartError = message;
     if (this.linked) {
       this.updateView();
     } else {

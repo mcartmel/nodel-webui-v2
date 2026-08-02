@@ -193,9 +193,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private systemThemeMediaQuery: MediaQueryList | null = null;
   private titleLoadToken = 0;
   private confirmHost: NodelConfirmHostElement | null = null;
-  private connectivityFocus: HTMLElement | null = null;
   private connectivityHost: NodelConnectivityHostElement | null = null;
-  private connectivityInert = new Map<HTMLElement, boolean>();
   private connectivityModalActive = false;
   private connectivityState: NodelConnectivityState = { offline: false, reason: '', retryAttempt: 0 };
   private connectivitySubscription: { dispose(): void } | null = null;
@@ -265,7 +263,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.restartPageOwner = null;
     this.connectivitySubscription?.dispose();
     this.connectivitySubscription = null;
-    this.restoreConnectivityInert(false);
+    this.connectivityModalActive = false;
     this.stopThemeSynchronization();
     this.signalBindings.dispose();
     this.confirmHost = null;
@@ -702,49 +700,18 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     const modalOffline = this.connectivityState.offline && mode === 'modal';
 
     if (!modalOffline) {
-      this.restoreConnectivityInert(true);
+      this.connectivityModalActive = false;
       return;
     }
 
     const enteredModal = !this.connectivityModalActive;
     if (enteredModal) {
-      const activeElement = document.activeElement;
-      this.connectivityFocus = activeElement instanceof HTMLElement && this.contains(activeElement) && activeElement !== host ? activeElement : null;
       this.connectivityModalActive = true;
-    }
-    for (const child of Array.from(this.children)) {
-      if (!(child instanceof HTMLElement) || child === host) {
-        continue;
-      }
-      if (!this.connectivityInert.has(child)) {
-        this.connectivityInert.set(child, child.hasAttribute('inert'));
-      }
-      child.setAttribute('inert', '');
-      child.inert = true;
-    }
-    if (enteredModal) {
       queueMicrotask(() => {
         if (this.connectivityModalActive) {
           host.focusDialog();
         }
       });
-    }
-  }
-
-  private restoreConnectivityInert(restoreFocus: boolean) {
-    if (!this.connectivityModalActive && this.connectivityInert.size === 0) {
-      return;
-    }
-    for (const [element, inert] of this.connectivityInert) {
-      element.toggleAttribute('inert', inert);
-      element.inert = inert;
-    }
-    this.connectivityInert.clear();
-    this.connectivityModalActive = false;
-    const focus = this.connectivityFocus;
-    this.connectivityFocus = null;
-    if (restoreFocus && focus?.isConnected) {
-      queueMicrotask(() => focus.focus());
     }
   }
 

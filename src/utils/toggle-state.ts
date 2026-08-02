@@ -1,3 +1,5 @@
+import { asciiToken } from './text-normalization';
+
 export type ToggleState = 'on' | 'off' | 'partially-on' | 'partially-off';
 
 export interface ToggleStateOptions {
@@ -13,7 +15,7 @@ const partialOnValues = new Set(['partiallyon', 'partially-on', 'partial-on', 'm
 const partialOffValues = new Set(['partiallyoff', 'partially-off', 'partial-off', 'mixed-off']);
 
 function normalized(value: unknown) {
-  return String(value ?? '').trim().toLocaleLowerCase();
+  return asciiToken(value);
 }
 
 function exact(value: unknown, expected?: string | null) {

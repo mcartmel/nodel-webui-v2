@@ -1,4 +1,5 @@
 import { createSignalBindingController } from '../data/signal-bindings';
+import { asciiToken } from '../utils/text-normalization';
 
 type NodelStatusSurface = 'card' | 'panel' | 'none';
 type NodelStatusPadding = 'default' | 'compact' | 'none';
@@ -80,7 +81,7 @@ function normalizeTone(value: string | null): NodelStatusTone {
 }
 
 function normalizeState(value: string | null): NodelStatusState | null {
-  const normalized = value?.trim().toLocaleLowerCase() ?? '';
+  const normalized = asciiToken(value);
   return states.includes(normalized as NodelStatusState) ? (normalized as NodelStatusState) : null;
 }
 
@@ -110,7 +111,7 @@ function stateFromLevel(value: string | null): NodelStatusState | null {
 }
 
 function inferState(value: string | null): NodelStatusState {
-  const normalized = value?.trim().toLocaleLowerCase() ?? '';
+  const normalized = asciiToken(value);
   return inferredStates[normalized] ?? 'unknown';
 }
 
@@ -122,7 +123,7 @@ function parseStateMap(value: string | null) {
       continue;
     }
 
-    const key = part.slice(0, separatorIndex).trim().toLocaleLowerCase();
+    const key = asciiToken(part.slice(0, separatorIndex));
     const state = normalizeState(part.slice(separatorIndex + 1));
     if (key && state) {
       map.set(key, state);
@@ -132,7 +133,7 @@ function parseStateMap(value: string | null) {
 }
 
 function stateFromMap(rawValue: string | null, stateMap: string | null): NodelStatusState | null {
-  const key = rawValue?.trim().toLocaleLowerCase() ?? '';
+  const key = asciiToken(rawValue);
   if (!key) {
     return null;
   }

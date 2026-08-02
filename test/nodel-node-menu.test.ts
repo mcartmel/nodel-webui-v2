@@ -99,6 +99,29 @@ describe('nodel-node-menu', () => {
     expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(false);
   });
 
+  it('makes background content inert and supports drawer arrow navigation', async () => {
+    document.body.innerHTML = '<main id="background"><button id="outside">Outside</button></main><nodel-node-menu></nodel-node-menu>';
+    await customElements.whenDefined('nodel-node-menu');
+    await waitFor(() => document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Old Node');
+    const background = document.querySelector<HTMLElement>('#background')!;
+
+    openMenu();
+    await flush();
+
+    expect(background.inert).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('[data-node-menu-close]'));
+
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(document.querySelector('[data-node-menu-rename-input]'));
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+    expect((document.activeElement as HTMLElement | null)?.textContent).toContain('Diagnostics');
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(document.querySelector('[data-node-menu-close]'));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(background.inert).toBe(false);
+  });
+
   it('renders custom UI links and reference links', async () => {
     await mountMenu();
     openMenu();

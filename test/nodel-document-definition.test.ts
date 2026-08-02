@@ -181,6 +181,22 @@ describe('nodel document definition', () => {
     expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
   });
 
+  it('keeps component registries aligned across loader, docs, completions, and CSS', async () => {
+    const [mainSource, docsSource, stylesSource] = await Promise.all([
+      readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8'),
+      readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8'),
+      readFile(resolve(process.cwd(), 'src/styles.css'), 'utf8')
+    ]);
+    const importedComponents = Array.from(mainSource.matchAll(/\.\/components\/(nodel-[^']+)'/g)).map((match) => match[1]);
+    const documentedComponents = new Set(Array.from(docsSource.matchAll(/`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1]));
+    const definedComponents = new Set(nodelDocumentElements.map((element) => element.name));
+
+    expect(importedComponents.filter((name) => !documentedComponents.has(name))).toEqual([]);
+    expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
+    expect(importedComponents.filter((name) => !stylesSource.includes(`${name},`) && !stylesSource.includes(`${name} {`))).toEqual([]);
+    expect(importedComponents.filter((name) => !stylesSource.includes(`${name}:not(:defined)`))).toEqual([]);
+  });
+
   it('includes the node menu in the default node UI', async () => {
     const nodeUi = await readFile(resolve(process.cwd(), 'nodel.html'), 'utf8');
 

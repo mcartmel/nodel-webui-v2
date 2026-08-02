@@ -1,5 +1,6 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { escapeHtml } from '../utils/html';
+import { asciiToken } from '../utils/text-normalization';
 
 type NodelStatusTone = 'success' | 'info' | 'warning' | 'danger';
 type NodelStatusState = 'on' | 'off' | 'partially-on' | 'partially-off';
@@ -12,7 +13,7 @@ function normalizeTone(value: string | null): NodelStatusTone {
 }
 
 function stateFromValue(value: string, partialOnValue: string | null, partialOffValue: string | null, onValue: string | null, offValue: string | null): NodelStatusState {
-  const normalized = value.trim().toLocaleLowerCase();
+  const normalized = asciiToken(value);
   if (partialOnValue !== null && value === partialOnValue) {
     return 'partially-on';
   }

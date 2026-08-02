@@ -156,7 +156,7 @@ describe('node file api and utilities', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('filters custom UI files using the v1 picker rules', () => {
+  it('discovers safe custom UI files while retaining explicit exclusions', () => {
     expect(customUiEntriesFromFiles([
       { path: 'content/panel.xml' },
       { path: 'content/custom.html' },
@@ -165,11 +165,17 @@ describe('node file api and utilities', () => {
       { path: 'content/index-sample.xml' },
       { path: 'content/index-sample.xml.htm' },
       { path: 'content/my-ui.html' },
+      { path: 'content/room controls.html' },
+      { path: 'content/展示.html' },
       { path: 'content/deep/panel.html' },
       { path: 'script.py' }
     ])).toEqual([
       { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
-      { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' }
+      { href: 'deep/panel.html', path: 'content/deep/panel.html', title: 'deep/panel.html' },
+      { href: 'my-ui.html', path: 'content/my-ui.html', title: 'my-ui.html' },
+      { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' },
+      { href: 'room controls.html', path: 'content/room controls.html', title: 'room controls.html' },
+      { href: '展示.html', path: 'content/展示.html', title: '展示.html' }
     ]);
   });
 
