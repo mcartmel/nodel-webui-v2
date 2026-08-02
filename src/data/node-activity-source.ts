@@ -59,6 +59,7 @@ let connectionGeneration = 0;
 let activityEpoch = 0;
 let pollFailureCount = 0;
 const latestEntries = new Map<string, NodelActivityLogEntry>();
+const pendingLiveEntries = new Map<string, NodelActivityLogEntry>();
 let nextRefreshRequestId = 0;
 interface ActivityRefreshWaiter {
   epoch: number;
@@ -101,6 +102,61 @@ function capLatestEntries() {
   }
 }
 
+function capPendingLiveEntries() {
+  while (pendingLiveEntries.size > maxRetainedActivityEntries) {
+    const firstKey = pendingLiveEntries.keys().next().value as string | undefined;
+    if (firstKey === undefined) {
+      break;
+    }
+    pendingLiveEntries.delete(firstKey);
+  }
+}
+
+function timestampMillis(entry: NodelActivityLogEntry) {
+  if (typeof entry.timestamp !== 'string') {
+    return null;
+  }
+  const timestamp = Date.parse(entry.timestamp);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function isFreshLogicalEntry(entry: NodelActivityLogEntry, existing: NodelActivityLogEntry | undefined) {
+  if (!existing) {
+    return true;
+  }
+
+  const incomingTime = timestampMillis(entry);
+  const existingTime = timestampMillis(existing);
+  if (incomingTime !== null && existingTime !== null) {
+    return incomingTime > existingTime || (incomingTime === existingTime && entry.seq > existing.seq);
+  }
+  if (incomingTime !== null && existingTime === null) {
+    return true;
+  }
+  if (incomingTime === null && existingTime !== null) {
+    return entry.seq > existing.seq;
+  }
+  return entry.seq > existing.seq;
+}
+
+function enqueueLiveEntry(entry: NodelActivityLogEntry) {
+  const key = activityEntryKey(entry);
+  const existing = pendingLiveEntries.get(key) ?? latestEntries.get(key);
+  if (!isFreshLogicalEntry(entry, existing)) {
+    return;
+  }
+
+  pendingLiveEntries.delete(key);
+  pendingLiveEntries.set(key, entry);
+  capPendingLiveEntries();
+  liveAccumulator.enqueue({
+    key,
+    value: entry,
+    changed: true,
+    live: true
+  });
+}
+
 function cloneBatch(batch: NodeActivityBatch | null): NodeActivityBatch | null {
   if (!batch) {
     return null;
@@ -134,7 +190,12 @@ const liveAccumulator = createActivityAccumulator<NodelActivityLogEntry>((items)
     return;
   }
 
-  const freshItems = items.filter((item) => lastSeq === null || item.value.seq + 1 > lastSeq);
+  const freshItems = items.filter((item) => {
+    if (pendingLiveEntries.get(item.key) === item.value) {
+      pendingLiveEntries.delete(item.key);
+    }
+    return isFreshLogicalEntry(item.value, latestEntries.get(item.key));
+  });
   if (freshItems.length === 0) {
     return;
   }
@@ -182,6 +243,7 @@ function resetConnection() {
   activityEpoch += 1;
   connectionGeneration += 1;
   liveAccumulator.clear();
+  pendingLiveEntries.clear();
   clearPollTimer();
   clearReconnectTimer();
   clearTimer(wsConnectTimer);
@@ -454,6 +516,8 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
       if (lastSeq !== null && normalized.length > 0 && Math.max(...normalized.map((entry) => entry.seq)) + 1 <= lastSeq) {
         return;
       }
+      liveAccumulator.clear();
+      pendingLiveEntries.clear();
       lastSeq = nextSeqFrom(normalized, lastSeq);
       emit({
         items: normalized.map((entry) => ({ entry, changed: false, live: false })),
@@ -465,16 +529,7 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
     }
 
     if (data.activity) {
-      const entry = data.activity;
-      if (lastSeq !== null && entry.seq + 1 <= lastSeq) {
-        return;
-      }
-      liveAccumulator.enqueue({
-        key: activityEntryKey(entry),
-        value: entry,
-        changed: true,
-        live: true
-      });
+      enqueueLiveEntry(data.activity);
     }
   } catch (caught) {
     error = (caught instanceof Error ? caught.message : 'WebSocket activity returned invalid data').replace(/\s+/g, ' ').slice(0, 500);
@@ -650,6 +705,7 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
         loading = true;
         currentBatch = null;
         latestEntries.clear();
+        pendingLiveEntries.clear();
         lastSeq = null;
         error = '';
       }

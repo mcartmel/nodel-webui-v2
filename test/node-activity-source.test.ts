@@ -217,6 +217,58 @@ describe('node-activity-source', () => {
     subscription.dispose();
   });
 
+  it('accepts newer live WebSocket activity whose seq is lower than the history cursor', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    const historySeq = 1_784_106_123_556;
+    const liveSeq = 1_784_102_982_703;
+
+    MockWebSocket.instances[0].message({
+      activityHistory: [activityEntry({
+        seq: historySeq,
+        timestamp: '2026-08-02T22:24:26.042+10:00',
+        source: 'local',
+        type: 'event',
+        alias: 'Clock',
+        arg: '2026-08-02T22:24:26.042+10:00'
+      })]
+    });
+    MockWebSocket.instances[0].message({
+      activity: activityEntry({
+        seq: liveSeq,
+        timestamp: '2026-08-02T22:24:27.042+10:00',
+        source: 'local',
+        type: 'event',
+        alias: 'Clock',
+        arg: '2026-08-02T22:24:27.042+10:00'
+      })
+    });
+    vi.advanceTimersByTime(100);
+    await flushMicrotasks();
+
+    const batch = states.at(-1)?.batch;
+    expect(batch?.replace).toBe(false);
+    expect(batch?.transport).toBe('websocket');
+    expect(batch?.nextSeq).toBe(historySeq + 1);
+    expect(batch?.items).toEqual([
+      {
+        entry: activityEntry({
+          seq: liveSeq,
+          timestamp: '2026-08-02T22:24:27.042+10:00',
+          source: 'local',
+          type: 'event',
+          alias: 'Clock',
+          arg: '2026-08-02T22:24:27.042+10:00'
+        }),
+        changed: true,
+        live: true
+      }
+    ]);
+
+    subscription.dispose();
+  });
+
   it('stops an outer emission when a subscriber refreshes the source', async () => {
     const { subscribeNodeActivity } = await loadSource();
     let first: ReturnType<typeof subscribeNodeActivity>;
