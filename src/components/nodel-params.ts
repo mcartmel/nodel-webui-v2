@@ -4,6 +4,7 @@ import {
   saveNodeParams
 } from '../api/nodel-host-client';
 import type { NodelJsonSchema } from '../api/nodel-types';
+import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
@@ -111,9 +112,9 @@ export class NodelParams extends HTMLElement {
     this.linked = false;
   }
 
-  refreshAfterRestart() {
+  refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
     const scope = this.lifecycle.current;
-    return scope ? this.loadParams(scope) : Promise.resolve();
+    return scope ? this.loadParams(scope) : Promise.resolve({ status: 'aborted', detail: 'Parameters component is disconnected.' });
   }
 
   private async initialize(scope: ConnectionScope) {
@@ -136,7 +137,7 @@ export class NodelParams extends HTMLElement {
     await this.loadParams(scope);
   }
 
-  private async loadParams(scope: ConnectionScope) {
+  private async loadParams(scope: ConnectionScope): Promise<NodeRestartRefreshResult> {
     this.abortController?.abort();
     const controller = new AbortController();
     this.abortController = controller;
@@ -158,7 +159,7 @@ export class NodelParams extends HTMLElement {
         getNodeParams({ signal: controller.signal })
       ]);
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Parameters refresh was superseded.' };
       }
 
       if (!hasSchemaFields(schema)) {
@@ -167,7 +168,7 @@ export class NodelParams extends HTMLElement {
           empty: true,
           schemaForm: null
         });
-        return;
+        return { status: 'verified' };
       }
 
       const schemaForm = createSchemaForm(schema);
@@ -177,19 +178,22 @@ export class NodelParams extends HTMLElement {
         empty: false,
         schemaForm
       });
+      return { status: 'verified' };
     } catch (error) {
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Parameters refresh was superseded.' };
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
+        return { status: 'aborted', detail: 'Parameters refresh was canceled.' };
       }
+      const detail = apiErrorMessage(error, 'Failed to load parameters');
       this.setState({
         loading: false,
-        error: apiErrorMessage(error, 'Failed to load parameters'),
+        error: detail,
         empty: false,
         schemaForm: null
       });
+      return { status: 'failed', detail };
     } finally {
       scope.signal.removeEventListener('abort', abort);
       if (this.abortController === controller) {

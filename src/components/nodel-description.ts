@@ -1,4 +1,5 @@
 import { getNodeDetails } from '../api/nodel-host-client';
+import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { renderMarkdown } from '../utils/markdown';
 
@@ -38,7 +39,7 @@ export class NodelDescription extends HTMLElement {
     this.removeEventListener('click', this.handleClick);
   }
 
-  refreshAfterRestart() {
+  refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
     return this.loadDescription();
   }
 
@@ -76,7 +77,7 @@ export class NodelDescription extends HTMLElement {
     this.syncExpandedState();
   }
 
-  private async loadDescription() {
+  private async loadDescription(): Promise<NodeRestartRefreshResult> {
     this.abortController?.abort();
     this.abortController = new AbortController();
     const token = ++this.loadingToken;
@@ -84,23 +85,28 @@ export class NodelDescription extends HTMLElement {
     try {
       const details = await getNodeDetails({ signal: this.abortController.signal });
       if (token !== this.loadingToken) {
-        return;
+        return { status: 'superseded', detail: 'Description refresh was superseded.' };
       }
 
       const description = typeof details.desc === 'string' ? details.desc.trim() : '';
       if (!description || !this.contentNode) {
         this.hidden = true;
-        return;
+        return { status: 'verified' };
       }
 
       this.contentNode.innerHTML = renderMarkdown(description);
       this.hidden = false;
       this.queueOverflowSync();
+      return { status: 'verified' };
     } catch (error) {
+      if (token !== this.loadingToken) {
+        return { status: 'superseded', detail: 'Description refresh was superseded.' };
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
+        return { status: 'aborted', detail: 'Description refresh was canceled.' };
       }
       this.hidden = true;
+      return { status: 'failed', detail: error instanceof Error ? error.message : 'Failed to refresh description' };
     }
   }
 

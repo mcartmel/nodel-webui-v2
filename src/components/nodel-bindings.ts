@@ -9,6 +9,7 @@ import {
 } from '../api/nodel-host-client';
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelLocalNodeEntry, NodelNodeUrlEntry, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
+import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
@@ -680,12 +681,12 @@ export class NodelBindings extends HTMLElement {
     }
   }
 
-  refreshAfterRestart() {
+  refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
     const scope = this.lifecycle.current;
-    return scope ? this.loadBindings(scope) : Promise.resolve();
+    return scope ? this.loadBindings(scope) : Promise.resolve({ status: 'aborted', detail: 'Bindings component is disconnected.' });
   }
 
-  private async loadBindings(scope: ConnectionScope) {
+  private async loadBindings(scope: ConnectionScope): Promise<NodeRestartRefreshResult> {
     this.abortController?.abort();
     const controller = new AbortController();
     this.abortController = controller;
@@ -721,7 +722,7 @@ export class NodelBindings extends HTMLElement {
         getNodeRemoteBindings({ signal: controller.signal })
       ]);
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Bindings refresh was superseded.' };
       }
 
       const normalizedSchema = normalizeSchema(schema);
@@ -733,7 +734,7 @@ export class NodelBindings extends HTMLElement {
           empty: false,
           invalid: true
         });
-        return;
+        return { status: 'failed', detail: `Unsupported binding schema: ${normalizedSchema.unsupportedReason}` };
       }
 
       if (!hasBindingSchema(normalizedSchema.schema)) {
@@ -742,7 +743,7 @@ export class NodelBindings extends HTMLElement {
           empty: true,
           sections: []
         });
-        return;
+        return { status: 'verified' };
       }
 
       this.sourceBindings = cloneSchemaValue(values);
@@ -756,22 +757,25 @@ export class NodelBindings extends HTMLElement {
       this.validateBindings();
       this.bindFilterInput();
       this.updateToolbarSummary();
+      return { status: 'verified' };
     } catch (error) {
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Bindings refresh was superseded.' };
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
+        return { status: 'aborted', detail: 'Bindings refresh was canceled.' };
       }
+      const detail = apiErrorMessage(error, 'Failed to load bindings');
       this.setState({
         loading: false,
-        error: apiErrorMessage(error, 'Failed to load bindings'),
+        error: detail,
         empty: false,
         sections: [],
         selectedCount: 0,
         visibleCount: 0,
         unboundCount: 0
       });
+      return { status: 'failed', detail };
     } finally {
       scope.signal.removeEventListener('abort', abort);
       if (this.abortController === controller) {

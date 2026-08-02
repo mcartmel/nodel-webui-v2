@@ -540,4 +540,47 @@ describe('node-activity-source', () => {
 
     subscription.dispose();
   });
+
+  it('returns a failed result for a requested restart refresh while preserving source errors', async () => {
+    const { refreshNodeActivityForRestart, subscribeNodeActivity } = await loadSource();
+    const subscription = subscribeNodeActivity(createSubscriberHost(), () => undefined);
+    await flushMicrotasks();
+
+    const resultPromise = refreshNodeActivityForRestart();
+    await flushMicrotasks();
+    MockWebSocket.instances.at(-1)?.message({ error: 'Activity unavailable' });
+    const result = await resultPromise;
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'Activity unavailable' });
+    subscription.dispose();
+  });
+
+  it('forces a restart activity refresh for a hidden but subscribed log source', async () => {
+    activityMock.initialVisible = false;
+    activityMock.getNodeActivity.mockResolvedValueOnce([activityEntry({ seq: 7, alias: 'ForcedStatus' })]);
+    const { refreshNodeActivityForRestart, subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    await flushMicrotasks();
+
+    await expect(refreshNodeActivityForRestart()).resolves.toMatchObject({ status: 'inactive' });
+    await expect(refreshNodeActivityForRestart({ force: true })).resolves.toMatchObject({ status: 'verified' });
+
+    expect(activityMock.getNodeActivity).toHaveBeenCalledWith({ from: -1 }, expect.any(Object));
+    expect(states.at(-1)?.batch?.items[0]?.entry.alias).toBe('ForcedStatus');
+    subscription.dispose();
+  });
+
+  it('marks an activity refresh superseded when a newer reset owns the source', async () => {
+    const { refreshNodeActivity, refreshNodeActivityForRestart, subscribeNodeActivity } = await loadSource();
+    const subscription = subscribeNodeActivity(createSubscriberHost(), () => undefined);
+    await flushMicrotasks();
+
+    const resultPromise = refreshNodeActivityForRestart();
+    await flushMicrotasks();
+    refreshNodeActivity();
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'superseded' });
+    subscription.dispose();
+  });
 });

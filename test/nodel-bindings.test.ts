@@ -354,6 +354,17 @@ describe('nodel-bindings', () => {
     expect(bindingsMock.saveNodeRemoteBindings).toHaveBeenCalled();
   });
 
+  it('reports a failed restart refresh while preserving the bindings error', async () => {
+    const element = await mountBindings();
+    bindingsMock.getNodeRemoteSchema.mockRejectedValueOnce(new Error('Restart bindings unavailable'));
+    bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({});
+
+    const result = await (element as any).refreshAfterRestart();
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'Restart bindings unavailable' });
+    expect(element.textContent).toContain('Restart bindings unavailable');
+  });
+
   it('uses node autocomplete and fills the selected row node', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });

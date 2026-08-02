@@ -3826,14 +3826,16 @@
     @apply overflow-hidden text-ellipsis whitespace-nowrap;
   }
 
-  .nodel-editor-status {
+  .nodel-editor-status,
+  .nodel-editor-reload-status {
     @apply pointer-events-none absolute right-3 top-3 z-10 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-nodel-border bg-nodel-surfaceRaised/[0.94] px-2.5 py-1.5 text-13 leading-4 text-nodel-muted shadow-nodel-editor-status;
     background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised) / 0.94));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
     max-width: min(28rem, calc(100% - 1.5rem));
   }
 
-  .nodel-editor-status[hidden] {
+  .nodel-editor-status[hidden],
+  .nodel-editor-reload-status[hidden] {
     display: none;
   }
 

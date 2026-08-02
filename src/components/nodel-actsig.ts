@@ -6,6 +6,7 @@ import {
 } from '../api/nodel-host-client';
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
+import type { NodeRestartRefreshResult } from '../data/node-restart-source';
 import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
@@ -301,7 +302,7 @@ export class NodelActSig extends HTMLElement {
     this.linked = false;
   }
 
-  refreshAfterRestart() {
+  refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
     this.latestArgs.clear();
     for (const timer of this.materializeTimers.values()) {
       window.clearTimeout(timer);
@@ -312,7 +313,7 @@ export class NodelActSig extends HTMLElement {
     this.materializeTimers.clear();
     this.pulseTimers.clear();
     const scope = this.lifecycle.current;
-    return scope ? this.loadDefinitions(scope) : Promise.resolve();
+    return scope ? this.loadDefinitions(scope) : Promise.resolve({ status: 'aborted', detail: 'Actions and signals component is disconnected.' });
   }
 
   private async initialize(scope: ConnectionScope) {
@@ -340,7 +341,7 @@ export class NodelActSig extends HTMLElement {
     }
   }
 
-  private async loadDefinitions(scope: ConnectionScope) {
+  private async loadDefinitions(scope: ConnectionScope): Promise<NodeRestartRefreshResult> {
     this.abortController?.abort();
     const controller = new AbortController();
     this.abortController = controller;
@@ -354,7 +355,7 @@ export class NodelActSig extends HTMLElement {
         getNodeSignals({ signal: controller.signal })
       ]);
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
       }
       const sections = this.buildSections(actions, signals);
       this.setState({
@@ -369,20 +370,23 @@ export class NodelActSig extends HTMLElement {
           this.materializeSection(section);
         }
       }
+      return { status: 'verified' };
     } catch (error) {
       if (!scope.isCurrent() || controller !== this.abortController) {
-        return;
+        return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
       }
       if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
+        return { status: 'aborted', detail: 'Actions and signals refresh was canceled.' };
       }
+      const detail = apiErrorMessage(error, 'Failed to load actions and signals');
       this.setState({
         loading: false,
-        error: apiErrorMessage(error, 'Failed to load actions and signals'),
+        error: detail,
         sections: [],
         hasSignals: false,
         empty: false
       });
+      return { status: 'failed', detail };
     } finally {
       scope.signal.removeEventListener('abort', abort);
       if (this.abortController === controller) {

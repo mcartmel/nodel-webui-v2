@@ -1,6 +1,12 @@
 import { getNodeConsoleLogs } from '../api/nodel-host-client';
 import type { NodelConsoleLogEntry } from '../api/nodel-types';
-import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscription } from './nodel-data-runtime';
+import {
+  registerNodelPollSource,
+  type NodelSourceRefreshOptions,
+  type NodelSourceRefreshResult,
+  type NodelSourceState,
+  type NodelSourceSubscription
+} from './nodel-data-runtime';
 
 export interface NodeConsoleBatch {
   entries: NodelConsoleLogEntry[];
@@ -58,6 +64,10 @@ export function subscribeNodeConsole(element: HTMLElement, listener: ConsoleList
 
 export function refreshNodeConsole() {
   return source.refresh();
+}
+
+export function refreshNodeConsoleForRestart(options?: NodelSourceRefreshOptions): Promise<NodelSourceRefreshResult> {
+  return source.refreshResult(options);
 }
 
 export function resetNodeConsoleCursor() {

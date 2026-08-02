@@ -1,5 +1,6 @@
 import { flush, waitFor } from './helpers';
 import type { NodelFileEntry } from '../src/api/nodel-types';
+import { cancelNodeRestartExpectation, getNodeRestartExpectation } from '../src/data/node-restart-source';
 
 const editorApiMock = vi.hoisted(() => ({
   files: [
@@ -13,6 +14,7 @@ const editorApiMock = vi.hoisted(() => ({
   ]),
   listNodeFiles: vi.fn(),
   getNodeFileContents: vi.fn(),
+  getNodeRestartStatus: vi.fn(),
   saveNodeFile: vi.fn(),
   deleteNodeFile: vi.fn()
 }));
@@ -38,6 +40,7 @@ const codeEditorMock = vi.hoisted(() => ({
 vi.mock('../src/api/nodel-host-client', () => ({
   listNodeFiles: editorApiMock.listNodeFiles,
   getNodeFileContents: editorApiMock.getNodeFileContents,
+  getNodeRestartStatus: editorApiMock.getNodeRestartStatus,
   saveNodeFile: editorApiMock.saveNodeFile,
   deleteNodeFile: editorApiMock.deleteNodeFile
 }));
@@ -62,6 +65,7 @@ describe('nodel-editor', () => {
     ]);
     editorApiMock.listNodeFiles.mockImplementation(async () => editorApiMock.files);
     editorApiMock.getNodeFileContents.mockImplementation(async (path: string) => editorApiMock.contents.get(path) ?? '');
+    editorApiMock.getNodeRestartStatus.mockResolvedValue({ timestamp: 'start-1' });
     editorApiMock.saveNodeFile.mockResolvedValue('');
     editorApiMock.deleteNodeFile.mockResolvedValue('');
     codeEditorMock.currentDoc = '';
@@ -76,6 +80,8 @@ describe('nodel-editor', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    cancelNodeRestartExpectation(getNodeRestartExpectation());
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -167,6 +173,110 @@ describe('nodel-editor', () => {
 
     expect(editorApiMock.saveNodeFile).toHaveBeenCalledWith('script.py', 'print("updated")', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(saved).toHaveBeenCalledWith(expect.objectContaining({ detail: { path: 'script.py' } }));
+  });
+
+  it('keeps typing available but blocks click and keyboard script saves during reload pending', async () => {
+    const pendingSave = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingSave.promise);
+    const editor = await mountEditor();
+
+    codeEditorMock.currentDoc = 'print("snapshot")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    codeEditorMock.currentDoc = 'print("typed immediately")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    codeEditorMock.options?.onSave?.();
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+
+    pendingSave.resolve('');
+    await waitFor(() => (editor as any).scriptReloadState === 'pending');
+    expect(codeEditorMock.currentDoc).toBe('print("typed immediately")');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+    expect(editor.textContent).not.toContain('script.py saved. Waiting for node reload.');
+  });
+
+  it('coordinates exact script.py overwrite and create saves through the shared gate', async () => {
+    const editor = await mountEditor();
+    const confirmations = handleConfirmations(editor, [true]);
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const pathInput = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    pathInput.value = 'script.py';
+    pathInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    await waitFor(() => (editor as any).scriptReloadState === 'pending');
+
+    expect(confirmations[0]?.title).toBe('Overwrite existing file?');
+    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+    expect(editorApiMock.getNodeRestartStatus).toHaveBeenCalledWith(
+      { timestamp: null, timeout: 0 },
+      expect.any(Object)
+    );
+    expect(editor.textContent).not.toContain('script.py saved. Waiting for node reload.');
+  });
+
+  it('blocks exact script writes from a second editor instance', async () => {
+    const pendingSave = deferred<unknown>();
+    editorApiMock.saveNodeFile.mockImplementationOnce(() => pendingSave.promise);
+    const first = await mountEditor();
+    const second = document.createElement('nodel-editor');
+    document.body.append(second);
+    await waitFor(() => codeEditorMock.instance.setDocument.mock.calls.filter((call) => call[1] === 'script.py').length >= 2);
+
+    codeEditorMock.currentDoc = 'print("first editor")';
+    (first as any).handleEditorChange(codeEditorMock.currentDoc);
+    void (first as any).saveSelectedFile();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+
+    codeEditorMock.currentDoc = 'print("second editor")';
+    (second as any).handleEditorChange(codeEditorMock.currentDoc);
+    await (second as any).saveSelectedFile();
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+
+    pendingSave.resolve('');
+    await waitFor(() => (second as any).scriptReloadState === 'pending');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+    expect((second as any).scriptReloadState).toBe('pending');
+  });
+
+  it('keeps a committed global expectation after its initiating editor disconnects', async () => {
+    const first = await mountEditor();
+    const second = document.createElement('nodel-editor');
+    document.body.append(second);
+    await waitFor(() => codeEditorMock.instance.setDocument.mock.calls.filter((call) => call[1] === 'script.py').length >= 2);
+
+    codeEditorMock.currentDoc = 'print("owner save")';
+    (first as any).handleEditorChange(codeEditorMock.currentDoc);
+    void (first as any).saveSelectedFile();
+    await waitFor(() => (first as any).scriptReloadState === 'pending');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+
+    first.remove();
+    codeEditorMock.currentDoc = 'print("second save")';
+    (second as any).handleEditorChange(codeEditorMock.currentDoc);
+    await (second as any).saveSelectedFile();
+
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+    expect((second as any).scriptReloadState).toBe('pending');
+  });
+
+  it('does not issue script save when the reload baseline cannot be captured', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("baseline failure")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    editorApiMock.getNodeRestartStatus.mockRejectedValueOnce(new Error('node unavailable'));
+
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => document.body.textContent?.includes('script.py was not saved') ?? false);
+
+    expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
+    expect(codeEditorMock.currentDoc).toBe('print("baseline failure")');
+    expect(editor).toBeTruthy();
   });
 
   it('creates files from linked add-file state', async () => {
@@ -364,6 +474,174 @@ describe('nodel-editor', () => {
     expect(editorApiMock.getNodeFileContents).toHaveBeenCalledTimes(1);
   });
 
+  it('replaces an unchanged clean script buffer only after confirmed reload', async () => {
+    const editor = await mountEditor();
+    editorApiMock.files = [{ path: 'script.py', modified: 'after-reload', size: 20 }];
+    editorApiMock.contents.set('script.py', 'print("server revision")');
+
+    const result = await (editor as any).refreshAfterRestart({
+      expectation: { id: 10, generation: 10, baselineTimestamp: 'start-1', state: 'refreshing' },
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-2' }
+    });
+
+    expect(result).toEqual({ status: 'verified' });
+    expect(codeEditorMock.currentDoc).toBe('print("server revision")');
+    expect(editor.textContent).not.toContain('Node reloaded. View is up to date.');
+    expect(editor.textContent).not.toContain('View refreshed.');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+  });
+
+  it('retains newer script edits and updates metadata when confirmed remote content matches the saved baseline', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("saved revision")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    await waitFor(() => (editor as any).scriptReloadState === 'pending');
+
+    codeEditorMock.currentDoc = 'print("newer local revision")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    editorApiMock.files = [{ path: 'script.py', modified: 'after-reload', size: 22 }];
+    editorApiMock.contents.set('script.py', 'print("saved revision")');
+    const result = await (editor as any).refreshAfterRestart({
+      expectation: {
+        id: (editor as any).scriptExpectationId,
+        generation: (editor as any).scriptExpectationGeneration,
+        baselineTimestamp: 'start-1',
+        state: 'refreshing'
+      },
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-2' }
+    });
+
+    expect(result).toMatchObject({ status: 'dirty-preserved' });
+    expect(codeEditorMock.currentDoc).toBe('print("newer local revision")');
+    expect(editor.textContent).toContain('newer local edits remain unsaved');
+    (editor as any).handleRestartEvent({
+      type: 'expected-verified',
+      expectation: {
+        id: (editor as any).scriptExpectationId,
+        generation: (editor as any).scriptExpectationGeneration,
+        baselineTimestamp: 'start-1',
+        state: 'idle'
+      },
+      result
+    });
+    expect(editor.textContent).not.toContain('Node reloaded. Newer local edits remain unsaved.');
+    expect((editor as any).openedModified).toBe('after-reload');
+  });
+
+  it('auto-dismisses transient editor status pill notices', async () => {
+    const editor = await mountEditor();
+    vi.useFakeTimers();
+
+    (editor as any).setState({ notice: true, status: 'Files refreshed.' });
+    expect(document.querySelector<HTMLElement>('.nodel-editor-status')?.hidden).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(3500);
+
+    expect(document.querySelector<HTMLElement>('.nodel-editor-status')?.hidden).toBe(true);
+    expect(editor.textContent).not.toContain('Files refreshed.');
+  });
+
+  it('preserves local script text and reports conflict or failure during confirmed reconciliation', async () => {
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("local revision")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    editorApiMock.contents.set('script.py', 'print("different remote revision")');
+    const conflict = await (editor as any).refreshAfterRestart({
+      expectation: { id: 11, generation: 11, baselineTimestamp: 'start-1', state: 'refreshing' },
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-2' }
+    });
+    expect(conflict).toMatchObject({ status: 'conflict' });
+    expect(codeEditorMock.currentDoc).toBe('print("local revision")');
+
+    (editor as any).handleRestartEvent({
+      type: 'expected-superseded',
+      expectation: { id: 11, generation: 11, baselineTimestamp: 'start-1', state: 'verification-failed' }
+    });
+    editorApiMock.listNodeFiles.mockRejectedValueOnce(new Error('refresh list failed'));
+    const failure = await (editor as any).refreshAfterRestart({
+      expectation: { id: 12, generation: 12, baselineTimestamp: 'start-1', state: 'refreshing' },
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-3' }
+    });
+    expect(failure).toMatchObject({ status: 'failed' });
+    expect(codeEditorMock.currentDoc).toBe('print("local revision")');
+  });
+
+  it('does not duplicate reload lifecycle text inside the editor', async () => {
+    const editor = await mountEditor();
+    const expectation = { id: 51, generation: 51, baselineTimestamp: 'start-1', state: 'pending' as const };
+
+    (editor as any).handleRestartEvent({ type: 'expected-pending', expectation });
+    expect(editor.textContent).not.toContain('script.py saved. Waiting for node reload.');
+    expect(editor.textContent).not.toContain('Newer edits stay local');
+
+    (editor as any).handleRestartEvent({
+      type: 'expected-verification-failed',
+      expectation: { ...expectation, state: 'verification-failed' as const },
+      result: { status: 'failed' as const, detail: 'Parameters failed' }
+    });
+
+    expect(editor.textContent).not.toContain('Node reloaded, but view verification failed');
+    expect(editor.textContent).not.toContain('Local edits are preserved; check Console');
+  });
+
+  it('ignores an expectation A refresh when expectation B supersedes it during file-list await', async () => {
+    const pendingList = deferred<NodelFileEntry[]>();
+    const editor = await mountEditor();
+    editorApiMock.listNodeFiles.mockImplementationOnce(() => pendingList.promise);
+    const expectationA = { id: 41, generation: 41, baselineTimestamp: 'start-1', state: 'refreshing' as const };
+    const expectationB = { id: 42, generation: 42, baselineTimestamp: 'start-2', state: 'pending' as const };
+    const refreshPromise = (editor as any).refreshAfterRestart({
+      expectation: expectationA,
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-2' }
+    });
+    await waitFor(() => editorApiMock.listNodeFiles.mock.calls.length >= 2);
+
+    (editor as any).handleRestartEvent({ type: 'expected-superseded', expectation: expectationA });
+    (editor as any).handleRestartEvent({ type: 'expected-preparing', expectation: { id: expectationB.id, generation: expectationB.generation, baselineTimestamp: expectationB.baselineTimestamp } });
+    (editor as any).handleRestartEvent({ type: 'expected-pending', expectation: expectationB });
+    const statusAfterB = (editor as any).state.status;
+    const contentBefore = codeEditorMock.currentDoc;
+    const dirtyBefore = (editor as any).state.dirty;
+    pendingList.resolve(editorApiMock.files);
+    const result = await refreshPromise;
+
+    expect(result).toMatchObject({ status: 'superseded' });
+    expect(codeEditorMock.currentDoc).toBe(contentBefore);
+    expect((editor as any).state.dirty).toBe(dirtyBefore);
+    expect((editor as any).state.status).toBe(statusAfterB);
+  });
+
+  it('ignores an expectation A content refresh when expectation B supersedes it during content await', async () => {
+    const pendingContent = deferred<string>();
+    const editor = await mountEditor();
+    codeEditorMock.currentDoc = 'print("local")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    editorApiMock.getNodeFileContents.mockImplementationOnce(() => pendingContent.promise);
+    const expectationA = { id: 51, generation: 51, baselineTimestamp: 'start-1', state: 'refreshing' as const };
+    const expectationB = { id: 52, generation: 52, baselineTimestamp: 'start-2', state: 'pending' as const };
+    const openedModifiedBefore = (editor as any).openedModified;
+    const refreshPromise = (editor as any).refreshAfterRestart({
+      expectation: expectationA,
+      detail: { previousTimestamp: 'start-1', timestamp: 'start-2' }
+    });
+    await waitFor(() => editorApiMock.getNodeFileContents.mock.calls.length >= 2);
+
+    (editor as any).handleRestartEvent({ type: 'expected-superseded', expectation: expectationA });
+    (editor as any).handleRestartEvent({ type: 'expected-preparing', expectation: { id: expectationB.id, generation: expectationB.generation, baselineTimestamp: expectationB.baselineTimestamp } });
+    (editor as any).handleRestartEvent({ type: 'expected-pending', expectation: expectationB });
+    const statusAfterB = (editor as any).state.status;
+    pendingContent.resolve('print("stale remote")');
+    const result = await refreshPromise;
+
+    expect(result).toMatchObject({ status: 'superseded' });
+    expect(codeEditorMock.currentDoc).toBe('print("local")');
+    expect((editor as any).openedModified).toBe(openedModifiedBefore);
+    expect((editor as any).state.dirty).toBe(true);
+    expect((editor as any).state.status).toBe(statusAfterB);
+  });
+
   it('ignores an abort-insensitive file list from a disconnected generation', async () => {
     let resolveFirst!: (files: Array<{ path: string }>) => void;
     editorApiMock.listNodeFiles
@@ -417,8 +695,85 @@ describe('nodel-editor', () => {
     await waitFor(() => document.body.textContent?.includes('newer edits remain unsaved') ?? false);
 
     expect(codeEditorMock.currentDoc).toBe('print("newer")');
-    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
     expect(editorApiMock.getNodeFileContents).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves edits after timeout and requires confirmation for a corrective save', async () => {
+    const editor = await mountEditor();
+    vi.useFakeTimers();
+    codeEditorMock.currentDoc = 'print("first revision")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await Promise.resolve();
+    }
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+    editorApiMock.contents.set('script.py', 'print("first revision")');
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await Promise.resolve();
+    }
+    const source = await import('../src/data/node-restart-source');
+    await vi.advanceTimersByTimeAsync(source.NODE_RESTART_EXPECTATION_TIMEOUT_MS);
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await Promise.resolve();
+    }
+    expect(document.body.textContent).not.toContain('corrective save is available');
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+
+    const confirmations = handleConfirmations(editor, [false, true]);
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await Promise.resolve();
+    }
+    expect(confirmations[0]?.title).toBe('Corrective script save?');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+
+    document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+    for (let attempt = 0; attempt < 20 && editorApiMock.saveNodeFile.mock.calls.length < 2; attempt += 1) {
+      await Promise.resolve();
+    }
+    expect(confirmations[1]?.title).toBe('Corrective script save?');
+    expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(2);
+    expect(codeEditorMock.currentDoc).toBe('print("first revision")');
+    vi.useRealTimers();
+  });
+
+  it('preserves the old unconfirmed expectation when a corrective script save fails', async () => {
+    const editor = await mountEditor();
+    vi.useFakeTimers();
+    const source = await import('../src/data/node-restart-source');
+    try {
+      codeEditorMock.currentDoc = 'print("first revision")';
+      codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+      document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        await Promise.resolve();
+      }
+      expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(1);
+      editorApiMock.contents.set('script.py', 'print("first revision")');
+
+      await vi.advanceTimersByTimeAsync(source.NODE_RESTART_EXPECTATION_TIMEOUT_MS);
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        await Promise.resolve();
+      }
+      expect(source.getNodeRestartExpectation()).toMatchObject({ state: 'unconfirmed' });
+
+      editorApiMock.saveNodeFile.mockRejectedValueOnce(new Error('script save response lost'));
+      handleConfirmations(editor, [true]);
+      document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
+      for (let attempt = 0; attempt < 24; attempt += 1) {
+        await Promise.resolve();
+      }
+
+      expect(editorApiMock.saveNodeFile).toHaveBeenCalledTimes(2);
+      expect(editor.textContent).toContain('script save response lost');
+      expect(source.getNodeRestartExpectation()).toMatchObject({ state: 'unconfirmed' });
+    } finally {
+      source.cancelNodeRestartExpectation(source.getNodeRestartExpectation());
+      vi.useRealTimers();
+    }
   });
 
   it('does not let a late save for file A mutate file B', async () => {
@@ -1017,6 +1372,10 @@ describe('nodel-editor', () => {
       { path: 'image.png' }
     ];
     const editor = await mountEditor();
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    picker.value = 'content/index.html';
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => codeEditorMock.currentDoc === '<nodel-app></nodel-app>');
     editorApiMock.listNodeFiles
       .mockResolvedValueOnce(editorApiMock.files)
       .mockRejectedValueOnce(new Error('metadata refresh failed'));
@@ -1027,17 +1386,17 @@ describe('nodel-editor', () => {
         : file);
       return '';
     });
-    codeEditorMock.currentDoc = 'print("first save")';
+    codeEditorMock.currentDoc = '<nodel-app>first save</nodel-app>';
     codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
     await waitFor(() => editor.textContent?.includes('metadata refresh failed') ?? false);
 
-    codeEditorMock.currentDoc = 'print("second save")';
+    codeEditorMock.currentDoc = '<nodel-app>second save</nodel-app>';
     codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 2);
-    expect(editorApiMock.saveNodeFile.mock.calls[1][1]).toBe('print("second save")');
+    expect(editorApiMock.saveNodeFile.mock.calls[1][1]).toBe('<nodel-app>second save</nodel-app>');
   });
 
   it('revalidates metadata-free binary size after delete confirmation', async () => {

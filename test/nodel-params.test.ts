@@ -591,6 +591,17 @@ describe('nodel-params', () => {
     expect(paramsMock.getNodeParams).toHaveBeenCalledTimes(2);
   });
 
+  it('reports a failed restart refresh while rendering the existing parameter error', async () => {
+    const element = await mountParams();
+    paramsMock.getNodeParamsSchema.mockRejectedValueOnce(new Error('Parameter schema unavailable'));
+    paramsMock.getNodeParams.mockResolvedValueOnce({});
+
+    const result = await (element as any).refreshAfterRestart();
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'Parameter schema unavailable' });
+    expect(element.textContent).toContain('Parameter schema unavailable');
+  });
+
   it('clears stale saving state when reconnected during an abort-insensitive save', async () => {
     paramsMock.getNodeParamsSchema.mockResolvedValue({
       type: 'object',

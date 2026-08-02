@@ -1,6 +1,24 @@
 import type { NodelFileEntry } from '../api/nodel-types';
 import { deleteNodeFile, getNodeFileContents, listNodeFiles, saveNodeFile } from '../api/nodel-host-client';
 import { requestConfirm } from '../data/confirm';
+import {
+  cancelNodeRestartExpectation,
+  activateNodeRestartExpectation,
+  commitNodeRestartExpectation,
+  getNodeRestartExpectation,
+  getNodeRestartScriptWriteState,
+  isNodeRestartExpectationPreparedForWrite,
+  NodeRestartScriptWriteBlockedError,
+  prepareNodeRestartExpectation,
+  subscribeNodeRestart,
+  type NodeRestartEvent,
+  type NodeRestartExpectation,
+  type NodeRestartExpectationState,
+  type NodeRestartRefreshContext,
+  type NodeRestartRefreshResult,
+  NodeRestartExpectationObsoleteError,
+  type PreparedNodeRestartExpectation
+} from '../data/node-restart-source';
 import type { NodelCodeEditor } from '../editor/codemirror-editor';
 import { EditorOperationCoordinator, type EditorOperationKind, type EditorOperationTicket } from '../editor/editor-operation-coordinator';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
@@ -36,6 +54,7 @@ interface EditorViewModel {
   loading: boolean;
   notice: boolean;
   pickerPath: string;
+  reloadStatus: string;
   saving: boolean;
   selectedPath: string;
   status: string;
@@ -43,6 +62,7 @@ interface EditorViewModel {
 }
 
 const binaryPlaceholder = 'Binary file - preview not available.';
+const EDITOR_TRANSIENT_NOTICE_MS = 3500;
 
 const template = `
   <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor space-y-3 is-error' : 'nodel-editor space-y-3'}">
@@ -87,6 +107,7 @@ const template = `
           {^{>status}}
         {{/if}}
       </div>
+      <div data-editor-reload-status role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-reload-status" hidden{:!reloadStatus}>{^{>reloadStatus}}</div>
       <section class="nodel-editor-main min-w-0">
         <div data-editor-host class="nodel-editor-host"></div>
       </section>
@@ -125,6 +146,7 @@ export class NodelEditor extends HTMLElement {
   private editor: NodelCodeEditor | null = null;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
+  private restartSubscription: { dispose(): void } | null = null;
   private linked = false;
   private originalContent = '';
   private openedModified: string | undefined;
@@ -134,7 +156,16 @@ export class NodelEditor extends HTMLElement {
   private suppressEditorChange = false;
   private unloadGuardActive = false;
   private selectedUpload: File | null = null;
+  private scriptExpectationCommitted = false;
+  private scriptExpectationGeneration: number | null = null;
+  private scriptExpectationId: number | null = null;
+  private preparationExpectationGeneration: number | null = null;
+  private preparationExpectationId: number | null = null;
+  private scriptExpectationOwned = false;
+  private ownedPreparedExpectation: PreparedNodeRestartExpectation | null = null;
+  private scriptReloadState: NodeRestartExpectationState = 'idle';
   private uploadFocusFrame: number | null = null;
+  private transientNoticeTimer: number | null = null;
   private dragCancellationListenersActive = false;
   private state: EditorViewModel = {
     addFilePath: '',
@@ -150,6 +181,7 @@ export class NodelEditor extends HTMLElement {
     loading: false,
     notice: false,
     pickerPath: '',
+    reloadStatus: '',
     saving: false,
     selectedPath: '',
     status: 'Loading files...',
@@ -159,6 +191,8 @@ export class NodelEditor extends HTMLElement {
   connectedCallback() {
     const scope = this.lifecycle.connect();
     if (scope) {
+      this.restartSubscription = subscribeNodeRestart(this.handleRestartEvent);
+      scope.own(this.restartSubscription);
       void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
     }
   }
@@ -181,6 +215,7 @@ export class NodelEditor extends HTMLElement {
         loading: false,
         notice: false,
         pickerPath: '',
+        reloadStatus: '',
         saving: false,
         selectedPath: '',
         status: '',
@@ -188,6 +223,20 @@ export class NodelEditor extends HTMLElement {
       });
     }
     this.operations.invalidateAll();
+    const expectation = this.ownedPreparedExpectation;
+    if (expectation && expectation.id === this.preparationExpectationId && this.scriptExpectationOwned) {
+      cancelNodeRestartExpectation(expectation);
+    }
+    this.restartSubscription?.dispose();
+    this.restartSubscription = null;
+    this.scriptExpectationCommitted = false;
+    this.scriptExpectationOwned = false;
+    this.ownedPreparedExpectation = null;
+    this.scriptExpectationGeneration = null;
+    this.scriptExpectationId = null;
+    this.preparationExpectationGeneration = null;
+    this.preparationExpectationId = null;
+    this.scriptReloadState = 'idle';
     this.lifecycle.disconnect();
     this.syncBusyState();
     this.removeEventListeners();
@@ -196,12 +245,38 @@ export class NodelEditor extends HTMLElement {
       window.cancelAnimationFrame(this.uploadFocusFrame);
       this.uploadFocusFrame = null;
     }
+    this.clearTransientNoticeTimer();
     this.linked = false;
   }
 
-  refreshAfterRestart() {
+  refreshAfterRestart(context?: NodeRestartRefreshContext): Promise<NodeRestartRefreshResult> {
     const scope = this.lifecycle.current;
-    return scope ? this.refreshFilesPreservingEditor(scope) : Promise.resolve();
+    if (!scope) {
+      return Promise.resolve({ status: 'failed', detail: 'Editor is not connected.' });
+    }
+    return this.refreshFilesAfterRestart(scope, context);
+  }
+
+  private restartRefreshIsCurrent(
+    scope: ConnectionScope,
+    ticket: EditorOperationTicket,
+    context?: NodeRestartRefreshContext,
+    secondaryTicket?: EditorOperationTicket
+  ) {
+    if (!this.operationIsCurrent(ticket, scope) || (secondaryTicket && !this.operationIsCurrent(secondaryTicket, scope))) {
+      return false;
+    }
+    if (!context) {
+      return true;
+    }
+    if (this.scriptExpectationId !== context.expectation.id
+      || this.scriptExpectationGeneration !== context.expectation.generation) {
+      return false;
+    }
+    const current = getNodeRestartExpectation();
+    return current === null
+      || (current.id === context.expectation.id
+        && current.generation === context.expectation.generation);
   }
 
   attributeChangedCallback() {
@@ -219,6 +294,7 @@ export class NodelEditor extends HTMLElement {
       return;
     }
     this.linked = true;
+    this.syncCurrentRestartExpectation();
     this.bindEventListeners();
     scope.own(() => this.removeEventListeners());
     const host = this.querySelector<HTMLElement>('[data-editor-host]');
@@ -276,8 +352,146 @@ export class NodelEditor extends HTMLElement {
 
   private setState(values: Partial<EditorViewModel>) {
     getJQuery().observable(this.state).setProperty(values);
+    this.syncTransientNotice(values);
     this.dataset.state = this.state.error ? 'error' : this.state.loading ? 'loading' : this.state.dirty ? 'dirty' : 'ready';
     this.syncUnloadGuard();
+  }
+
+  private clearTransientNoticeTimer() {
+    if (this.transientNoticeTimer !== null) {
+      window.clearTimeout(this.transientNoticeTimer);
+      this.transientNoticeTimer = null;
+    }
+  }
+
+  private syncTransientNotice(values: Partial<EditorViewModel>) {
+    if (values.notice === false || values.error || values.loading || values.saving || values.deleting) {
+      this.clearTransientNoticeTimer();
+      return;
+    }
+    if (!this.state.notice || this.state.error || this.state.loading || this.state.saving || this.state.deleting) {
+      return;
+    }
+
+    const status = this.state.status.trim();
+    if (!status) {
+      this.clearTransientNoticeTimer();
+      getJQuery().observable(this.state).setProperty({ notice: false });
+      return;
+    }
+
+    this.clearTransientNoticeTimer();
+    this.transientNoticeTimer = window.setTimeout(() => {
+      this.transientNoticeTimer = null;
+      if (this.state.notice
+        && this.state.status.trim() === status
+        && !this.state.error
+        && !this.state.loading
+        && !this.state.saving
+        && !this.state.deleting) {
+        this.setState({ notice: false, status: '' });
+      }
+    }, EDITOR_TRANSIENT_NOTICE_MS);
+  }
+
+  private handleRestartEvent = (event: NodeRestartEvent) => {
+    if (event.type === 'expected-preparing') {
+      this.preparationExpectationId = event.expectation.id;
+      this.preparationExpectationGeneration = event.expectation.generation;
+      this.scriptExpectationOwned = false;
+      this.scriptReloadState = 'pending';
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+    if (event.type === 'expected-pending' && this.acceptRestartExpectation(event.expectation.id)) {
+      this.scriptExpectationId = event.expectation.id;
+      this.scriptExpectationGeneration = event.expectation.generation;
+      this.preparationExpectationId = null;
+      this.preparationExpectationGeneration = null;
+      this.scriptExpectationCommitted = true;
+      this.scriptReloadState = event.expectation.state;
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+
+    if (event.type === 'expected-timeout' && this.acceptRestartExpectation(event.expectation.id)) {
+      this.scriptExpectationId = event.expectation.id;
+      this.scriptExpectationGeneration = event.expectation.generation;
+      this.scriptReloadState = event.expectation.state;
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+
+    if (event.type === 'expected-confirmed' && this.acceptRestartExpectation(event.expectation.id)) {
+      this.scriptExpectationId = event.expectation.id;
+      this.scriptExpectationGeneration = event.expectation.generation;
+      this.scriptReloadState = event.expectation.state;
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+
+    if (event.type === 'expected-verified' && this.acceptRestartExpectation(event.expectation.id)) {
+      this.scriptExpectationId = event.expectation.id;
+      this.scriptExpectationGeneration = event.expectation.generation;
+      this.scriptExpectationCommitted = false;
+      this.scriptExpectationOwned = false;
+      this.scriptReloadState = event.expectation.state;
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+
+    if (event.type === 'expected-verification-failed' && this.acceptRestartExpectation(event.expectation.id)) {
+      this.scriptExpectationId = event.expectation.id;
+      this.scriptExpectationGeneration = event.expectation.generation;
+      this.scriptReloadState = event.expectation.state;
+      this.setState({ reloadStatus: '' });
+      this.updateAvailability();
+      return;
+    }
+
+    if (event.type === 'expected-superseded' && event.expectation.id === this.scriptExpectationId) {
+      this.scriptExpectationCommitted = false;
+      this.scriptExpectationGeneration = null;
+      this.scriptExpectationId = null;
+      this.scriptReloadState = 'idle';
+      this.setState({ reloadStatus: '' });
+      this.syncCurrentRestartExpectation();
+      this.updateAvailability();
+    }
+    if (event.type === 'expected-superseded' && event.expectation.id === this.preparationExpectationId) {
+      this.scriptExpectationOwned = false;
+      this.ownedPreparedExpectation = null;
+      this.preparationExpectationGeneration = null;
+      this.preparationExpectationId = null;
+      this.scriptReloadState = 'idle';
+      this.setState({ reloadStatus: '' });
+      this.syncCurrentRestartExpectation();
+      this.updateAvailability();
+    }
+  };
+
+  private acceptRestartExpectation(expectationId: number) {
+    return this.scriptExpectationId === null || this.scriptExpectationId === expectationId;
+  }
+
+  private syncCurrentRestartExpectation() {
+    const expectation = getNodeRestartExpectation();
+    if (!expectation || expectation.state === 'idle') {
+      return;
+    }
+
+    this.scriptExpectationCommitted = true;
+    this.scriptExpectationOwned = false;
+    this.scriptExpectationGeneration = expectation.generation;
+    this.scriptExpectationId = expectation.id;
+    this.scriptReloadState = expectation.state;
+    this.setState({ reloadStatus: '' });
+    this.updateAvailability();
   }
 
   private refreshFileViews(files: NodelFileEntry[] = this.state.files) {
@@ -287,9 +501,22 @@ export class NodelEditor extends HTMLElement {
 
   private updateAvailability() {
     const busy = this.state.loading || this.state.saving || this.state.deleting;
+    const restartWriteState = getNodeRestartScriptWriteState();
+    const scriptReloadPending = this.state.selectedPath === 'script.py'
+      && (restartWriteState === 'preparing'
+        || restartWriteState === 'pending'
+        || restartWriteState === 'refreshing'
+        || this.scriptReloadState === 'pending'
+        || this.scriptReloadState === 'refreshing');
+    const correctiveScriptSave = this.state.selectedPath === 'script.py'
+      && (restartWriteState === 'unconfirmed' || this.scriptReloadState === 'unconfirmed');
     this.setState({
       canDelete: Boolean(this.state.selectedPath && portableNodeFilePathKey(this.state.selectedPath) !== 'script.py' && !busy),
-      canSave: Boolean(this.state.selectedPath && this.state.dirty && !this.state.binary && !busy)
+      canSave: Boolean(this.state.selectedPath
+        && !this.state.binary
+        && !busy
+        && !scriptReloadPending
+        && (this.state.dirty || correctiveScriptSave))
     });
   }
 
@@ -449,6 +676,163 @@ export class NodelEditor extends HTMLElement {
     } finally {
       this.finishOperation(ticket);
     }
+  }
+
+  private async refreshFilesAfterRestart(scope: ConnectionScope, context?: NodeRestartRefreshContext): Promise<NodeRestartRefreshResult> {
+    const selectedPath = this.state.selectedPath;
+    const revision = this.documentRevision;
+    const originalContent = this.originalContent;
+    const contentAtStart = this.editor?.getDocument() ?? '';
+    const dirtyAtStart = this.state.dirty;
+    const ticket = this.beginOperation('list', scope);
+    const currentExpectation = context ? getNodeRestartExpectation() : null;
+    if (context && currentExpectation
+      && (currentExpectation.id !== context.expectation.id
+        || currentExpectation.generation !== context.expectation.generation)) {
+      this.finishOperation(ticket);
+      return { status: 'superseded', detail: 'The node reload refresh is no longer current.' };
+    }
+    if (context && this.scriptExpectationId === null) {
+      this.scriptExpectationId = context.expectation.id;
+      this.scriptExpectationGeneration = context.expectation.generation;
+      this.scriptReloadState = context.expectation.state;
+    }
+    if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
+      this.finishOperation(ticket);
+      return { status: 'superseded', detail: 'The node reload refresh is no longer current.' };
+    }
+    this.setState({ error: '', status: context ? 'Refreshing view after node reload...' : 'Refreshing files...' });
+
+    try {
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
+        return { status: 'superseded', detail: 'The node reload refresh was superseded.' };
+      }
+
+      this.refreshFileViews(files);
+      const currentPath = this.state.selectedPath;
+      const currentContent = this.editor?.getDocument() ?? '';
+      const selectionChanged = currentPath !== selectedPath;
+      if (selectionChanged) {
+        return this.localRefreshResult(currentContent);
+      }
+
+      const selectedMissing = Boolean(selectedPath)
+        && !files.some((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(selectedPath));
+      if (selectedMissing) {
+        this.operations.invalidate('open');
+        this.documentRevision += 1;
+        this.openedModified = undefined;
+        this.openedSize = undefined;
+        this.metadataBaselineValid = false;
+        this.syncBusyState();
+        const orphan = toFileView({ path: selectedPath }, selectedPath, selectedPath);
+        orphan.missing = true;
+        getJQuery().observable(this.state.files).refresh([...this.state.files, orphan]);
+        this.setState({
+          dirty: true,
+          notice: true,
+          pickerPath: selectedPath,
+          status: `${selectedPath} no longer exists on the node; the local buffer remains unsaved.`
+        });
+        return { status: 'conflict', detail: `${selectedPath} is missing on the node.` };
+      }
+
+      this.setState({
+        pickerPath: selectedPath,
+        status: files.length ? (context ? '' : 'Files refreshed.') : 'No editable node files found.'
+      });
+
+      if (!context || selectedPath !== 'script.py') {
+        return this.localRefreshResult(this.editor?.getDocument() ?? '');
+      }
+
+      const remoteFile = files.find((file) => file.path === selectedPath);
+      if (!remoteFile) {
+        return { status: 'failed', detail: 'script.py was not available in the refreshed file list.' };
+      }
+
+      const contentTicket = this.beginOperation('open', scope);
+      try {
+        const remoteContent = await getNodeFileContents(selectedPath, { signal: contentTicket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+        if (!this.restartRefreshIsCurrent(scope, ticket, context, contentTicket)) {
+          return { status: 'superseded', detail: 'The script refresh was superseded.' };
+        }
+
+        const unchangedClean = selectedPath === this.state.selectedPath
+          && revision === this.documentRevision
+          && !dirtyAtStart
+          && !this.state.dirty
+          && contentAtStart === originalContent
+          && (this.editor?.getDocument() ?? '') === contentAtStart;
+        if (unchangedClean) {
+          this.setEditorDocument(remoteContent, selectedPath);
+          this.editor?.setReadOnly(false);
+          this.setSelectedState(selectedPath, remoteContent, false, false, '', remoteFile.modified, remoteFile.size);
+          this.setState({ notice: false, status: '' });
+          return { status: 'verified' };
+        }
+
+        const localContent = this.editor?.getDocument() ?? '';
+        if (remoteContent === originalContent) {
+          this.openedModified = remoteFile.modified;
+          this.openedSize = remoteFile.size;
+          this.metadataBaselineValid = true;
+          const dirty = localContent !== this.originalContent || this.state.dirty;
+          this.setState({
+            dirty,
+            notice: true,
+            status: 'View refreshed; newer local edits remain unsaved.'
+          });
+          this.refreshFileViews();
+          this.updateAvailability();
+          return { status: 'dirty-preserved', detail: 'Local editor changes were preserved.' };
+        }
+
+        this.metadataBaselineValid = false;
+        this.openedModified = undefined;
+        this.openedSize = undefined;
+        this.setState({
+          dirty: true,
+          notice: true,
+          status: 'Node reloaded, but remote script.py changed; local edits remain preserved for explicit resolution.'
+        });
+        this.refreshFileViews();
+        this.updateAvailability();
+        return { status: 'conflict', detail: 'Remote script.py differs from the saved baseline.' };
+      } catch (error) {
+        if (!this.restartRefreshIsCurrent(scope, ticket, context, contentTicket)) {
+          return { status: 'superseded', detail: 'The script refresh was superseded.' };
+        }
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return { status: 'aborted', detail: 'The script refresh was canceled.' };
+        }
+        const detail = error instanceof Error ? error.message : 'Failed to refresh script.py';
+        this.setState({ error: detail });
+        return { status: 'failed', detail };
+      } finally {
+        this.finishOperation(contentTicket);
+      }
+    } catch (error) {
+      if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
+        return { status: 'superseded', detail: 'The editor refresh was superseded.' };
+      }
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return { status: 'aborted', detail: 'The editor refresh was canceled.' };
+      }
+      const detail = error instanceof Error ? error.message : 'Failed to refresh files';
+      this.setState({ error: detail });
+      return { status: 'failed', detail };
+    } finally {
+      this.finishOperation(ticket);
+    }
+  }
+
+  private localRefreshResult(content: string): NodeRestartRefreshResult {
+    const dirty = this.state.dirty || content !== this.originalContent;
+    return dirty
+      ? { status: 'dirty-preserved', detail: 'Local editor changes were preserved.' }
+      : { status: 'verified' };
   }
 
   private defaultFilePath(files: NodelFileEntry[]) {
@@ -905,12 +1289,147 @@ export class NodelEditor extends HTMLElement {
     this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message } }));
   }
 
+  private currentScriptWriteState() {
+    return getNodeRestartScriptWriteState();
+  }
+
+  private async confirmCorrectiveScriptSave(
+    trigger: Element | null,
+    signal: AbortSignal,
+    isCurrent: () => boolean
+  ) {
+    const writeState = this.currentScriptWriteState();
+    if (writeState !== 'unconfirmed' && this.scriptReloadState !== 'unconfirmed') {
+      return true;
+    }
+
+    const confirmed = await requestConfirm(this, {
+      title: 'Corrective script save?',
+      text: 'The previous node reload was not confirmed. Save script.py again to replace the script and start a new reload expectation?',
+      confirmLabel: 'Save and reload',
+      cancelLabel: 'Cancel',
+      tone: 'warning'
+    }, trigger, signal);
+    if (!confirmed && isCurrent()) {
+      this.setState({ notice: true, status: 'Corrective save canceled; the previous reload remains unconfirmed.' });
+    }
+    return confirmed && isCurrent();
+  }
+
+  private async saveScriptFile(
+    content: BodyInit,
+    ticket: EditorOperationTicket,
+    scope: ConnectionScope,
+    beforeActivate: () => void
+  ) {
+    if (this.currentScriptWriteState() === 'pending'
+      || this.currentScriptWriteState() === 'refreshing'
+      || this.currentScriptWriteState() === 'preparing'
+      || this.scriptReloadState === 'pending'
+      || this.scriptReloadState === 'refreshing') {
+      throw new NodeRestartScriptWriteBlockedError();
+    }
+
+    let prepared: PreparedNodeRestartExpectation | null = null;
+    let committedExpectation: NodeRestartExpectation | null = null;
+    let committed = false;
+    try {
+      try {
+        prepared = await prepareNodeRestartExpectation({ signal: ticket.signal });
+      } catch (error) {
+        if (error instanceof NodeRestartScriptWriteBlockedError) {
+          throw error;
+        }
+        const detail = error instanceof Error ? error.message : 'The node reload baseline could not be read.';
+        throw new Error(`Could not capture the node reload baseline; script.py was not saved. ${detail}`);
+      }
+      if (!this.operationIsCurrent(ticket, scope)) {
+        throw new NodeRestartExpectationObsoleteError();
+      }
+
+      this.preparationExpectationId = prepared.id;
+      this.preparationExpectationGeneration = prepared.generation;
+      this.scriptExpectationCommitted = false;
+      this.scriptExpectationOwned = true;
+      this.ownedPreparedExpectation = prepared;
+      this.scriptReloadState = 'pending';
+      this.updateAvailability();
+      if (!isNodeRestartExpectationPreparedForWrite(prepared)) {
+        throw new NodeRestartExpectationObsoleteError();
+      }
+      await saveNodeFile('script.py', content, { signal: ticket.signal });
+      if (!this.operationIsCurrent(ticket, scope)) {
+        throw new NodeRestartExpectationObsoleteError();
+      }
+
+      committedExpectation = commitNodeRestartExpectation(prepared, false);
+      if (!committedExpectation) {
+        throw new NodeRestartExpectationObsoleteError();
+      }
+      beforeActivate();
+      if (!activateNodeRestartExpectation(committedExpectation.id, committedExpectation.generation)) {
+        throw new NodeRestartExpectationObsoleteError();
+      }
+      committed = true;
+      this.scriptExpectationOwned = false;
+      this.ownedPreparedExpectation = null;
+      this.scriptExpectationCommitted = true;
+      return committedExpectation;
+    } catch (error) {
+      if (committedExpectation && !committed) {
+        cancelNodeRestartExpectation(committedExpectation);
+      } else if (prepared && !committed) {
+        cancelNodeRestartExpectation(prepared);
+        this.restoreRestartStateAfterPreparation(prepared);
+      }
+      throw error;
+    }
+  }
+
+  private restoreRestartStateAfterPreparation(prepared: PreparedNodeRestartExpectation) {
+    if (this.preparationExpectationId !== prepared.id) {
+      return;
+    }
+    this.scriptExpectationOwned = false;
+    this.ownedPreparedExpectation = null;
+    this.preparationExpectationGeneration = null;
+    this.preparationExpectationId = null;
+    this.scriptReloadState = 'idle';
+    this.setState({ reloadStatus: '' });
+    this.syncCurrentRestartExpectation();
+    this.updateAvailability();
+  }
+
+  private installSavedScriptRevision(path: string, content: BodyInit, revision: number) {
+    if (path !== 'script.py' || typeof content !== 'string' || this.state.selectedPath !== path) {
+      return;
+    }
+    this.originalContent = content;
+    const newerEditsRemain = this.documentRevision !== revision || (this.editor?.getDocument() ?? '') !== content;
+    this.setState({
+      dirty: newerEditsRemain,
+      notice: newerEditsRemain,
+      status: newerEditsRemain
+        ? `Saved previous revision of ${path}; newer edits remain unsaved.`
+        : `Saved ${path}.`
+    });
+    this.openedModified = undefined;
+    this.openedSize = undefined;
+    this.metadataBaselineValid = false;
+    this.refreshFileViews();
+  }
+
   async saveSelectedFile() {
     const scope = this.lifecycle.current;
+    const selectedPath = this.state.selectedPath;
+    const isScriptPath = selectedPath === 'script.py';
+    const globalWriteState = this.currentScriptWriteState();
+    const correctiveScriptSave = isScriptPath
+      && (globalWriteState === 'unconfirmed' || this.scriptReloadState === 'unconfirmed');
     if (!scope
-      || !this.state.selectedPath
+      || !selectedPath
       || this.state.binary
-      || !this.state.dirty
+      || (!this.state.dirty && !correctiveScriptSave)
       || this.state.deleting
       || this.operations.isActive('list')
       || this.operations.isActive('open')
@@ -919,20 +1438,42 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
-    const path = this.state.selectedPath;
-    const content = this.editor?.getDocument() ?? '';
-    if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
-      this.reportError(`${path} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit.`);
+    const path = selectedPath;
+    const isScriptSave = path === 'script.py';
+    if (isScriptSave && (this.currentScriptWriteState() === 'pending'
+      || this.currentScriptWriteState() === 'refreshing'
+      || this.currentScriptWriteState() === 'preparing'
+      || this.scriptReloadState === 'pending'
+      || this.scriptReloadState === 'refreshing')) {
       return;
     }
-    const revision = this.documentRevision;
-    const originalContent = this.originalContent;
-    const openedModified = this.openedModified;
-    const openedSize = this.openedSize;
-    const metadataBaselineValid = this.metadataBaselineValid;
     const ticket = this.beginOperation('save', scope);
+    let content = '';
+    let revision = 0;
+    let originalContent = '';
+    let openedModified: string | undefined;
+    let openedSize: number | undefined;
+    let metadataBaselineValid = false;
     this.setState({ error: '', notice: false, status: `Checking ${path} for remote changes...` });
     try {
+      if (isScriptSave && !await this.confirmCorrectiveScriptSave(
+        this.querySelector('[data-editor-save]'),
+        ticket.signal,
+        () => this.operationIsCurrent(ticket, scope)
+      )) {
+        return;
+      }
+
+      content = this.editor?.getDocument() ?? '';
+      if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
+        throw new Error(`${path} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit.`);
+      }
+      revision = this.documentRevision;
+      originalContent = this.originalContent;
+      openedModified = this.openedModified;
+      openedSize = this.openedSize;
+      metadataBaselineValid = this.metadataBaselineValid;
+
       const files = await listNodeFiles({ signal: ticket.signal });
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
@@ -978,7 +1519,13 @@ export class NodelEditor extends HTMLElement {
       }
 
       this.setState({ status: `Saving ${path}...` });
-      await saveNodeFile(path, content, { signal: ticket.signal });
+      if (isScriptSave) {
+        await this.saveScriptFile(content, ticket, scope, () => {
+          this.installSavedScriptRevision(path, content, revision);
+        });
+      } else {
+        await saveNodeFile(path, content, { signal: ticket.signal });
+      }
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
@@ -995,15 +1542,24 @@ export class NodelEditor extends HTMLElement {
         this.refreshFileViews();
       }
       this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path } }));
-      const refreshed = await this.refreshFilesPreservingEditor(scope, true);
-      if (this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path) {
-        if (refreshed) {
-          const refreshedFile = this.fileForPath(path);
-          this.openedModified = refreshedFile?.modified;
-          this.openedSize = refreshedFile?.size;
-          this.metadataBaselineValid = true;
-        } else {
-          this.metadataBaselineValid = false;
+      if (isScriptSave) {
+        // The pre-save metadata is no longer a valid baseline. The confirmed
+        // reload refresh obtains post-write metadata alongside its content
+        // decision, while the pending state blocks another script save.
+        this.openedModified = undefined;
+        this.openedSize = undefined;
+        this.metadataBaselineValid = false;
+      } else {
+        const refreshed = await this.refreshFilesPreservingEditor(scope, true);
+        if (this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path) {
+          if (refreshed) {
+            const refreshedFile = this.fileForPath(path);
+            this.openedModified = refreshedFile?.modified;
+            this.openedSize = refreshedFile?.size;
+            this.metadataBaselineValid = true;
+          } else {
+            this.metadataBaselineValid = false;
+          }
         }
       }
     } catch (error) {
@@ -1130,8 +1686,19 @@ export class NodelEditor extends HTMLElement {
       if (!requestIsCurrent()) {
         return;
       }
+      const isScriptSave = targetPath === 'script.py';
+      if (isScriptSave && !await this.confirmCorrectiveScriptSave(trigger, ticket.signal, requestIsCurrent)) {
+        return;
+      }
       this.setState({ status: `${existing ? 'Overwriting' : 'Creating'} ${targetPath}...` });
-      await saveNodeFile(targetPath, content, { signal: ticket.signal });
+      if (isScriptSave) {
+        const revision = this.documentRevision;
+        await this.saveScriptFile(content, ticket, scope, () => {
+          this.installSavedScriptRevision(targetPath, content, revision);
+        });
+      } else {
+        await saveNodeFile(targetPath, content, { signal: ticket.signal });
+      }
       if (!requestIsCurrent()) {
         return;
       }
@@ -1156,17 +1723,24 @@ export class NodelEditor extends HTMLElement {
         status: overwriteNotice || (existing ? `Overwrote ${targetPath}.` : `Created ${targetPath}.`)
       });
       this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path: targetPath } }));
-      const refreshed = await this.refreshFilesPreservingEditor(scope, true);
-      if (this.operationIsCurrent(ticket, scope)
-        && this.state.selectedPath
-        && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath)) {
-        if (refreshed) {
-          const refreshedFile = this.fileForPath(this.state.selectedPath);
-          this.openedModified = refreshedFile?.modified;
-          this.openedSize = refreshedFile?.size;
-          this.metadataBaselineValid = true;
-        } else {
-          this.metadataBaselineValid = false;
+      if (isScriptSave) {
+        this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path: targetPath } }));
+        this.openedModified = undefined;
+        this.openedSize = undefined;
+        this.metadataBaselineValid = false;
+      } else {
+        const refreshed = await this.refreshFilesPreservingEditor(scope, true);
+        if (this.operationIsCurrent(ticket, scope)
+          && this.state.selectedPath
+          && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath)) {
+          if (refreshed) {
+            const refreshedFile = this.fileForPath(this.state.selectedPath);
+            this.openedModified = refreshedFile?.modified;
+            this.openedSize = refreshedFile?.size;
+            this.metadataBaselineValid = true;
+          } else {
+            this.metadataBaselineValid = false;
+          }
         }
       }
     } catch (error) {

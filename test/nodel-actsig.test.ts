@@ -899,6 +899,17 @@ describe('nodel-actsig', () => {
     expect(document.querySelector('[data-actsig-override]')).toBeNull();
   });
 
+  it('reports a failed restart refresh while preserving the definitions error', async () => {
+    const element = await mountActSig();
+    actsigMock.getNodeActions.mockRejectedValueOnce(new Error('Restart actions unavailable'));
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+
+    const result = await (element as any).refreshAfterRestart();
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'Restart actions unavailable' });
+    expect(element.textContent).toContain('Restart actions unavailable');
+  });
+
   it('refreshes definitions after a node restart while preserving signal override mode', async () => {
     actsigMock.getNodeActions.mockResolvedValueOnce({
       Power: { name: 'Power', title: 'Power', schema: { type: 'boolean' } }

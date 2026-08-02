@@ -63,6 +63,16 @@ describe('nodel-description', () => {
     expect(element.querySelector<HTMLButtonElement>('[data-description-toggle]')?.parentElement?.hidden).toBe(true);
   });
 
+  it('reports a failed restart refresh while preserving its local error behavior', async () => {
+    const element = await mount();
+    descriptionApiMock.getNodeDetails.mockRejectedValueOnce(new Error('Description unavailable'));
+
+    const result = await (element as any).refreshAfterRestart();
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'Description unavailable' });
+    expect(element.hidden).toBe(true);
+  });
+
   it('sanitizes unsafe HTML while preserving safe description links', async () => {
     descriptionApiMock.response = {
       name: 'Test Node',

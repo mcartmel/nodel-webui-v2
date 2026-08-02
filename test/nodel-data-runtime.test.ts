@@ -221,4 +221,89 @@ describe('nodel-data-runtime', () => {
     await expect(source.refresh()).resolves.toBeUndefined();
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
+
+  it('returns explicit failure results for restart refreshes without hiding local source errors', async () => {
+    const { host } = createPage(false);
+    const fetcher = vi.fn().mockResolvedValueOnce('initial').mockRejectedValueOnce(new Error('console unavailable'));
+    const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher });
+    const subscription = source.subscribe(host, () => undefined);
+    await waitFor(() => source.getState().data === 'initial');
+
+    const result = await source.refreshResult();
+
+    expect(result).toMatchObject({ status: 'failed', detail: 'console unavailable' });
+    expect(source.getState().error).toBe('console unavailable');
+    subscription.dispose();
+  });
+
+  it('reports a superseded result when a requested refresh is aborted by lifecycle visibility', async () => {
+    const { page, host } = createPage(false);
+    let resolveRefresh!: (value: string) => void;
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce('initial')
+      .mockImplementationOnce(() => new Promise<string>((resolve) => {
+        resolveRefresh = resolve;
+      }));
+    const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher });
+    const subscription = source.subscribe(host, () => undefined);
+    await waitFor(() => source.getState().data === 'initial');
+
+    const resultPromise = source.refreshResult();
+    await waitFor(() => fetcher.mock.calls.length === 2);
+    page.setAttribute('hidden', '');
+    resolveRefresh('stale');
+    const result = await resultPromise;
+
+    expect(['aborted', 'superseded']).toContain(result.status);
+    expect(source.getState().data).toBe('initial');
+    subscription.dispose();
+  });
+
+  it('distinguishes an absent optional source from an inactive hidden source', async () => {
+    const hiddenPage = createPage(true);
+    const hiddenSource = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher: vi.fn(async () => 'hidden') });
+    const hiddenSubscription = hiddenSource.subscribe(hiddenPage.host, () => undefined);
+    await expect(hiddenSource.refreshResult()).resolves.toMatchObject({ status: 'inactive' });
+    hiddenSubscription.dispose();
+
+    const absentSource = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher: vi.fn(async () => 'absent') });
+    await expect(absentSource.refreshResult()).resolves.toMatchObject({ status: 'absent' });
+  });
+
+  it('forces a bounded restart refresh for a hidden but subscribed source', async () => {
+    const { host } = createPage(true);
+    const fetcher = vi.fn(async () => 'forced');
+    const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher });
+    const subscription = source.subscribe(host, () => undefined);
+
+    await expect(source.refreshResult()).resolves.toMatchObject({ status: 'inactive' });
+    await expect(source.refreshResult({ force: true })).resolves.toMatchObject({ status: 'verified' });
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(source.getState().data).toBe('forced');
+    subscription.dispose();
+  });
+
+  it('does not run an unowned queued restart refresh after its signal aborts', async () => {
+    const { host } = createPage(false);
+    let resolveInitial!: (value: string) => void;
+    const fetcher = vi.fn().mockImplementationOnce(() => new Promise<string>((resolve) => {
+      resolveInitial = resolve;
+    }));
+    const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher });
+    const subscription = source.subscribe(host, () => undefined);
+    await waitFor(() => fetcher.mock.calls.length === 1);
+
+    const controller = new AbortController();
+    const queued = source.refreshResult({ signal: controller.signal });
+    controller.abort();
+    await expect(queued).resolves.toMatchObject({ status: 'aborted' });
+    resolveInitial('initial');
+    await flush();
+    await flush();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(source.getState().data).toBe('initial');
+    subscription.dispose();
+  });
 });

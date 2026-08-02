@@ -2,9 +2,20 @@ import { getNodeDetails } from '../api/nodel-host-client';
 import { NODEL_CONFIRM, type NodelConfirmDetail } from '../data/confirm';
 import { subscribeConnectivity, type NodelConnectivityState } from '../data/connectivity';
 import { getStoredTheme, getSystemThemeMediaQuery, isNodelTheme, resolveTheme, THEME_STORAGE_KEY } from '../theme/theme';
-import { refreshNodeActivity } from '../data/node-activity-source';
-import { refreshNodeConsole, resetNodeConsoleCursor } from '../data/node-console-source';
-import { isNodePage, watchNodeRestart, type NodeRestartDetail, type NodeRestartWatcher } from '../data/node-restart-source';
+import { refreshNodeActivityForRestart } from '../data/node-activity-source';
+import { refreshNodeConsoleForRestart, resetNodeConsoleCursor } from '../data/node-console-source';
+import type { NodelSourceRefreshResult } from '../data/nodel-data-runtime';
+import {
+  acquireNodeRestartPageOwner,
+  completeNodeRestartExpectation,
+  isNodePage,
+  watchNodeRestart,
+  type NodeRestartDetail,
+  type NodeRestartEvent,
+  type NodeRestartRefreshContext,
+  type NodeRestartRefreshResult,
+  type NodeRestartWatcher
+} from '../data/node-restart-source';
 import { NODEL_TOAST, type NodelToastDetail, type NodelToastHost } from './nodel-toast-host';
 import './nodel-confirm-host';
 import type { NodelConfirmHostElement } from './nodel-confirm-host';
@@ -36,7 +47,7 @@ interface NavigationDiscovery {
 }
 
 interface RestartRefreshElement extends Element {
-  refreshAfterRestart?: () => void | Promise<void>;
+  refreshAfterRestart?: (context?: NodeRestartRefreshContext) => void | boolean | NodeRestartRefreshResult | Promise<void | boolean | NodeRestartRefreshResult>;
 }
 
 interface ActivatablePage extends HTMLElement {
@@ -45,6 +56,82 @@ interface ActivatablePage extends HTMLElement {
 
 type ToastCustomEvent = CustomEvent<NodelToastDetail>;
 type ConfirmCustomEvent = CustomEvent<NodelConfirmDetail>;
+
+interface RestartRefreshOutcome {
+  label: string;
+  result: NodeRestartRefreshResult;
+}
+
+interface SourceRefreshOutcome {
+  label: string;
+  result: NodelSourceRefreshResult;
+}
+
+const restartRefreshLabels: Record<string, string> = {
+  'nodel-description': 'Description',
+  'nodel-actsig': 'Actions and signals',
+  'nodel-params': 'Parameters',
+  'nodel-bindings': 'Bindings',
+  'nodel-editor': 'Editor'
+};
+
+function messageFromUnknown(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
+}
+
+function restartRefreshLabel(element: Element) {
+  return restartRefreshLabels[element.localName] ?? element.localName;
+}
+
+function isRestartRefreshResult(value: unknown): value is NodeRestartRefreshResult {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  const status = (value as Partial<NodeRestartRefreshResult>).status;
+  return status === 'verified'
+    || status === 'dirty-preserved'
+    || status === 'conflict'
+    || status === 'failed'
+    || status === 'aborted'
+    || status === 'superseded';
+}
+
+function normalizeRestartRefreshOutcome(label: string, settled: PromiseSettledResult<void | boolean | NodeRestartRefreshResult>): RestartRefreshOutcome {
+  if (settled.status === 'rejected') {
+    return { label, result: { status: 'failed', detail: messageFromUnknown(settled.reason, `${label} refresh failed.`) } };
+  }
+
+  if (settled.value === true) {
+    return { label, result: { status: 'verified' } };
+  }
+  if (settled.value === false || settled.value === undefined) {
+    return { label, result: { status: 'failed', detail: `${label} did not report a verified refresh.` } };
+  }
+  if (isRestartRefreshResult(settled.value)) {
+    return { label, result: settled.value };
+  }
+
+  return { label, result: { status: 'failed', detail: `${label} returned an invalid refresh result.` } };
+}
+
+function normalizeSourceRefreshOutcome(label: string, settled: PromiseSettledResult<NodelSourceRefreshResult>): SourceRefreshOutcome {
+  if (settled.status === 'rejected') {
+    return { label, result: { status: 'failed', detail: messageFromUnknown(settled.reason, `${label} refresh failed.`) } };
+  }
+
+  if (settled.value && typeof settled.value === 'object') {
+    return { label, result: settled.value };
+  }
+
+  return { label, result: { status: 'failed', detail: `${label} returned an invalid refresh result.` } };
+}
+
+function formatRefreshIssues(outcomes: Array<RestartRefreshOutcome | SourceRefreshOutcome>) {
+  return outcomes
+    .map((outcome) => `${outcome.label}: ${outcome.result.detail ?? outcome.result.status}`)
+    .join(' ')
+    .slice(0, 500);
+}
 
 function isNodelPage(element: Element): element is HTMLElement {
   return element.localName === 'nodel-page';
@@ -94,6 +181,13 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private navigationQueued = false;
   private pageById = new Map<string, HTMLElement>();
   private restartWatcher: NodeRestartWatcher | null = null;
+  private restartPageOwner: { release(): void } | null = null;
+  private restartRefreshGeneration = 0;
+  private restartRefreshAbortController: AbortController | null = null;
+  private restartRefreshExpectationId: number | null = null;
+  private restartRefreshExpectationGeneration: number | null = null;
+  private restartDiagnosticsGeneration = 0;
+  private restartDiagnosticsAbortController: AbortController | null = null;
   private signalBindings = createSignalBindingController(this);
   private signalTitle: string | null = null;
   private systemThemeMediaQuery: MediaQueryList | null = null;
@@ -136,7 +230,8 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.mutationObserver.observe(this, { childList: true });
     this.queueNavigationSync();
     if (isNodePage()) {
-      this.restartWatcher = watchNodeRestart(this.handleNodeRestart);
+      this.restartPageOwner = acquireNodeRestartPageOwner();
+      this.restartWatcher = watchNodeRestart(this.handleNodeRestart, this.handleNodeRestartEvent);
     }
   }
 
@@ -156,8 +251,18 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     window.removeEventListener('hashchange', this.handleHashChange);
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
+    this.restartRefreshGeneration += 1;
+    this.restartRefreshAbortController?.abort();
+    this.restartRefreshAbortController = null;
+    this.restartRefreshExpectationId = null;
+    this.restartRefreshExpectationGeneration = null;
+    this.restartDiagnosticsGeneration += 1;
+    this.restartDiagnosticsAbortController?.abort();
+    this.restartDiagnosticsAbortController = null;
     this.restartWatcher?.dispose();
     this.restartWatcher = null;
+    this.restartPageOwner?.release();
+    this.restartPageOwner = null;
     this.connectivitySubscription?.dispose();
     this.connectivitySubscription = null;
     this.restoreConnectivityInert(false);
@@ -258,9 +363,14 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   };
 
   private handleEditorFileSaved = (event: Event) => {
+    const path = eventDetailValue(event, 'path');
+    if (path === 'script.py') {
+      this.showScriptReloadPending();
+      return;
+    }
     this.showToast({
       message: 'File saved',
-      detail: eventDetailValue(event, 'path'),
+      detail: path,
       tone: 'success'
     });
   };
@@ -302,6 +412,8 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   };
 
   private handleNodeRestart = (detail: NodeRestartDetail) => {
+    const refreshGeneration = ++this.restartRefreshGeneration;
+    const controller = this.beginRestartRefresh();
     this.showToast({
       id: 'node-restart-refresh',
       message: 'Node restarted. Refreshing view...',
@@ -312,37 +424,233 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       bubbles: true,
       detail
     }));
-    void this.refreshAfterNodeRestart();
+    void this.refreshAfterNodeRestart(detail, undefined, refreshGeneration, controller.signal).finally(() => {
+      if (this.restartRefreshAbortController === controller) {
+        this.restartRefreshAbortController = null;
+        this.restartRefreshExpectationId = null;
+        this.restartRefreshExpectationGeneration = null;
+      }
+    });
   };
 
-  private async refreshAfterNodeRestart() {
-    const refreshes = Array.from(this.querySelectorAll<RestartRefreshElement>(
+  private handleNodeRestartEvent = (event: NodeRestartEvent) => {
+    switch (event.type) {
+      case 'expected-preparing':
+        return;
+      case 'expected-pending':
+        if (this.restartRefreshAbortController
+          && (this.restartRefreshExpectationId !== event.expectation.id
+            || this.restartRefreshExpectationGeneration !== event.expectation.generation)) {
+          this.restartRefreshAbortController.abort();
+          this.restartRefreshAbortController = null;
+          this.restartRefreshExpectationId = null;
+          this.restartRefreshExpectationGeneration = null;
+          this.restartRefreshGeneration += 1;
+        }
+        this.showScriptReloadPending();
+        return;
+      case 'expected-timeout':
+        this.showToast({
+          id: 'node-restart-refresh',
+          message: 'Reload was not confirmed within 30 seconds.',
+          detail: 'Local edits are preserved. Check Console. A corrective save is available.',
+          tone: 'warning',
+          persistent: true
+        });
+        void this.refreshRestartDiagnostics(event.expectation.id, event.expectation.generation);
+        return;
+      case 'expected-confirmed':
+        {
+          const refreshGeneration = ++this.restartRefreshGeneration;
+          const controller = this.beginRestartRefresh(event.expectation.id, event.expectation.generation);
+          this.showToast({
+            id: 'node-restart-refresh',
+            message: 'Node restarted. Refreshing view...',
+            tone: 'info',
+            persistent: true
+          });
+          this.dispatchEvent(new CustomEvent('nodel-node-restarted', {
+            bubbles: true,
+            detail: {
+              ...event.detail,
+              expectation: event.expectation
+            }
+          }));
+          void this.refreshAfterNodeRestart(event.detail, {
+            expectation: event.expectation,
+            detail: event.detail
+          }, refreshGeneration, controller.signal).finally(() => {
+            if (this.restartRefreshAbortController === controller) {
+              this.restartRefreshAbortController = null;
+              this.restartRefreshExpectationId = null;
+              this.restartRefreshExpectationGeneration = null;
+            }
+          });
+          return;
+        }
+      case 'expected-superseded':
+        if (this.restartRefreshExpectationId === event.expectation.id
+          && this.restartRefreshExpectationGeneration === event.expectation.generation) {
+          this.restartRefreshAbortController?.abort();
+          this.restartRefreshAbortController = null;
+          this.restartRefreshExpectationId = null;
+          this.restartRefreshExpectationGeneration = null;
+          this.restartRefreshGeneration += 1;
+        }
+        if (this.restartDiagnosticsAbortController
+          && this.restartDiagnosticsExpectationId === event.expectation.id
+          && this.restartDiagnosticsExpectationGeneration === event.expectation.generation) {
+          this.restartDiagnosticsAbortController.abort();
+          this.restartDiagnosticsAbortController = null;
+          this.restartDiagnosticsExpectationId = null;
+          this.restartDiagnosticsExpectationGeneration = null;
+          this.restartDiagnosticsGeneration += 1;
+        }
+        return;
+      case 'expected-verified':
+      case 'expected-verification-failed':
+        return;
+      case 'restart':
+        return;
+    }
+  };
+
+  private showScriptReloadPending() {
+    this.showToast({
+      id: 'node-restart-refresh',
+      message: 'script.py saved. Waiting for node reload...',
+      detail: 'Newer edits stay local while the reload is pending.',
+      tone: 'info',
+      persistent: true
+    });
+  };
+
+  private beginRestartRefresh(expectationId: number | null = null, expectationGeneration: number | null = null) {
+    this.restartRefreshAbortController?.abort();
+    this.restartDiagnosticsAbortController?.abort();
+    this.restartDiagnosticsAbortController = null;
+    this.restartDiagnosticsExpectationId = null;
+    this.restartDiagnosticsExpectationGeneration = null;
+    this.restartDiagnosticsGeneration += 1;
+    const controller = new AbortController();
+    this.restartRefreshAbortController = controller;
+    this.restartRefreshExpectationId = expectationId;
+    this.restartRefreshExpectationGeneration = expectationGeneration;
+    return controller;
+  }
+
+  private async refreshAfterNodeRestart(
+    detail: NodeRestartDetail,
+    context?: NodeRestartRefreshContext,
+    refreshGeneration = this.restartRefreshGeneration,
+    signal?: AbortSignal
+  ) {
+    const refreshTargets = Array.from(this.querySelectorAll<RestartRefreshElement>(
       'nodel-description,nodel-actsig,nodel-params,nodel-bindings,nodel-editor'
     ))
-      .map((element) => {
+      .map((element) => ({
+        label: restartRefreshLabel(element),
+        refresh: (() => {
         try {
-          return element.refreshAfterRestart?.();
+          const refresh = element.refreshAfterRestart;
+          return Promise.resolve(refresh ? refresh.call(element, context) : undefined);
         } catch (error) {
           return Promise.reject(error);
         }
-      })
-      .filter((result): result is void | Promise<void> => result !== undefined);
+        })()
+      }));
 
-    const refreshResults = await Promise.allSettled(refreshes);
+    const refreshResults = await Promise.allSettled(refreshTargets.map((target) => target.refresh));
+    if (!this.isConnected || refreshGeneration !== this.restartRefreshGeneration) {
+      return;
+    }
     resetNodeConsoleCursor();
-    const sourceRefreshes = [
-      refreshNodeConsole(),
-      Promise.resolve().then(() => refreshNodeActivity())
+    const sourceRefreshTargets = [
+      {
+        label: 'Console',
+        refresh: Promise.resolve().then(() => refreshNodeConsoleForRestart({ signal, force: true }))
+      },
+      {
+        label: 'Activity',
+        refresh: Promise.resolve().then(() => refreshNodeActivityForRestart({ signal, force: true }))
+      }
     ];
-    const sourceResults = await Promise.allSettled(sourceRefreshes);
-    const failed = [...refreshResults, ...sourceResults].some((result) => result.status === 'rejected');
+    const sourceResults = await Promise.allSettled(sourceRefreshTargets.map((target) => target.refresh));
+    if (!this.isConnected || refreshGeneration !== this.restartRefreshGeneration) {
+      return;
+    }
+
+    const refreshOutcomes = refreshResults.map((result, index) => normalizeRestartRefreshOutcome(refreshTargets[index].label, result));
+    const sourceOutcomes = sourceResults.map((result, index) => normalizeSourceRefreshOutcome(sourceRefreshTargets[index].label, result));
+    const viewFailures = refreshOutcomes.filter((outcome) => outcome.result.status === 'failed'
+      || outcome.result.status === 'aborted'
+      || outcome.result.status === 'superseded');
+    const diagnosticIssues = sourceOutcomes.filter((outcome) => outcome.result.status !== 'verified'
+      && outcome.result.status !== 'absent');
+    const editorConflict = refreshOutcomes.some((outcome) => outcome.result.status === 'conflict');
+    const dirtyPreserved = refreshOutcomes.some((outcome) => outcome.result.status === 'dirty-preserved');
+    const conflictDetail = refreshOutcomes.find((outcome) => outcome.result.status === 'conflict')?.result.detail;
+    const failed = viewFailures.length > 0;
+    const diagnosticDetail = diagnosticIssues.length > 0
+      ? `Some diagnostics did not refresh: ${formatRefreshIssues(diagnosticIssues)}`
+      : '';
+    const failureDetail = failed
+      ? formatRefreshIssues(viewFailures)
+      : '';
+    const result: NodeRestartRefreshResult = failed
+      ? { status: 'failed', detail: failureDetail || 'One or more node-backed views failed verification.' }
+      : editorConflict
+        ? { status: 'conflict', detail: conflictDetail ?? 'A node-backed view could not reconcile its remote content.' }
+      : dirtyPreserved
+        ? { status: 'dirty-preserved', detail: 'Unsaved editor changes were preserved.' }
+        : { status: 'verified' };
+
+    if (context) {
+      if (!completeNodeRestartExpectation(context.expectation.id, result)) {
+        return;
+      }
+    }
 
     this.showToast({
       id: 'node-restart-refresh',
-      message: failed ? 'Node reloaded, but some sections failed to refresh.' : 'Node reloaded. View is up to date.',
-      tone: failed ? 'warning' : 'success',
-      durationMs: failed ? 7000 : 3500
+      message: failed
+        ? 'Node reloaded, but view verification failed. Local edits were preserved.'
+        : editorConflict
+          ? 'Node reloaded, but local editor content could not be reconciled. Local edits were preserved.'
+          : dirtyPreserved
+            ? 'Node reloaded. View refreshed; unsaved editor changes were preserved.'
+            : diagnosticIssues.length > 0
+              ? 'Node reloaded. View is up to date; diagnostics need refresh.'
+              : 'Node reloaded. View is up to date.',
+      detail: failed ? failureDetail : diagnosticDetail,
+      tone: failed || editorConflict || dirtyPreserved || diagnosticIssues.length > 0 ? 'warning' : 'success',
+      durationMs: failed || editorConflict || diagnosticIssues.length > 0 ? 7000 : dirtyPreserved ? 6000 : 3500
     });
+  }
+
+  private restartDiagnosticsExpectationId: number | null = null;
+  private restartDiagnosticsExpectationGeneration: number | null = null;
+
+  private async refreshRestartDiagnostics(expectationId: number, expectationGeneration: number) {
+    const generation = ++this.restartDiagnosticsGeneration;
+    this.restartDiagnosticsAbortController?.abort();
+    const controller = new AbortController();
+    this.restartDiagnosticsAbortController = controller;
+    this.restartDiagnosticsExpectationId = expectationId;
+    this.restartDiagnosticsExpectationGeneration = expectationGeneration;
+    resetNodeConsoleCursor();
+    await Promise.allSettled([
+      Promise.resolve().then(() => refreshNodeConsoleForRestart({ signal: controller.signal, force: true })),
+      Promise.resolve().then(() => refreshNodeActivityForRestart({ signal: controller.signal, force: true }))
+    ]);
+    if (this.restartDiagnosticsAbortController === controller
+      && generation === this.restartDiagnosticsGeneration
+      && this.restartDiagnosticsExpectationId === expectationId
+      && this.restartDiagnosticsExpectationGeneration === expectationGeneration) {
+      this.restartDiagnosticsAbortController = null;
+      this.restartDiagnosticsExpectationId = null;
+      this.restartDiagnosticsExpectationGeneration = null;
+    }
   }
 
   private ensureToastHost() {

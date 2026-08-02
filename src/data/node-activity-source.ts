@@ -5,6 +5,7 @@ import { getNodePathName } from '../utils/node-name';
 import { createActivityAccumulator } from './activity-accumulator';
 import { reportConnectivityFailure } from './connectivity';
 import { observeNodelVisibility } from './visibility-scope';
+import type { NodelSourceRefreshOptions, NodelSourceRefreshResult } from './nodel-data-runtime';
 
 export interface NodeActivityBatch {
   items: Array<{ entry: NodelActivityLogEntry; changed: boolean; live: boolean }>;
@@ -51,6 +52,18 @@ let activeMode: 'idle' | 'websocket' | 'poll' = 'idle';
 let connectionGeneration = 0;
 let activityEpoch = 0;
 const latestEntries = new Map<string, NodelActivityLogEntry>();
+let nextRefreshRequestId = 0;
+interface ActivityRefreshWaiter {
+  epoch: number;
+  resolve: (result: NodelSourceRefreshResult) => void;
+  timer: number;
+  signal?: AbortSignal;
+  abortListener?: () => void;
+  settled: boolean;
+}
+
+const refreshWaiters = new Map<number, ActivityRefreshWaiter>();
+const ACTIVITY_REFRESH_TIMEOUT_MS = 5_000;
 
 function activityEntryKey(entry: NodelActivityLogEntry) {
   return `${entry.source}_${entry.type}_${entry.alias}`;
@@ -140,7 +153,8 @@ function resetConnection() {
   connected = false;
 }
 
-function resetActivitySource() {
+function resetActivitySource(keepRequestId?: number) {
+  settleAllRefreshWaiters({ status: 'superseded', detail: 'The activity refresh was superseded.' }, keepRequestId);
   liveAccumulator.clear();
   latestEntries.clear();
   lastSeq = null;
@@ -152,11 +166,42 @@ function resetActivitySource() {
   evaluate();
 }
 
+function settleRefreshWaiters(result: NodelSourceRefreshResult, epoch = activityEpoch, keepRequestId?: number) {
+  for (const [requestId, waiter] of [...refreshWaiters]) {
+    if (requestId === keepRequestId || waiter.epoch !== epoch) {
+      continue;
+    }
+    window.clearTimeout(waiter.timer);
+    refreshWaiters.delete(requestId);
+    waiter.settled = true;
+    if (waiter.signal && waiter.abortListener) {
+      waiter.signal.removeEventListener('abort', waiter.abortListener);
+    }
+    waiter.resolve(result);
+  }
+}
+
+function settleAllRefreshWaiters(result: NodelSourceRefreshResult, keepRequestId?: number) {
+  for (const [requestId, waiter] of [...refreshWaiters]) {
+    if (requestId === keepRequestId) {
+      continue;
+    }
+    window.clearTimeout(waiter.timer);
+    refreshWaiters.delete(requestId);
+    waiter.settled = true;
+    if (waiter.signal && waiter.abortListener) {
+      waiter.signal.removeEventListener('abort', waiter.abortListener);
+    }
+    waiter.resolve(result);
+  }
+}
+
 function emit(batch: NodeActivityBatch | null, nextError = error) {
   if (batch) {
     updateCurrentBatch(batch);
     loading = false;
     error = '';
+    settleRefreshWaiters({ status: 'verified' });
   } else if (nextError !== error) {
     error = nextError;
   }
@@ -210,6 +255,49 @@ function activityNodeName() {
 
 function shouldRun() {
   return Boolean(activityNodeName()) && isVisible() && subscribers.size > 0;
+}
+
+function canForceRestartRefresh() {
+  return Boolean(activityNodeName()) && !document.hidden && navigator.onLine && subscribers.size > 0;
+}
+
+function abortResult(signal?: AbortSignal): NodelSourceRefreshResult | null {
+  return signal?.aborted ? { status: 'aborted', detail: 'The activity refresh was aborted.' } : null;
+}
+
+async function forceRefreshActivityForRestart(options: NodelSourceRefreshOptions): Promise<NodelSourceRefreshResult> {
+  const aborted = abortResult(options.signal);
+  if (aborted) {
+    return aborted;
+  }
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort();
+  options.signal?.addEventListener('abort', relayAbort, { once: true });
+  try {
+    const entries = await getNodeActivity({ from: -1 }, { signal: controller.signal });
+    if (options.signal?.aborted || controller.signal.aborted) {
+      return { status: 'aborted', detail: 'The activity refresh was aborted.' };
+    }
+    const normalized = normalizeEntries(entries);
+    lastSeq = normalized.length > 0 ? nextSeqFrom(normalized, null) : 0;
+    emit({
+      items: normalized.map((entry) => ({ entry, changed: false, live: false })),
+      replace: true,
+      transport: 'poll',
+      nextSeq: lastSeq
+    });
+    return { status: 'verified' };
+  } catch (caught) {
+    if (options.signal?.aborted || controller.signal.aborted || caught instanceof DOMException && caught.name === 'AbortError') {
+      return { status: 'aborted', detail: 'The activity refresh was aborted.' };
+    }
+    const detail = caught instanceof Error ? caught.message : 'Failed to refresh activity';
+    error = detail;
+    emit(null, detail);
+    return { status: 'failed', detail };
+  } finally {
+    options.signal?.removeEventListener('abort', relayAbort);
+  }
 }
 
 function scheduleReconnect() {
@@ -269,6 +357,7 @@ function runPoll() {
       }
       error = pollError instanceof Error ? pollError.message : 'Failed to load activity';
       emit(null);
+      settleRefreshWaiters({ status: 'failed', detail: error });
     } finally {
       if (!shouldRun() || generation !== connectionGeneration || controller.signal.aborted || activeMode !== 'poll') {
         return;
@@ -303,6 +392,7 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
     if (data.error) {
       error = data.error;
       emit(null);
+      settleRefreshWaiters({ status: 'failed', detail: data.error });
       return;
     }
 
@@ -512,4 +602,67 @@ export function subscribeNodeActivity(element: HTMLElement, listener: Listener) 
 
 export function refreshNodeActivity() {
   resetActivitySource();
+}
+
+export function refreshNodeActivityForRestart(options: NodelSourceRefreshOptions = {}): Promise<NodelSourceRefreshResult> {
+  if (options.signal?.aborted) {
+    return Promise.resolve({ status: 'aborted', detail: 'The activity refresh was aborted.' });
+  }
+  if (!shouldRun()) {
+    if (options.force && canForceRestartRefresh()) {
+      return forceRefreshActivityForRestart(options);
+    }
+    return Promise.resolve({
+      status: subscribers.size === 0 ? 'absent' as const : 'inactive' as const,
+      detail: subscribers.size === 0
+        ? 'The activity source has no subscribers.'
+        : 'The activity source has subscribers but none are active and visible.'
+    });
+  }
+
+  const requestId = ++nextRefreshRequestId;
+  let resolveRequest!: (result: NodelSourceRefreshResult) => void;
+  const result = new Promise<NodelSourceRefreshResult>((resolve) => {
+    resolveRequest = resolve;
+  });
+  const timer = window.setTimeout(() => {
+    const waiter = refreshWaiters.get(requestId);
+    if (!waiter || waiter.settled) {
+      return;
+    }
+    refreshWaiters.delete(requestId);
+    waiter.settled = true;
+    if (waiter.signal && waiter.abortListener) {
+      waiter.signal.removeEventListener('abort', waiter.abortListener);
+    }
+    waiter.resolve({ status: 'aborted', detail: 'Activity refresh did not settle before its bounded wait expired.' });
+  }, ACTIVITY_REFRESH_TIMEOUT_MS);
+  const waiter: ActivityRefreshWaiter = {
+    epoch: activityEpoch + 1,
+    resolve: resolveRequest,
+    timer,
+    signal: options.signal,
+    settled: false,
+    abortListener: undefined
+  };
+  waiter.abortListener = () => {
+    if (waiter.settled) {
+      return;
+    }
+    waiter.settled = true;
+    refreshWaiters.delete(requestId);
+    window.clearTimeout(waiter.timer);
+    waiter.resolve({ status: 'aborted', detail: 'The activity refresh was aborted.' });
+    if (waiter.epoch === activityEpoch) {
+      resetActivitySource();
+    }
+  };
+  options.signal?.addEventListener('abort', waiter.abortListener, { once: true });
+  refreshWaiters.set(requestId, waiter);
+  resetActivitySource(requestId);
+  const activeWaiter = refreshWaiters.get(requestId);
+  if (activeWaiter) {
+    activeWaiter.epoch = activityEpoch;
+  }
+  return result;
 }

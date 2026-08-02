@@ -119,6 +119,21 @@ describe('Nodel API response codecs', () => {
     expect(() => decodeSchema({ type: 'number', min: 5, max: 1 }, 'schema')).toThrow('minimum');
   });
 
+  it('normalizes legacy scalar schema hints to placeholder strings', () => {
+    const schema = decodeSchema({
+      type: 'object',
+      properties: {
+        port: {
+          type: 'integer',
+          hint: 9999
+        }
+      }
+    }, 'schema');
+
+    expect(schema.properties?.port.hint).toBe('9999');
+    expect(() => decodeSchema({ type: 'string', hint: Number.NaN }, 'schema')).toThrow('hint');
+  });
+
   it('isolates malformed discovery entries when valid advertisements remain', () => {
     expect(decodeNodeUrls([
       { node: 'Unsafe', address: 'javascript:alert(1)' },

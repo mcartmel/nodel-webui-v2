@@ -189,17 +189,40 @@ function normalizeOptionalStrings(record: Record<string, unknown>, keys: string[
   return result;
 }
 
+function optionalSchemaHint(record: Record<string, unknown>, context: string, path: string) {
+  const value = record.hint;
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    if (unsafeText.test(value)) {
+      invalid(context, `${path}.hint`, 'expected a string or finite scalar hint');
+    }
+    return value;
+  }
+  if ((typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean') {
+    return String(value);
+  }
+  invalid(context, `${path}.hint`, 'expected a string or finite scalar hint');
+}
+
+function normalizeOptionalSchemaText(record: Record<string, unknown>, context: string, path: string) {
+  const result = normalizeOptionalStrings(record, ['title', 'desc', 'format', 'group', 'caution'], context, path);
+  const hint = optionalSchemaHint(record, context, path);
+  if (hint === undefined) {
+    delete result.hint;
+  } else {
+    result.hint = hint;
+  }
+  return result;
+}
+
 function decodeSchemaAt(value: unknown, context: string, path: string, depth: number): NodelJsonSchema {
   if (depth > MAX_SCHEMA_DEPTH) {
     invalid(context, path, `schema exceeds ${MAX_SCHEMA_DEPTH} levels`);
   }
   const record = asRecord(value, context, path);
-  for (const key of ['title', 'desc', 'hint', 'format', 'group', 'caution'] as const) {
-    if (record[key] !== undefined && (typeof record[key] !== 'string' || unsafeText.test(record[key] as string))) {
-      invalid(context, `${path}.${key}`, 'expected a string');
-    }
-  }
-  const result = normalizeOptionalStrings(record, ['title', 'desc', 'hint', 'format', 'group', 'caution'], context, path);
+  const result = normalizeOptionalSchemaText(record, context, path);
   const type = record.type;
   if (typeof type === 'string' && !schemaTypes.has(type)) {
     invalid(context, `${path}.type`, 'expected a supported JSON schema type');
