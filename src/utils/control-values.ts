@@ -4,6 +4,20 @@ export type ControlArgType = 'string' | 'number' | 'boolean' | 'json';
 
 export const controlVariants: ControlVariant[] = ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'];
 export const controlTones: ControlTone[] = ['solid', 'soft', 'outline'];
+const truthyTokens = ['true', '1', 'on', 'yes', 'active', 'present', 'available', 'signal', 'disabled'] as const;
+const falseyTokens = ['', 'false', '0', 'off', 'no', 'inactive', 'absent', 'none'] as const;
+
+export interface ControlArgParseSuccess {
+  ok: true;
+  value: unknown;
+}
+
+export interface ControlArgParseFailure {
+  ok: false;
+  error: string;
+}
+
+export type ControlArgParseResult = ControlArgParseSuccess | ControlArgParseFailure;
 
 export function normalizeFromList<T extends string>(value: string | null, values: readonly T[], fallback: T): T {
   return values.includes(value as T) ? (value as T) : fallback;
@@ -17,14 +31,16 @@ export function normalizeTone(value: string | null): ControlTone {
   return normalizeFromList(value, controlTones, 'solid');
 }
 
+export function normalizeBooleanToken(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export function truthy(value: string) {
-  const normalized = value.trim().toLocaleLowerCase();
-  return normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes' || normalized === 'active' || normalized === 'present' || normalized === 'available' || normalized === 'signal' || normalized === 'disabled';
+  return (truthyTokens as readonly string[]).includes(normalizeBooleanToken(value));
 }
 
 export function falsey(value: string) {
-  const normalized = value.trim().toLocaleLowerCase();
-  return normalized === '' || normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no' || normalized === 'inactive' || normalized === 'absent' || normalized === 'none';
+  return (falseyTokens as readonly string[]).includes(normalizeBooleanToken(value));
 }
 
 export function parseBoolean(value: string) {
@@ -50,6 +66,33 @@ export function parseTypedArg(value: string, type: ControlArgType): unknown {
   }
 
   return value;
+}
+
+export function parseTypedArgStrict(value: string, type: ControlArgType): ControlArgParseResult {
+  if (type === 'number') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return { ok: false, error: 'Invalid number argument: (empty)' };
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed)
+      ? { ok: true, value: parsed }
+      : { ok: false, error: `Invalid number argument: ${trimmed}` };
+  }
+
+  if (type === 'boolean') {
+    return { ok: true, value: parseBoolean(value) };
+  }
+
+  if (type === 'json') {
+    try {
+      return { ok: true, value: JSON.parse(value) };
+    } catch {
+      return { ok: false, error: 'Invalid JSON argument' };
+    }
+  }
+
+  return { ok: true, value };
 }
 
 export function apiErrorMessage(error: unknown, fallback: string) {

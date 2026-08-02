@@ -1,9 +1,15 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { parseActionBindings } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
-import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, syncInheritedAttributes, truthy } from '../utils/control-values';
+import { normalizeFromList, normalizeTone, normalizeVariant, syncInheritedAttributes, truthy } from '../utils/control-values';
 import './nodel-button';
 import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColor, type NodelColorFormat } from '../utils/color';
 
@@ -12,6 +18,7 @@ type PaletteLabels = 'auto' | 'show' | 'hide';
 type PalettePicker = 'off' | 'native';
 type PaletteValueField = 'readonly' | 'editable' | 'hidden';
 type PaletteArgType = 'string' | 'json';
+type PaletteActionPhase = 'select' | 'live' | 'commit';
 
 const shapes: PaletteShape[] = ['square', 'rounded', 'circle'];
 const labelModes: PaletteLabels[] = ['auto', 'show', 'hide'];
@@ -225,7 +232,7 @@ export class NodelPalette extends HTMLElement {
     }
   }
 
-  private async selectValue(nextRawValue: string, source: HTMLElement = this) {
+  private async selectValue(nextRawValue: string, source: HTMLElement = this, phase: PaletteActionPhase = 'select') {
     if (this.hasAttribute('disabled')) {
       return;
     }
@@ -237,12 +244,23 @@ export class NodelPalette extends HTMLElement {
     const nextValue = sameValue && this.hasAttribute('allow-deselect') ? '' : canonicalValue;
     const argType = normalizeFromList(this.getAttribute('arg-type'), argTypes, 'string');
     const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex') as NodelColorFormat;
-    const payload = { arg: parsed && nextValue ? formatColor(parsed, format) : parseTypedArg(nextValue, argType) };
-    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'select' });
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    const payloadResult = parsed && nextValue
+      ? { ok: true as const, payload: { arg: formatColor(parsed, format) }, arg: formatColor(parsed, format) }
+      : buildActionPayload(nextValue, argType);
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: phase === 'select' ? 'select' : 'commit' });
+    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload: {}, committed: phase !== 'live', live: phase === 'live', error: payloadResult.error });
+      return;
+    }
+    const payload = payloadResult.payload;
     const confirmSource = shouldConfirm(source) ? source : this;
 
-    if (shouldConfirm(confirmSource)) {
+    if (phase === 'live' && shouldConfirm(confirmSource)) {
+      return;
+    }
+
+    if (phase !== 'live' && shouldConfirm(confirmSource)) {
       const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm colour', text: `Select ${nextValue || 'colour'}?`, tone: 'info' }), source.querySelector('button') ?? this.customButton);
       if (!confirmed) {
         return;
@@ -256,36 +274,32 @@ export class NodelPalette extends HTMLElement {
     if (bindings.length === 0) {
       this.customDraftActive = false;
       this.setAttribute('value', nextValue);
-      this.dispatchChange(action, nextValue, payload);
+      this.dispatchChange(action, phase, nextValue, payload);
       return;
     }
 
     try {
-      const execution = await callActionBindings(bindings, 'select', payload);
+      const execution = await executeActionPhases(bindings, [phase], payload);
       if (token !== this.selectionToken || !this.isConnected) {
         return;
       }
       if (execution.failures.length > 0) {
-        const detail = formatBindingFailures(execution.failures);
-        this.dispatchEvent(new CustomEvent('nodel-palette-error', { bubbles: true, detail: { action, value: nextValue, payload, failures: execution.failures, error: detail } }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: phase !== 'live', live: phase === 'live', failures: execution.failures });
         return;
       }
       this.customDraftActive = false;
       this.setAttribute('value', nextValue);
-      this.dispatchChange(action, nextValue, payload, execution.results);
+      this.dispatchChange(action, phase, nextValue, payload, execution.results);
     } catch (error) {
       if (token !== this.selectionToken || !this.isConnected) {
         return;
       }
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-palette-error', { bubbles: true, detail: { action, value: nextValue, payload, error: message } }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: phase !== 'live', live: phase === 'live', error: actionErrorMessage(error) });
     }
   }
 
-  private dispatchChange(action: string, value: string, payload: { arg: unknown }, results: unknown[] = []) {
-    this.dispatchEvent(new CustomEvent('nodel-palette-change', { bubbles: true, detail: { action, value, arg: payload.arg, payload, results } }));
+  private dispatchChange(action: string, phase: PaletteActionPhase, value: string, payload: Record<string, unknown>, results: unknown[] = []) {
+    this.dispatchEvent(new CustomEvent('nodel-palette-change', { bubbles: true, detail: { action, phase, phases: [phase], value, arg: payload.arg, payload, results, failures: [], committed: phase !== 'live', live: phase === 'live' } }));
   }
 
   private syncSignalSubscription() {
@@ -308,10 +322,6 @@ export class NodelPalette extends HTMLElement {
     }
     const option = target.closest<HTMLElement>('nodel-button');
     return option && option.parentElement === this.gridNode ? option : null;
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, { bubbles: true, detail }));
   }
 
   private handleOptionClick = (event: Event) => {
@@ -340,15 +350,16 @@ export class NodelPalette extends HTMLElement {
   private handleCustomValueKeyDown = (event: KeyboardEvent) => {
     if (this.valueFieldMode() === 'editable' && event.key === 'Enter' && !this.customInvalid) {
       event.preventDefault();
-      this.flushLiveSelection();
-      if (!this.hasAttribute('live')) {
-        void this.selectValue(formatColor(this.canonicalColor, 'hex'), this.customButton ?? this);
-      }
+      this.commitCustomValue();
     }
   };
 
   private handleCustomInteractionEnd = () => {
-    this.flushLiveSelection();
+    if (this.hasAttribute('live') && !this.customInvalid) {
+      this.commitCustomValue();
+    } else {
+      this.flushLiveSelection();
+    }
   };
 
   private handleCustomSelect = () => {
@@ -358,8 +369,8 @@ export class NodelPalette extends HTMLElement {
       this.customInvalid = false;
     }
     if (!this.customInvalid) {
-      if (this.hasAttribute('live') && this.pendingLiveSelection) {
-        this.flushLiveSelection();
+      if (this.hasAttribute('live')) {
+        this.commitCustomValue();
       } else {
         void this.selectValue(formatColor(this.canonicalColor, 'hex'), this.customButton ?? this);
       }
@@ -389,6 +400,11 @@ export class NodelPalette extends HTMLElement {
     if (scheduleLive && this.hasAttribute('live')) {
       this.scheduleLiveSelection(canonicalHex, this.customButton ?? this);
     }
+  }
+
+  private commitCustomValue() {
+    this.flushLiveSelection();
+    void this.selectValue(formatColor(this.canonicalColor, 'hex'), this.customButton ?? this, 'commit');
   }
 
   private liveInterval() {
@@ -432,7 +448,7 @@ export class NodelPalette extends HTMLElement {
     }
     this.pendingLiveSelection = null;
     this.lastLiveDispatchAt = Date.now();
-    void this.selectValue(pending.value, pending.source);
+    void this.selectValue(pending.value, pending.source, 'live');
   }
 
   private flushLiveSelection() {

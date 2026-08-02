@@ -1,10 +1,17 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { parseActionBindings } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { clampValue, formatValue, normalizeLevelUnit, normalizeStep, parseNumber, snapToStep } from '../utils/level-scale';
 import { accessibleLabelText, syncInternalAccessibleLabel } from '../utils/accessibility';
-import { apiErrorMessage, formatBindingFailures, formatPlainNumber, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy, type ControlArgType } from '../utils/control-values';
+import { formatPlainNumber, normalizeFromList, normalizeTone, normalizeVariant, truthy, type ControlArgType } from '../utils/control-values';
 
 type StepperRepeat = 'hold' | 'off';
 type StepperReadout = 'show' | 'hide';
@@ -25,6 +32,7 @@ export class NodelStepper extends HTMLElement {
   private repeatTimer: number | null = null;
   private repeatDirection: -1 | 1 | null = null;
   private repeatStartValue: string | null = null;
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.ensureShell();
@@ -39,6 +47,7 @@ export class NodelStepper extends HTMLElement {
 
   disconnectedCallback() {
     this.signalBindings.dispose();
+    this.actionController.invalidate();
     this.clearRepeat();
     this.decreaseNode?.removeEventListener('pointerdown', this.handleDecreasePointerDown);
     this.increaseNode?.removeEventListener('pointerdown', this.handleIncreasePointerDown);
@@ -131,7 +140,7 @@ export class NodelStepper extends HTMLElement {
 
   private payload(value: number) {
     const argType = normalizeFromList(this.getAttribute('arg-type'), argTypes, 'number');
-    return { arg: parseTypedArg(String(value), argType) };
+    return buildActionPayload(String(value), argType);
   }
 
   private async setValue(value: number, direction: -1 | 1 | 0, committed: boolean) {
@@ -141,6 +150,18 @@ export class NodelStepper extends HTMLElement {
     const { min, max } = this.range();
     const nextValue = clampValue(snapToStep(value, min, this.step()), min, max);
     const previousValue = committed && this.repeatStartValue !== null ? this.repeatStartValue : this.getAttribute('value');
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
+    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const directionPhase = direction === 1 ? 'increase' : direction === -1 ? 'decrease' : null;
+    const phases = committed
+      ? ['commit', ...(directionPhase ? [directionPhase] : [])]
+      : ['live'];
+    const token = this.actionController.nextToken();
+    const payloadResult = this.payload(nextValue);
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload: {}, committed, live: !committed, error: payloadResult.error });
+      return;
+    }
 
     if (shouldConfirm(this) && committed) {
       const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
@@ -149,15 +170,28 @@ export class NodelStepper extends HTMLElement {
         tone: 'info'
       }), direction === -1 ? this.decreaseNode : direction === 1 ? this.increaseNode : this.shellNode);
       if (!confirmed) {
+        if (previousValue === null) {
+          this.removeAttribute('value');
+        } else {
+          this.setAttribute('value', previousValue);
+        }
+        return;
+      }
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
         return;
       }
     }
 
-    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'change' });
-    const payload = this.payload(nextValue);
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    if (shouldConfirm(this) && !committed) {
+      this.setAttribute('value', String(nextValue));
+      this.dispatchChange(nextValue, committed, direction, payloadResult.payload);
+      return;
+    }
 
-    if (bindings.length === 0) {
+    const payload = payloadResult.payload;
+    const hasRemotePhase = bindings.some((binding) => phases.includes(binding.phase));
+
+    if (bindings.length === 0 || !hasRemotePhase) {
       this.setAttribute('value', String(nextValue));
       this.dispatchChange(nextValue, committed, direction, payload);
       return;
@@ -166,40 +200,39 @@ export class NodelStepper extends HTMLElement {
     this.setAttribute('value', String(nextValue));
 
     try {
-      const changeExecution = await callActionBindings(bindings, 'change', payload);
-      const phaseExecution = await callActionBindings(bindings, committed ? 'commit' : 'live', payload);
-      const directionExecution = direction === 1
-        ? await callActionBindings(bindings, 'increase', payload)
-        : direction === -1
-          ? await callActionBindings(bindings, 'decrease', payload)
-          : { results: [], failures: [] };
-      const failures = [...changeExecution.failures, ...phaseExecution.failures, ...directionExecution.failures];
-      if (failures.length > 0) {
-        const detail = formatBindingFailures(failures);
+      const execution = await executeActionPhases(bindings, phases, payload);
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
+      if (execution.failures.length > 0) {
         if (previousValue === null) {
           this.removeAttribute('value');
         } else {
           this.setAttribute('value', previousValue);
         }
-        this.dispatchEvent(new CustomEvent('nodel-stepper-error', { bubbles: true, detail: { action, value: nextValue, payload, failures, error: detail } }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload, arg: payloadResult.arg, committed, live: !committed, failures: execution.failures });
         return;
       }
-      this.dispatchChange(nextValue, committed, direction, payload, [...changeExecution.results, ...phaseExecution.results, ...directionExecution.results]);
+      this.dispatchChange(nextValue, committed, direction, payload, execution.results);
     } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
       if (previousValue === null) {
         this.removeAttribute('value');
       } else {
         this.setAttribute('value', previousValue);
       }
-      this.dispatchEvent(new CustomEvent('nodel-stepper-error', { bubbles: true, detail: { action, value: nextValue, payload, error: message } }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload, arg: payloadResult.arg, committed, live: !committed, error: actionErrorMessage(error) });
     }
   }
 
-  private dispatchChange(value: number, committed: boolean, direction: -1 | 1 | 0, payload: { arg: unknown }, results: unknown[] = []) {
-    this.dispatchEvent(new CustomEvent('nodel-stepper-change', { bubbles: true, detail: { value, committed, direction, arg: payload.arg, payload, results } }));
+  private dispatchChange(value: number, committed: boolean, direction: -1 | 1 | 0, payload: Record<string, unknown>, results: unknown[] = []) {
+    const directionPhase = direction === 1 ? 'increase' : direction === -1 ? 'decrease' : null;
+    const phases = committed
+      ? ['commit', ...(directionPhase ? [directionPhase] : [])]
+      : ['live'];
+    this.dispatchEvent(new CustomEvent('nodel-stepper-change', { bubbles: true, detail: { action: this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '', phase: phases[0], phases, value, committed, live: !committed, direction, arg: payload.arg, payload, results, failures: [] } }));
   }
 
   private startRepeat(event: PointerEvent, direction: -1 | 1) {
@@ -207,29 +240,31 @@ export class NodelStepper extends HTMLElement {
       return;
     }
     event.preventDefault();
+    const nextValue = this.currentValue() + this.step() * direction;
+    if (normalizeFromList(this.getAttribute('repeat'), ['hold', 'off'] as const, 'hold' as StepperRepeat) === 'off') {
+      this.repeatStartValue = this.getAttribute('value');
+      void this.setValue(nextValue, direction, true);
+      this.clearRepeat();
+      this.repeatStartValue = null;
+      return;
+    }
     if (this.repeatDirection === null) {
       this.repeatStartValue = this.getAttribute('value');
     }
     this.repeatDirection = direction;
-    void this.setValue(this.currentValue() + this.step() * direction, direction, false);
-    if (normalizeFromList(this.getAttribute('repeat'), ['hold', 'off'] as const, 'hold' as StepperRepeat) === 'hold') {
-      document.addEventListener('pointerup', this.handleRepeatEnd);
-      document.addEventListener('pointercancel', this.handleRepeatEnd);
-      const delay = Math.max(0, parseNumber(this.getAttribute('repeat-delay'), 300));
-      const interval = Math.max(50, parseNumber(this.getAttribute('repeat-interval'), 200));
-      this.repeatDelay = window.setTimeout(() => {
-        this.repeatDelay = null;
-        this.repeatTimer = window.setInterval(() => {
-          if (this.repeatDirection !== null) {
-            void this.setValue(this.currentValue() + this.step() * this.repeatDirection, this.repeatDirection, false);
-          }
-        }, interval);
-      }, delay);
-    } else {
-      void this.setValue(this.currentValue(), direction, true);
-      this.clearRepeat();
-      this.repeatStartValue = null;
-    }
+    void this.setValue(nextValue, direction, false);
+    document.addEventListener('pointerup', this.handleRepeatEnd);
+    document.addEventListener('pointercancel', this.handleRepeatEnd);
+    const delay = Math.max(0, parseNumber(this.getAttribute('repeat-delay'), 300));
+    const interval = Math.max(50, parseNumber(this.getAttribute('repeat-interval'), 200));
+    this.repeatDelay = window.setTimeout(() => {
+      this.repeatDelay = null;
+      this.repeatTimer = window.setInterval(() => {
+        if (this.repeatDirection !== null) {
+          void this.setValue(this.currentValue() + this.step() * this.repeatDirection, this.repeatDirection, false);
+        }
+      }, interval);
+    }, delay);
   }
 
   private endRepeat() {
@@ -263,10 +298,6 @@ export class NodelStepper extends HTMLElement {
       label: (value) => this.setAttribute('label', value),
       value: (value) => this.setAttribute('value', value)
     }, { join: this.getAttribute('join'), aggregators: { disabled: { evaluate: truthy } } });
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, { bubbles: true, detail }));
   }
 
   private handleDecreasePointerDown = (event: PointerEvent) => this.startRepeat(event, -1);

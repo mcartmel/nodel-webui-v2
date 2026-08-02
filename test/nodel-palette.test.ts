@@ -21,10 +21,15 @@ function emitSignal(alias: string, arg: unknown) {
 
 describe('nodel-palette', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     actionMock.callNodeAction.mockReset();
     actionMock.callNodeAction.mockResolvedValue({});
     activityMock.listeners = [];
     document.body.innerHTML = '';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders swatch options and selected state', async () => {
@@ -257,7 +262,7 @@ describe('nodel-palette', () => {
     expect(actionMock.callNodeAction).toHaveBeenLastCalledWith('SetColour', { arg: 'hsv(120, 100%, 100%)' });
   });
 
-  it('throttles live picker input, flushes the final change, and clamps its interval', async () => {
+  it('keeps implicit live picker actions for the final commit', async () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<nodel-palette picker="native" action="SetColour" live live-interval="10"></nodel-palette>';
     const palette = document.querySelector('nodel-palette') as HTMLElement;
@@ -267,7 +272,26 @@ describe('nodel-palette', () => {
     input.value = '#111111';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await Promise.resolve();
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await Promise.resolve();
     expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
+    expect(actionMock.callNodeAction).toHaveBeenLastCalledWith('SetColour', { arg: '#111111' });
+  });
+
+  it('throttles explicit live picker phases, flushes the final change, and clamps its interval', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<nodel-palette picker="native" actions="PreviewColour:live; SetColour:commit" live live-interval="10"></nodel-palette>';
+    const palette = document.querySelector('nodel-palette') as HTMLElement;
+    const input = palette.querySelector('.nodel-palette-custom-input') as HTMLInputElement;
+    expect(palette.dataset.liveInterval).toBe('50');
+
+    input.value = '#111111';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
+    expect(actionMock.callNodeAction).toHaveBeenLastCalledWith('PreviewColour', { arg: '#111111' });
     input.value = '#222222';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.value = '#333333';
@@ -276,14 +300,14 @@ describe('nodel-palette', () => {
 
     input.dispatchEvent(new Event('change', { bubbles: true }));
     await Promise.resolve();
-    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(2);
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(3);
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'PreviewColour', { arg: '#333333' });
     expect(actionMock.callNodeAction).toHaveBeenLastCalledWith('SetColour', { arg: '#333333' });
-    vi.useRealTimers();
   });
 
   it('cancels pending live picker dispatch on disconnect', async () => {
     vi.useFakeTimers();
-    document.body.innerHTML = '<nodel-palette picker="native" action="SetColour" live live-interval="100"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" actions="PreviewColour:live" live live-interval="100"></nodel-palette>';
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const input = palette.querySelector('.nodel-palette-custom-input') as HTMLInputElement;
     input.value = '#111111';
@@ -295,13 +319,12 @@ describe('nodel-palette', () => {
     await Promise.resolve();
 
     expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
   });
 
   it('keeps the final live value when action responses finish out of order', async () => {
     const resolvers: Array<() => void> = [];
     actionMock.callNodeAction.mockImplementation(() => new Promise<void>((resolve) => resolvers.push(resolve)));
-    document.body.innerHTML = '<nodel-palette picker="native" action="SetColour" live live-interval="100"></nodel-palette>';
+    document.body.innerHTML = '<nodel-palette picker="native" actions="PreviewColour:live; SetColour:commit" live live-interval="100"></nodel-palette>';
     const palette = document.querySelector('nodel-palette') as HTMLElement;
     const input = palette.querySelector('.nodel-palette-custom-input') as HTMLInputElement;
     input.value = '#111111';
@@ -309,8 +332,10 @@ describe('nodel-palette', () => {
     input.value = '#222222';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(resolvers).toHaveLength(2);
+    expect(resolvers).toHaveLength(3);
 
+    resolvers[2]();
+    await flush();
     resolvers[1]();
     await flush();
     resolvers[0]();

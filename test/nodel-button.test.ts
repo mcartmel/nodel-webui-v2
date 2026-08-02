@@ -223,6 +223,33 @@ describe('nodel-button', () => {
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetLevel', { arg: 42 });
   });
 
+  it('rejects invalid numeric and JSON args before calling actions', async () => {
+    document.body.innerHTML = '<nodel-button action="SetLevel" arg="not-a-number" arg-type="number">Set</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await Promise.resolve();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const error = vi.fn();
+    host.addEventListener('nodel-button-error', error);
+    host.querySelector('button')?.click();
+    await flush();
+
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+    expect(error.mock.calls[0][0].detail.error).toContain('Invalid number argument');
+
+    actionMock.callNodeAction.mockClear();
+    document.body.innerHTML = '<nodel-button action="SetPayload" arg="{" arg-type="json">Set</nodel-button>';
+    await flush();
+    const jsonHost = document.querySelector('nodel-button') as HTMLElement;
+    const jsonError = vi.fn();
+    jsonHost.addEventListener('nodel-button-error', jsonError);
+    jsonHost.querySelector('button')?.click();
+    await flush();
+
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+    expect(jsonError.mock.calls[0][0].detail.error).toBe('Invalid JSON argument');
+  });
+
   it('blocks duplicate clicks while busy', async () => {
     let resolveAction: () => void = () => undefined;
     actionMock.callNodeAction.mockReturnValue(new Promise<void>((resolve) => {

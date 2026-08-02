@@ -1,9 +1,16 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { parseActionBindings } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { DynamicOptionsController, type DynamicOptionsState } from '../data/dynamic-options';
 import { createSignalBindingController, parseSignalBindings, signalBindingKey } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
-import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, syncInheritedAttributes, truthy, type ControlArgType } from '../utils/control-values';
+import { normalizeFromList, normalizeTone, normalizeVariant, syncInheritedAttributes, truthy, type ControlArgType } from '../utils/control-values';
 import './nodel-button';
 
 type SelectArgType = ControlArgType;
@@ -29,6 +36,7 @@ export class NodelSelect extends HTMLElement {
   private inheritedOptionAttributes = new WeakMap<HTMLElement, Map<string, string>>();
   private placementListenersActive = false;
   private placementResizeObserver: ResizeObserver | null = null;
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.ensureShell();
@@ -43,6 +51,7 @@ export class NodelSelect extends HTMLElement {
   disconnectedCallback() {
     this.signalBindings.dispose();
     this.dynamicOptions?.dispose();
+    this.actionController.invalidate();
     this.optionsBindingKey = '';
     this.optionsSourceError = false;
     this.triggerNode?.removeEventListener('click', this.handleTriggerClick);
@@ -218,15 +227,25 @@ export class NodelSelect extends HTMLElement {
     const optionValue = this.optionValue(option);
     const currentValue = this.getAttribute('value') ?? '';
     const nextValue = currentValue === optionValue && this.hasAttribute('allow-deselect') ? '' : optionValue;
+    const token = this.actionController.nextToken();
     const argType = normalizeFromList(this.getAttribute('arg-type'), argTypes, 'string');
-    const payload = { arg: parseTypedArg(nextValue, argType) };
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'select' });
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const phase = 'select';
+    const payloadResult = buildActionPayload(nextValue, argType);
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, { eventName: 'nodel-select-error', action, phase, value: nextValue, payload: {}, committed: true, live: false, error: payloadResult.error });
+      return;
+    }
+    const payload = payloadResult.payload;
     const confirmSource = shouldConfirm(option) ? option : this;
 
     if (shouldConfirm(confirmSource)) {
       const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm selection', text: `Select ${option.textContent?.trim() || nextValue}?`, tone: 'info' }), option.querySelector('button'));
       if (!confirmed) {
+        return;
+      }
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
         return;
       }
     }
@@ -239,25 +258,27 @@ export class NodelSelect extends HTMLElement {
     }
 
     try {
-      const execution = await callActionBindings(bindings, 'select', payload);
+      const execution = await executeActionPhases(bindings, [phase], payload);
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
       if (execution.failures.length > 0) {
-        const detail = formatBindingFailures(execution.failures);
-        this.dispatchEvent(new CustomEvent('nodel-select-error', { bubbles: true, detail: { action, value: nextValue, payload, failures: execution.failures, error: detail } }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        dispatchControlActionError(this, { eventName: 'nodel-select-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, failures: execution.failures });
         return;
       }
       this.setAttribute('value', nextValue);
       this.removeAttribute('open');
       this.dispatchChange(action, nextValue, payload, execution.results);
     } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-select-error', { bubbles: true, detail: { action, value: nextValue, payload, error: message } }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
+      dispatchControlActionError(this, { eventName: 'nodel-select-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, error: actionErrorMessage(error) });
     }
   }
 
-  private dispatchChange(action: string, value: string, payload: { arg: unknown }, results: unknown[] = []) {
-    this.dispatchEvent(new CustomEvent('nodel-select-change', { bubbles: true, detail: { action, value, arg: payload.arg, payload, results } }));
+  private dispatchChange(action: string, value: string, payload: Record<string, unknown>, results: unknown[] = []) {
+    this.dispatchEvent(new CustomEvent('nodel-select-change', { bubbles: true, detail: { action, phase: 'select', phases: ['select'], value, arg: payload.arg, payload, results, failures: [], committed: true, live: false } }));
   }
 
   private syncSignalSubscription() {
@@ -347,10 +368,6 @@ export class NodelSelect extends HTMLElement {
     }
     const option = target.closest<HTMLElement>('nodel-button');
     return option && option.parentElement === this.panelNode ? option : null;
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, { bubbles: true, detail }));
   }
 
   private handleTriggerClick = () => {

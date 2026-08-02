@@ -93,6 +93,36 @@ describe('nodel-segmented', () => {
     expect(document.querySelectorAll('nodel-button')[1].hasAttribute('active')).toBe(true);
   });
 
+  it('ignores stale failed selections after a newer segmented selection succeeds', async () => {
+    let rejectFirst: (error: Error) => void = () => undefined;
+    actionMock.callNodeAction
+      .mockReturnValueOnce(new Promise<void>((_resolve, reject) => {
+        rejectFirst = reject;
+      }))
+      .mockResolvedValueOnce({});
+    document.body.innerHTML = `
+      <nodel-segmented action="SetSource">
+        <nodel-button value="A">A</nodel-button>
+        <nodel-button value="B">B</nodel-button>
+      </nodel-segmented>
+    `;
+    await customElements.whenDefined('nodel-segmented');
+    await flush();
+
+    const host = document.querySelector('nodel-segmented') as HTMLElement;
+    const error = vi.fn();
+    host.addEventListener('nodel-segmented-error', error);
+    document.querySelectorAll('nodel-button button')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    expect(host.getAttribute('value')).toBe('B');
+    rejectFirst(new Error('No route'));
+    await flush();
+    expect(host.getAttribute('value')).toBe('B');
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('uses join for shared action and selected value signal', async () => {
     document.body.innerHTML = `
       <nodel-segmented join="Source">

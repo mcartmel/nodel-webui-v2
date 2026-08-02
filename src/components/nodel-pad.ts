@@ -1,9 +1,16 @@
-import { callActionBindings, parseActionBindings, type ActionBinding } from '../data/action-bindings';
+import { parseActionBindings, type ActionBinding } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
-import { apiErrorMessage, formatBindingFailures, normalizeFromList, normalizeTone, normalizeVariant, parseTypedArg, truthy } from '../utils/control-values';
+import { normalizeFromList, normalizeTone, normalizeVariant, truthy } from '../utils/control-values';
 
 type PadCenter = 'auto' | 'show' | 'hide' | 'disabled';
 type PadPressMode = 'click' | 'momentary';
@@ -44,6 +51,7 @@ export class NodelPad extends HTMLElement {
   private activeDirection: PadDirection | null = null;
   private startingDirection: PadDirection | null = null;
   private releaseRequested = false;
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.ensureShell();
@@ -173,7 +181,7 @@ export class NodelPad extends HTMLElement {
   private payload(direction: PadDirection) {
     const raw = this.getAttribute(`${direction}-arg`) ?? direction;
     const argType = normalizeFromList(this.getAttribute('arg-type'), ['string', 'json'] as const, 'string');
-    return { arg: parseTypedArg(raw, argType) };
+    return buildActionPayload(raw, argType);
   }
 
   private bindings(direction: PadDirection, defaultPhase: string) {
@@ -188,27 +196,58 @@ export class NodelPad extends HTMLElement {
     if (this.hasAttribute('disabled') || (direction === 'center' && (this.hasAttribute('center-disabled') || this.centerMode() === 'disabled'))) {
       return false;
     }
+    const payloadResult = this.payload(direction);
+    const action = actionName(bindings);
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, {
+        eventName: 'nodel-pad-error',
+        action,
+        phase,
+        value: direction,
+        payload: {},
+        committed: phase !== 'press',
+        live: phase === 'press',
+        error: payloadResult.error
+      });
+      return false;
+    }
     if (phase !== 'release' && shouldConfirm(this)) {
       const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, { title: 'Confirm action', text: `Run ${this.getAttribute(`${direction}-label`) ?? directionLabels[direction]}?`, tone: 'info' }), this.button(direction));
       if (!confirmed) {
         return false;
       }
     }
-    const payload = this.payload(direction);
+    const payload = payloadResult.payload;
     try {
-      const execution = await callActionBindings(bindings, phase, payload);
+      const execution = await executeActionPhases(bindings, [phase], payload);
       if (execution.failures.length > 0) {
-        const detail = formatBindingFailures(execution.failures);
-        this.dispatchEvent(new CustomEvent('nodel-pad-error', { bubbles: true, detail: { direction, phase, payload, failures: execution.failures, error: detail } }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        dispatchControlActionError(this, {
+          eventName: 'nodel-pad-error',
+          action,
+          phase,
+          value: direction,
+          payload,
+          arg: payloadResult.arg,
+          committed: phase !== 'press',
+          live: phase === 'press',
+          failures: execution.failures
+        });
         return false;
       }
-      this.dispatchEvent(new CustomEvent('nodel-pad-action', { bubbles: true, detail: { direction, phase, payload, arg: payload.arg, results: execution.results } }));
+      this.dispatchEvent(new CustomEvent('nodel-pad-action', { bubbles: true, detail: { action, direction, phase, phases: [phase], value: direction, payload, arg: payloadResult.arg, results: execution.results, failures: [], committed: phase !== 'press', live: phase === 'press' } }));
       return true;
     } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-pad-error', { bubbles: true, detail: { direction, phase, payload, error: message } }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      dispatchControlActionError(this, {
+        eventName: 'nodel-pad-error',
+        action,
+        phase,
+        value: direction,
+        payload,
+        arg: payloadResult.arg,
+        committed: phase !== 'press',
+        live: phase === 'press',
+        error: actionErrorMessage(error)
+      });
       return false;
     }
   }
@@ -225,7 +264,7 @@ export class NodelPad extends HTMLElement {
     document.addEventListener('pointercancel', this.handleDocumentPointerUp);
     window.addEventListener('blur', this.handleWindowBlur);
     const bindings = this.bindings(direction, 'press');
-    const pressed = await this.submit(direction, 'press', bindings);
+    const pressed = await this.actionController.runSerial(() => this.submit(direction, 'press', bindings));
     this.startingDirection = null;
     if (!pressed) {
       this.clearMomentaryStart();
@@ -251,7 +290,7 @@ export class NodelPad extends HTMLElement {
     this.activeDirection = null;
     this.clearMomentaryStart();
     this.render();
-    void this.submit(direction, 'release', this.bindings(direction, 'release'));
+    void this.actionController.runSerial(() => this.submit(direction, 'release', this.bindings(direction, 'release')));
   }
 
   private clearMomentaryStart() {
@@ -268,10 +307,6 @@ export class NodelPad extends HTMLElement {
       disabled: (value) => truthy(value) ? this.setAttribute('disabled', '') : this.removeAttribute('disabled'),
       label: (value) => this.setAttribute('label', value)
     }, { aggregators: { disabled: { evaluate: truthy }, 'center-disabled': { evaluate: truthy } } });
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, { bubbles: true, detail }));
   }
 
   private handleClick = (event: Event) => {

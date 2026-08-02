@@ -1,7 +1,15 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { parseActionBindings } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
+import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
   clampValue,
   defaultRangeForUnit,
@@ -15,16 +23,16 @@ import {
   type LevelUnit
 } from '../utils/level-scale';
 import { throttle, type ThrottledFunction } from '../utils/throttle';
+import { normalizeFromList, normalizeTone, normalizeVariant, truthy, type ControlArgType } from '../utils/control-values';
 
 type FaderOrientation = 'vertical' | 'horizontal';
 type FaderReadout = 'show' | 'hide';
-type FaderArgType = 'number' | 'string' | 'json';
+type FaderArgType = Extract<ControlArgType, 'number' | 'string' | 'json'>;
 type FaderVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost';
 type FaderTone = 'solid' | 'soft' | 'outline';
 type FaderCompoundAlign = 'start' | 'center' | 'end';
 
-const variants: FaderVariant[] = ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost'];
-const tones: FaderTone[] = ['solid', 'soft', 'outline'];
+const argTypes: FaderArgType[] = ['number', 'string', 'json'];
 
 interface PointerDragState {
   pointerId: number;
@@ -41,18 +49,6 @@ function normalizeReadout(value: string | null): FaderReadout {
   return value === 'hide' ? 'hide' : 'show';
 }
 
-function normalizeArgType(value: string | null): FaderArgType {
-  return value === 'string' || value === 'json' ? value : 'number';
-}
-
-function normalizeVariant(value: string | null): FaderVariant {
-  return variants.includes(value as FaderVariant) ? (value as FaderVariant) : 'default';
-}
-
-function normalizeTone(value: string | null): FaderTone {
-  return tones.includes(value as FaderTone) ? (value as FaderTone) : 'solid';
-}
-
 function normalizeCompoundAlign(value: string | null): FaderCompoundAlign {
   if (value === 'start' || value === 'top' || value === 'left') {
     return 'start';
@@ -61,15 +57,6 @@ function normalizeCompoundAlign(value: string | null): FaderCompoundAlign {
     return 'center';
   }
   return 'end';
-}
-
-function truthy(value: string) {
-  const normalized = value.trim().toLocaleLowerCase();
-  return normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes' || normalized === 'disabled';
-}
-
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }
 
 function parseCssPixelValue(value: string, fallback: number): number {
@@ -85,7 +72,7 @@ function parseCssPixelValue(value: string, fallback: number): number {
 }
 
 export class NodelFader extends HTMLElement {
-  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'aria-labelledby', 'title'];
+  static observedAttributes = ['orientation', 'compound-align', 'variant', 'tone', 'min', 'max', 'step', 'unit', 'nudge', 'increment', 'action', 'actions', 'join', 'arg-type', 'signal', 'signals', 'value', 'disabled', 'readout', 'label', 'live-interval', 'aria-label', 'aria-labelledby', 'title', 'confirm', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone', 'confirm-mode', 'confirm-code-signal'];
 
   private shellReady = false;
   private shellNode: HTMLElement | null = null;
@@ -102,8 +89,10 @@ export class NodelFader extends HTMLElement {
   private drag: PointerDragState | null = null;
   private signalBindings = createSignalBindingController(this);
   private liveEmitter: ThrottledFunction<[number]> | null = null;
+  private liveEmitterInterval: number | null = null;
   private nudgeDelay: number | null = null;
   private nudgeRepeat: number | null = null;
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.ensureShell();
@@ -119,7 +108,10 @@ export class NodelFader extends HTMLElement {
 
   disconnectedCallback() {
     this.signalBindings.dispose();
+    this.actionController.invalidate();
     this.liveEmitter?.cancel();
+    this.liveEmitter = null;
+    this.liveEmitterInterval = null;
     this.trackNode?.removeEventListener('pointerdown', this.handlePointerDown);
     this.trackNode?.removeEventListener('keydown', this.handleKeyDown);
     this.decreaseNode?.removeEventListener('pointerdown', this.handleDecreasePointerDown);
@@ -210,8 +202,8 @@ export class NodelFader extends HTMLElement {
     const value = this.normalizedValue(min, max, step);
     const orientation = normalizeOrientation(this.getAttribute('orientation'));
     const compoundAlign = normalizeCompoundAlign(this.getAttribute('compound-align'));
-    const variant = normalizeVariant(this.getAttribute('variant'));
-    const tone = normalizeTone(this.getAttribute('tone'));
+    const variant = normalizeVariant(this.getAttribute('variant')) as FaderVariant;
+    const tone = normalizeTone(this.getAttribute('tone')) as FaderTone;
     const readout = normalizeReadout(this.getAttribute('readout'));
     const fraction = valueToFraction(value, min, max);
     const disabled = this.hasAttribute('disabled');
@@ -316,25 +308,20 @@ export class NodelFader extends HTMLElement {
   }
 
   private actionPayload(value: number) {
-    const argType = normalizeArgType(this.getAttribute('arg-type'));
-    if (argType === 'string') {
-      return { arg: String(value) };
-    }
-    if (argType === 'json') {
-      return { arg: value };
-    }
-    return { arg: value };
+    return buildActionPayload(String(value), normalizeFromList(this.getAttribute('arg-type'), argTypes, 'number'));
   }
 
   private emitLive(value: number) {
-    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'change' });
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
     if (bindings.length === 0) {
       this.dispatchChange(value, false);
       return;
     }
 
     const waitMs = this.liveInterval();
-    if (!this.liveEmitter) {
+    if (!this.liveEmitter || this.liveEmitterInterval !== waitMs) {
+      this.liveEmitter?.cancel();
+      this.liveEmitterInterval = waitMs;
       this.liveEmitter = throttle<[number]>((nextValue) => {
         void this.submitValue(nextValue, false);
       }, waitMs);
@@ -349,51 +336,69 @@ export class NodelFader extends HTMLElement {
   }
 
   private async submitValue(value: number, committed: boolean) {
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
-    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'change' });
+    const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
+    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const phase = committed ? 'commit' : 'live';
+    const phases = [phase];
+    const token = this.actionController.nextToken();
     if (bindings.length === 0 || this.hasAttribute('disabled')) {
       this.dispatchChange(value, committed);
       return;
     }
 
-    const payload = this.actionPayload(value);
-    try {
-      const changeExecution = await callActionBindings(bindings, 'change', payload);
-      const phaseExecution = await callActionBindings(bindings, committed ? 'commit' : 'live', payload);
-      const failures = [...changeExecution.failures, ...phaseExecution.failures];
-      if (failures.length > 0) {
-        const detail = failures.length === 1
-          ? failures[0].error ?? 'Failed to call action'
-          : failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
-        this.dispatchEvent(new CustomEvent('nodel-fader-error', {
-          bubbles: true,
-          detail: { action, payload, value, committed, failures, error: detail }
-        }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+    const payloadResult = this.actionPayload(value);
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload: {}, committed, live: !committed, error: payloadResult.error });
+      return;
+    }
+
+    if (!committed && shouldConfirm(this)) {
+      this.dispatchChange(value, false, [], action);
+      return;
+    }
+
+    if (committed && shouldConfirm(this)) {
+      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
+        title: 'Confirm value',
+        text: `Set ${this.getAttribute('label') || 'value'} to ${formatValue(value, normalizeLevelUnit(this.getAttribute('unit')))}?`,
+        tone: 'info'
+      }), this.trackNode);
+      if (!confirmed || !this.actionController.isLatest(token) || !this.isConnected) {
         return;
       }
-      this.dispatchChange(value, committed);
+    }
+
+    const payload = payloadResult.payload;
+    const hasRemotePhase = bindings.some((binding) => binding.phase === phase);
+    if (!hasRemotePhase) {
+      this.dispatchChange(value, committed, [], action);
+      return;
+    }
+
+    try {
+      const execution = await executeActionPhases(bindings, phases, payload);
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
+      if (execution.failures.length > 0) {
+        dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload, arg: payloadResult.arg, committed, live: !committed, failures: execution.failures });
+        return;
+      }
+      this.dispatchChange(value, committed, execution.results, action);
     } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-fader-error', {
-        bubbles: true,
-        detail: { action, payload, value, committed, error: message }
-      }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
+      dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload, arg: payloadResult.arg, committed, live: !committed, error: actionErrorMessage(error) });
     }
   }
 
-  private dispatchChange(value: number, committed: boolean) {
+  private dispatchChange(value: number, committed: boolean, results: unknown[] = [], action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '') {
+    const phase = committed ? 'commit' : 'live';
+    const payload = { arg: normalizeFromList(this.getAttribute('arg-type'), argTypes, 'number') === 'string' ? String(value) : value };
     this.dispatchEvent(new CustomEvent('nodel-fader-change', {
       bubbles: true,
-      detail: { value, committed }
-    }));
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
-      bubbles: true,
-      detail
+      detail: { action, phase, phases: [phase], value, arg: payload.arg, payload, results, failures: [], committed, live: !committed }
     }));
   }
 

@@ -64,8 +64,63 @@ describe('nodel-stepper', () => {
     document.dispatchEvent(pointerUp());
     await flush();
 
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetTemp', { arg: 20.5 });
     expect(document.querySelector('nodel-stepper')?.getAttribute('value')).toBe('20.5');
+  });
+
+  it('performs one committed action when repeat is off', async () => {
+    document.body.innerHTML = '<nodel-stepper action="SetTemp" value="20" repeat="off"></nodel-stepper>';
+    await customElements.whenDefined('nodel-stepper');
+    await Promise.resolve();
+
+    const increase = document.querySelector('.nodel-stepper-increase') as HTMLButtonElement;
+    increase.dispatchEvent(pointerDown());
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetTemp', { arg: 21 });
+  });
+
+  it('does not call actions when stepper confirmation is cancelled', async () => {
+    document.body.innerHTML = '<nodel-stepper action="SetTemp" value="20" confirm-text="Set value?"></nodel-stepper>';
+    await customElements.whenDefined('nodel-stepper');
+    await Promise.resolve();
+
+    const stepper = document.querySelector('nodel-stepper') as HTMLElement;
+    stepper.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      (event as CustomEvent).detail.resolve(false);
+    });
+    document.querySelector('.nodel-stepper-increase')?.dispatchEvent(pointerDown());
+    document.dispatchEvent(pointerUp());
+    await flush();
+
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+    expect(stepper.getAttribute('value')).toBe('20');
+  });
+
+  it('ignores stale failed commits after a newer stepper value succeeds', async () => {
+    let rejectFirst: (error: Error) => void = () => undefined;
+    actionMock.callNodeAction
+      .mockReturnValueOnce(new Promise<void>((_resolve, reject) => {
+        rejectFirst = reject;
+      }))
+      .mockResolvedValueOnce({});
+    document.body.innerHTML = '<nodel-stepper action="SetTemp" value="20"></nodel-stepper>';
+    await customElements.whenDefined('nodel-stepper');
+    await Promise.resolve();
+
+    const stepper = document.querySelector('nodel-stepper') as HTMLElement;
+    const shell = stepper.querySelector('.nodel-stepper-shell') as HTMLElement;
+    shell.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    shell.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await flush();
+    expect(stepper.getAttribute('value')).toBe('22');
+
+    rejectFirst(new Error('No route'));
+    await flush();
+    expect(stepper.getAttribute('value')).toBe('22');
   });
 
   it('uses join as action and value signal shorthand', async () => {
@@ -95,7 +150,7 @@ describe('nodel-stepper', () => {
     expect(stepper.hasAttribute('disabled')).toBe(true);
   });
 
-  it('does not commit when action calls fail', async () => {
+  it('does not commit when current action calls fail', async () => {
     actionMock.callNodeAction.mockRejectedValue(new Error('No route'));
     document.body.innerHTML = '<nodel-stepper action="Missing" value="10"></nodel-stepper>';
     await customElements.whenDefined('nodel-stepper');

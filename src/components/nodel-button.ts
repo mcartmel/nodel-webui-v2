@@ -1,7 +1,15 @@
-import { callActionBindings, hasActionPhase, parseActionBindings, type ActionBinding } from '../data/action-bindings';
+import { hasActionPhase, parseActionBindings, type ActionBinding } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+import { truthy } from '../utils/control-values';
 
 type NodelButtonVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost' | 'link';
 type NodelButtonArgType = 'string' | 'number' | 'boolean' | 'json';
@@ -55,43 +63,12 @@ function normalizeSize(value: string | null): NodelButtonSize {
   return sizes.includes(value as NodelButtonSize) ? (value as NodelButtonSize) : 'auto';
 }
 
-function parseBoolean(value: string) {
-  const normalized = value.trim().toLocaleLowerCase();
-  return normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes';
-}
-
-function parseArg(value: string, type: NodelButtonArgType) {
-  if (type === 'number') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : value;
-  }
-
-  if (type === 'boolean') {
-    return parseBoolean(value);
-  }
-
-  if (type === 'json') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
-  }
-
-  return value;
-}
-
 function valueMatches(value: string, expected: string | null) {
   if (expected === null) {
-    const normalized = value.trim().toLocaleLowerCase();
-    return normalized === 'active' || normalized === 'on' || normalized === 'true' || normalized === '1' || normalized === 'yes';
+    return truthy(value);
   }
 
   return value === expected;
-}
-
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }
 
 export class NodelButton extends HTMLElement {
@@ -114,6 +91,7 @@ export class NodelButton extends HTMLElement {
   private momentaryReleaseRequested = false;
   private ignoreNextClick = false;
   private signalBindings = createSignalBindingController(this);
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.connected = true;
@@ -258,12 +236,7 @@ export class NodelButton extends HTMLElement {
   }
 
   private payload() {
-    if (!this.hasAttribute('arg')) {
-      return {};
-    }
-
-    const arg = parseArg(this.getAttribute('arg') ?? '', normalizeArgType(this.getAttribute('arg-type')));
-    return { arg };
+    return buildActionPayload(this.hasAttribute('arg') ? this.getAttribute('arg') ?? '' : null, normalizeArgType(this.getAttribute('arg-type')));
   }
 
   private actionBindings() {
@@ -280,57 +253,87 @@ export class NodelButton extends HTMLElement {
   }
 
   private async submitActions(phase: string, bindings: ActionBinding[], options: { confirm?: boolean; busy?: boolean } = {}) {
-    if (options.busy && this.busy) {
+    const singleFlight = options.busy;
+    if (singleFlight && !this.actionController.startSingleFlight()) {
       return;
     }
 
-    const payload = this.payload();
-    if (options.confirm && shouldConfirm(this)) {
-      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
-        title: 'Confirm action',
-        text: `Run ${this.currentLabel() || 'action'}?`,
-        tone: 'warning'
-      }), this.buttonNode);
-      if (!confirmed) {
-        return;
-      }
-    }
-
-    if (options.busy) {
-      this.busy = true;
-      this.render();
-    }
-
     try {
-      const execution = await callActionBindings(bindings, phase, payload);
-      if (execution.failures.length > 0) {
-        const detail = execution.failures.length === 1
-          ? execution.failures[0].error ?? 'Failed to call action'
-          : execution.failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
-        this.dispatchEvent(new CustomEvent('nodel-button-error', {
-          bubbles: true,
-          detail: { phase, payload, failures: execution.failures, error: detail }
-        }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+      const payloadResult = this.payload();
+      const action = actionName(bindings);
+      const committed = phase !== 'press';
+      const live = phase === 'press';
+      if (!payloadResult.ok) {
+        dispatchControlActionError(this, {
+          eventName: 'nodel-button-error',
+          action,
+          phase,
+          payload: {},
+          committed,
+          live,
+          error: payloadResult.error
+        });
         return;
       }
-      this.dispatchEvent(new CustomEvent('nodel-button-submitted', {
-        bubbles: true,
-        detail: { action: bindings[0]?.action ?? '', phase, payload, results: execution.results }
-      }));
-    } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-button-error', {
-        bubbles: true,
-        detail: { phase, payload, error: message }
-      }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
-    } finally {
-      if (options.busy) {
-        this.busy = false;
+
+      const payload = payloadResult.payload;
+      if (options.confirm && shouldConfirm(this)) {
+        const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
+          title: 'Confirm action',
+          text: `Run ${this.currentLabel() || 'action'}?`,
+          tone: 'warning'
+        }), this.buttonNode);
+        if (!confirmed) {
+          return;
+        }
       }
-      if (this.isConnected && options.busy) {
+
+      if (options.busy) {
+        this.busy = true;
         this.render();
+      }
+
+      try {
+        const execution = await executeActionPhases(bindings, [phase], payload);
+        if (execution.failures.length > 0) {
+          dispatchControlActionError(this, {
+            eventName: 'nodel-button-error',
+            action,
+            phase,
+            payload,
+            arg: payloadResult.arg,
+            committed,
+            live,
+            failures: execution.failures
+          });
+          return;
+        }
+        this.dispatchEvent(new CustomEvent('nodel-button-submitted', {
+          bubbles: true,
+          detail: { action, phase, phases: [phase], arg: payloadResult.arg, payload, results: execution.results, failures: [], committed, live }
+        }));
+      } catch (error) {
+        dispatchControlActionError(this, {
+          eventName: 'nodel-button-error',
+          action,
+          phase,
+          payload,
+          arg: payloadResult.arg,
+          committed,
+          live,
+          error: actionErrorMessage(error)
+        });
+      } finally {
+        if (options.busy) {
+          this.busy = false;
+        }
+        if (this.isConnected && options.busy) {
+          this.render();
+        }
+      }
+    } finally {
+      if (singleFlight) {
+        this.actionController.finishSingleFlight();
       }
     }
   }
@@ -400,13 +403,6 @@ export class NodelButton extends HTMLElement {
     });
   }
 
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
-      bubbles: true,
-      detail
-    }));
-  }
-
   private handleClick = (event: Event) => {
     if (event.target !== this.buttonNode && !this.buttonNode?.contains(event.target as Node)) {
       return;
@@ -469,7 +465,7 @@ export class NodelButton extends HTMLElement {
     this.momentaryStarting = false;
     this.momentaryActive = true;
     this.setAttribute('active', '');
-    void this.submitActions('press', bindings);
+    void this.actionController.runSerial(() => this.submitActions('press', bindings));
     if (this.momentaryReleaseRequested) {
       this.finishMomentary();
     }
@@ -486,7 +482,7 @@ export class NodelButton extends HTMLElement {
     this.momentaryActive = false;
     this.removeAttribute('active');
     this.clearMomentaryStart();
-    void this.submitActions('release', this.actionBindings());
+    void this.actionController.runSerial(() => this.submitActions('release', this.actionBindings()));
   }
 
   private clearMomentaryStart() {

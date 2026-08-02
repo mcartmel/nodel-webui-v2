@@ -1,10 +1,17 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { parseActionBindings } from '../data/action-bindings';
+import {
+  actionErrorMessage,
+  actionName,
+  buildActionPayload,
+  ControlActionController,
+  dispatchControlActionError,
+  executeActionPhases
+} from '../data/control-actions';
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { DynamicOptionsController, type DynamicOptionsState } from '../data/dynamic-options';
 import { createSignalBindingController, parseSignalBindings, signalBindingKey } from '../data/signal-bindings';
-import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import { syncHostAccessibleLabel } from '../utils/accessibility';
-import { parseTypedArg, type ControlArgType } from '../utils/control-values';
+import { truthy, type ControlArgType } from '../utils/control-values';
 import './nodel-button';
 
 type NodelSegmentedArgType = ControlArgType;
@@ -33,10 +40,6 @@ function normalizeTone(value: string | null): NodelSegmentedTone {
   return tones.includes(value as NodelSegmentedTone) ? (value as NodelSegmentedTone) : 'solid';
 }
 
-function apiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 function valueMatches(value: string, expected: string) {
   return String(value) === String(expected);
 }
@@ -59,6 +62,7 @@ export class NodelSegmented extends HTMLElement {
   private optionsState: DynamicOptionsState = 'static';
   private optionsBindingKey = '';
   private optionsSourceError = false;
+  private actionController = new ControlActionController();
 
   connectedCallback() {
     this.connected = true;
@@ -75,6 +79,7 @@ export class NodelSegmented extends HTMLElement {
     this.connected = false;
     this.removeEventListener('click', this.handleClick, true);
     this.removeEventListener('keydown', this.handleKeyDown);
+    this.actionController.invalidate();
     this.signalBindings.dispose();
     this.dynamicOptions?.dispose();
     this.optionsBindingKey = '';
@@ -225,16 +230,23 @@ export class NodelSegmented extends HTMLElement {
   }
 
   private async selectOption(option: HTMLElement) {
-    if (this.busy || this.hasAttribute('disabled') || !optionEnabled(option)) {
+    if (this.hasAttribute('disabled') || !optionEnabled(option)) {
       return;
     }
 
+    const token = this.actionController.nextToken();
     const optionValue = this.optionValue(option);
     const currentValue = this.getAttribute('value') ?? '';
     const nextValue = currentValue === optionValue && this.hasAttribute('allow-deselect') ? '' : optionValue;
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'select' });
-    const payload = { arg: parseTypedArg(nextValue, normalizeArgType(this.getAttribute('arg-type'))) };
+    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const phase = 'select';
+    const payloadResult = buildActionPayload(nextValue, normalizeArgType(this.getAttribute('arg-type')));
+    if (!payloadResult.ok) {
+      dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload: {}, committed: true, live: false, error: payloadResult.error });
+      return;
+    }
+    const payload = payloadResult.payload;
     const confirmSource = shouldConfirm(option) ? option : this;
 
     if (shouldConfirm(confirmSource)) {
@@ -246,56 +258,54 @@ export class NodelSegmented extends HTMLElement {
       if (!confirmed) {
         return;
       }
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
     }
 
     if (bindings.length === 0) {
       this.setAttribute('value', nextValue);
-      this.dispatchChange(action, payload, nextValue);
+      this.dispatchChange(action, payload, nextValue, []);
       return;
     }
 
     this.busy = true;
     this.render();
     try {
-      const execution = await callActionBindings(bindings, 'select', payload);
+      const execution = await executeActionPhases(bindings, [phase], payload);
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
       if (execution.failures.length > 0) {
-        const detail = execution.failures.length === 1
-          ? execution.failures[0].error ?? 'Failed to call action'
-          : execution.failures.map((failure) => `${failure.action}: ${failure.error}`).join('; ');
-        this.dispatchEvent(new CustomEvent('nodel-segmented-error', {
-          bubbles: true,
-          detail: { action, value: nextValue, payload, failures: execution.failures, error: detail }
-        }));
-        this.showToast({ message: 'Failed to call action', detail, tone: 'danger', durationMs: 7000 });
+        dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, failures: execution.failures });
         return;
       }
       this.setAttribute('value', nextValue);
-      this.dispatchChange(action, payload, nextValue);
+      this.dispatchChange(action, payload, nextValue, execution.results);
     } catch (error) {
-      const message = apiErrorMessage(error, 'Failed to call action');
-      this.dispatchEvent(new CustomEvent('nodel-segmented-error', {
-        bubbles: true,
-        detail: { action, value: nextValue, payload, error: message }
-      }));
-      this.showToast({ message: 'Failed to call action', detail: message, tone: 'danger', durationMs: 7000 });
+      if (!this.actionController.isLatest(token) || !this.isConnected) {
+        return;
+      }
+      dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, error: actionErrorMessage(error) });
     } finally {
-      this.busy = false;
-      if (this.isConnected) {
+      if (this.actionController.isLatest(token)) {
+        this.busy = false;
+      }
+      if (this.isConnected && this.actionController.isLatest(token)) {
         this.render();
       }
     }
   }
 
-  private dispatchChange(action: string, payload: { arg: unknown }, value: string) {
+  private dispatchChange(action: string, payload: Record<string, unknown>, value: string, results: unknown[] = []) {
     this.dispatchEvent(new CustomEvent('nodel-segmented-change', {
       bubbles: true,
-      detail: { action, value, arg: payload.arg, payload }
+      detail: { action, phase: 'select', phases: ['select'], value, arg: payload.arg, payload, results, failures: [], committed: true, live: false }
     }));
   }
 
   private setDisabledFromValue(value: string) {
-    const normalized = value.trim().toLocaleLowerCase();
-    if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes') {
+    if (truthy(value)) {
       this.setAttribute('disabled', '');
     } else {
       this.removeAttribute('disabled');
@@ -324,7 +334,7 @@ export class NodelSegmented extends HTMLElement {
       join: this.getAttribute('join'),
       optionsSignal: this.getAttribute('options-signal'),
       aggregators: {
-        disabled: { evaluate: (value) => ['true', '1', 'on', 'yes'].includes(value.trim().toLocaleLowerCase()) }
+        disabled: { evaluate: truthy }
       },
       onSourceState: (state) => {
         if (!this.hasOptionsBinding()) {
@@ -390,13 +400,6 @@ export class NodelSegmented extends HTMLElement {
     }
     const selected = options.find((option) => option.hasAttribute('active'));
     this.focusOption(options[Math.min(previousIndex, options.length - 1)] ?? selected ?? options[0]);
-  }
-
-  private showToast(detail: NodelToastDetail) {
-    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
-      bubbles: true,
-      detail
-    }));
   }
 
   private handleClick = (event: Event) => {

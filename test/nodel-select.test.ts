@@ -192,6 +192,52 @@ describe('nodel-select', () => {
     expect(select.hasAttribute('open')).toBe(false);
   });
 
+  it('rejects invalid select JSON args before calling actions', async () => {
+    document.body.innerHTML = '<nodel-select action="SetPayload" arg-type="json"><nodel-button value="{">Bad</nodel-button></nodel-select>';
+    await customElements.whenDefined('nodel-select');
+    await flush();
+
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    const error = vi.fn();
+    select.addEventListener('nodel-select-error', error);
+    document.querySelector('nodel-button button')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+    expect(select.getAttribute('value')).toBeNull();
+    expect(error.mock.calls[0][0].detail.error).toBe('Invalid JSON argument');
+  });
+
+  it('ignores stale failed selections after a newer select succeeds', async () => {
+    let rejectFirst: (error: Error) => void = () => undefined;
+    actionMock.callNodeAction
+      .mockReturnValueOnce(new Promise<void>((_resolve, reject) => {
+        rejectFirst = reject;
+      }))
+      .mockResolvedValueOnce({});
+    document.body.innerHTML = `
+      <nodel-select action="SetSource">
+        <nodel-button value="A">A</nodel-button>
+        <nodel-button value="B">B</nodel-button>
+      </nodel-select>
+    `;
+    await customElements.whenDefined('nodel-select');
+    await flush();
+
+    const select = document.querySelector('nodel-select') as HTMLElement;
+    const error = vi.fn();
+    select.addEventListener('nodel-select-error', error);
+    document.querySelectorAll('nodel-button button')[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(select.getAttribute('value')).toBe('B');
+    rejectFirst(new Error('No route'));
+    await flush();
+    expect(select.getAttribute('value')).toBe('B');
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('uses join as action and value signal shorthand', async () => {
     document.body.innerHTML = '<nodel-select join="Source"><nodel-button value="A">A</nodel-button></nodel-select>';
     await customElements.whenDefined('nodel-select');

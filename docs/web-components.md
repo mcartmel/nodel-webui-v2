@@ -233,6 +233,14 @@ Touch controls that support confirmation expose `confirm`, `confirm-title`, `con
 
 Code confirmation is a client-side accidental-action/operator interlock, not authentication or authorization. The signal value reaches the browser and may still be visible in a separately rendered activity log. Server-side permissions remain responsible for securing actions.
 
+## Control Action Phases
+
+Interactive controls share one action contract. A plain `action="Name"` or `join="Name"` performs one committed backend call for the user interaction: button `click`, toggle `toggle`, select/segmented/palette swatch `select`, stepper/fader final `commit`, and D-pad `click` or momentary `press` depending on `press-mode`. Extra backend calls require explicit `actions="Name:phase"` entries.
+
+The shared action parser accepts comma or semicolon separated entries. `arg-type="number"` and `arg-type="json"` are strict: invalid values dispatch the control's `*-error` event and do not call the backend. Boolean parsing uses the same locale-independent vocabulary as signal truthiness.
+
+Controls that expose continuous or momentary phases use deterministic ordering. `press` runs before `release`; throttled `live` updates are separate from the final `commit`; and delayed confirmations or network completions from older selections cannot overwrite a newer local selection. Error and change events include `action`, `phase`, `phases`, `value` where applicable, `arg`, `payload`, `results`, `failures`, `committed`, and `live` when those fields apply.
+
 ## Host Connectivity
 
 `nodel-app` creates one shared `nodel-connectivity-host` and listens for same-origin host reachability. Custom pages default to `offline-mode="modal"`: a non-dismissible alert dialog blocks pointer and keyboard interaction with page controls until the current Nodel host responds again. Core administration pages use `offline-mode="overlay"`, which displays a fixed warning above the page without shifting layout or blocking controls.
@@ -579,7 +587,7 @@ Supported `nodel-fader` attributes:
 - `nudge`
 - `increment`
 - `action`
-- `actions="ActionName:phase; OtherAction:phase"` with phases `change`, `live`, and `commit`
+- `actions="ActionName:phase; OtherAction:phase"` with phases `live` and `commit`
 - `join="Name"` as shorthand for `action="Name" signal="Name"`
 - `arg-type="number|string|json"`
 - `disabled`
@@ -719,7 +727,7 @@ v1 migration examples:
 - `dynamicselect data="List" event="Selected" action="Selected"` becomes `nodel-select options-signal="List" signal="Selected" action="Selected"`.
 - `dynamicbuttongroup data="List" join="Selected"` becomes `nodel-segmented orientation="vertical" options-signal="List" join="Selected"`.
 
-`nodel-stepper` renders large `-` and `+` controls with a central readout for precise numeric changes. It supports `min`, `max`, `step`, `value`, `unit="percent|db|none"`, `prefix`, `suffix`, `precision`, `repeat="hold|off"`, `action`, `actions` with phases `change`, `live`, `commit`, `increase`, and `decrease`, `join`, `arg-type="number|string|json"`, `variant`, `tone`, `disabled`, `readout`, `signal`, and `signals` targets `value`, `label`, and `disabled`.
+`nodel-stepper` renders large `-` and `+` controls with a central readout for precise numeric changes. It supports `min`, `max`, `step`, `value`, `unit="percent|db|none"`, `prefix`, `suffix`, `precision`, `repeat="hold|off"`, `action`, `actions` with phases `live`, `commit`, `increase`, and `decrease`, `join`, `arg-type="number|string|json"`, `variant`, `tone`, `disabled`, `readout`, `signal`, and `signals` targets `value`, `label`, and `disabled`.
 
 ```html
 <nodel-group label="Temperature">
@@ -756,7 +764,7 @@ v1 migration examples:
 
 The palette keeps a canonical RGBA colour and converts only its action payload. `format="hex|rgb|hsl|hsv"` defaults to `hex`; for example, the same green selection emits `#00ff00`, `rgb(0, 255, 0)`, `hsl(120, 100%, 50%)`, or `hsv(120, 100%, 100%)`. The reflected selected `value` remains normalized hex so swatches and signals compare consistently.
 
-Add `live` to dispatch throttled custom-picker `input` updates. `live-interval` defaults to `100` ms and clamps to `50..1000`; the final pending value is flushed on picker change or editable-field change, and pending work is cancelled on disconnect. Without `live`, custom values retain the explicit Select behavior, with Enter also available in editable mode. Swatches, dynamic markup, confirmation, `allow-deselect`, and signal state use the same selection path in every output format.
+Add `live` to dispatch throttled custom-picker `input` updates. `live-interval` defaults to `100` ms and clamps to `50..1000`; the final pending value is flushed on picker change or editable-field change, and pending work is cancelled on disconnect. Live input only calls explicit `:live` actions. The final picker value calls explicit `:commit` actions or the implicit `action`/`join` commit. Without `live`, custom values retain the explicit Select behavior, with Enter also available in editable mode. Swatches, dynamic markup, confirmation, `allow-deselect`, and signal state use the same selection path in every output format.
 
 ```html
 <nodel-group label="LED Colour">

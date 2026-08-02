@@ -51,10 +51,15 @@ function pointerEvent(type: string, props: Record<string, unknown> = {}) {
 
 describe('nodel-fader', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     actionMock.callNodeAction.mockReset();
     actionMock.callNodeAction.mockResolvedValue({});
     activityMock.listeners = [];
     document.body.innerHTML = '<nodel-fader label="Volume" value="50" nudge="5"></nodel-fader>';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders a vertical slider with readout and nudge buttons', async () => {
@@ -144,6 +149,7 @@ describe('nodel-fader', () => {
     await flush();
 
     expect(fader.getAttribute('value')).toBe('55');
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 55 });
   });
 
@@ -172,7 +178,50 @@ describe('nodel-fader', () => {
     track.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
     await flush();
 
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 51 });
+  });
+
+  it('runs explicit live before final commit during drags', async () => {
+    document.body.innerHTML = '<nodel-fader label="Volume" value="50" actions="Preview:live; SetVolume:commit"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    track.setPointerCapture = vi.fn();
+    track.releasePointerCapture = vi.fn();
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 40, height: 100, top: 0, right: 40, bottom: 100, left: 0, toJSON: () => ({}) });
+
+    track.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientY: 20 }));
+    document.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientY: 10 }));
+    document.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientY: 10 }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'Preview', { arg: 67 });
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'SetVolume', { arg: 67 });
+  });
+
+  it('recreates the live throttle when the interval changes', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<nodel-fader label="Volume" value="50" actions="Preview:live" live-interval="200"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    track.setPointerCapture = vi.fn();
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 40, height: 100, top: 0, right: 40, bottom: 100, left: 0, toJSON: () => ({}) });
+
+    track.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientY: 20 }));
+    document.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientY: 10 }));
+    await Promise.resolve();
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
+
+    fader.setAttribute('live-interval', '50');
+    document.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientY: 0 }));
+    await Promise.resolve();
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(2);
   });
 
   it('does not dispatch change events when action calls fail', async () => {
