@@ -161,6 +161,10 @@ describe('node-activity-source', () => {
 
     expect(activityMock.getNodeActivity).not.toHaveBeenCalled();
     expect(listenerError).toHaveBeenCalled();
+    expect((listenerError.mock.calls[0][0] as CustomEvent).detail).toMatchObject({
+      message: 'subscriber failed',
+      source: 'node-activity-source'
+    });
     MockWebSocket.instances[1].open();
     expect(states.at(-1)?.connected).toBe(true);
 
@@ -372,6 +376,24 @@ describe('node-activity-source', () => {
     subscription.dispose();
   });
 
+  it('falls back to polling when the WebSocket connection hangs past its deadline', async () => {
+    activityMock.getNodeActivity.mockResolvedValue([activityEntry({ seq: 12, alias: 'Fallback' })]);
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    const socket = MockWebSocket.instances[0];
+
+    vi.advanceTimersByTime(2500);
+    await flushMicrotasks();
+
+    expect(socket.close).toHaveBeenCalledTimes(1);
+    expect(activityMock.getNodeActivity).toHaveBeenCalledWith({ from: -1 }, expect.any(Object));
+    expect(states.at(-1)?.transport).toBe('poll');
+    expect(states.at(-1)?.batch?.items[0]?.entry.alias).toBe('Fallback');
+
+    subscription.dispose();
+  });
+
   it('accepts missing timestamps from polled REST activity without a source error', async () => {
     activityMock.getNodeActivity.mockResolvedValue([
       activityEntry({ seq: 10, timestamp: undefined })
@@ -424,6 +446,28 @@ describe('node-activity-source', () => {
 
     resolveNextPoll?.([]);
     await flushMicrotasks();
+    subscription.dispose();
+  });
+
+  it('bounds polling backoff and refreshes immediately on visibility recovery', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    activityMock.getNodeActivity.mockRejectedValue(new Error('offline'));
+    const { subscribeNodeActivity } = await loadSource();
+    const subscription = subscribeNodeActivity(createSubscriberHost(), vi.fn());
+    MockWebSocket.instances[0].closeFromServer();
+    await flushMicrotasks();
+
+    for (let index = 0; index < 20; index += 1) {
+      vi.advanceTimersByTime(15_000);
+      await flushMicrotasks();
+    }
+    const socketsBeforeRecovery = MockWebSocket.instances.length;
+    activityMock.getNodeActivity.mockResolvedValue([]);
+    activityMock.visibilityHandlers[0]?.(false);
+    activityMock.visibilityHandlers[0]?.(true);
+    await flushMicrotasks();
+
+    expect(MockWebSocket.instances.length).toBeGreaterThan(socketsBeforeRecovery);
     subscription.dispose();
   });
 

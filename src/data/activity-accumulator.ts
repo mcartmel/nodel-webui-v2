@@ -7,12 +7,14 @@ export interface ActivityAccumulatorItem<T> {
 
 export interface ActivityAccumulatorOptions {
   flushIntervalMs?: number;
+  maxItems?: number;
 }
 
 type FlushListener<T> = (items: ActivityAccumulatorItem<T>[]) => void;
 
 export function createActivityAccumulator<T>(listener: FlushListener<T>, options: ActivityAccumulatorOptions = {}) {
   const flushIntervalMs = options.flushIntervalMs ?? 100;
+  const maxItems = Math.max(1, options.maxItems ?? 500);
   const pending = new Map<string, ActivityAccumulatorItem<T>>();
   let flushTimer: number | null = null;
 
@@ -48,6 +50,13 @@ export function createActivityAccumulator<T>(listener: FlushListener<T>, options
     enqueue(item: ActivityAccumulatorItem<T>) {
       pending.delete(item.key);
       pending.set(item.key, item);
+      while (pending.size > maxItems) {
+        const firstKey = pending.keys().next().value as string | undefined;
+        if (firstKey === undefined) {
+          break;
+        }
+        pending.delete(firstKey);
+      }
       scheduleFlush();
     },
     flush,

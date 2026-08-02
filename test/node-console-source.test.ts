@@ -48,7 +48,7 @@ describe('node console source lifecycle', () => {
     await Promise.resolve();
     await Promise.resolve();
     await second.refresh();
-    expect(consoleSourceMock.getNodeConsoleLogs.mock.calls.at(-1)?.[0]).toEqual({ from: 2, max: 9999 });
+    expect(consoleSourceMock.getNodeConsoleLogs.mock.calls.at(-1)?.[0]).toEqual({ from: 2, max: 200 });
     expect(states.some((state: any) => state.data?.entries?.some((entry: any) => entry.comment === 'stale'))).toBe(false);
 
     second.dispose();

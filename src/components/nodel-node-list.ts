@@ -12,6 +12,7 @@ import { safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
+type NodeReachability = 'unknown' | 'reachable' | 'unreachable';
 
 interface NodeListStateItem {
   name: string;
@@ -19,6 +20,7 @@ interface NodeListStateItem {
   host: string;
   iconHost: string;
   reachable: boolean;
+  reachability: NodeReachability;
   highlightedName: string;
   sortKey: string;
 }
@@ -35,8 +37,11 @@ interface NodeListState {
 }
 
 const pageSizes = [10, 20, 50, 100, 99999];
-const refreshIntervalMs = 2000;
+const localRefreshIntervalMs = 2000;
+const networkRefreshIntervalMs = 10_000;
 const searchDebounceMs = 200;
+const reachabilityConcurrency = 4;
+const maxRetainedNodeRows = 1000;
 const rowAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-list-item-affordance');
 
 const template = `
@@ -64,7 +69,7 @@ const template = `
             <ul class="nodel-node-list-items nodel-list">
               {^{for lst}}
                 <li>
-                  <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} class{:reachable ? 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' }">
+                  <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} data-reachability{:reachability} class{:reachability === 'unreachable' ? 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' }">
                     <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
                     <span class="flex min-w-0 flex-1 flex-col">
                       <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
@@ -115,6 +120,7 @@ export class NodelNodeList extends HTMLElement {
   private linked = false;
   private linkController = new JsViewsLinkController(this);
   private lastAppliedUpdatedAt: number | null = null;
+  private reachabilityToken = 0;
   private source: NodelSourceSubscription<NodeListStateItem[]> | null = null;
   private state: NodeListState = {
     scope: 'local',
@@ -162,8 +168,9 @@ export class NodelNodeList extends HTMLElement {
   }
 
   private get pollInterval() {
-    const value = Number(this.getAttribute('poll-interval') ?? refreshIntervalMs);
-    return Number.isFinite(value) && value > 0 ? value : refreshIntervalMs;
+    const fallback = normalizeScope(this.getAttribute('scope')) === 'network' ? networkRefreshIntervalMs : localRefreshIntervalMs;
+    const value = Number(this.getAttribute('poll-interval') ?? fallback);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
   }
 
   private get pageSize() {
@@ -323,6 +330,7 @@ export class NodelNodeList extends HTMLElement {
   }
 
   private disposeSource() {
+    this.reachabilityToken += 1;
     this.source?.dispose();
     this.source = null;
     this.lastAppliedUpdatedAt = null;
@@ -355,25 +363,68 @@ export class NodelNodeList extends HTMLElement {
 
     return filtered
       .map((entry) => this.toLocalRow(entry, host, iconHost))
-      .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: 'base' }));
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: 'base' }))
+      .slice(0, maxRetainedNodeRows);
   }
 
   private async loadNetworkRows(signal: AbortSignal): Promise<NodeListStateItem[]> {
+    const token = ++this.reachabilityToken;
     const entries = await searchNodeUrls(this.state.flt, { signal });
     const rows = entries
       .map((entry) => this.toNetworkRow(entry))
-      .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: 'base' }));
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: 'base' }))
+      .slice(0, maxRetainedNodeRows);
 
-    const hostResults = await Promise.all(
-      Array.from(new Set(rows.map((row) => row.host))).map(async (host) => [host, (await checkHostReachable(host, 3000, signal)).reachable] as const)
-    );
-    const reachableByHost = new Map(hostResults);
+    const visibleHosts = this.hostsForRows(rows.slice(0, this.state.end));
+    this.applyReachability(rows, await this.probeHosts(visibleHosts, signal));
 
-    for (const row of rows) {
-      row.reachable = reachableByHost.get(row.host) ?? false;
+    const remainingHosts = this.hostsForRows(rows).filter((host) => !visibleHosts.includes(host));
+    if (remainingHosts.length > 0) {
+      void this.expandReachability(rows, remainingHosts, token, signal);
     }
 
     return rows;
+  }
+
+  private hostsForRows(rows: NodeListStateItem[]) {
+    return Array.from(new Set(rows.map((row) => row.host).filter(Boolean)));
+  }
+
+  private async probeHosts(hosts: string[], signal: AbortSignal) {
+    const results = new Map<string, boolean>();
+    let nextIndex = 0;
+    const workers = Array.from({ length: Math.min(reachabilityConcurrency, hosts.length) }, async () => {
+      while (nextIndex < hosts.length && !signal.aborted) {
+        const host = hosts[nextIndex];
+        nextIndex += 1;
+        const result = await checkHostReachable(host, 3000, signal);
+        if (!signal.aborted) {
+          results.set(host, result.reachable);
+        }
+      }
+    });
+    await Promise.all(workers);
+    return results;
+  }
+
+  private applyReachability(rows: NodeListStateItem[], reachableByHost: Map<string, boolean>) {
+    for (const row of rows) {
+      if (!reachableByHost.has(row.host)) {
+        continue;
+      }
+      const reachable = reachableByHost.get(row.host) === true;
+      row.reachable = reachable;
+      row.reachability = reachable ? 'reachable' : 'unreachable';
+    }
+  }
+
+  private async expandReachability(rows: NodeListStateItem[], hosts: string[], token: number, signal: AbortSignal) {
+    const results = await this.probeHosts(hosts, signal);
+    if (signal.aborted || token !== this.reachabilityToken || !this.connected) {
+      return;
+    }
+    this.applyReachability(rows, results);
+    this.applyRows(rows);
   }
 
   private matchesFilter(value: string) {
@@ -398,6 +449,7 @@ export class NodelNodeList extends HTMLElement {
       host,
       iconHost,
       reachable: true,
+      reachability: 'reachable',
       highlightedName: escapeHtml(name),
       sortKey: nodeName,
     };
@@ -418,6 +470,7 @@ export class NodelNodeList extends HTMLElement {
       host,
       iconHost: host,
       reachable: false,
+      reachability: 'unknown',
       highlightedName: escapeHtml(name),
       sortKey: entry.node || getSimpleName(name),
     };

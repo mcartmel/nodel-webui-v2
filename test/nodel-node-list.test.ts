@@ -137,7 +137,9 @@ describe('nodel-node-list', () => {
     expect(items.length).toBe(2);
     expect(items[0].getAttribute('href')).toBe('http://alpha:8085/nodes/Alpha/');
     expect(items[0].className).not.toContain('is-unreachable');
+    expect(items[0].getAttribute('data-reachability')).toBe('reachable');
     expect(items[1].className).toContain('is-unreachable');
+    expect(items[1].getAttribute('data-reachability')).toBe('unreachable');
     expect(document.querySelectorAll('nodel-node-list .nodel-list > li')).toHaveLength(2);
     expect(document.querySelectorAll('nodel-node-list .nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(2);
     expect(items[0].querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
@@ -145,6 +147,57 @@ describe('nodel-node-list', () => {
 
     document.querySelector('nodel-node-list')?.remove();
     expect(fetchMock).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(new URL('http://alpha:8085/REST'), expect.objectContaining({ mode: 'no-cors' }));
+  });
+
+  it('limits network reachability probes and expands beyond the visible result window in the background', async () => {
+    const entries = Array.from({ length: 25 }, (_, index) => {
+      const id = index + 1;
+      const label = String(id).padStart(2, '0');
+      return { address: `http://host-${id}:8085/nodes/Node${label}/`, name: `Node ${label}`, host: `host-${id}:8085` };
+    });
+    let activeProbes = 0;
+    let maxActiveProbes = 0;
+    let visibleProbeCompletions = 0;
+    let backgroundStartedBeforeVisibleComplete = false;
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/nodeURLs') {
+        return Promise.resolve(new Response(JSON.stringify(entries), { status: 200, headers: { 'Content-Type': 'application/json' } })) as never;
+      }
+      const match = url.match(/^http:\/\/host-(\d+):8085\/REST$/);
+      if (!match) {
+        return Promise.reject(new Error(`Unexpected fetch: ${url}`)) as never;
+      }
+      const id = Number(match[1]);
+      activeProbes += 1;
+      maxActiveProbes = Math.max(maxActiveProbes, activeProbes);
+      expect(init?.mode).toBe('no-cors');
+      if (id > 10 && visibleProbeCompletions < 10) {
+        backgroundStartedBeforeVisibleComplete = true;
+      }
+      if (id <= 10) {
+        activeProbes -= 1;
+        visibleProbeCompletions += 1;
+        return Promise.resolve(new Response('', { status: 200 })) as never;
+      }
+      return new Promise<Response>((resolve) => {
+        init?.signal?.addEventListener('abort', () => {
+          activeProbes -= 1;
+          resolve(new Response('', { status: 204 }));
+        }, { once: true });
+      }) as never;
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal('fetch', fetchMock);
+    document.body.innerHTML = '<nodel-node-list scope="network" poll-interval="999999" page-size="10"></nodel-node-list>';
+    await customElements.whenDefined('nodel-node-list');
+    await waitFor(() => document.querySelectorAll('nodel-node-list a.nodel-list-item').length === 10);
+
+    expect(visibleProbeCompletions).toBe(10);
+    expect(backgroundStartedBeforeVisibleComplete).toBe(false);
+    expect(maxActiveProbes).toBeLessThanOrEqual(4);
+    document.querySelector('nodel-node-list')?.remove();
   });
 
   it('prefills the network filter from the first configured query value without overwriting later edits', async () => {
@@ -274,6 +327,26 @@ describe('nodel-node-list', () => {
     const loadMore = document.querySelector<HTMLButtonElement>('.nodel-node-list-more');
     expect(loadMore).not.toBeNull();
     expect(collection?.contains(loadMore)).toBe(false);
+  });
+
+  it('caps retained node-list rows before pagination', async () => {
+    const nodes = Object.fromEntries(
+      Array.from({ length: 1200 }, (_, index) => [`node-${index}`, { name: `Node ${String(index).padStart(4, '0')}` }])
+    );
+    vi.stubGlobal('fetch', vi.fn(async () => (
+      new Response(JSON.stringify({ nodes }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }) as never
+    )) as unknown as typeof fetch);
+
+    document.body.innerHTML = '<nodel-node-list scope="local" poll-interval="999999" page-size="10"></nodel-node-list>';
+    await customElements.whenDefined('nodel-node-list');
+    await waitFor(() => document.querySelectorAll('nodel-node-list .nodel-list > li').length === 10);
+
+    expect(document.querySelectorAll('nodel-node-list .nodel-list > li')).toHaveLength(10);
+    expect(document.querySelector('.nodel-node-list-total')?.textContent).toContain('1000 nodes');
+    expect(document.querySelector('.nodel-node-list-more')).not.toBeNull();
   });
 
   it('pauses local polling while hidden and resumes when visible', async () => {

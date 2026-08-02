@@ -34,7 +34,7 @@ describe('nodel-host-log', () => {
         }) as never;
       }
 
-      if (url === '/REST/logs?from=3&max=9999') {
+      if (url === '/REST/logs?from=3&max=200') {
         return new Response(JSON.stringify(many), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
@@ -126,7 +126,7 @@ describe('nodel-host-log', () => {
     await waitFor(() => hostLog.textContent?.includes('Current') ?? false);
 
     await ((hostLog as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
-    expect(urls.at(-1)).toBe('/REST/logs?from=2&max=9999');
+    expect(urls.at(-1)).toBe('/REST/logs?from=2&max=200');
     expect(hostLog.textContent).not.toContain('Stale');
   });
 });

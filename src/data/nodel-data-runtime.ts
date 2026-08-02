@@ -1,4 +1,5 @@
 import { observeNodelVisibility } from './visibility-scope';
+import { isAbortError, reportBoundedListenerError } from '../utils/errors';
 
 export interface NodelSourceState<T> {
   loading: boolean;
@@ -68,6 +69,12 @@ interface RefreshWaiter {
 }
 
 const sources = new Map<string, SourceEntry<unknown>>();
+const maxBackoffMs = 30_000;
+const maxJitterMs = 250;
+
+function boundedJitter() {
+  return Math.floor(Math.random() * maxJitterMs);
+}
 
 function createState<T>(): NodelSourceState<T> {
   return {
@@ -82,7 +89,7 @@ function createState<T>(): NodelSourceState<T> {
 function emit<T>(entry: SourceEntry<T>) {
   for (const subscriber of [...entry.subscribers]) {
     if (entry.subscribers.has(subscriber)) {
-      notifySubscriber(subscriber, entry.state);
+      notifySubscriber(subscriber, snapshotState(entry.state));
     }
   }
 }
@@ -91,8 +98,12 @@ function notifySubscriber<T>(subscriber: SourceSubscriber<T>, state: NodelSource
   try {
     subscriber.listener(state);
   } catch (error) {
-    window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error } }));
+    reportBoundedListenerError('nodel-source-listener-error', error, 'nodel-data-runtime');
   }
+}
+
+function snapshotState<T>(state: NodelSourceState<T>): NodelSourceState<T> {
+  return { ...state };
 }
 
 function clearTimer<T>(entry: SourceEntry<T>) {
@@ -131,7 +142,8 @@ function scheduleNext<T>(entry: SourceEntry<T>) {
     return;
   }
 
-  const delay = Math.max(0, entry.options.intervalMs * Math.max(1, entry.failureCount + 1));
+  const backoff = Math.min(maxBackoffMs, entry.options.intervalMs * Math.max(1, entry.failureCount + 1));
+  const delay = Math.max(0, backoff + (entry.failureCount > 0 ? boundedJitter() : 0));
   entry.timer = window.setTimeout(() => {
     entry.timer = null;
     void refreshSource(entry);
@@ -214,7 +226,7 @@ async function refreshSource<T>(entry: SourceEntry<T>, force = false) {
         return;
       }
 
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         outcome = { status: 'aborted', detail: 'The source refresh was aborted.' };
         return;
       }
@@ -307,7 +319,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
     try {
       entry.options.onIdle?.();
     } catch (error) {
-      window.dispatchEvent(new CustomEvent('nodel-source-listener-error', { detail: { error } }));
+      reportBoundedListenerError('nodel-source-listener-error', error, 'nodel-data-runtime:onIdle');
     }
     if (sources.get(options.key) === entry) {
       sources.delete(options.key);
@@ -356,12 +368,19 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
       };
 
       subscriber.disposeVisibility = observeNodelVisibility(element, (visible) => {
+        const becameVisible = visible && !subscriber.visible;
         subscriber.visible = visible;
+        if (becameVisible && shouldRun(entry, true) && entry.subscribers.size > 0) {
+          entry.failureCount = 0;
+          clearTimer(entry);
+          void refreshSource(entry, true);
+          return;
+        }
         evaluate();
       });
 
       entry.subscribers.add(subscriber);
-      notifySubscriber(subscriber, entry.state);
+      notifySubscriber(subscriber, snapshotState(entry.state));
       evaluate();
 
       let disposed = false;
@@ -383,7 +402,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
             resetAfterLastSubscriber();
           }
         },
-        getState: () => entry.state
+        getState: () => snapshotState(entry.state)
       };
     },
     refresh: () => {
@@ -394,7 +413,7 @@ export function registerNodelPollSource<T>(options: NodelPollSourceOptions<T>) {
       ensureRegistered();
       return refreshWithResult(entry, options);
     },
-    getState: () => entry.state
+    getState: () => snapshotState(entry.state)
   };
 }
 

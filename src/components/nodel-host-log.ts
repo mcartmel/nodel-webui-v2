@@ -55,6 +55,8 @@ const template = `
     </div>
   </div>
 `;
+const hostLogInitialPageSize = 200;
+const hostLogIncrementalPageSize = 200;
 
 function formatTimestamp(timestamp: unknown) {
   const value = String(timestamp ?? '');
@@ -134,7 +136,7 @@ export class NodelHostLog extends HTMLElement {
         const entries = await getHostLogs(
           {
             from: initial ? -1 : (this.seq ?? 0),
-            max: initial ? 200 : 9999
+            max: initial ? hostLogInitialPageSize : hostLogIncrementalPageSize
           },
           { signal }
         );
@@ -142,7 +144,7 @@ export class NodelHostLog extends HTMLElement {
           throw new DOMException('Aborted', 'AbortError');
         }
         const chronological = [...entries].reverse();
-        const nextSeq = chronological.length > 0 ? chronological[chronological.length - 1].seq + 1 : (this.seq ?? 0);
+        const nextSeq = chronological.length > 0 ? Math.max(this.seq ?? 0, chronological[chronological.length - 1].seq + 1) : (this.seq ?? 0);
 
         return {
           entries: chronological,

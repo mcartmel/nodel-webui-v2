@@ -157,6 +157,22 @@ describe('nodel-data-runtime', () => {
     window.removeEventListener('nodel-source-listener-error', listenerError);
   });
 
+  it('emits defensive state snapshots to subscribers and getState callers', async () => {
+    const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher: async () => 'ready' });
+    const subscription = source.subscribe(createPage(false).host, (state) => {
+      if (state.data) {
+        state.error = 'mutated by listener';
+      }
+    });
+
+    await waitFor(() => source.getState().data === 'ready');
+    const snapshot = source.getState();
+    snapshot.error = 'mutated by caller';
+
+    expect(source.getState()).toMatchObject({ data: 'ready', error: '' });
+    subscription.dispose();
+  });
+
   it('restarts after an abort-ignoring hidden request finally settles', async () => {
     const { page, host } = createPage(false);
     let resolveFirst!: (value: string) => void;
@@ -233,6 +249,25 @@ describe('nodel-data-runtime', () => {
 
     expect(result).toMatchObject({ status: 'failed', detail: 'console unavailable' });
     expect(source.getState().error).toBe('console unavailable');
+    subscription.dispose();
+  });
+
+  it('treats Error-shaped AbortError failures as aborted refreshes', async () => {
+    const abortError = new Error('Aborted');
+    abortError.name = 'AbortError';
+    const source = registerNodelOneShotSource<string>({
+      key: uniqueKey(),
+      fetcher: vi.fn().mockRejectedValue(abortError)
+    });
+    const states: Array<{ active: boolean; error: string; data: string | null }> = [];
+    const subscription = source.subscribe(createPage(false).host, (state) => {
+      states.push({ active: state.active, error: state.error, data: state.data });
+    });
+
+    await waitFor(() => states.some((state) => state.active));
+    await waitFor(() => states.at(-1)?.active === false);
+
+    expect(states.at(-1)).toMatchObject({ error: '', data: null });
     subscription.dispose();
   });
 

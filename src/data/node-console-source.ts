@@ -25,6 +25,8 @@ const state: ConsoleState = {
   generation: 0,
   seq: null
 };
+const consoleInitialPageSize = 200;
+const consoleIncrementalPageSize = 200;
 
 const source = registerNodelPollSource<NodeConsoleBatch>({
   key: 'node-console',
@@ -37,7 +39,7 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
     const entries = await getNodeConsoleLogs(
       {
         from,
-        max: initial ? 200 : 9999
+        max: initial ? consoleInitialPageSize : consoleIncrementalPageSize
       },
       { signal }
     );
@@ -46,7 +48,7 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
     }
 
     const chronological = [...entries].reverse();
-    const nextSeq = chronological.length > 0 ? chronological[chronological.length - 1].seq + 1 : (state.seq ?? 0);
+    const nextSeq = chronological.length > 0 ? Math.max(state.seq ?? 0, chronological[chronological.length - 1].seq + 1) : (state.seq ?? 0);
     state.seq = nextSeq;
 
     return {

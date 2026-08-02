@@ -39,4 +39,18 @@ describe('activity-accumulator', () => {
 
     expect(listener.mock.calls[0][0].map((item: { value: { seq: number } }) => item.value.seq)).toEqual([2, 3]);
   });
+
+  it('caps pending activity and retains the newest queued keys', () => {
+    vi.useFakeTimers();
+    const listener = vi.fn();
+    const accumulator = createActivityAccumulator(listener, { flushIntervalMs: 100, maxItems: 3 });
+
+    for (let seq = 1; seq <= 5; seq += 1) {
+      accumulator.enqueue({ key: `entry-${seq}`, value: { seq }, changed: true, live: true });
+    }
+
+    expect(accumulator.size()).toBe(3);
+    vi.advanceTimersByTime(100);
+    expect(listener.mock.calls[0][0].map((item: { value: { seq: number } }) => item.value.seq)).toEqual([3, 4, 5]);
+  });
 });

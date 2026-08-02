@@ -686,7 +686,10 @@ export async function checkHostReachable(host: string, timeoutMs = 3000, signal?
   }
 
   try {
-    const response = await fetchWithDeadline(restUrl, { signal }, timeoutMs);
+    const response = await fetchWithDeadline(restUrl, {
+      signal,
+      mode: restUrl.origin === window.location.origin ? 'cors' : 'no-cors'
+    }, timeoutMs);
     return { host, reachable: response.ok || response.type === 'opaque' };
   } catch {
     return { host, reachable: false };
