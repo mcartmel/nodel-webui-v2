@@ -151,7 +151,19 @@ The page title can then be controlled by `nodel-app title="..."`.
 
 Vite source pages may reference `/src/main.ts` during local dev. Built/deployed pages should reference the stable v2 support files.
 
-This contract also applies to pages authored after a release. They do not need to be listed in `vite.config.ts` and must not import source modules. The stable script registers the component framework for initial markup and components inserted later. Advanced runtime loading may split implementation code into hashed chunks internally, but that must remain transparent to ordinary static markup.
+This contract also applies to pages authored after a release. They do not need to be listed in `vite.config.ts` and must not import source modules. The stable script eagerly registers the Custom UI Components listed in `web-components.md`, scans initial markup for Core Nodel Components, and observes later insertions so ordinary static markup remains sufficient. Core implementations are loaded from a fixed internal dynamic-import registry; authored tag names never become import paths. The loader deduplicates concurrent requests and dispatches a bounded `nodel-component-load-error` event on `window` when a known core module cannot load.
+
+Advanced module pages may explicitly await a core definition before creating it:
+
+```js
+import { loadNodelComponent } from './v2/nodel-webui.js';
+
+await loadNodelComponent('nodel-editor');
+const editor = document.createElement('nodel-editor');
+document.body.append(editor);
+```
+
+`loadNodelComponent()` accepts only documented lazy core tags. Public primitives and the app-owned toast, confirmation, and connectivity hosts are already registered when the stable module finishes evaluating. The complete stylesheet remains in `nodel-webui.css`; JavaScript component loading does not require page-specific CSS builds or Tailwind scanning. JsViews starts only when a connected JsViews-backed component requests it, while CodeMirror and Chart.js remain behind their component-specific dynamic imports.
 
 The public `components.html` catalogue is the one intentional exception to the normal node-backed control path. Its module script carries the internal `data-nodel-runtime="memory"` marker, which the first import in `src/main.ts` detects before custom elements are registered. That import installs a page-local, closed-loop in-memory action/signal runtime for catalogue demonstrations. The runtime seeds the signal examples and resolves catalogue actions without calling `REST/actions/*/call` or opening the node activity stream; mapped actions publish synthetic local signal entries so related examples stay synchronized. Other pages omit the marker and retain the default REST/WebSocket adapters. The marker is an implementation detail of the catalogue page, not a public custom-page attribute.
 

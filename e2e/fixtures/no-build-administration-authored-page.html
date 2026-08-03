@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Administration authored page contract</title>
+    <link rel="stylesheet" href="./v2/nodel-webui.css" />
+    <script type="module" src="./v2/nodel-webui.js"></script>
+  </head>
+  <body>
+    <nodel-app title="Administration authored page contract">
+      <nodel-page title="Administration">
+        <nodel-title level="1">Administration</nodel-title>
+        <nodel-group label="Parameters">
+          <nodel-params></nodel-params>
+        </nodel-group>
+        <nodel-group label="Bindings">
+          <nodel-bindings></nodel-bindings>
+        </nodel-group>
+        <nodel-group label="Editor">
+          <nodel-editor default-file="script.py"></nodel-editor>
+        </nodel-group>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>

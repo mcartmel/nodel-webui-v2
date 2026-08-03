@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { nodelDocumentElements, completeNodelDocument } from '../src/editor/nodel-document-definition';
+import { bootstrapNodelComponentLoader, loadNodelComponent } from '../src/nodel-component-loader';
 import { readStyleSource } from './style-source';
 
 function fakeCompletionContext(text: string, explicit = true) {
@@ -84,6 +85,35 @@ function normaliseCatalogueNode(node: Node) {
 
 function duplicateIds(ids: string[]) {
   return Array.from(new Set(ids.filter((id, index) => ids.indexOf(id) !== index)));
+}
+
+function parseDocumentedComponents(docsSource: string, section: 'Custom UI Components' | 'Core Nodel Components') {
+  const heading = `### ${section}`;
+  const sectionStart = docsSource.indexOf(heading);
+  if (sectionStart === -1) {
+    return [] as string[];
+  }
+
+  const sectionTail = docsSource.slice(sectionStart + heading.length);
+  const nextHeadingStart = sectionTail.indexOf('\n### ');
+  const sectionSource = nextHeadingStart === -1 ? sectionTail : sectionTail.slice(0, nextHeadingStart);
+
+  return Array.from(sectionSource.matchAll(/-\s*`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1]);
+}
+
+function parseImportedComponents(source: string, importPathPrefix: './components/') {
+  const escapedImportPathPrefix = importPathPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`['\"]${escapedImportPathPrefix}(nodel-[a-z0-9-]+)['\"]`, 'g');
+  return Array.from(source.matchAll(pattern)).map((match) => match[1]);
+}
+
+function toUniqueSorted(values: string[]) {
+  return Array.from(new Set(values)).sort();
+}
+
+function expectDisjointSets(a: Set<string>, b: Set<string>) {
+  const overlap = Array.from(a).filter((value) => b.has(value));
+  expect(overlap).toEqual([]);
 }
 
 describe('nodel document definition', () => {
@@ -175,11 +205,18 @@ describe('nodel document definition', () => {
 
   it('has document-definition entries for public main imports', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8');
-    const importedComponents = Array.from(source.matchAll(/\.\/components\/(nodel-[^']+)'/g)).map((match) => match[1]);
+    const importedComponents = parseImportedComponents(source, './components/');
     const definedComponents = new Set(nodelDocumentElements.map((element) => element.name));
 
     expect(importedComponents.length).toBeGreaterThan(0);
     expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
+  });
+
+  it('installs the catalogue runtime before importing eager components', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8');
+    const firstImport = source.match(/^import\s+['"]([^'"]+)['"];?/m)?.[1];
+
+    expect(firstImport).toBe('./catalogue/runtime-bootstrap');
   });
 
   it('keeps component registries aligned across loader, docs, completions, and CSS', async () => {
@@ -188,14 +225,54 @@ describe('nodel document definition', () => {
       readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8'),
       readStyleSource()
     ]);
-    const importedComponents = Array.from(mainSource.matchAll(/\.\/components\/(nodel-[^']+)'/g)).map((match) => match[1]);
-    const documentedComponents = new Set(Array.from(docsSource.matchAll(/`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1]));
-    const definedComponents = new Set(nodelDocumentElements.map((element) => element.name));
+    const loaderSource = await readFile(resolve(process.cwd(), 'src/nodel-component-loader.ts'), 'utf8');
 
-    expect(importedComponents.filter((name) => !documentedComponents.has(name))).toEqual([]);
-    expect(importedComponents.filter((name) => !definedComponents.has(name))).toEqual([]);
-    expect(importedComponents.filter((name) => !stylesSource.includes(`${name},`) && !stylesSource.includes(`${name} {`))).toEqual([]);
-    expect(importedComponents.filter((name) => !stylesSource.includes(`${name}:not(:defined)`))).toEqual([]);
+    const eagerComponents = toUniqueSorted(parseImportedComponents(mainSource, './components/'));
+    const lazyComponents = toUniqueSorted(parseImportedComponents(loaderSource, './components/'));
+    const customComponents = toUniqueSorted(parseDocumentedComponents(docsSource, 'Custom UI Components'));
+    const coreComponents = toUniqueSorted(parseDocumentedComponents(docsSource, 'Core Nodel Components'));
+    const autoCreatedCoreHosts = new Set(['nodel-toast-host', 'nodel-confirm-host', 'nodel-connectivity-host']);
+
+    const documentedCoreLazy = coreComponents.filter((component) => !autoCreatedCoreHosts.has(component));
+    const documentedCoreEager = coreComponents.filter((component) => autoCreatedCoreHosts.has(component));
+    const documentedCoreEagerSorted = toUniqueSorted(documentedCoreEager);
+
+    const allDocumentedComponents = toUniqueSorted([...customComponents, ...coreComponents]);
+    const allRegistryComponents = toUniqueSorted(nodelDocumentElements.map((element) => element.name));
+    const eagerSet = new Set(eagerComponents);
+    const lazySet = new Set(lazyComponents);
+
+    expect(documentedCoreEagerSorted).toEqual(toUniqueSorted(Array.from(autoCreatedCoreHosts)));
+    expect(eagerComponents).toEqual(toUniqueSorted([...customComponents, ...documentedCoreEager]));
+    expect(lazyComponents).toEqual(toUniqueSorted(documentedCoreLazy));
+    expect(eagerComponents.filter((name) => !allDocumentedComponents.includes(name))).toEqual([]);
+    expect(lazyComponents.filter((name) => !allDocumentedComponents.includes(name))).toEqual([]);
+    expect(allRegistryComponents.filter((name) => !allDocumentedComponents.includes(name))).toEqual([]);
+    expect(allDocumentedComponents.filter((name) => !allRegistryComponents.includes(name))).toEqual([]);
+    expectDisjointSets(eagerSet, lazySet);
+    expect(toUniqueSorted([...eagerComponents, ...lazyComponents])).toEqual(allDocumentedComponents);
+
+    expect(allDocumentedComponents.filter((name) => !stylesSource.includes(`${name},`) && !stylesSource.includes(`${name} {`))).toEqual([]);
+    expect(allDocumentedComponents.filter((name) => !stylesSource.includes(`${name}:not(:defined)`))).toEqual([]);
+  });
+
+  it('keeps the loader contract bounded, normalised, and scan-driven', async () => {
+    await expect(loadNodelComponent('nodel-does-not-exist')).rejects.toThrow('Unknown Nodel component "nodel-does-not-exist"');
+    await expect(loadNodelComponent('nodel-does-not-exist')).rejects.toThrow('Unknown Nodel component "nodel-does-not-exist"');
+
+    await expect(loadNodelComponent('  Nodel-Link  ')).resolves.toBeUndefined();
+    expect(customElements.get('nodel-link')).toBeDefined();
+
+    const root = document.createElement('div');
+    root.innerHTML = '<nodel-link id="loader-root"></nodel-link>';
+    document.body.append(root);
+
+    bootstrapNodelComponentLoader(root);
+
+    await customElements.whenDefined('nodel-link');
+    root.append(document.createElement('nodel-description'));
+    await customElements.whenDefined('nodel-description');
+    expect(customElements.get('nodel-description')).toBeDefined();
   });
 
   it('includes the node menu in the default node UI', async () => {
@@ -235,10 +312,12 @@ describe('nodel document definition', () => {
       'nodel-page',
       'nodel-row',
       'nodel-column',
+      'nodel-footer',
       'nodel-control-grid',
       'nodel-control-space',
       'nodel-group',
       'nodel-template',
+      'nodel-link',
       'nodel-button',
       'nodel-toggle',
       'nodel-segmented',
@@ -257,6 +336,8 @@ describe('nodel document definition', () => {
       'nodel-collapse',
       'nodel-text',
       'nodel-title',
+      'nodel-markdown',
+      'nodel-clock',
       'nodel-theme-toggle',
       'nodel-host-icon'
     ];

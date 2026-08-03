@@ -58,6 +58,12 @@ The shipped-page capture used the built preview on Chromium, an 800 ms post-`DOM
 
 Stage 2 removed the unsupported host-feature probe, reducing the corresponding current node-page topology by one request. The table remains the Stage 0 measurement for historical comparison.
 
+## Stage 10 Loading Comparison
+
+Stage 10 keeps the Stage 0 table above as historical evidence and changes the runtime topology rather than rewriting that baseline. The stable `v2/nodel-webui.js` file is now a small exported wrapper over a hashed eager-runtime chunk. In the Stage 10 build, the wrapper is 0.08 kB minified (0.10 kB gzip) and the eager runtime chunk is 349.62 kB minified (92.97 kB gzip), down from the 544.78 kB (146.68 kB gzip) monolithic stable script recorded above. The complete stylesheet remains one 163.53 kB (20.61 kB gzip) stable file.
+
+Core administration component modules now emit separate `nodel-*` chunks. A no-build page containing only public controls requests the stable CSS, stable wrapper, and eager runtime but does not request JsViews, CodeMirror, Chart.js, or a core component chunk. Initial or later core markup loads only its allowlisted component modules. JsViews is requested when the first connected JsViews-backed component initializes; CodeMirror and Chart.js remain conditional on editor/toolkit and diagnostic-chart use respectively. Browser contracts cover root and node-relative authored pages, initial and later core insertion, the imperative loader API, failed component chunks, an authored params/bindings/editor page, and all built pages below a node-style URL.
+
 ## Polling And Reconnect Baseline
 
 The rates below are the configured steady-state upper bounds for successful requests after the immediate initial request. They exclude response duration and failure backoff. Visible-only sources abort or stop scheduling when hidden, giving zero steady-state requests per minute after any in-flight request settles.

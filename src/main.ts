@@ -22,40 +22,24 @@ import './components/nodel-readout';
 import './components/nodel-palette';
 import './components/nodel-image';
 import './components/nodel-icon';
-import './components/nodel-link';
 import './components/nodel-qrcode';
 import './components/nodel-status-indicator';
 import './components/nodel-status';
 import './components/nodel-collapse';
-import './components/nodel-description';
 import './components/nodel-text';
 import './components/nodel-markdown';
 import './components/nodel-title';
 import './components/nodel-clock';
 import './components/nodel-host-icon';
-import './components/nodel-node-list';
-import './components/nodel-add-node';
-import './components/nodel-node-menu';
-import './components/nodel-diagnostics';
-import './components/nodel-host-log';
-import './components/nodel-diagnostic-charts';
-import './components/nodel-toolkit';
-import './components/nodel-console';
-import './components/nodel-log';
-import './components/nodel-actsig';
-import './components/nodel-params';
-import './components/nodel-bindings';
-import './components/nodel-editor';
 import './components/nodel-theme-toggle';
 import './components/nodel-toast-host';
 import './components/nodel-confirm-host';
 import './components/nodel-connectivity-host';
 
 import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';
-import { bootstrapJsViews } from './jsviews/jsviews-runtime';
+import { bootstrapNodelComponentLoader, loadNodelComponent } from './nodel-component-loader';
+
+export { loadNodelComponent };
 
 bootstrapSignalVisibilityBindings();
-
-void bootstrapJsViews().catch((error) => {
-  console.error('JsViews bootstrap failed', error);
-});
+bootstrapNodelComponentLoader();

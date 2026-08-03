@@ -11,7 +11,11 @@ function cssBeforeEntryScriptPlugin(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html) {
-        const orderedHtml = html.replace(
+        const stableEntryHtml = html.replace(
+          /(<script\b[^>]*\bsrc=")\.\/v2\/chunks\/main-[^"]+("[^>]*><\/script>)/,
+          '$1./v2/nodel-webui.js$2'
+        );
+        const orderedHtml = stableEntryHtml.replace(
           /^([\t ]*<script\b[^>]*\bsrc="\.\/v2\/nodel-webui\.js"[^>]*><\/script>\r?\n)([\t ]*<link\b[^>]*\bhref="\.\/v2\/nodel-webui\.css"[^>]*>\r?\n?)/m,
           '$2$1'
         );
@@ -40,16 +44,18 @@ export default defineConfig({
     emptyOutDir: true,
     cssCodeSplit: false,
     rollupOptions: {
+      preserveEntrySignatures: 'exports-only',
       input: {
+        main: resolve(projectRoot, 'src/main.ts'),
         components: resolve(projectRoot, 'components.html'),
         nodes: resolve(projectRoot, 'nodes.html'),
         nodel: resolve(projectRoot, 'nodel.html'),
         toolkit: resolve(projectRoot, 'toolkit.html')
       },
       output: {
-        entryFileNames: 'v2/entries/[name].js',
-        chunkFileNames: (chunkInfo) =>
-          chunkInfo.name === 'main' ? 'v2/nodel-webui.js' : 'v2/chunks/[name]-[hash].js',
+        entryFileNames: (chunkInfo) =>
+          chunkInfo.name === 'main' ? 'v2/nodel-webui.js' : 'v2/entries/[name].js',
+        chunkFileNames: 'v2/chunks/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
           if (assetInfo.name === 'style.css') {
             return 'v2/nodel-webui.css';
