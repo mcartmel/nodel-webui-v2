@@ -427,6 +427,8 @@ describe('prepare-release', () => {
     await mkdir(join(target, 'empty-directory'));
     const directoryArchive = join(fixtureRoot, 'build', 'extra-directory.zip');
     await execFileAsync('zip', ['-qr', directoryArchive, '.'], { cwd: target });
-    await expect(verifyReleaseArchive(directoryArchive)).rejects.toThrow(/unexpected directory entry/);
+    await expect(verifyReleaseArchive(directoryArchive)).rejects.toThrow(
+      /unexpected directory entry|directories do not exactly match its inventory/
+    );
   });
 });
