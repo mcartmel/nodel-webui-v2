@@ -47,6 +47,15 @@ describe('add-node recipe cache', () => {
     expect(addNodeApiMock.listRecipes).toHaveBeenCalledTimes(1);
   });
 
+  it('publishes immutable recipe snapshots', async () => {
+    const { refreshAddNodeRecipes } = await loadAddNodeFeature();
+    addNodeApiMock.listRecipes.mockResolvedValue([{ path: 'Recipes/Starter' }]);
+
+    const recipes = await refreshAddNodeRecipes();
+
+    expect(Object.isFrozen(recipes)).toBe(true);
+  });
+
   it('bypasses the TTL for a forced refresh', async () => {
     const { refreshAddNodeRecipes } = await loadAddNodeFeature();
     addNodeApiMock.listRecipes
@@ -201,5 +210,32 @@ describe('add-node recipe cache', () => {
       secondary: 'host'
     }]);
     expect(result).not.toHaveProperty('views');
+  });
+
+  it('offers canonical unscoped IPv6 templates while excluding display-only scoped entries', async () => {
+    const { searchAddNodeTemplates } = await loadAddNodeFeature();
+    addNodeApiMock.listRecipes.mockResolvedValue([]);
+    addNodeApiMock.searchNodeUrls.mockResolvedValue([
+      { node: 'IPv6', address: 'http://::1:8085/nodes/IPv6/', host: '::1:8085' },
+      { node: 'Scoped', address: 'http://[fe80::1%25EtherNet0]:8085/nodes/Scoped/', host: 'fe80::1%EtherNet0:8085' }
+    ]);
+
+    await expect(searchAddNodeTemplates({ allowDuplicate: true, allowRecipes: false, query: 'v', signal: new AbortController().signal })).resolves.toEqual({
+      error: '',
+      results: [{ type: 'node', address: 'http://[::1]:8085/nodes/IPv6/', name: 'IPv6', host: '::1:8085' }]
+    });
+  });
+
+  it('filters scoped candidates before applying the node result cap', async () => {
+    const { searchAddNodeTemplates } = await loadAddNodeFeature();
+    addNodeApiMock.listRecipes.mockResolvedValue([]);
+    addNodeApiMock.searchNodeUrls.mockResolvedValue([
+      ...Array.from({ length: 10 }, (_, index) => ({ node: `Scoped ${index}`, address: `http://fe80::${index + 1}%EtherNet0:8085/nodes/Scoped${index}/` })),
+      { node: 'Display', address: 'https://display.example/nodes/Display/' }
+    ]);
+
+    await expect(searchAddNodeTemplates({ allowDuplicate: true, allowRecipes: false, query: 's', signal: new AbortController().signal })).resolves.toMatchObject({
+      results: [{ type: 'node', name: 'Display', address: 'https://display.example/nodes/Display/' }]
+    });
   });
 });

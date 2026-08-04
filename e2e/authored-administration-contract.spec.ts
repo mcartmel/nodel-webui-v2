@@ -132,7 +132,7 @@ test.describe('no-build authored administration contract', () => {
 
     const editor = page.locator('nodel-editor');
     await expect(editor.locator('.cm-editor')).toBeVisible();
-    await expect(editor.locator('[data-editor-file-picker]')).toHaveValue('script.py');
+    await expect(editor.locator('[data-editor-file-picker] option:checked')).toContainText('script.py');
     await expect(editor.locator('.cm-line')).toContainText('print("fixture")');
 
     for (const chunk of ['nodel-params-', 'nodel-bindings-', 'nodel-editor-']) {

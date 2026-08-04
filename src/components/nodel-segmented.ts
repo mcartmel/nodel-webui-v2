@@ -11,6 +11,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { DynamicOptionsController, type DynamicOptionsState } from '../data/dynamic-options';
 import { createSignalBindingController, parseSignalBindings, signalBindingKey } from '../data/signal-bindings';
 import { syncHostAccessibleLabel } from '../utils/accessibility';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { truthy, type ControlArgType } from '../utils/control-values';
 import './nodel-button';
 
@@ -63,6 +64,7 @@ export class NodelSegmented extends HTMLElement {
   private actionController = new ControlActionController();
 
   connectedCallback() {
+    this.actionController.connect();
     this.classList.add('nodel-segmented');
     this.setAttribute('role', 'radiogroup');
     this.ensureDynamicOptions();
@@ -73,11 +75,14 @@ export class NodelSegmented extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
+    this.busy = false;
     this.removeEventListener('click', this.handleClick, true);
     this.removeEventListener('keydown', this.handleKeyDown);
-    this.actionController.invalidate();
     this.signalBindings.dispose();
-    this.dynamicOptions?.reset();
+    if (this.optionsBindingKey !== '') {
+      this.dynamicOptions?.reset();
+    }
     this.optionsBindingKey = '';
   }
 
@@ -229,12 +234,16 @@ export class NodelSegmented extends HTMLElement {
       return;
     }
 
-    const token = this.actionController.nextToken();
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      return;
+    }
+    const token = this.actionController.nextToken(scope);
     const optionValue = this.optionValue(option);
     const currentValue = this.getAttribute('value') ?? '';
     const nextValue = currentValue === optionValue && this.hasAttribute('allow-deselect') ? '' : optionValue;
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'select' });
-    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const action = actionName(bindings, trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''));
     const phase = 'select';
     const payloadResult = buildActionPayload(nextValue, normalizeArgType(this.getAttribute('arg-type')));
     if (!payloadResult.ok) {
@@ -249,44 +258,50 @@ export class NodelSegmented extends HTMLElement {
         title: 'Confirm selection',
         text: `Select ${option.textContent?.trim() || nextValue}?`,
         tone: 'info'
-      }), option.querySelector('button'));
+      }), option.querySelector('button'), scope.signal);
       if (!confirmed) {
         return;
       }
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
     }
 
     if (bindings.length === 0) {
+      if (!this.actionController.isLatest(token, scope)) {
+        return;
+      }
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, payload, nextValue, []);
       return;
     }
 
+    if (!scope.isCurrent()) {
+      return;
+    }
     this.busy = true;
     this.render();
     try {
-      const execution = await executeActionPhases(bindings, [phase], payload);
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      const execution = await executeActionPhases(bindings, [phase], payload, scope);
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       if (execution.failures.length > 0) {
-        dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, failures: execution.failures });
+        dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, results: execution.results, failures: execution.failures });
         return;
       }
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, payload, nextValue, execution.results);
     } catch (error) {
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       dispatchControlActionError(this, { eventName: 'nodel-segmented-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: true, live: false, error: actionErrorMessage(error) });
     } finally {
-      if (this.actionController.isLatest(token)) {
+      if (this.actionController.isLatest(token, scope)) {
         this.busy = false;
       }
-      if (this.isConnected && this.actionController.isLatest(token)) {
+      if (this.actionController.isLatest(token, scope)) {
         this.render();
       }
     }

@@ -123,6 +123,24 @@
         "timestamp": "2026-08-01T01:02:04.000Z",
         "console": "warn",
         "comment": "Contract warning"
+      },
+      {
+        "seq": 102,
+        "timestamp": "2026-08-01T01:02:05.000Z",
+        "console": "err",
+        "comment": ""
+      },
+      {
+        "seq": 103,
+        "timestamp": "2026-08-01T01:02:05.000Z",
+        "console": "err",
+        "comment": "\tat java.base/java.lang.reflect.Method.invoke(Method.java:580)"
+      },
+      {
+        "seq": 104,
+        "timestamp": "2026-08-01T01:02:06.000Z",
+        "console": "info",
+        "comment": "Contract first line\nContract second line"
       }
     ],
     "activity": [
@@ -381,6 +399,34 @@
         "readme": "Projector recipe"
       }
     ],
+    "compatibility221": {
+      "displayStrings": ["", "Java display\u0000text\u001f\u007f\nwith escapes"],
+      "emptySchema": {},
+      "restartStatusNull": {},
+      "httpAddresses": [
+        "http://::1:8085/REST",
+        "http://fe80::1%eth0:8085/REST"
+      ],
+      "nodeUrls": [
+        {
+          "node": "IPv6 node",
+          "address": "http://::1:8085/nodes/IPv6/",
+          "host": "::1:8085"
+        },
+        {
+          "node": "Scoped IPv6 node",
+          "address": "http://fe80::1%eth0:8085/nodes/Scoped/",
+          "host": "fe80::1%eth0:8085"
+        }
+      ],
+      "gitOrigins": [
+        "https://github.com/museumsvictoria/nodel",
+        "git@github.com:museumsvictoria/nodel.git",
+        "ssh://git@github.com/museumsvictoria/nodel.git",
+        "file:///opt/src/nodel",
+        "../local/nodel"
+      ]
+    },
     "writeResult": true,
     "actionResult": true
   }

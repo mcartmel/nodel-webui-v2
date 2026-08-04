@@ -13,7 +13,7 @@ import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
-import { getNodePathName } from '../utils/node-name';
+import { getNodePathName, isUsableNodeName, nodeNameValidationError, trimNodeName } from '../utils/node-name';
 import { localNodeUrl, safeNavigationHref } from '../utils/urls';
 import { ModalFocusController } from '../utils/modal-focus-controller';
 import { apiErrorMessage } from '../utils/errors';
@@ -264,7 +264,8 @@ export class NodelNodeMenu extends HTMLElement {
   };
 
   private handleDocumentKeydown = (event: KeyboardEvent) => {
-    if (!this.state.open) {
+    const drawer = this.querySelector<HTMLElement>('.nodel-node-menu-drawer');
+    if (!this.state.open || !this.modal.isTopLayerActive() || !drawer?.contains(document.activeElement)) {
       return;
     }
     if (event.key === 'Escape') {
@@ -304,7 +305,7 @@ export class NodelNodeMenu extends HTMLElement {
     }
 
     this.modal.activate({
-      container: this,
+      container: layer,
       dialog: drawer,
       inertRoot: this.closest('nodel-app') ?? this.parentElement ?? document.body,
       onCancel: () => this.close(),
@@ -356,9 +357,14 @@ export class NodelNodeMenu extends HTMLElement {
     if (!scope) {
       return;
     }
-    const newName = this.state.nodeName.trim();
+    const rawName = this.state.nodeName;
+    const newName = trimNodeName(rawName);
     if (!newName) {
       this.setState({ error: 'Node name is required.' });
+      return;
+    }
+    if (!isUsableNodeName(rawName)) {
+      this.setState({ error: nodeNameValidationError(rawName) });
       return;
     }
 

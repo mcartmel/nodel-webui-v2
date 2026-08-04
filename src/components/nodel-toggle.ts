@@ -11,6 +11,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { createSignalBindingController } from '../data/signal-bindings';
 import { iconForName, renderFontAwesomeIcon } from '../icons/fontawesome';
 import { syncInternalAccessibleLabel } from '../utils/accessibility';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { isToggleOnish, resolveToggleState, toggleAriaChecked, type ToggleState } from '../utils/toggle-state';
 
 type NodelToggleVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger';
@@ -60,6 +61,7 @@ export class NodelToggle extends HTMLElement {
   private actionController = new ControlActionController();
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -67,6 +69,8 @@ export class NodelToggle extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
+    this.busy = false;
     this.removeEventListener('click', this.handleClick);
     this.signalBindings.dispose();
   }
@@ -164,7 +168,8 @@ export class NodelToggle extends HTMLElement {
   }
 
   private async submitAction(action: string) {
-    if (!this.actionController.startSingleFlight()) {
+    const scope = this.actionController.captureScope();
+    if (!scope || !this.actionController.startSingleFlight(scope)) {
       return;
     }
 
@@ -199,17 +204,23 @@ export class NodelToggle extends HTMLElement {
           title: 'Confirm toggle',
           text: `Set ${this.getAttribute('label') || 'toggle'} ${nextOn ? 'on' : 'off'}?`,
           tone: nextOn ? 'success' : 'info'
-        }), this.buttonNode);
-        if (!confirmed) {
+        }), this.buttonNode, scope.signal);
+        if (!confirmed || !scope.isCurrent()) {
           return;
         }
       }
 
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.busy = true;
       this.render();
 
       try {
-        const execution = await executeActionPhases(bindings, phases, payload);
+        const execution = await executeActionPhases(bindings, phases, payload, scope);
+        if (!scope.isCurrent()) {
+          return;
+        }
         if (execution.failures.length > 0) {
           dispatchControlActionError(this, {
             eventName: 'nodel-toggle-error',
@@ -221,6 +232,7 @@ export class NodelToggle extends HTMLElement {
             arg: payloadResult.arg,
             committed: true,
             live: false,
+            results: execution.results,
             failures: execution.failures
           });
           return;
@@ -230,6 +242,9 @@ export class NodelToggle extends HTMLElement {
           detail: { action: actionName(bindings, action), phase, phases, state: phase, value: phase, arg: payloadResult.arg, payload, results: execution.results, failures: [], committed: true, live: false }
         }));
       } catch (error) {
+        if (!scope.isCurrent()) {
+          return;
+        }
         dispatchControlActionError(this, {
           eventName: 'nodel-toggle-error',
           action: actionName(bindings, action),
@@ -243,14 +258,14 @@ export class NodelToggle extends HTMLElement {
           error: actionErrorMessage(error)
         });
       } finally {
-        this.busy = false;
-        if (this.isConnected) {
+        if (scope.isCurrent()) {
+          this.busy = false;
           this.render();
         }
       }
     } finally {
-      this.actionController.finishSingleFlight();
-      if (!this.busy && this.isConnected) {
+      this.actionController.finishSingleFlight(scope);
+      if (!this.busy && scope.isCurrent()) {
         this.render();
       }
     }
@@ -302,7 +317,7 @@ export class NodelToggle extends HTMLElement {
       return;
     }
 
-    const action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '';
+    const action = trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? '');
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'toggle' });
     if (bindings.length === 0 || this.hasAttribute('disabled')) {
       return;

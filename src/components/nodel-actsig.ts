@@ -15,6 +15,7 @@ import { renderComponentError } from '../utils/render-component-error';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { apiErrorMessage, isAbortError } from '../utils/errors';
 import { hasOwn } from '../utils/records';
+import { reversibleUrlPathSegment } from '../utils/urls';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
   createSchemaForm,
@@ -46,6 +47,7 @@ interface ActSigFormModel {
   schema: NodelJsonSchema;
   schemaForm: SchemaFormModel | null;
   materialized: boolean;
+  requestEligible: boolean;
   busy: boolean;
   error: string;
   pulse: boolean;
@@ -88,6 +90,7 @@ const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-s
 const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
 const copyToastId = 'nodel-actsig-copy-name';
 let registered = false;
+let nextActSigOrdinal = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
@@ -100,7 +103,7 @@ const actSigFormTemplate = `
       <div class="flex shrink-0 items-center gap-2">
         <span class="nodel-actsig-form-icon" data-link="data-actsig-point-type{:pointType}" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
         <button type="button" class="nodel-button nodel-actsig-copy nodel-button-compact" data-link="data-actsig-copy-id{:id} title{:copyTitle} aria-label{:copyLabel}">${copyIconMarkup}</button>
-        <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !materialized || !schemaForm || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
+        <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !requestEligible || !materialized || !schemaForm || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
           {^{>pointType === 'action' ? 'Call' : 'Emit'}}
         </button>
       </div>
@@ -190,8 +193,9 @@ function registerActSigTemplates() {
   registered = true;
 }
 
-function nextActSigId(prefix: string) {
-  return `nodel-actsig-${encodeURIComponent(prefix)}`;
+function nextActSigId() {
+  nextActSigOrdinal += 1;
+  return `nodel-actsig-${nextActSigOrdinal}`;
 }
 
 function actionSignalSchema(schema: NodelJsonSchema | null | undefined): NodelJsonSchema {
@@ -233,8 +237,9 @@ function normalizeDefinitionName<T extends { name?: string }>(key: string, defin
 
 function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition | NodelSignalDefinition, fallbackName: string): ActSigFormModel {
   const name = definition.name || fallbackName;
+  const requestEligible = reversibleUrlPathSegment(name) !== null;
   return {
-    id: nextActSigId(`${pointType}-${name}`),
+    id: nextActSigId(),
     pointType,
     name,
     title: titleFor(definition, name),
@@ -243,8 +248,9 @@ function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition 
     schema: actionSignalSchema(definition.schema),
     schemaForm: null,
     materialized: false,
+    requestEligible,
     busy: false,
-    error: '',
+    error: requestEligible ? '' : `This ${pointType === 'action' ? 'action' : 'signal'} name cannot be represented safely in a request URL.`,
     pulse: false,
     iconMarkup: iconFor(pointType),
     copyLabel: `Copy ${pointType === 'action' ? 'action' : 'signal'} name ${name}`,
@@ -410,7 +416,7 @@ export class NodelActSig extends HTMLElement {
       const order = orderFor(action);
       rowIndex += 1;
       pushRow(action.group, {
-        id: nextActSigId(`row-${key}`),
+        id: nextActSigId(),
         title: titleFor(action, action.name),
         order,
         index: rowIndex,
@@ -422,7 +428,7 @@ export class NodelActSig extends HTMLElement {
     for (const [key, signal] of remainingSignals) {
       rowIndex += 1;
       pushRow(signal.group, {
-        id: nextActSigId(`row-${key}`),
+        id: nextActSigId(),
         title: titleFor(signal, signal.name),
         order: orderFor(signal),
         index: rowIndex,
@@ -434,7 +440,7 @@ export class NodelActSig extends HTMLElement {
     const sections: ActSigSectionModel[] = [];
     if (ungroupedRows.length > 0) {
       sections.push({
-        id: nextActSigId('section-ungrouped'),
+        id: nextActSigId(),
         title: ungroupedSectionTitle,
         grouped: false,
         open: true,
@@ -445,7 +451,7 @@ export class NodelActSig extends HTMLElement {
 
     for (const [title, rows] of groups) {
       sections.push({
-        id: nextActSigId(`section-${title}`),
+        id: nextActSigId(),
         title,
         grouped: true,
         open: false,
@@ -680,7 +686,7 @@ export class NodelActSig extends HTMLElement {
 
     event.preventDefault();
     const form = this.findFormById(formId);
-    if (!form || !form.schemaForm || form.busy || (form.pointType === 'event' && !this.state.overrideSignals)) {
+    if (!form || !form.requestEligible || !form.schemaForm || form.busy || (form.pointType === 'event' && !this.state.overrideSignals)) {
       return;
     }
 

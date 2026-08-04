@@ -10,7 +10,7 @@ const activityMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/api/nodel-host-client', () => ({
-  callNodeAction: actionMock.callNodeAction
+  callNodeAction: (name: string, payload: unknown) => actionMock.callNodeAction(name, payload)
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({

@@ -4,6 +4,7 @@ import { renderFontAwesomeIcon, toastIcons } from '../icons/fontawesome';
 import { normalizeToastTone, type NodelToastTone } from './nodel-toast-host';
 import { ModalFocusController } from '../utils/modal-focus-controller';
 import { escapeHtml } from '../utils/html';
+import { trimPointReference } from '../utils/edge-whitespace';
 
 type CodeStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -62,7 +63,7 @@ export class NodelConfirmHost extends HTMLElement {
       cancelLabel: detail.cancelLabel?.trim() || 'Cancel',
       tone: normalizeToastTone(detail.tone),
       mode: detail.mode === 'code' ? 'code' : 'standard',
-      codeSignal: detail.codeSignal?.trim() || 'ConfirmCode',
+      codeSignal: trimPointReference(detail.codeSignal ?? '') || 'ConfirmCode',
       codeStatus: 'loading',
       expectedCode: null,
       enteredCode: '',
@@ -291,6 +292,9 @@ export class NodelConfirmHost extends HTMLElement {
     this.render();
     if (hadFocus) {
       queueMicrotask(() => {
+        if (!this.modal.isTopLayerActive()) {
+          return;
+        }
         const target = this.focusTokenElement(token);
         if (target && !target.disabled) {
           target.focus();

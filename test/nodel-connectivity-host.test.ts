@@ -1,12 +1,22 @@
 import '../src/components/nodel-app';
 import type { NodelConnectivityHostElement } from '../src/components/nodel-connectivity-host';
+import type { NodelConfirmHostElement } from '../src/components/nodel-confirm-host';
+import type { NodelActivityLogEntry } from '../src/api/nodel-types';
+import type { NodelControlRuntime, NodelControlSignalState } from '../src/data/control-runtime';
+import { installControlRuntime } from '../src/data/control-runtime';
 import { flush, waitFor } from './helpers';
 
 function setOnline(online: boolean) {
   Object.defineProperty(navigator, 'onLine', { configurable: true, value: online });
 }
 
+function signalEntry(alias: string, arg: unknown): NodelActivityLogEntry {
+  return { seq: 1, timestamp: '2026-08-04T00:00:00Z', source: 'local', type: 'event', alias, arg };
+}
+
 describe('nodel connectivity presentation', () => {
+  let restoreRuntime: (() => void) | null = null;
+
   beforeEach(() => {
     setOnline(true);
     window.history.replaceState(undefined, '', '/components.html');
@@ -14,6 +24,8 @@ describe('nodel connectivity presentation', () => {
   });
 
   afterEach(() => {
+    restoreRuntime?.();
+    restoreRuntime = null;
     document.body.innerHTML = '';
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -94,5 +106,85 @@ describe('nodel connectivity presentation', () => {
     expect(authoredInert.inert).toBe(true);
     expect(added.inert).toBe(false);
     expect(document.activeElement).toBe(field);
+  });
+
+  it('restores the connectivity layer after a top confirmation closes', async () => {
+    document.body.innerHTML = '<nodel-app><main id="content"><button>Control</button></main></nodel-app>';
+    await flush();
+    const connectivity = document.querySelector('nodel-connectivity-host') as NodelConnectivityHostElement;
+    const confirm = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+
+    setOnline(false);
+    window.dispatchEvent(new Event('offline'));
+    await flush();
+    expect(document.activeElement).toBe(connectivity.querySelector('[role="alertdialog"]'));
+
+    confirm.confirm({ text: 'Confirm layered focus?', resolve: vi.fn() }, connectivity.querySelector('[role="alertdialog"]'));
+    await flush();
+    expect(connectivity.inert).toBe(true);
+    expect(document.activeElement).toBe(confirm.querySelector('[data-confirm-action="confirm"]'));
+
+    confirm.querySelector<HTMLButtonElement>('[data-confirm-action="cancel"]')?.click();
+    await flush();
+    expect(connectivity.inert).toBe(false);
+    expect(document.activeElement).toBe(connectivity.querySelector('[role="alertdialog"]'));
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => connectivity.hidden);
+  });
+
+  it('keeps connectivity top when a code confirmation rerenders from a signal update', async () => {
+    let signalListener: (state: NodelControlSignalState) => void = () => {
+      throw new Error('Code confirmation did not subscribe to signals.');
+    };
+    const runtime: NodelControlRuntime = {
+      callAction: vi.fn(async () => ({})),
+      subscribeSignals: vi.fn((_element, listener) => {
+        signalListener = listener;
+        return { dispose: vi.fn() };
+      })
+    };
+    restoreRuntime = installControlRuntime(runtime);
+    document.body.innerHTML = '<nodel-app><main><button>Control</button></main></nodel-app>';
+    await flush();
+    const connectivity = document.querySelector('nodel-connectivity-host') as NodelConnectivityHostElement;
+    const confirm = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const resolved = vi.fn();
+
+    confirm.confirm({ mode: 'code', codeSignal: 'OperatorPin', resolve: resolved });
+    await flush();
+    expect(document.activeElement).toBe(confirm.querySelector('button[data-confirm-action="cancel"]'));
+
+    setOnline(false);
+    window.dispatchEvent(new Event('offline'));
+    await flush();
+    const connectivityDialog = connectivity.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(document.activeElement).toBe(connectivityDialog);
+    expect(confirm.inert).toBe(true);
+
+    signalListener({
+      loading: false,
+      connected: true,
+      error: '',
+      entries: [signalEntry('OperatorPin', '1234')]
+    });
+    await flush();
+
+    expect(confirm.inert).toBe(true);
+    expect(document.activeElement).toBe(connectivityDialog);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+    expect(document.activeElement).toBe(connectivityDialog);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(resolved).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(connectivityDialog);
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => connectivity.hidden);
+    await flush();
+    expect(document.activeElement).toBe(confirm.querySelector('[data-confirm-code-digit="1"]'));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(resolved).toHaveBeenCalledWith(false);
   });
 });

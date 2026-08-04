@@ -652,6 +652,19 @@ describe('node-activity-source', () => {
     subscription.dispose();
   });
 
+  it('bounds and normalizes decoded WebSocket error text before exposing it to state', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    await flushMicrotasks();
+
+    MockWebSocket.instances.at(-1)?.message({ error: `  ${'x'.repeat(800)}\nmore` });
+
+    expect(states.at(-1)?.error).toHaveLength(500);
+    expect(states.at(-1)?.error).not.toContain('\n');
+    subscription.dispose();
+  });
+
   it('forces a restart activity refresh for a hidden but subscribed log source', async () => {
     activityMock.initialVisible = false;
     activityMock.getNodeActivity.mockResolvedValueOnce([activityEntry({ seq: 7, alias: 'ForcedStatus' })]);

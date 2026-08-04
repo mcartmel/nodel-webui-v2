@@ -96,6 +96,24 @@ describe('nodel-link', () => {
     expect(linkMock.getNodeUrlsForNode).toHaveBeenCalledWith('Display Ünit', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
+  it('does not turn an unpaired node name into a replacement-character Network fallback', async () => {
+    linkMock.getNodeUrlsForNode.mockResolvedValue([]);
+    document.body.innerHTML = '<nodel-link node="Unsafe\ud800Node">Open unsafe node</nodel-link>';
+    await waitFor(() => document.querySelector('nodel-link')?.getAttribute('data-state') === 'error');
+
+    expect(anchor().hasAttribute('href')).toBe(false);
+    expect(anchor().textContent).toContain('Open unsafe node');
+    expect(linkMock.getNodeUrlsForNode).not.toHaveBeenCalled();
+  });
+
+  it('keeps replacement-character names distinct from malformed node names', async () => {
+    linkMock.getNodeUrlsForNode.mockResolvedValue([]);
+    document.body.innerHTML = '<nodel-link node="Node\ufffd">Open replacement node</nodel-link>';
+    await waitFor(() => document.querySelector('nodel-link')?.getAttribute('data-state') === 'error');
+
+    expect(anchor().getAttribute('href')).toBe('/nodes.html?filter=Node%EF%BF%BD#Network');
+  });
+
   it.each([
     ['no result', []],
     ['unsafe result', [{ address: 'javascript:alert(1)' }]]
@@ -118,6 +136,18 @@ describe('nodel-link', () => {
     expect(document.querySelector('[data-nodel-link-status]')?.textContent).toContain('Direct address unavailable');
   });
 
+  it('navigates canonical unscoped IPv6 discoveries but leaves scoped forms on the Network fallback', async () => {
+    linkMock.getNodeUrlsForNode.mockResolvedValueOnce([{ address: 'http://::1:8085/nodes/IPv6/' }]);
+    document.body.innerHTML = '<nodel-link node="IPv6">Open</nodel-link>';
+    await waitFor(() => document.querySelector('nodel-link')?.getAttribute('data-state') === 'ready');
+    expect(anchor().href).toBe('http://[::1]:8085/nodes/IPv6/');
+
+    linkMock.getNodeUrlsForNode.mockResolvedValueOnce([{ address: 'http://[fe80::1%25EtherNet0]:8085/nodes/Scoped/' }]);
+    document.body.innerHTML = '<nodel-link node="Scoped">Open</nodel-link>';
+    await waitFor(() => document.querySelector('nodel-link')?.getAttribute('data-state') === 'error');
+    expect(anchor().getAttribute('href')).toBe('/nodes.html?filter=Scoped#Network');
+  });
+
   it('resolves an explicit event binding before resolving its target node', async () => {
     linkMock.getNodeEventBinding.mockResolvedValue({ node: 'Bound Display', event: 'Status' });
     linkMock.getNodeUrlsForNode.mockResolvedValue([{ address: 'https://display.example/nodes/BoundDisplay/' }]);
@@ -127,6 +157,16 @@ describe('nodel-link', () => {
     expect(linkMock.getNodeEventBinding).toHaveBeenCalledWith('DisplayStatus', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(linkMock.getNodeUrlsForNode).toHaveBeenCalledWith('Bound Display', expect.anything());
     expect(anchor().href).toBe('https://display.example/nodes/BoundDisplay/');
+  });
+
+  it('resolves event-binding aliases with U+FEFF exactly', async () => {
+    linkMock.getNodeEventBinding.mockResolvedValue({ node: 'Bound Display' });
+    linkMock.getNodeUrlsForNode.mockResolvedValue([{ address: 'https://display.example/nodes/BoundDisplay/' }]);
+    document.body.innerHTML = '<nodel-link event-binding=" \u00a0DisplayStatus\uFEFF\u00a0 ">Open bound display</nodel-link>';
+    await waitFor(() => document.querySelector('nodel-link')?.getAttribute('data-state') === 'ready');
+
+    expect(linkMock.getNodeEventBinding).toHaveBeenCalledWith('DisplayStatus\uFEFF', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(linkMock.getNodeEventBinding).not.toHaveBeenCalledWith('DisplayStatus', expect.anything());
   });
 
   it.each([

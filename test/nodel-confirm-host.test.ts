@@ -325,7 +325,9 @@ describe('nodel-confirm-host', () => {
     confirm.click();
     await waitFor(() => runtime.callAction.mock.calls.length === 1);
 
-    expect(runtime.callAction).toHaveBeenCalledWith('SetPower', { arg: true });
+    expect(runtime.callAction).toHaveBeenCalledWith('SetPower', { arg: true }, {
+      signal: expect.any(AbortSignal)
+    });
     expect(document.activeElement).toBe(nativeButton);
     confirm.click();
     expect(runtime.callAction).toHaveBeenCalledTimes(1);

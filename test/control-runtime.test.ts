@@ -39,6 +39,14 @@ describe('control runtime', () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it('forwards request initialization to the node API', async () => {
+    const controller = new AbortController();
+
+    await getControlRuntime().callAction('Power', { arg: true }, { signal: controller.signal });
+
+    expect(runtimeMock.callNodeAction).toHaveBeenCalledWith('Power', { arg: true }, { signal: controller.signal });
+  });
+
   it('preserves default action failures', async () => {
     const error = new Error('No route');
     runtimeMock.callNodeAction.mockRejectedValue(error);

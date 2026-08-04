@@ -1,4 +1,5 @@
 import { flush, waitFor } from './helpers';
+import { rapidReconnect } from './lifecycle-helpers';
 import '../src/components/nodel-page';
 import '../src/components/nodel-host-log';
 
@@ -76,6 +77,18 @@ describe('nodel-host-log', () => {
     expect(document.querySelector('.nodel-alert-danger')).not.toBeNull();
   });
 
+  it('renders hostile host-log text as text rather than markup', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { seq: 1, timestamp: '2026-01-01T00:00:01Z', message: '<img src=x onerror=alert(1)>', error: '<script>bad()</script>' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-host-log></nodel-host-log>';
+    await waitFor(() => document.body.textContent?.includes('<img src=x onerror=alert(1)>') ?? false);
+
+    const hostLog = document.querySelector('nodel-host-log')!;
+    expect(hostLog.querySelector('img, script:not([type^="jsv"])')).toBeNull();
+    expect(hostLog.innerHTML).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
   it('waits for the page to become visible before fetching', async () => {
     const fetchMock = vi.fn(async () => (
       new Response(JSON.stringify([]), {
@@ -128,5 +141,57 @@ describe('nodel-host-log', () => {
     await ((hostLog as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
     expect(urls.at(-1)).toBe('/REST/logs?from=2&max=200');
     expect(hostLog.textContent).not.toContain('Stale');
+  });
+
+  it('keeps one current poll path through rapid reconnects', async () => {
+    const fetchMock = vi.fn(async () => new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    const hostLog = document.createElement('nodel-host-log');
+    document.body.append(hostLog);
+    await waitFor(() => (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.length === 1);
+    let reconnects = 0;
+    await rapidReconnect(hostLog, async () => {
+      reconnects += 1;
+      await waitFor(() => (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.length === reconnects + 1);
+    });
+
+    expect((fetchMock as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(4);
+    expect(hostLog.querySelectorAll('[data-host-log-output]')).toHaveLength(1);
+  });
+
+  it('does not let a disposed pending poll update a fresh host-log instance', async () => {
+    let resolveStale!: (response: Response) => void;
+    let calls = 0;
+    const fetchMock = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) {
+        return new Promise<Response>((resolve) => {
+          resolveStale = resolve;
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify([
+        { seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'INFO', message: 'Current' }
+      ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    const oldHostLog = document.createElement('nodel-host-log');
+    document.body.append(oldHostLog);
+    await waitFor(() => calls === 1);
+    oldHostLog.remove();
+
+    const freshHostLog = document.createElement('nodel-host-log');
+    document.body.append(freshHostLog);
+    await waitFor(() => freshHostLog.textContent?.includes('Current') ?? false);
+    resolveStale(new Response(JSON.stringify([
+      { seq: 100, timestamp: '2026-01-01T00:01:40Z', level: 'INFO', message: 'Stale' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await flush();
+
+    expect(oldHostLog.textContent).not.toContain('Stale');
+    expect(freshHostLog.textContent).toContain('Current');
+    expect(freshHostLog.textContent).not.toContain('Stale');
   });
 });

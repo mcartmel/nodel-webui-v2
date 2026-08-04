@@ -4,6 +4,8 @@ import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome
 import { networkNodeSearchHref } from '../navigation/node-links';
 import { isRecord } from '../utils/records';
 import { isAbortError } from '../utils/errors';
+import { isWellFormedUtf16 } from '../utils/node-name';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { safeNavigationHref, safeNavigationUrl } from '../utils/urls';
 import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
 
@@ -147,7 +149,12 @@ export class NodelLink extends HTMLElement {
       }
 
       destination = destinations[0];
-      value = this.getAttribute(destination)?.trim() ?? '';
+      const attributeValue = this.getAttribute(destination) ?? '';
+      value = destination === 'node'
+        ? attributeValue
+        : destination === 'event-binding'
+          ? trimPointReference(attributeValue)
+          : attributeValue.trim();
       if (!value) {
         this.setState('error', 'Link destination is empty.', '');
         return;
@@ -173,7 +180,7 @@ export class NodelLink extends HTMLElement {
           this.setState('error', `Event binding ${value} was not found.`, '');
           return;
         }
-        const node = binding.node.trim();
+        const node = binding.node;
         if (!node) {
           this.setState('error', `Event binding ${value} has no target node.`, '');
           return;
@@ -195,6 +202,10 @@ export class NodelLink extends HTMLElement {
   }
 
   private async resolveNode(node: string, ticket: LatestOperationTicket<'resolve'>) {
+    if (!isWellFormedUtf16(node)) {
+      this.setState('error', 'Node name must be well-formed UTF-16.', '');
+      return;
+    }
     const fallback = networkNodeSearchHref(node);
     this.setState('loading', `Resolving node ${node}...`, fallback);
     let entries: NodelNodeUrlEntry[];

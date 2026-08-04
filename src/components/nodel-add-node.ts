@@ -1,6 +1,8 @@
-import type { NodelDuplicateFileFailure } from '../api/nodel-types';
+import type { NodelDuplicateFileFailure, NodelRecipeEntry } from '../api/nodel-types';
 import {
+  addNodeRecipeFromSnapshot,
   refreshAddNodeRecipes,
+  isCurrentAddNodeRecipe,
   searchAddNodeTemplates,
   templateResultViews,
   type AddNodeSelection,
@@ -16,6 +18,8 @@ import { activateActivePopoverOption, clearActivePopoverOption, getPopoverOption
 import { safeNavigationHref } from '../utils/urls';
 import { boundedErrorMessage, isAbortError } from '../utils/errors';
 import { LatestOperationCoordinator } from '../utils/latest-operation-coordinator';
+import { nodeRecipePathCompatibility } from '../utils/node-file-path';
+import { isUsableNodeName, nodeNameValidationError, trimNodeName } from '../utils/node-name';
 
 interface AddNodeViewModel {
   createdUrl: string;
@@ -147,6 +151,7 @@ export class NodelAddNode extends HTMLElement {
   private operations = new LatestOperationCoordinator<AddNodeOperationKind>();
   private submitGeneration: number | null = null;
   private canceledSubmitGeneration: number | null = null;
+  private selectedRecipe: NodelRecipeEntry | null = null;
   private selection: AddNodeSelection = null;
   private templateResults: TemplateResult[] = [];
   private state: AddNodeViewModel = {
@@ -191,6 +196,7 @@ export class NodelAddNode extends HTMLElement {
     this.operations.invalidateAll();
     this.submitGeneration = null;
     this.canceledSubmitGeneration = null;
+    this.selectedRecipe = null;
     if (this.linked) {
       this.setState({ open: false, showAutocomplete: false, status: '', submitting: false });
     }
@@ -339,12 +345,13 @@ export class NodelAddNode extends HTMLElement {
       return;
     }
 
-    const selectionValue = this.selection?.type === 'recipe' ? this.selection.path : this.selection?.type === 'node' ? this.selection.name : '';
-    if (selectionValue && this.state.templateQuery === selectionValue) {
+    const selectionValue = this.selection?.type === 'recipe' ? this.selection.path : this.selection?.type === 'node' ? this.selection.name : null;
+    if (selectionValue !== null && this.state.templateQuery === selectionValue) {
       return;
     }
 
     this.selection = null;
+    this.selectedRecipe = null;
     this.setState({
       duplicateMode: false,
       includeNodeConfig: false,
@@ -431,6 +438,7 @@ export class NodelAddNode extends HTMLElement {
     this.setState({ open: true });
 
     this.selection = null;
+    this.selectedRecipe = null;
     this.templateResults = [];
     this.setState({
       createdUrl: '',
@@ -546,13 +554,17 @@ export class NodelAddNode extends HTMLElement {
     }
 
     if (result.type === 'recipe') {
+      if (!result.recipe || !isCurrentAddNodeRecipe(result.recipe)) {
+        return;
+      }
       this.selection = { type: 'recipe', path: result.path };
+      this.selectedRecipe = result.recipe;
       this.setState({
         createdUrl: '',
         duplicateMode: false,
         failedFiles: [],
         includeNodeConfig: false,
-        selectionText: `Recipe: ${result.path}`,
+        selectionText: `Recipe: ${result.path || '(root recipe)'}`,
         showAutocomplete: false,
         showSelection: true,
         templateQuery: result.path,
@@ -562,6 +574,7 @@ export class NodelAddNode extends HTMLElement {
     }
 
     this.selection = { type: 'node', address: result.address, name: result.name, host: result.host };
+    this.selectedRecipe = null;
     this.setState({
       createdUrl: '',
       duplicateMode: true,
@@ -580,11 +593,27 @@ export class NodelAddNode extends HTMLElement {
     if (!scope || this.state.submitting) {
       return;
     }
-    const name = this.state.nodeName.trim();
+    const rawName = this.state.nodeName;
+    const name = trimNodeName(rawName);
     const templateValue = this.state.templateQuery.trim();
 
     if (!name) {
       this.setState({ error: 'Please enter a node name', status: '' });
+      return;
+    }
+    if (!isUsableNodeName(rawName)) {
+      this.setState({ error: nodeNameValidationError(rawName), status: '' });
+      return;
+    }
+
+    let selectedRecipe = this.selection?.type === 'recipe' ? this.selectedRecipe : null;
+    if (this.selection?.type === 'recipe'
+      && (!selectedRecipe || selectedRecipe.path !== this.selection.path)) {
+      this.setState({ error: 'The selected recipe is no longer available. Select it again before creating a node.', status: '' });
+      return;
+    }
+    if (!selectedRecipe && templateValue && nodeRecipePathCompatibility(templateValue) !== 'portable') {
+      this.setState({ error: 'New recipe paths must use the portable relative path policy.', status: '' });
       return;
     }
 
@@ -617,12 +646,15 @@ export class NodelAddNode extends HTMLElement {
         if (!scope.isCurrent() || !ticket.isCurrent()) {
           return;
         }
-        if (result.failed.length > 0) {
+        const skippedDetails = result.skippedDetails ?? [];
+        if (result.failed.length > 0 || skippedDetails.length > 0) {
           getJQuery().observable(this.state.failedFiles).refresh(result.failed);
           this.setState({
             createdUrl: url,
             status: '',
-            warning: `Node "${name}" was created, but ${result.failed.length} file${result.failed.length === 1 ? '' : 's'} could not be copied. The node may be incomplete.`
+            warning: skippedDetails.length > 0
+              ? `Node "${name}" was created, but ${skippedDetails.length} legacy file${skippedDetails.length === 1 ? '' : 's'} was skipped because legacy paths cannot be copied safely. The node may be incomplete.`
+              : `Node "${name}" was created, but ${result.failed.length} file${result.failed.length === 1 ? '' : 's'} could not be copied. The node may be incomplete.`
           });
           this.dispatchEvent(new CustomEvent('nodel-node-duplicate-partial', {
             bubbles: true,
@@ -631,7 +663,19 @@ export class NodelAddNode extends HTMLElement {
           return;
         }
       } else {
-        const base = this.selection?.type === 'recipe' ? this.selection.path : templateValue;
+        if (selectedRecipe) {
+          // The cache can expire while the menu is open. Refresh immediately
+          // before the mutation and use only the freshly decoded capability.
+          const recipes = await refreshAddNodeRecipes(true, { signal: ticket.signal });
+          if (!scope.isCurrent() || !ticket.isCurrent()) {
+            return;
+          }
+          selectedRecipe = addNodeRecipeFromSnapshot(recipes, selectedRecipe);
+          if (!selectedRecipe) {
+            throw new Error('The selected recipe is no longer available. Select it again before creating a node.');
+          }
+        }
+        const base = selectedRecipe ?? (templateValue || undefined);
         this.setState({ status: 'Creating node...' });
         const result = await createAddNodeFromTemplate({
           name,

@@ -48,7 +48,7 @@ const template = `
           {^{for categories}}
             <label class="nodel-diagnostic-category-option">
               <input class="nodel-choice" data-diagnostic-chart-category type="checkbox" data-link="value{:name} checked{:selected}" />
-              <span class="truncate">{^{>name}}</span>
+              <span class="truncate" data-link="text{:name}"></span>
             </label>
           {{/for}}
         </fieldset>
@@ -56,7 +56,7 @@ const template = `
     {{/if}}
     {^{if error}}
       <div class="nodel-alert nodel-alert-danger nodel-alert-md">
-        {^{>error}}
+        <span data-link="text{:error}"></span>
         {^{if chartImportError}}
           <button type="button" class="nodel-button nodel-button-compact ml-2" data-diagnostic-chart-retry>Retry charts</button>
         {{/if}}
@@ -71,9 +71,9 @@ const template = `
     <div class="nodel-diagnostic-chart-grid">
       {^{for visibleMeasurements}}
         <article class="nodel-diagnostic-chart-card" title="">
-          <h4 class="nodel-diagnostic-chart-title">{^{>subcategory}}</h4>
+          <h4 class="nodel-diagnostic-chart-title" data-link="text{:subcategory}"></h4>
           <div class="nodel-diagnostic-chart-canvas-wrap">
-            <canvas data-diagnostic-chart="{{:name}}" aria-label="{{:name}}" title=""></canvas>
+            <canvas data-link="data-diagnostic-chart{:name} aria-label{:name}" title=""></canvas>
           </div>
         </article>
       {{/for}}

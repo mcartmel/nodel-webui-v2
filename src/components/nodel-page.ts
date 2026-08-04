@@ -1,5 +1,6 @@
 import { callActionBindings, parseActionBindings } from '../data/action-bindings';
-import { buildActionPayload, formatActionFailures } from '../data/control-actions';
+import { actionName, buildActionPayload, ControlActionController, formatActionFailures } from '../data/control-actions';
+import type { ActionBindingResult } from '../data/action-bindings';
 import type { ControlArgType } from '../utils/control-values';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 
@@ -13,16 +14,17 @@ export class NodelPage extends HTMLElement {
   static observedAttributes = ['title'];
 
   private shellReady = false;
-  private activationGeneration = 0;
+  private actionController = new ControlActionController();
   private groupPage = false;
   private contentNode: HTMLElement | null = null;
 
   connectedCallback() {
+    this.actionController.connect();
     this.render();
   }
 
   disconnectedCallback() {
-    this.activationGeneration += 1;
+    this.actionController.disconnect();
   }
 
   attributeChangedCallback() {
@@ -32,34 +34,60 @@ export class NodelPage extends HTMLElement {
   }
 
   async activate() {
-    const generation = this.activationGeneration;
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      return;
+    }
     const bindings = parseActionBindings({
       action: this.getAttribute('action'),
       actions: this.getAttribute('actions'),
       defaultPhase: 'activate'
     });
+    const action = actionName(bindings);
     if (bindings.length === 0) {
       return;
     }
     const payloadResult = buildActionPayload(this.hasAttribute('arg') ? this.getAttribute('arg') ?? '' : null, normalizeArgType(this.getAttribute('arg-type')));
     if (!payloadResult.ok) {
-      this.dispatchPageActionError(payloadResult.error);
+      this.dispatchPageActionError({ action, payload: {}, results: [], failures: [], error: payloadResult.error });
       return;
     }
     const payload = payloadResult.payload;
-    const execution = await callActionBindings(bindings, 'activate', payload);
-    if (generation === this.activationGeneration && this.isConnected && execution.failures.length > 0) {
-      this.dispatchPageActionError(formatActionFailures(execution.failures));
+    try {
+      const execution = await callActionBindings(bindings, 'activate', payload, scope);
+      if (scope.isCurrent() && execution.failures.length > 0) {
+        this.dispatchPageActionError({ action, payload, arg: payloadResult.arg, results: execution.results, failures: execution.failures, error: formatActionFailures(execution.failures) });
+      }
+    } catch (error) {
+      if (scope.isCurrent()) {
+        throw error;
+      }
     }
   }
 
-  private dispatchPageActionError(detail: string) {
+  private dispatchPageActionError(options: { action: string; payload: Record<string, unknown>; arg?: unknown; results: ActionBindingResult[]; failures: ActionBindingResult[]; error: string }) {
+    this.dispatchEvent(new CustomEvent('nodel-page-action-error', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        action: options.action,
+        phase: 'activate',
+        phases: ['activate'],
+        arg: options.arg,
+        payload: options.payload,
+        results: options.results,
+        failures: options.failures,
+        committed: true,
+        live: false,
+        error: options.error
+      }
+    }));
     this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
       bubbles: true,
       composed: true,
       detail: {
         message: 'Page action failed',
-        detail,
+        detail: options.error,
         tone: 'danger',
         durationMs: 7000
       }

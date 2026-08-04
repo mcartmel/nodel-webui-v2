@@ -167,10 +167,48 @@ describe('nodel-data-runtime', () => {
 
     await waitFor(() => source.getState().data === 'ready');
     const snapshot = source.getState();
-    snapshot.error = 'mutated by caller';
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(() => {
+      snapshot.error = 'mutated by caller';
+    }).toThrow();
 
     expect(source.getState()).toMatchObject({ data: 'ready', error: '' });
     subscription.dispose();
+  });
+
+  it('freezes nested arrays and plain records without traversing platform objects', async () => {
+    const date = new Date();
+    const data = [{ nested: { labels: ['original'] }, date }];
+    const source = registerNodelOneShotSource<typeof data>({ key: uniqueKey(), fetcher: async () => data });
+    let snapshot: typeof data | null = null;
+    const first = source.subscribe(createPage(false).host, (state) => {
+      if (!state.data) {
+        return;
+      }
+      snapshot = state.data;
+    });
+    const received: typeof data[] = [];
+    const second = source.subscribe(createPage(false).host, (state) => {
+      if (state.data) {
+        received.push(state.data);
+      }
+    });
+
+    await waitFor(() => received.length > 0);
+    expect(snapshot).not.toBeNull();
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot![0])).toBe(true);
+    expect(Object.isFrozen(snapshot![0].nested)).toBe(true);
+    expect(Object.isFrozen(snapshot![0].nested.labels)).toBe(true);
+    expect(Object.isFrozen(snapshot![0].date)).toBe(false);
+    expect(() => snapshot![0].nested.labels.push('changed')).toThrow();
+    expect(() => {
+      snapshot![0].nested = { labels: [] };
+    }).toThrow();
+    expect(received.at(-1)?.[0].nested.labels).toEqual(['original']);
+    expect(source.getState().data?.[0].nested.labels).toEqual(['original']);
+    first.dispose();
+    second.dispose();
   });
 
   it('restarts after an abort-ignoring hidden request finally settles', async () => {

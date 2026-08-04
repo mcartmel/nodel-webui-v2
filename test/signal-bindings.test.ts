@@ -16,7 +16,7 @@ vi.mock('../src/data/node-activity-source', () => ({
   })
 }));
 
-import { bootstrapSignalVisibilityBindings, parseSignalBindings, subscribeSignalBindings } from '../src/data/signal-bindings';
+import { bootstrapSignalVisibilityBindings, normalizeSignalName, parseSignalBindings, subscribeSignalBindings } from '../src/data/signal-bindings';
 import { flush } from './helpers';
 
 function emitSignalBatch(entries: Array<{ alias: string; arg: unknown; seq?: number }>) {
@@ -76,6 +76,24 @@ describe('signal bindings', () => {
       { signal: 'Status', path: ['details.message'], target: 'value', mode: 'last' }
     ]);
     expect(parseSignalBindings(null, 'Status.:value; Status..message:value')).toEqual([]);
+  });
+
+  it('preserves U+FEFF in signal and JSON path keys while trimming Java edge spaces', () => {
+    const values: string[] = [];
+    const bindings = parseSignalBindings('\u00a0Status\uFEFF . \u00a0state\uFEFF\u00a0', null, 'value');
+    expect(bindings).toEqual([
+      { signal: 'Status\uFEFF', path: ['state\uFEFF'], target: 'value', mode: 'last' }
+    ]);
+    expect(normalizeSignalName('\u00a0Status\uFEFF\u00a0')).toBe('Status\uFEFF');
+    subscribeSignalBindings(document.createElement('div'), bindings, { value: (value) => values.push(value) });
+
+    emitSignal('Status', { state: 'wrong signal' });
+    expect(values).toEqual([]);
+    emitSignal('Status\uFEFF', { state: 'wrong path' });
+    expect(values).toEqual(['']);
+    emitSignal('Status\uFEFF', { 'state\uFEFF': 'exact' });
+
+    expect(values).toEqual(['', 'exact']);
   });
 
   it('extracts nested values before formatting signal target values', () => {

@@ -99,6 +99,20 @@ describe('nodel-markdown', () => {
     expect(component.querySelector('[role="alert"]')?.textContent).toBe('Content unavailable.');
   });
 
+  it('subscribes to signal names with U+FEFF exactly', async () => {
+    document.body.innerHTML = '<nodel-markdown signal=" \u00a0Status\uFEFF\u00a0 "></nodel-markdown>';
+    await flush();
+    const component = document.querySelector('nodel-markdown')!;
+
+    listener?.({ loading: false, connected: true, error: '', entries: [{ seq: 1, timestamp: '', source: 'local', type: 'event', alias: 'Status', arg: '**Wrong**' }] });
+    await flush();
+    expect(component.querySelector('strong')).toBeNull();
+
+    listener?.({ loading: false, connected: true, error: '', entries: [{ seq: 2, timestamp: '', source: 'local', type: 'event', alias: 'Status\uFEFF', arg: '**Exact**' }] });
+    await flush();
+    expect(component.querySelector('strong')?.textContent).toBe('Exact');
+  });
+
   it('renders a value delivered synchronously during subscription', async () => {
     restoreRuntime?.();
     restoreRuntime = installControlRuntime({

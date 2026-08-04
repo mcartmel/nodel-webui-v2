@@ -19,16 +19,22 @@ import type {
   NodelSignalDefinition,
   NodelToolkitResponse
 } from '../nodel-types';
-import { safeAbsoluteHttpUrl, safeHostRestUrl, safeNavigationHref, safeRemoteNodeUrl } from '../../utils/urls';
-import { isSafeNodeFilePath, MAX_NODE_FILE_PATH_LENGTH } from '../../utils/node-file-path';
+import { canonicalJavaAbsoluteHttpHref, canonicalRemoteNodeHref, hostMatchesRemoteNodeUrl, safeNavigationHref } from '../../utils/urls';
+import {
+  nodeFilePathCompatibility,
+  nodeRecipePathCompatibility,
+  registerDecodedNodeFileEntry,
+  registerDecodedNodeRecipeEntry
+} from '../../utils/node-file-path';
+import { MAX_JSON_COLLECTION_ITEMS, MAX_JSON_DEPTH, validateJsonValueBounds } from '../../utils/json-value';
+import { reduceNodeNameForPath } from '../../utils/node-name';
 
-export const MAX_API_COLLECTION_ITEMS = 10_000;
+export const MAX_API_COLLECTION_ITEMS = MAX_JSON_COLLECTION_ITEMS;
 export const MAX_DIAGNOSTIC_MEASUREMENTS = 1000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES = 5000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES = 50_000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_NAME_BYTES = 512;
 const MAX_SCHEMA_DEPTH = 32;
-const MAX_JSON_DEPTH = 64;
 const unsafeText = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 const unsafeActivityTimestampText = /[\u0000-\u001f\u007f]/;
 const unsafePathText = /[\u0000-\u001f\u007f]/;
@@ -85,6 +91,18 @@ function optionalString(record: Record<string, unknown>, key: string, context: s
     return undefined;
   }
   if (typeof value !== 'string' || unsafeText.test(value)) {
+    invalid(context, `${path}.${key}`, 'expected a string');
+  }
+  return value;
+}
+
+/** Display text is rendered as text or sanitized markdown, never used as an identifier. */
+function optionalDisplayString(record: Record<string, unknown>, key: string, context: string, path: string) {
+  const value = record[key];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
     invalid(context, `${path}.${key}`, 'expected a string');
   }
   return value;
@@ -147,39 +165,36 @@ function optionalTimestamp(record: Record<string, unknown>, key: string, context
   return value;
 }
 
-function validateJsonBounds(value: unknown, context: string, path: string, depth = 0, seen = new WeakSet<object>()): void {
-  if (depth > MAX_JSON_DEPTH) {
-    invalid(context, path, `value exceeds ${MAX_JSON_DEPTH} levels`);
-  }
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
-    return;
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      invalid(context, path, 'expected a finite JSON number');
-    }
-    return;
-  }
-  if (typeof value !== 'object') {
-    invalid(context, path, 'expected a JSON value');
-  }
-  if (seen.has(value)) {
-    invalid(context, path, 'expected an acyclic JSON value');
-  }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    asArray(value, context, path).forEach((item, index) => validateJsonBounds(item, context, `${path}[${index}]`, depth + 1, seen));
-  } else {
-    limitedEntries(value as Record<string, unknown>, context, path).forEach(([key, item]) => validateJsonBounds(item, context, `${path}.${key}`, depth + 1, seen));
-  }
-  seen.delete(value);
+function validateJsonBounds(value: unknown, context: string, path: string): void {
+  const failure = validateJsonValueBounds(value);
+  if (!failure) return;
+  const issuePath = failure.path === '$' ? path : `${path}${failure.path.slice(1)}`;
+  const messages: Record<typeof failure.issue, string> = {
+    depth: `value exceeds ${MAX_JSON_DEPTH} levels`,
+    value: 'expected a JSON value',
+    number: 'expected a finite JSON number',
+    cyclic: 'expected an acyclic JSON value',
+    prototype: 'expected a plain JSON object or array',
+    'array-items': `expected at most ${MAX_API_COLLECTION_ITEMS} items`,
+    'object-properties': `expected at most ${MAX_API_COLLECTION_ITEMS} properties`,
+    'total-items': `expected at most ${MAX_API_COLLECTION_ITEMS} total items`
+  };
+  invalid(context, issuePath, messages[failure.issue]);
 }
 
 function requireSafeName(value: string, context: string, path: string) {
-  if (!value.trim() || value.length > 1000 || unsafePathText.test(value)) {
+  if (!reduceNodeNameForPath(value) || value.length > 1000 || unsafePathText.test(value)) {
     invalid(context, path, 'expected a non-empty name without control characters');
   }
   return value;
+}
+
+function requiredPointName(record: Record<string, unknown>, key: string, context: string, path: string) {
+  const value = record[key];
+  if (typeof value !== 'string') {
+    invalid(context, `${path}.${key}`, 'expected a point name');
+  }
+  return requireSafeName(value, context, `${path}.${key}`);
 }
 
 function normalizeOptionalStrings(record: Record<string, unknown>, keys: string[], context: string, path: string) {
@@ -193,15 +208,32 @@ function normalizeOptionalStrings(record: Record<string, unknown>, keys: string[
   return result;
 }
 
+function normalizeOptionalDisplayStrings(record: Record<string, unknown>, keys: string[], context: string, path: string) {
+  const result = { ...record };
+  for (const key of keys) {
+    const value = optionalDisplayString(record, key, context, path);
+    if (value === undefined) {
+      delete result[key];
+    }
+  }
+  return result;
+}
+
+function normalizeOptionalDisplayStringsInto(result: Record<string, unknown>, record: Record<string, unknown>, keys: string[], context: string, path: string) {
+  for (const key of keys) {
+    const value = optionalDisplayString(record, key, context, path);
+    if (value === undefined) delete result[key];
+    else result[key] = value;
+  }
+  return result;
+}
+
 function optionalSchemaHint(record: Record<string, unknown>, context: string, path: string) {
   const value = record.hint;
   if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value === 'string') {
-    if (unsafeText.test(value)) {
-      invalid(context, `${path}.hint`, 'expected a string or finite scalar hint');
-    }
     return value;
   }
   if ((typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean') {
@@ -211,7 +243,8 @@ function optionalSchemaHint(record: Record<string, unknown>, context: string, pa
 }
 
 function normalizeOptionalSchemaText(record: Record<string, unknown>, context: string, path: string) {
-  const result = normalizeOptionalStrings(record, ['title', 'desc', 'format', 'group', 'caution'], context, path);
+  const result = normalizeOptionalStrings(record, ['format'], context, path);
+  normalizeOptionalDisplayStringsInto(result, record, ['title', 'desc', 'group', 'caution'], context, path);
   const hint = optionalSchemaHint(record, context, path);
   if (hint === undefined) {
     delete result.hint;
@@ -309,7 +342,8 @@ export function decodeLocalRest(value: unknown, context: string): NodelLocalRest
   const nodes = asRecord(record.nodes, context, '$.nodes');
   const decoded = Object.fromEntries(limitedEntries(nodes, context, '$.nodes').map(([key, item]) => {
     const node = asRecord(item, context, `$.nodes.${key}`);
-    const result = normalizeOptionalStrings(node, ['name', 'node', 'address', 'desc'], context, `$.nodes.${key}`);
+    const result = normalizeOptionalStrings(node, ['name', 'node', 'address'], context, `$.nodes.${key}`);
+    normalizeOptionalDisplayStringsInto(result, node, ['desc'], context, `$.nodes.${key}`);
     const name = optionalString(node, 'name', context, `$.nodes.${key}`) ?? optionalString(node, 'node', context, `$.nodes.${key}`) ?? key;
     requireSafeName(name, context, `$.nodes.${key}.name`);
     result.name = name;
@@ -323,7 +357,10 @@ export function decodeLocalRest(value: unknown, context: string): NodelLocalRest
 }
 
 export function decodeNodeDetails(value: unknown, context: string): NodelNodeRestResponse {
-  return normalizeOptionalStrings(asRecord(value, context), ['name', 'desc'], context, '$');
+  const record = asRecord(value, context);
+  const result = normalizeOptionalStrings(record, ['name'], context, '$');
+  normalizeOptionalDisplayStringsInto(result, record, ['desc'], context, '$');
+  return result;
 }
 
 export function decodeDiagnostics(value: unknown, context: string): NodelDiagnosticsResponse {
@@ -335,10 +372,11 @@ export function decodeDiagnostics(value: unknown, context: string): NodelDiagnos
   optionalTimestamp(record, 'startTime', context, '$');
   if (record.httpAddresses !== undefined && record.httpAddresses !== null) {
     result.httpAddresses = asArray(record.httpAddresses, context, '$.httpAddresses').map((item, index) => {
-      if (typeof item !== 'string' || !safeAbsoluteHttpUrl(item)) {
+      const href = typeof item === 'string' ? canonicalJavaAbsoluteHttpHref(item) : null;
+      if (!href) {
         invalid(context, `$.httpAddresses[${index}]`, 'expected an absolute HTTP(S) URL without credentials');
       }
-      return item;
+      return href;
     });
   }
   if (record.vmArgs !== undefined && record.vmArgs !== null) {
@@ -399,11 +437,8 @@ export function decodeDiagnosticMeasurements(value: unknown, context: string): N
 
 export function decodeBuildInfo(value: unknown, context: string): NodelBuildInfo {
   const record = asRecord(value, context);
-  const result = normalizeOptionalStrings(record, ['project', 'origin', 'branch', 'version', 'id', 'rev', 'host', 'date'], context, '$');
-  const origin = optionalString(record, 'origin', context, '$');
-  if (origin && !safeAbsoluteHttpUrl(origin)) {
-    invalid(context, '$.origin', 'expected an absolute HTTP(S) URL without credentials');
-  }
+  const result = normalizeOptionalStrings(record, ['project', 'version', 'date'], context, '$');
+  normalizeOptionalDisplayStringsInto(result, record, ['origin', 'branch', 'id', 'rev', 'host'], context, '$');
   optionalTimestamp(record, 'date', context, '$');
   return result;
 }
@@ -414,10 +449,15 @@ export function decodeHostLogs(value: unknown, context: string): NodelHostLogEnt
     const record = asRecord(item, context, path);
     const seq = requiredSequence(record, 'seq', context, path);
     const timestamp = requiredTimestamp(record, 'timestamp', context, path);
-    for (const key of ['level', 'thread', 'tag', 'message', 'error']) {
+    for (const key of ['level', 'thread', 'tag']) {
       optionalString(record, key, context, path);
     }
-    const result = { ...record };
+    optionalDisplayString(record, 'message', context, path);
+    if (record.error !== null) optionalDisplayString(record, 'error', context, path);
+    const result = normalizeOptionalStrings(record, ['level', 'thread', 'tag'], context, path);
+    normalizeOptionalDisplayStringsInto(result, record, ['message'], context, path);
+    if (record.error === null) result.error = null;
+    else normalizeOptionalDisplayStringsInto(result, record, ['error'], context, path);
     return { ...result, seq, timestamp } as NodelHostLogEntry;
   });
 }
@@ -429,10 +469,10 @@ export function decodeToolkit(value: unknown, context: string): NodelToolkitResp
 
 export function decodeRestartStatus(value: unknown, context: string): NodelRestartStatus {
   const record = asRecord(value, context);
-  if (record.timestamp !== null && (typeof record.timestamp !== 'string' || !Number.isFinite(Date.parse(record.timestamp)))) {
+  if (record.timestamp !== undefined && record.timestamp !== null && (typeof record.timestamp !== 'string' || !Number.isFinite(Date.parse(record.timestamp)))) {
     invalid(context, '$.timestamp', 'expected a valid timestamp or null');
   }
-  return record as unknown as NodelRestartStatus;
+  return { ...record, timestamp: record.timestamp ?? null } as unknown as NodelRestartStatus;
 }
 
 export function decodeConsoleLogs(value: unknown, context: string): NodelConsoleLogEntry[] {
@@ -442,7 +482,10 @@ export function decodeConsoleLogs(value: unknown, context: string): NodelConsole
     const record = asRecord(item, context, path);
     const seq = requiredSequence(record, 'seq', context, path);
     const timestamp = requiredTimestamp(record, 'timestamp', context, path);
-    const comment = requiredString(record, 'comment', context, path);
+    const comment = optionalDisplayString(record, 'comment', context, path);
+    if (comment === undefined) {
+      invalid(context, `${path}.comment`, 'expected a string');
+    }
     if (typeof record.console !== 'string' || !allowed.has(record.console)) {
       invalid(context, `${path}.console`, 'expected out, err, warn, or info');
     }
@@ -458,7 +501,7 @@ export function decodeActivityLogs(value: unknown, context: string): NodelActivi
     const record = asRecord(item, context, path);
     const seq = requiredSequence(record, 'seq', context, path);
     const timestamp = optionalActivityTimestamp(record, 'timestamp', context, path);
-    const alias = requiredString(record, 'alias', context, path);
+    const alias = requiredPointName(record, 'alias', context, path);
     if (typeof record.source !== 'string' || !sources.has(record.source)) {
       invalid(context, `${path}.source`, 'expected local, remote, or unbound');
     }
@@ -478,11 +521,8 @@ export function decodeActivityLogs(value: unknown, context: string): NodelActivi
 
 export function decodeActivityWebSocketMessage(value: unknown, context: string): NodelActivityWebSocketMessage {
   const record = asRecord(value, context);
-  const result = normalizeOptionalStrings(record, ['node', 'error'], context, '$');
-  const backendError = optionalString(record, 'error', context, '$');
-  if (backendError !== undefined) {
-    result.error = backendError.replace(/\s+/g, ' ').trim().slice(0, 500);
-  }
+  const result = normalizeOptionalStrings(record, ['node'], context, '$');
+  normalizeOptionalDisplayStringsInto(result, record, ['error'], context, '$');
   if (record.activity !== undefined && record.activity !== null) {
     result.activity = decodeActivityLogs([record.activity], context)[0];
   }
@@ -497,8 +537,8 @@ function decodeDefinitions<T extends NodelActionDefinition | NodelSignalDefiniti
   return Object.fromEntries(limitedEntries(record, context, '$').map(([key, item]) => {
     const path = `$.${key}`;
     const definition = asRecord(item, context, path);
-    const name = requiredString(definition, 'name', context, path);
-    const result = normalizeOptionalStrings(definition, ['title', 'desc', 'group', 'caution'], context, path);
+    const name = requiredPointName(definition, 'name', context, path);
+    const result = normalizeOptionalDisplayStrings(definition, ['title', 'desc', 'group', 'caution'], context, path);
     optionalFiniteNumber(definition, 'order', context, path);
     optionalSequence(definition, 'seq', context, path);
     optionalTimestamp(definition, 'timestamp', context, path);
@@ -556,9 +596,13 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
   return asArray(value, context).map((item, index) => {
     const path = `$[${index}]`;
     const record = asRecord(item, context, path);
-    const filePath = requiredString(record, 'path', context, path);
-    if (!isSafeNodeFilePath(filePath)) {
-      invalid(context, `${path}.path`, 'expected a safe relative node file path');
+    if (typeof record.path !== 'string') {
+      invalid(context, `${path}.path`, 'expected a node file path');
+    }
+    const filePath = record.path;
+    const compatibility = nodeFilePathCompatibility(filePath);
+    if (!compatibility) {
+      invalid(context, `${path}.path`, 'expected a safe relative node file path without traversal or root forms');
     }
     const result = normalizeOptionalStrings(record, ['modified'], context, path);
     optionalTimestamp(record, 'modified', context, path);
@@ -566,7 +610,7 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
     if (size !== undefined && (!Number.isSafeInteger(size) || size < 0)) {
       invalid(context, `${path}.size`, 'expected a non-negative safe integer');
     }
-    return { ...result, path: filePath, ...(size !== undefined ? { size } : {}) } as NodelFileEntry;
+    return registerDecodedNodeFileEntry({ ...result, path: filePath, compatibility, ...(size !== undefined ? { size } : {}) } as NodelFileEntry);
   });
 }
 
@@ -579,8 +623,8 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
     try {
       const record = asRecord(item, context, path);
       const address = requiredString(record, 'address', context, path);
-      const url = safeRemoteNodeUrl(address);
-      if (!url) {
+      const href = canonicalRemoteNodeHref(address);
+      if (!href) {
         invalid(context, `${path}.address`, 'expected an absolute HTTP(S) node URL without credentials, query, or fragment');
       }
       const result = normalizeOptionalStrings(record, ['name', 'node', 'host'], context, path);
@@ -590,10 +634,10 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
       }
       requireSafeName(name, context, `${path}.name`);
       const host = optionalString(record, 'host', context, path);
-      if (host && safeHostRestUrl(host, url)?.host !== url.host) {
+      if (host && !hostMatchesRemoteNodeUrl(host, href)) {
         invalid(context, `${path}.host`, 'expected the host from the node address');
       }
-      decoded.push({ ...result, address: url.href } as NodelNodeUrlEntry);
+      decoded.push({ ...result, address: href } as NodelNodeUrlEntry);
     } catch (error) {
       if (!(error instanceof NodelApiDecodeError)) {
         throw error;
@@ -611,13 +655,18 @@ export function decodeRecipes(value: unknown, context: string): NodelRecipeEntry
   return asArray(value, context).map((item, index) => {
     const path = `$[${index}]`;
     const record = asRecord(item, context, path);
-    if (typeof record.path !== 'string' || record.path.length > MAX_NODE_FILE_PATH_LENGTH || record.path.includes('\\') || unsafePathText.test(record.path)) {
+    if (typeof record.path !== 'string') {
       invalid(context, `${path}.path`, 'expected a relative recipe path');
     }
-    if (record.path && !isSafeNodeFilePath(record.path)) {
-      invalid(context, `${path}.path`, 'expected a relative recipe path without dot segments');
+    const compatibility = nodeRecipePathCompatibility(record.path);
+    if (!compatibility) {
+      invalid(context, `${path}.path`, 'expected a relative recipe path without traversal or root forms');
     }
     optionalTimestamp(record, 'modified', context, path);
-    return normalizeOptionalStrings(record, ['path', 'modified', 'readme', 'changelog'], context, path) as unknown as NodelRecipeEntry;
+    const result = normalizeOptionalStrings(record, ['modified'], context, path);
+    result.path = record.path;
+    result.compatibility = compatibility;
+    normalizeOptionalDisplayStringsInto(result, record, ['readme', 'changelog'], context, path);
+    return registerDecodedNodeRecipeEntry(result as unknown as NodelRecipeEntry);
   });
 }

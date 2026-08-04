@@ -2,6 +2,7 @@ import { flush, waitFor } from './helpers';
 
 const actsigMock = vi.hoisted(() => ({
   activityListeners: [] as Array<(state: any) => void>,
+  activitySubscriptions: [] as Array<{ active: boolean; dispose: ReturnType<typeof vi.fn> }>,
   callNodeAction: vi.fn(),
   clipboardWriteText: vi.fn(),
   emitNodeSignal: vi.fn(),
@@ -19,7 +20,14 @@ vi.mock('../src/api/nodel-host-client', () => ({
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
     actsigMock.activityListeners.push(listener);
-    return { dispose: vi.fn() };
+    const subscription = {
+      active: true,
+      dispose: vi.fn(() => {
+        subscription.active = false;
+      })
+    };
+    actsigMock.activitySubscriptions.push(subscription);
+    return { dispose: subscription.dispose };
   })
 }));
 
@@ -92,6 +100,7 @@ describe('nodel-actsig', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     actsigMock.activityListeners = [];
+    actsigMock.activitySubscriptions = [];
     actsigMock.callNodeAction.mockReset().mockResolvedValue({});
     actsigMock.clipboardWriteText.mockReset().mockResolvedValue(undefined);
     actsigMock.emitNodeSignal.mockReset().mockResolvedValue({});
@@ -142,6 +151,76 @@ describe('nodel-actsig', () => {
     expect(groupedTitles).toEqual(['Status', 'Volume']);
   });
 
+  it('renders hostile action and schema display metadata as text', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Hostile: {
+        name: 'Hostile',
+        title: '<img src=x onerror=alert(1)>',
+        desc: '<script>bad()</script>',
+        schema: { type: 'string', title: '<svg onload=alert(1)>', desc: '<b>schema</b>' }
+      }
+    });
+
+    const component = await mountActSig();
+    const form = formByTitle('<img src=x onerror=alert(1)>')!;
+    expect(form).toBeTruthy();
+    expect(component.querySelector('img, script:not([type^="jsv"]), svg[onload]')).toBeNull();
+    expect(component.innerHTML).toContain('&lt;img src=x onerror=alert(1)&gt;');
+
+    await waitFor(() => Boolean(form.querySelector('[data-schema-field-input]')));
+    expect(component.textContent).toContain('<svg onload=alert(1)>');
+    expect(component.textContent).toContain('<b>schema</b>');
+    expect(component.querySelector('b')).toBeNull();
+  });
+
+  it('keeps malformed UTF-16 form identities distinct and blocks only the unsupported request', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Isolated: { name: '\ud800', title: 'Isolated surrogate', schema: null },
+      Replacement: { name: '\ufffd', title: 'Replacement character', schema: null }
+    });
+
+    await mountActSig();
+    const isolated = formByTitle('Isolated surrogate')!;
+    const replacement = formByTitle('Replacement character')!;
+
+    expect(isolated.getAttribute('data-actsig-form-id')).not.toBe(replacement.getAttribute('data-actsig-form-id'));
+    expect(isolated.textContent).toContain('cannot be represented safely');
+    expect(isolated.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+
+    submitForm(isolated);
+    await flush();
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+
+    submitForm(replacement);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+    expect(actsigMock.callNodeAction).toHaveBeenCalledWith('\ufffd', {}, expect.anything());
+  });
+
+  it('blocks blank and unbounded generic JSON action arguments before calling the API', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({ Generic: { name: 'Generic', schema: {} } });
+    await mountActSig();
+    const form = formByTitle('Generic')!;
+    const editor = form.querySelector<HTMLTextAreaElement>('[data-schema-field-input]')!;
+
+    expect(editor).toBeTruthy();
+    submitForm(form);
+    await flush();
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+
+    await setInputValue(editor, '1e400');
+    submitForm(form);
+    await flush();
+    expect(actsigMock.callNodeAction).not.toHaveBeenCalled();
+
+    await setInputValue(editor, '{"__proto__":{"safe":true},"constructor":"value"}');
+    submitForm(form);
+    await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
+    const payload = actsigMock.callNodeAction.mock.calls[0][1] as { arg: Record<string, unknown> };
+    expect(Object.prototype.hasOwnProperty.call(payload.arg, '__proto__')).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(payload.arg, 'constructor')).toBe(true);
+    expect(({} as { safe?: boolean }).safe).toBeUndefined();
+  });
+
   it('serializes schema form values with original JSON property names', async () => {
     actsigMock.getNodeActions.mockResolvedValue({
       Configure: {
@@ -169,7 +248,8 @@ describe('nodel-actsig', () => {
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, '192.168.1.10');
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="number"]')!, '5');
     await setCheckboxValue(form.querySelector<HTMLInputElement>('input[type="checkbox"]')!, true);
-    await setInputValue(form.querySelector<HTMLSelectElement>('select')!, 'On');
+    const mode = form.querySelector<HTMLSelectElement>('select')!;
+    await setInputValue(mode, Array.from(mode.options).find((option) => option.text === 'On')!.value);
 
     submitForm(form);
     await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
@@ -949,6 +1029,8 @@ describe('nodel-actsig', () => {
     expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(4);
     expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(4);
     expect(actsigMock.activityListeners).toHaveLength(4);
+    expect(actsigMock.activitySubscriptions.filter((subscription) => subscription.active)).toHaveLength(1);
+    expect(actsigMock.activitySubscriptions.slice(0, 3).every((subscription) => subscription.dispose.mock.calls.length === 1)).toBe(true);
   });
 
   it('ignores abort-insensitive definitions from a disconnected generation', async () => {

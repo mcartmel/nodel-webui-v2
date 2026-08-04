@@ -1,10 +1,15 @@
 import { waitFor } from './helpers';
+import { rapidReconnect } from './lifecycle-helpers';
 
 const editorImportMock = vi.hoisted(() => {
   let resolve!: () => void;
-  const ready = new Promise<void>((done) => {
-    resolve = done;
-  });
+  let ready: Promise<void>;
+  const reset = () => {
+    ready = new Promise<void>((done) => {
+      resolve = done;
+    });
+  };
+  reset();
   const editor = {
     destroy: vi.fn(),
     focus: vi.fn(),
@@ -13,8 +18,16 @@ const editorImportMock = vi.hoisted(() => {
     setReadOnly: vi.fn()
   };
   const create = vi.fn(() => editor);
-  const load = vi.fn(() => ready.then(() => ({ createNodelCodeEditor: create })));
-  return { create, editor, load, resolve };
+  const loadDefault = () => ready.then(() => ({ createNodelCodeEditor: create }));
+  const load = vi.fn(loadDefault);
+  return {
+    create,
+    editor,
+    load,
+    reset,
+    resolve: () => resolve(),
+    restoreLoad: () => load.mockReset().mockImplementation(loadDefault)
+  };
 });
 
 vi.mock('../src/utils/dynamic-imports', () => ({
@@ -31,6 +44,14 @@ vi.mock('../src/api/nodel-host-client', () => ({
 import '../src/components/nodel-editor';
 
 describe('nodel-editor import lifecycle', () => {
+  beforeEach(() => {
+    editorImportMock.reset();
+    editorImportMock.create.mockClear();
+    editorImportMock.editor.destroy.mockClear();
+    editorImportMock.editor.setDocument.mockClear();
+    editorImportMock.restoreLoad();
+  });
+
   afterEach(() => {
     document.body.innerHTML = '';
   });
@@ -48,6 +69,40 @@ describe('nodel-editor import lifecycle', () => {
     expect(editorImportMock.create).toHaveBeenCalledOnce();
     expect(editorImportMock.editor.destroy).not.toHaveBeenCalled();
     expect(editorImportMock.editor.setDocument).toHaveBeenCalledWith('print("current")', 'script.py');
+  });
+
+  it('does not let a disposed pending editor create or update a fresh instance', async () => {
+    const oldEditor = document.createElement('nodel-editor');
+    document.body.append(oldEditor);
+    await waitFor(() => editorImportMock.load.mock.calls.length === 1);
+    oldEditor.remove();
+
+    const freshEditor = document.createElement('nodel-editor');
+    document.body.append(freshEditor);
+    await waitFor(() => editorImportMock.load.mock.calls.length === 2);
+    editorImportMock.resolve();
+    await waitFor(() => editorImportMock.create.mock.calls.length === 1);
+
+    expect((oldEditor as any).editor).toBeNull();
+    expect((freshEditor as any).editor).toBe(editorImportMock.editor);
+    expect(editorImportMock.create).toHaveBeenCalledOnce();
+    expect(editorImportMock.editor.setDocument).toHaveBeenCalledWith('print("current")', 'script.py');
+  });
+
+  it('keeps one editor after rapid reconnects while its import is pending', async () => {
+    const editor = document.createElement('nodel-editor');
+    document.body.append(editor);
+    await waitFor(() => editorImportMock.load.mock.calls.length === 1);
+    let reconnects = 0;
+    await rapidReconnect(editor, async () => {
+      reconnects += 1;
+      await waitFor(() => editorImportMock.load.mock.calls.length === reconnects + 1);
+    });
+    editorImportMock.resolve();
+    await waitFor(() => editorImportMock.create.mock.calls.length === 1);
+
+    expect(editorImportMock.create).toHaveBeenCalledOnce();
+    expect((editor as any).editor).toBe(editorImportMock.editor);
   });
 
   it('shows and retries an editor import failure', async () => {

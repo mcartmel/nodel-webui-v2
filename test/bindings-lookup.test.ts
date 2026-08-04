@@ -43,14 +43,30 @@ describe('binding lookup service', () => {
     expect(options.every((option) => option.address.startsWith('https://'))).toBe(true);
   });
 
-  it('rejects unsafe discovered node URLs', async () => {
+  it('excludes non-fetchable discovered node URLs', async () => {
     lookupApiMock.searchNodeUrls.mockResolvedValue([
-      { node: 'Unsafe', address: 'javascript:alert(1)' }
+      { node: 'Unsafe', address: 'javascript:alert(1)' },
+      { node: 'Scoped', address: 'http://[fe80::1%25EtherNet0]:8085/nodes/Scoped/' },
+      { node: 'IPv6', address: 'http://::1:8085/nodes/IPv6/' }
     ]);
 
     const service = new BindingLookupService();
-    await expect(service.searchNodeOptions('Unsafe', new AbortController().signal))
-      .rejects.toThrow('Discovered node URL is invalid');
+    await expect(service.searchNodeOptions('node', new AbortController().signal)).resolves.toEqual([{
+      label: 'IPv6',
+      value: 'IPv6',
+      address: 'http://[::1]:8085/nodes/IPv6/',
+      detail: '[::1]:8085'
+    }]);
+  });
+
+  it('filters scoped matches before applying the lookup cap', async () => {
+    lookupApiMock.searchNodeUrls.mockResolvedValue([
+      ...Array.from({ length: 20 }, (_, index) => ({ node: `Scoped ${index}`, address: `http://fe80::${index + 1}%EtherNet0:8085/nodes/Scoped${index}/` })),
+      { node: 'Display', address: 'https://display.example/nodes/Display/' }
+    ]);
+
+    const service = new BindingLookupService();
+    await expect(service.searchNodeOptions('Display', new AbortController().signal)).resolves.toEqual([expect.objectContaining({ value: 'Display' })]);
   });
 
   it('preserves Unicode node matching and target filtering', async () => {

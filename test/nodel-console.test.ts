@@ -134,6 +134,35 @@ describe('nodel-console', () => {
     document.body.append(console);
     await waitFor(() => consoleMock.listeners.length === 2);
     const reconnectedInput = console.querySelector<HTMLInputElement>('[data-console-input]')!;
+    const oldListener = consoleMock.listeners[0]!;
+    const currentListener = consoleMock.listeners[1]!;
+
+    currentListener({
+      loading: false,
+      active: true,
+      error: '',
+      data: { entries: [{ seq: 10, timestamp: '', console: 'out', comment: 'Current first' }], replace: true, nextSeq: 11 }
+    });
+    await flush();
+    oldListener({
+      loading: false,
+      active: true,
+      error: '',
+      data: { entries: [{ seq: 99, timestamp: '', console: 'out', comment: 'Stale' }], replace: true, nextSeq: 12 }
+    });
+    await flush();
+    currentListener({
+      loading: false,
+      active: true,
+      error: '',
+      data: { entries: [{ seq: 11, timestamp: '', console: 'out', comment: 'Current second' }], replace: false, nextSeq: 12 }
+    });
+    await flush();
+
+    expect(reconnectedInput).toBeTruthy();
+    expect(console.textContent).toContain('Current first');
+    expect(console.textContent).toContain('Current second');
+    expect(console.textContent).not.toContain('Stale');
     reconnectedInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
     await flush();
 
@@ -151,6 +180,35 @@ describe('nodel-console', () => {
 
     expect(freshInput.value).toBe('');
     expect(consoleMock.dispose).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores a disposed source callback while a fresh console receives one current subscription', async () => {
+    const oldConsole = document.createElement('nodel-console');
+    document.body.append(oldConsole);
+    await waitFor(() => consoleMock.listeners.length === 1);
+    oldConsole.remove();
+
+    const freshConsole = document.createElement('nodel-console');
+    document.body.append(freshConsole);
+    await waitFor(() => consoleMock.listeners.length === 2);
+    consoleMock.listeners[0]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: { entries: [{ seq: 100, timestamp: '', console: 'out', comment: 'Stale' }], replace: true, nextSeq: 101 }
+    });
+    consoleMock.listeners[1]?.({
+      loading: false,
+      active: true,
+      error: '',
+      data: { entries: [{ seq: 1, timestamp: '', console: 'out', comment: 'Current' }], replace: true, nextSeq: 2 }
+    });
+    await flush();
+
+    expect(consoleMock.dispose).toHaveBeenCalledOnce();
+    expect(oldConsole.textContent).not.toContain('Stale');
+    expect(freshConsole.textContent).toContain('Current');
+    expect(freshConsole.textContent).not.toContain('Stale');
   });
 
   it('aborts pending commands on disconnect and renders current command failures', async () => {

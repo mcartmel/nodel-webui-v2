@@ -63,6 +63,16 @@ describe('nodel-description', () => {
     expect(element.querySelector<HTMLButtonElement>('[data-description-toggle]')?.parentElement?.hidden).toBe(true);
   });
 
+  it('passes non-blank description text to the markdown sanitizer unchanged', async () => {
+    const description = '  Leading text\u0000\u007f  ';
+    descriptionApiMock.response = { name: 'Test Node', desc: description };
+
+    const element = await mount();
+
+    expect(element.hidden).toBe(false);
+    expect(element.textContent).toContain('Leading text');
+  });
+
   it('reports a failed restart refresh while preserving its local error behavior', async () => {
     const element = await mount();
     descriptionApiMock.getNodeDetails.mockRejectedValueOnce(new Error('Description unavailable'));

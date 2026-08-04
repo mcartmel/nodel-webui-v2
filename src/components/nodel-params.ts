@@ -23,6 +23,7 @@ import {
   validateAndUpdateSchemaForm
 } from '../schema/schema-form';
 import { apiErrorMessage, isAbortError } from '../utils/errors';
+import { isRecord } from '../utils/records';
 import { renderComponentError } from '../utils/render-component-error';
 
 interface ParamsViewModel {
@@ -65,7 +66,7 @@ const template = `
 `;
 
 function hasSchemaFields(schema: NodelJsonSchema | null | undefined) {
-  return Boolean(schema?.properties && Object.keys(schema.properties).length > 0);
+  return Boolean(schema && (Object.keys(schema).length === 0 || (schema.properties && Object.keys(schema.properties).length > 0)));
 }
 
 export class NodelParams extends HTMLElement {
@@ -235,7 +236,11 @@ export class NodelParams extends HTMLElement {
     if (!scope) {
       return;
     }
-    const payload = serializeSchemaForm(this.state.schemaForm!) as Record<string, unknown>;
+    const payload = serializeSchemaForm(this.state.schemaForm!);
+    if (!isRecord(payload)) {
+      this.setState({ saveError: 'The parameter values could not be serialized.' });
+      return;
+    }
     this.setState({
       saving: true,
       saveError: '',

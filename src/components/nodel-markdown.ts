@@ -1,5 +1,6 @@
 import { createSignalBindingController } from '../data/signal-bindings';
 import { renderMarkdown } from '../utils/markdown';
+import { trimPointReference } from '../utils/edge-whitespace';
 
 type MarkdownMaxHeight = 'none' | 'sm' | 'md' | 'lg' | 'screen';
 
@@ -79,7 +80,7 @@ export class NodelMarkdown extends HTMLElement {
   }
 
   private syncSignalSubscription() {
-    const hasBindings = Boolean(this.getAttribute('signal')?.trim() || this.getAttribute('signals')?.trim());
+    const hasBindings = Boolean(trimPointReference(this.getAttribute('signal') ?? '') || trimPointReference(this.getAttribute('signals') ?? ''));
     this.sourceLoading = hasBindings && !this.hasAttribute('value');
     this.sourceError = '';
     this.render();

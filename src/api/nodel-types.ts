@@ -168,11 +168,15 @@ export interface NodelToolkitResponse {
 
 export interface NodelRecipeEntry {
   path: string;
+  /** Derived by API decoders; optional for legacy test and extension callers. */
+  compatibility?: 'portable' | 'legacy';
   [key: string]: unknown;
 }
 
 export interface NodelFileEntry {
   path: string;
+  /** Derived by API decoders; optional for legacy test and extension callers. */
+  compatibility?: 'portable' | 'legacy';
   size?: number;
   modified?: string;
   [key: string]: unknown;
@@ -185,6 +189,11 @@ export interface NodelDuplicateFileFailure {
   phase: NodelDuplicateFilePhase;
   status?: number;
   message: string;
+}
+
+export interface NodelDuplicateSkippedFile {
+  path: string;
+  reason: string;
 }
 
 export type NodelDuplicateProgressPhase = 'creating' | 'waiting' | 'copying' | 'complete';
@@ -209,5 +218,6 @@ export interface NodelDuplicateNodeResult {
   url: string;
   copied: string[];
   skipped: string[];
+  skippedDetails?: NodelDuplicateSkippedFile[];
   failed: NodelDuplicateFileFailure[];
 }

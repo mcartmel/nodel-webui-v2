@@ -1,6 +1,7 @@
 import type { NodelActivityLogEntry } from '../api/nodel-types';
 import { getControlRuntime } from './control-runtime';
 import { asciiToken } from '../utils/text-normalization';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { hasOwn, isRecord } from '../utils/records';
 
 export interface SignalBinding {
@@ -99,10 +100,10 @@ function splitOnUnescapedDots(value: string) {
 }
 
 function parseSignalExpression(value: string): Pick<SignalBinding, 'signal' | 'path'> | null {
-  const trimmed = value.trim();
+  const trimmed = trimPointReference(value);
   const dotIndex = firstUnescapedDotIndex(trimmed);
   const [rawSignal, rawPath] = dotIndex === -1 ? [trimmed, ''] as const : [trimmed.slice(0, dotIndex), trimmed.slice(dotIndex + 1)] as const;
-  const signal = unescapeSignalSegment(rawSignal.trim());
+  const signal = unescapeSignalSegment(trimPointReference(rawSignal));
 
   if (!signal) {
     return null;
@@ -112,7 +113,7 @@ function parseSignalExpression(value: string): Pick<SignalBinding, 'signal' | 'p
     return { signal };
   }
 
-  const path = splitOnUnescapedDots(rawPath).map((segment) => unescapeSignalSegment(segment.trim()));
+  const path = splitOnUnescapedDots(rawPath).map((segment) => unescapeSignalSegment(trimPointReference(segment)));
   if (path.length === 0 || path.some((segment) => !segment)) {
     return null;
   }
@@ -156,7 +157,7 @@ function extractSignalValue(value: unknown, path?: string[]) {
 }
 
 export function normalizeSignalName(value: string | null) {
-  return value?.trim() ?? '';
+  return value === null ? '' : trimPointReference(value);
 }
 
 function parseTarget(value: string): { target: string; mode: SignalBindingMode } {
@@ -175,7 +176,7 @@ function parseSignalBindingList(value: string | null, defaultTarget?: string): S
   const bindings: SignalBinding[] = [];
 
   for (const part of (value ?? '').split(/[;,]/)) {
-    const trimmed = part.trim();
+    const trimmed = trimPointReference(part);
     if (!trimmed) {
       continue;
     }

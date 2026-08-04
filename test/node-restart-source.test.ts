@@ -127,6 +127,26 @@ describe('node-restart-source', () => {
     watcher.dispose();
   });
 
+  it('does not confirm on repeated null status responses before one later timestamp', async () => {
+    restartMock.getNodeRestartStatus
+      .mockResolvedValueOnce({ timestamp: null })
+      .mockResolvedValueOnce({ timestamp: null })
+      .mockResolvedValueOnce({ timestamp: null })
+      .mockResolvedValueOnce({ timestamp: 'start-1' });
+    const { NodeRestartExpectationCoordinator, NODE_RESTART_EXPECTED_RETRY_DELAY_MS } = await loadSource();
+    const coordinator = new NodeRestartExpectationCoordinator();
+    const events: string[] = [];
+    const prepared = await coordinator.prepare();
+    const watcher = coordinator.subscribe((event) => events.push(event.type));
+    coordinator.commit(prepared);
+
+    await vi.advanceTimersByTimeAsync(NODE_RESTART_EXPECTED_RETRY_DELAY_MS * 3);
+
+    expect(events.filter((event) => event === 'expected-confirmed')).toHaveLength(1);
+    expect(coordinator.getExpectation()).toMatchObject({ state: 'refreshing', confirmedTimestamp: 'start-1' });
+    watcher.dispose();
+  });
+
   it('times out at exactly 30 seconds, retains pending state through transient errors, and recovers late', async () => {
     restartMock.getNodeRestartStatus
       .mockResolvedValueOnce({ timestamp: 'start-1' })

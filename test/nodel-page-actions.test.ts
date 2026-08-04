@@ -46,19 +46,19 @@ describe('nodel-page activation actions', () => {
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
 
-    expect(callAction).toHaveBeenCalledWith('OpenOverview', {});
+    expect(callAction.mock.calls[0].slice(0, 2)).toEqual(['OpenOverview', {}]);
   });
 
   it('activates the startup hash page and later hash navigation', async () => {
     window.history.replaceState(undefined, '', '/#Details');
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
-    expect(callAction).toHaveBeenLastCalledWith('OpenDetails', {});
+    expect(callAction.mock.calls.at(-1)?.slice(0, 2)).toEqual(['OpenDetails', {}]);
 
     window.history.replaceState(undefined, '', '/#Overview');
     window.dispatchEvent(new HashChangeEvent('hashchange'));
     await waitFor(() => callAction.mock.calls.length === 2);
-    expect(callAction).toHaveBeenLastCalledWith('OpenOverview', {});
+    expect(callAction.mock.calls.at(-1)?.slice(0, 2)).toEqual(['OpenOverview', {}]);
   });
 
   it('invokes on explicit selection and explicit reselection', async () => {
@@ -70,7 +70,7 @@ describe('nodel-page activation actions', () => {
     document.querySelector<HTMLButtonElement>('[data-nav-page-id="Details"]')?.click();
     await waitFor(() => callAction.mock.calls.length === 2);
 
-    expect(callAction.mock.calls).toEqual([
+    expect(callAction.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       ['OpenDetails', {}],
       ['OpenDetails', {}]
     ]);
@@ -107,7 +107,7 @@ describe('nodel-page activation actions', () => {
     document.body.append(app);
     await waitFor(() => callAction.mock.calls.length === 2);
 
-    expect(callAction).toHaveBeenLastCalledWith('OpenDetails', {});
+    expect(callAction.mock.calls.at(-1)?.slice(0, 2)).toEqual(['OpenDetails', {}]);
     expect(app.getAttribute('data-active-page')).toBe('Details');
   });
 
@@ -127,6 +127,21 @@ describe('nodel-page activation actions', () => {
     expect(callAction).toHaveBeenCalledTimes(1);
   });
 
+  it('does not start later activation bindings after the page disconnects', async () => {
+    let resolveFirst!: () => void;
+    callAction.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveFirst = resolve; }));
+    document.body.innerHTML = '<nodel-page actions="Prepare; Present"></nodel-page>';
+    const page = document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page')!;
+    const activation = page.activate();
+    await waitFor(() => callAction.mock.calls.length === 1);
+
+    page.remove();
+    resolveFirst();
+    await activation;
+
+    expect(callAction).toHaveBeenCalledTimes(1);
+  });
+
   it('runs multiple actions with a typed argument payload', async () => {
     document.body.innerHTML = `
       <nodel-app>
@@ -135,7 +150,7 @@ describe('nodel-page activation actions', () => {
     `;
     await waitFor(() => callAction.mock.calls.length === 2);
 
-    expect(callAction.mock.calls).toEqual([
+    expect(callAction.mock.calls.map((call) => call.slice(0, 2))).toEqual([
       ['Prepare', { arg: { mode: 'preview' } }],
       ['Present', { arg: { mode: 'preview' } }]
     ]);
@@ -150,5 +165,41 @@ describe('nodel-page activation actions', () => {
     expect(document.querySelector('nodel-app')?.getAttribute('data-active-page')).toBe('Details');
     await waitFor(() => document.querySelector('.nodel-toast-message')?.textContent === 'Page action failed');
     expect(document.querySelector('.nodel-toast-detail')?.textContent).toContain('controller unavailable');
+  });
+
+  it('does nothing when a detached page is activated', async () => {
+    const page = document.createElement('nodel-page') as HTMLElement & { activate(): Promise<void> };
+    page.setAttribute('action', 'OpenDetached');
+
+    await page.activate();
+
+    expect(callAction).not.toHaveBeenCalled();
+  });
+
+  it('emits structured partial page action failures while retaining the toast', async () => {
+    callAction
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Present failed'));
+    document.body.innerHTML = '<nodel-page actions="Prepare; Present"></nodel-page>';
+    const page = document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page')!;
+    const error = vi.fn();
+    const toast = vi.fn();
+    page.addEventListener('nodel-page-action-error', error);
+    page.addEventListener('nodel-toast', toast);
+
+    await page.activate();
+
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0][0].detail).toMatchObject({
+      action: 'Prepare',
+      phase: 'activate',
+      results: [
+        { action: 'Prepare', phase: 'activate', ok: true },
+        { action: 'Present', phase: 'activate', ok: false, error: 'Present failed' }
+      ],
+      failures: [{ action: 'Present', phase: 'activate', ok: false, error: 'Present failed' }]
+    });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast.mock.calls[0][0].detail.detail).toContain('Present failed');
   });
 });

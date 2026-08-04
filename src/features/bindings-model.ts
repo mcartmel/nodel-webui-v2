@@ -2,7 +2,7 @@ import type { NodelJsonSchema } from '../api/nodel-types';
 import { networkNodeSearchHref } from '../navigation/node-links';
 import { cloneSchemaValue } from '../schema/schema-values';
 import { validateValueAgainstSchema } from '../schema/schema-validation';
-import { hasOwn, isRecord } from '../utils/records';
+import { hasOwn, isRecord, setOwn } from '../utils/records';
 import type { SuggestionConfidence, TargetOption } from './bindings-matching';
 
 export type BindingKind = 'actions' | 'events';
@@ -117,7 +117,7 @@ export function bindingStatusClass(status: string) {
 }
 
 export function bindingStatusLinkProperties(node: string) {
-  const name = node.trim();
+  const name = node;
   return {
     statusHref: name ? networkNodeSearchHref(name) : '',
     statusLinkLabel: name ? `Open ${name} in Network nodes` : ''
@@ -181,9 +181,9 @@ function createBindingSection(kind: BindingKind, schema: NodelJsonSchema | undef
         target: stringValue(value[targetKey]),
         schema: rowSchema,
         originalValue: cloneSchemaValue(value),
-         rowPresent: hasOwn(values, alias),
-         nodePresent: hasOwn(value, 'node'),
-         targetPresent: hasOwn(value, targetKey),
+        rowPresent: hasOwn(values, alias),
+        nodePresent: hasOwn(value, 'node'),
+        targetPresent: hasOwn(value, targetKey),
         dirty: false,
         nodeDirty: false,
         targetDirty: false,
@@ -235,7 +235,7 @@ export function serializeBindingPayload(sourceBindings: Record<string, unknown>,
       const rowPayload: Record<string, unknown> = cloneSchemaValue(row.originalValue);
       if (row.nodeDirty) rowPayload.node = row.node;
       if (row.targetDirty) rowPayload[row.targetKey] = row.target;
-      sectionPayload[row.alias] = rowPayload;
+      setOwn(sectionPayload, row.alias, rowPayload);
     }
     payload[section.kind] = sectionPayload;
   }

@@ -131,7 +131,9 @@ describe('Java Nodel API contract fixtures', () => {
       expect.objectContaining({ seq: expect.any(Number), timestamp: expect.any(String), message: expect.any(String) })
     ]));
     expect(responses.console).toEqual(expect.arrayContaining([
-      expect.objectContaining({ seq: expect.any(Number), console: 'out', comment: expect.any(String) })
+      expect.objectContaining({ seq: expect.any(Number), console: 'out', comment: expect.any(String) }),
+      expect.objectContaining({ console: 'err', comment: '' }),
+      expect.objectContaining({ console: 'err', comment: expect.stringMatching(/^\tat /) })
     ]));
     expect(responses.activity).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -229,9 +231,15 @@ describe('Java Nodel API contract fixtures', () => {
     await expect(getNodeParams()).resolves.toEqual(responses.params);
     await expect(getNodeRemoteSchema()).resolves.toEqual(responses.remoteSchema);
     await expect(getNodeRemoteBindings()).resolves.toEqual(responses.remoteBindings);
-    await expect(listNodeFiles()).resolves.toEqual(responses.files);
+    await expect(listNodeFiles()).resolves.toEqual((responses.files as Array<Record<string, unknown>>).map((entry) => ({
+      ...entry,
+      compatibility: 'portable'
+    })));
     await expect(getNodeFileContents('script.py')).resolves.toBe(responses.fileContents);
-    await expect(listRecipes()).resolves.toEqual(responses.recipes);
+    await expect(listRecipes()).resolves.toEqual((responses.recipes as Array<Record<string, unknown>>).map((entry) => ({
+      ...entry,
+      compatibility: 'portable'
+    })));
     await expect(getRemoteNodeActions('http://display.example:8085/nodes/Display/')).resolves.toEqual(responses.actions);
     await expect(getRemoteNodeSignals('http://display.example:8085/nodes/Display/')).resolves.toEqual(responses.events);
     expect(requests).toHaveLength(21);

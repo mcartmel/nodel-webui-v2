@@ -1,4 +1,5 @@
 import { safeHostRestUrl } from '../utils/urls';
+import { isAbortError } from '../utils/errors';
 import { decodeNodeUrls } from './codecs/nodel-codecs';
 import { postJson } from './http-transport';
 import { fetchWithDeadline } from './request';
@@ -28,8 +29,14 @@ export async function checkHostReachable(host: string, timeoutMs = 3000, signal?
       signal,
       mode: restUrl.origin === window.location.origin ? 'cors' : 'no-cors'
     }, timeoutMs);
+    if (signal?.aborted) {
+      throw new DOMException('The reachability probe was aborted', 'AbortError');
+    }
     return { host, reachable: response.ok || response.type === 'opaque' };
-  } catch {
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) {
+      throw error;
+    }
     return { host, reachable: false };
   }
 }

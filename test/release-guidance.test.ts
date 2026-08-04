@@ -51,6 +51,10 @@ describe('V1 migration and release guidance', () => {
     expect(releaseNotes).toContain('does not replace backend authentication or authorization');
     expect(releaseNotes).toContain('legacy V1 loader');
     expect(architecture).toContain('`RELEASE_NOTES.md`');
+    expect(architecture).toContain('does not make Java Nodel\'s unlocked, unconditional script write atomic');
+    expect(architecture).toContain('does not delete an incomplete destination automatically');
+    expect(architecture).toContain('creation returns no ownership token');
+    expect(architecture).toContain('normal explicitly confirmed node-removal workflow');
   });
 
   it('gates branch and tagged release workflows with all browser engines and curated notes', async () => {

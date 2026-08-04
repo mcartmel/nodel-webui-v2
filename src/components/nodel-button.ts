@@ -4,6 +4,7 @@ import {
   actionName,
   buildActionPayload,
   ControlActionController,
+  type ControlActionScope,
   dispatchControlActionError,
   executeActionPhases
 } from '../data/control-actions';
@@ -91,8 +92,11 @@ export class NodelButton extends HTMLElement {
   private ignoreNextClick = false;
   private signalBindings = createSignalBindingController(this);
   private actionController = new ControlActionController();
+  private momentaryScope: ControlActionScope | null = null;
+  private momentaryActiveWasPresent: boolean | null = null;
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -103,15 +107,16 @@ export class NodelButton extends HTMLElement {
   }
 
   disconnectedCallback() {
+    const scope = this.momentaryScope;
+    this.actionController.disconnect();
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('keydown', this.handleKeyDown);
     this.removeEventListener('keyup', this.handleKeyUp);
-    if (this.momentaryStarting) {
-      this.clearMomentaryStart();
-    } else {
-      this.finishMomentary();
-    }
+    this.busy = false;
+    this.momentaryActive = false;
+    this.clearMomentaryStart(scope);
+    this.render();
     this.signalBindings.dispose();
   }
 
@@ -249,9 +254,10 @@ export class NodelButton extends HTMLElement {
     });
   }
 
-  private async submitActions(phase: string, bindings: ActionBinding[], options: { confirm?: boolean; busy?: boolean } = {}) {
+  private async submitActions(phase: string, bindings: ActionBinding[], options: { confirm?: boolean; busy?: boolean; scope?: ControlActionScope } = {}) {
+    const scope = options.scope ?? this.actionController.captureScope();
     const singleFlight = options.busy;
-    if (singleFlight && !this.actionController.startSingleFlight()) {
+    if (!scope || !scope.isCurrent() || (singleFlight && !this.actionController.startSingleFlight(scope))) {
       return;
     }
 
@@ -279,19 +285,22 @@ export class NodelButton extends HTMLElement {
           title: 'Confirm action',
           text: `Run ${this.currentLabel() || 'action'}?`,
           tone: 'warning'
-        }), this.buttonNode);
-        if (!confirmed) {
+        }), this.buttonNode, scope.signal);
+        if (!confirmed || !scope.isCurrent()) {
           return;
         }
       }
 
-      if (options.busy) {
+      if (options.busy && scope.isCurrent()) {
         this.busy = true;
         this.render();
       }
 
       try {
-        const execution = await executeActionPhases(bindings, [phase], payload);
+        const execution = await executeActionPhases(bindings, [phase], payload, scope);
+        if (!scope.isCurrent()) {
+          return;
+        }
         if (execution.failures.length > 0) {
           dispatchControlActionError(this, {
             eventName: 'nodel-button-error',
@@ -301,6 +310,7 @@ export class NodelButton extends HTMLElement {
             arg: payloadResult.arg,
             committed,
             live,
+            results: execution.results,
             failures: execution.failures
           });
           return;
@@ -310,6 +320,9 @@ export class NodelButton extends HTMLElement {
           detail: { action, phase, phases: [phase], arg: payloadResult.arg, payload, results: execution.results, failures: [], committed, live }
         }));
       } catch (error) {
+        if (!scope.isCurrent()) {
+          return;
+        }
         dispatchControlActionError(this, {
           eventName: 'nodel-button-error',
           action,
@@ -321,16 +334,16 @@ export class NodelButton extends HTMLElement {
           error: actionErrorMessage(error)
         });
       } finally {
-        if (options.busy) {
+        if (options.busy && scope.isCurrent()) {
           this.busy = false;
         }
-        if (this.isConnected && options.busy) {
+        if (scope.isCurrent() && options.busy) {
           this.render();
         }
       }
     } finally {
       if (singleFlight) {
-        this.actionController.finishSingleFlight();
+        this.actionController.finishSingleFlight(scope);
       }
     }
   }
@@ -425,7 +438,10 @@ export class NodelButton extends HTMLElement {
     }
 
     event.preventDefault();
-    void this.submitActions('click', bindings, { confirm: true, busy: true });
+    const scope = this.actionController.captureScope();
+    if (scope) {
+      void this.submitActions('click', bindings, { confirm: true, busy: true, scope });
+    }
   };
 
   private isMomentary(bindings = this.actionBindings()) {
@@ -440,35 +456,53 @@ export class NodelButton extends HTMLElement {
     if (!hasActionPhase(bindings, 'click')) {
       event?.preventDefault();
     }
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      return;
+    }
     this.ignoreNextClick = true;
     this.momentaryStarting = true;
     this.momentaryReleaseRequested = false;
+    this.momentaryScope = scope;
     document.addEventListener('pointerup', this.handleDocumentPointerUp);
     document.addEventListener('pointercancel', this.handleDocumentPointerUp);
     window.addEventListener('blur', this.handleWindowBlur);
 
-    if (shouldConfirm(this)) {
-      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
-        title: 'Confirm action',
-        text: `Run ${this.currentLabel() || 'action'}?`,
-        tone: 'warning'
-      }), this.buttonNode);
-      if (!confirmed) {
-        this.clearMomentaryStart();
+    try {
+      if (shouldConfirm(this)) {
+        const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, {
+          title: 'Confirm action',
+          text: `Run ${this.currentLabel() || 'action'}?`,
+          tone: 'warning'
+        }), this.buttonNode, scope.signal);
+        if (!confirmed || !scope.isCurrent()) {
+          this.clearMomentaryStart(scope);
+          return;
+        }
+      }
+
+      if (!scope.isCurrent()) {
+        this.clearMomentaryStart(scope);
         return;
       }
-    }
-
-    this.momentaryStarting = false;
-    this.momentaryActive = true;
-    this.setAttribute('active', '');
-    void this.actionController.runSerial(() => this.submitActions('press', bindings));
-    if (this.momentaryReleaseRequested) {
-      this.finishMomentary();
+      this.momentaryStarting = false;
+      this.momentaryActive = true;
+      this.momentaryActiveWasPresent = this.hasAttribute('active');
+      this.setAttribute('active', '');
+      void this.actionController.runSerial(scope, () => this.submitActions('press', bindings, { scope })).catch(() => undefined);
+      if (this.momentaryReleaseRequested) {
+        this.finishMomentary(scope);
+      }
+    } catch {
+      this.clearMomentaryStart(scope);
+      return;
     }
   }
 
-  private finishMomentary() {
+  private finishMomentary(scope = this.momentaryScope) {
+    if (scope !== this.momentaryScope) {
+      return;
+    }
     if (this.momentaryStarting && !this.momentaryActive) {
       this.momentaryReleaseRequested = true;
       return;
@@ -477,17 +511,40 @@ export class NodelButton extends HTMLElement {
       return;
     }
     this.momentaryActive = false;
-    this.removeAttribute('active');
-    this.clearMomentaryStart();
-    void this.actionController.runSerial(() => this.submitActions('release', this.actionBindings()));
+    this.clearMomentaryStart(scope);
+    if (scope?.isCurrent()) {
+      void this.actionController.runSerial(scope, () => this.submitActions('release', this.actionBindings(), { scope })).catch(() => undefined);
+    }
   }
 
-  private clearMomentaryStart() {
+  private clearMomentaryStart(scope?: ControlActionScope | null) {
+    if (scope && this.momentaryScope !== scope) {
+      return;
+    }
+    this.restoreMomentaryActive(scope);
     this.momentaryStarting = false;
     this.momentaryReleaseRequested = false;
+    this.momentaryScope = null;
     document.removeEventListener('pointerup', this.handleDocumentPointerUp);
     document.removeEventListener('pointercancel', this.handleDocumentPointerUp);
     window.removeEventListener('blur', this.handleWindowBlur);
+  }
+
+  private restoreMomentaryActive(scope?: ControlActionScope | null) {
+    if (scope && this.momentaryScope !== scope) {
+      return;
+    }
+    if (this.momentaryActiveWasPresent === null) {
+      return;
+    }
+
+    const wasPresent = this.momentaryActiveWasPresent;
+    this.momentaryActiveWasPresent = null;
+    if (wasPresent) {
+      this.setAttribute('active', '');
+    } else {
+      this.removeAttribute('active');
+    }
   }
 
   private handlePointerDown = (event: PointerEvent) => {

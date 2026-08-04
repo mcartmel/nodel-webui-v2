@@ -32,6 +32,7 @@ import {
 } from '../navigation/navigation';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
 import { errorMessage } from '../utils/errors';
+import { encodeUrlPathSegment } from '../utils/urls';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail } from '../data/app-title';
 import { updateHostFavicon } from '../icons/favicon';
@@ -801,7 +802,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.dataset.activePage = pageId;
     this.applyPageVisibility(pageId);
     if (updateHash && pageId) {
-      history.replaceState(undefined, '', `#${pageId}`);
+      history.replaceState(undefined, '', `#${encodeUrlPathSegment(pageId)}`);
       this.lastHandledHash = window.location.hash;
     }
     this.dispatchNavigationChange();
@@ -837,7 +838,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   }
 
   private getHashPageId() {
-    return window.location.hash.replace(/^#/, '');
+    try {
+      return decodeURIComponent(window.location.hash.replace(/^#/, ''));
+    } catch {
+      return '';
+    }
   }
 
   private hasExplicitTheme() {

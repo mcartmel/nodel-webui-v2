@@ -9,6 +9,7 @@ import {
   type SchemaPresenceState
 } from './schema-model';
 import { hasOwn, isRecord, setOwn } from '../utils/records';
+import { validateJsonValueBounds } from '../utils/json-value';
 
 export function cloneSchemaValue<T>(value: T): T {
   if (Array.isArray(value)) {
@@ -57,6 +58,43 @@ export function hydrateSchemaFieldModel(field: SchemaField, containerOrValue: un
   field.presenceState = !present ? field.allowMissing ? 'missing' : 'value' : field.nullable && value === null ? 'null' : 'value';
   field.typeMismatch = false;
   field.unknownProperties = {};
+
+  if (field.kind === 'json') {
+    if (!present) {
+      field.value = '';
+      field.concreteValue = '';
+      return;
+    }
+    const text = JSON.stringify(value, null, 2);
+    if (text === undefined) {
+      field.typeMismatch = true;
+      return;
+    }
+    field.value = text;
+    field.concreteValue = text;
+    return;
+  }
+
+  // Enum identities take precedence over primitive conversion and nullable presence.
+  // This also canonicalizes a wire null to its enum option when one exists.
+  if (present && field.enumOptions.length > 0) {
+    const option = enumOptionForRawValue(field, value);
+    if (option) {
+      field.value = option.value;
+      field.concreteValue = field.value;
+      field.presenceState = 'value';
+      return;
+    }
+    field.value = value;
+    field.concreteValue = value;
+    if (field.nullable && value === null) {
+      field.presenceState = 'null';
+      return;
+    }
+    field.presenceState = 'value';
+    field.typeMismatch = true;
+    return;
+  }
 
   if (present && value === null && field.kind !== 'null') {
     if (field.kind !== 'object' && field.kind !== 'array' && field.value !== null) field.concreteValue = field.value;
@@ -162,13 +200,6 @@ export function hydrateSchemaFieldModel(field: SchemaField, containerOrValue: un
     field.concreteValue = field.value;
     return;
   }
-  if (field.enumOptions.length > 0) {
-    const option = field.enumOptions.find((candidate) => enumRawKey(candidate.raw) === enumRawKey(value));
-    field.value = option?.value ?? value;
-    field.concreteValue = field.value;
-    if (!option) field.typeMismatch = true;
-    return;
-  }
   field.value = value;
   field.concreteValue = value;
   if (!valueMatchesKind(field, value)) field.typeMismatch = true;
@@ -187,7 +218,7 @@ export function serializeSchemaFormModel(form: SchemaFormModel): unknown {
   for (const field of form.fields) {
     const value = serializeSchemaFieldModel(field);
     if (field.present && value !== undefined) setOwn(root, field.key, value);
-    else if (field.present && hasArraySerializationFailure(field)) return undefined;
+    else if (field.present && (hasArraySerializationFailure(field) || hasInvalidEnumState(field))) return undefined;
     else delete root[field.key];
   }
   return root;
@@ -197,7 +228,20 @@ export function serializeSchemaFieldModel(field: SchemaField): unknown {
   if (!field.present) return undefined;
   if (field.typeMismatch) return undefined;
   if (field.kind === 'null') return null;
+  if (field.enumOptions.length > 0) {
+    if (field.value === null && (field.nullable || enumOptionForRawValue(field, null))) return null;
+    return selectedEnumOption(field)?.raw;
+  }
   if (field.value === null) return null;
+  if (field.kind === 'json') {
+    if (typeof field.value !== 'string') return undefined;
+    try {
+      const parsed = JSON.parse(field.value);
+      return validateJsonValueBounds(parsed) ? undefined : parsed;
+    } catch {
+      return undefined;
+    }
+  }
   if (field.kind === 'object') {
     const result: Record<string, unknown> = cloneSchemaValue(field.unknownProperties);
     for (const child of field.children) {
@@ -219,9 +263,6 @@ export function serializeSchemaFieldModel(field: SchemaField): unknown {
     const values = field.entries.map(serializeArrayEntry);
     return values.some((value) => value === undefined) ? undefined : values;
   }
-  if (field.enumOptions.length > 0) {
-    return field.enumOptions.find((option) => option.value === field.value)?.raw;
-  }
   if (field.kind === 'boolean') return typeof field.value === 'boolean' ? field.value : undefined;
   if (field.kind === 'number') {
     const parsed = parseStrictNumber(field.value, field.numberType === 'integer');
@@ -230,6 +271,16 @@ export function serializeSchemaFieldModel(field: SchemaField): unknown {
   }
   if (field.kind === 'string' && typeof field.value !== 'string') return undefined;
   return field.value;
+}
+
+/** Resolve a private form identity; raw values never serve as control identities. */
+export function selectedEnumOption(field: SchemaField) {
+  return field.enumOptions.find((option) => option.value === field.value);
+}
+
+function enumOptionForRawValue(field: SchemaField, value: unknown) {
+  // find() deliberately chooses the first authored duplicate deterministically.
+  return field.enumOptions.find((option) => enumRawKey(option.raw) === enumRawKey(value));
 }
 
 function serializeArrayEntry(entry: SchemaArrayEntry) {
@@ -254,6 +305,13 @@ function hasArraySerializationFailure(field: SchemaField): boolean {
     });
   }
   return field.children.some(hasArraySerializationFailure) || field.mapEntries.some((entry) => hasArraySerializationFailure(entry.field));
+}
+
+function hasInvalidEnumState(field: SchemaField): boolean {
+  if (field.present && field.enumOptions.length > 0 && (field.typeMismatch || (field.value !== null && !selectedEnumOption(field)))) return true;
+  return field.children.some(hasInvalidEnumState)
+    || field.entries.some((entry) => entry.fields.some(hasInvalidEnumState) || Boolean(entry.valueField && hasInvalidEnumState(entry.valueField)))
+    || field.mapEntries.some((entry) => hasInvalidEnumState(entry.field));
 }
 
 export function parseStrictNumber(value: unknown, integer: boolean): number | undefined {
@@ -306,8 +364,15 @@ export function setSchemaFieldPresence(form: SchemaFormModel, fieldId: string, s
     // Reuse the same ancestor-activation path used for concrete edits.
     // This keeps nested nullable ancestors present and in the 'value' presence state.
     activateSchemaField(form, field.id);
-    if (field.value !== null && field.kind !== 'object' && field.kind !== 'array') field.concreteValue = cloneSchemaValue(field.value);
+    if (field.enumOptions.length > 0) {
+      // Do not retain an unmatched loaded raw value: it may collide with a private option identity.
+      const option = field.typeMismatch ? undefined : selectedEnumOption(field);
+      field.concreteValue = option?.value ?? initialConcreteValue(field);
+    } else if (field.value !== null && field.kind !== 'object' && field.kind !== 'array') {
+      field.concreteValue = cloneSchemaValue(field.value);
+    }
     field.value = null;
+    if (field.enumOptions.length > 0) field.typeMismatch = false;
     field.presenceState = 'null';
     return field;
   }
@@ -319,6 +384,11 @@ export function setSchemaFieldValue(form: SchemaFormModel, fieldId: string, valu
   const field = markSchemaFieldPresent(form, fieldId, present);
   if (field) {
     field.value = value;
+    // Setter values are user selections, unlike loaded raw values. Invalid identities
+    // are validated as unselected enum values rather than loaded type mismatches.
+    if (field.enumOptions.length > 0) {
+      field.typeMismatch = false;
+    }
     field.presenceState = present && field.nullable && value === null ? 'null' : present ? 'value' : field.allowMissing ? 'missing' : 'value';
     if (present && value !== null) field.concreteValue = cloneSchemaValue(value);
   }

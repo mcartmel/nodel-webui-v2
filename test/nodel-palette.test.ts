@@ -3,7 +3,7 @@ import { flush } from './helpers';
 const actionMock = vi.hoisted(() => ({ callNodeAction: vi.fn() }));
 const activityMock = vi.hoisted(() => ({ listeners: [] as Array<(state: any) => void>, dispose: vi.fn() }));
 
-vi.mock('../src/api/nodel-host-client', () => ({ callNodeAction: actionMock.callNodeAction }));
+vi.mock('../src/api/nodel-host-client', () => ({ callNodeAction: (name: string, payload: unknown) => actionMock.callNodeAction(name, payload) }));
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
     activityMock.listeners.push(listener);

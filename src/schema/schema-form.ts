@@ -14,6 +14,7 @@ import {
   markSchemaFieldDirty,
   markSchemaFieldPresent,
   setSchemaFieldPresence,
+  setSchemaFieldValue,
   serializeSchemaFieldModel,
   serializeSchemaFormModel,
   type SchemaHydrateOptions
@@ -131,6 +132,20 @@ const schemaFieldTemplate = `
         {{/if}}
       </details>
       {^{if errors.length}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm mt-2" role="alert" data-link="id{:errorId} text{:errors[0]}"></div>{{/if}}
+    {{else enumOptions.length}}
+      <label class="block min-w-0 text-sm text-nodel-fg" data-link="for{:controlId}; hidden{:presenceState === 'null'}">
+        <span class="nodel-schema-control-stack">
+          {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
+          {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
+          <select class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}">
+            <option value=""></option>
+            {^{for enumOptions}}
+              <option value="{{:value}}">{^{>label}}</option>
+            {{/for}}
+          </select>
+          <span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1" role="alert" data-link="id{:errorId} text{:errors.length ? errors[0] : ''} hidden{:!errors.length}"></span>
+        </span>
+      </label>
     {{else kind === 'boolean'}}
       <label class="nodel-schema-check inline-flex min-w-0 items-start gap-2 text-sm text-nodel-fg" data-link="for{:controlId}; hidden{:presenceState === 'null'}">
         {^{if ~controlsDisabled}}
@@ -144,19 +159,21 @@ const schemaFieldTemplate = `
           <span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1" role="alert" data-link="id{:errorId} text{:errors.length ? errors[0] : ''} hidden{:!errors.length}"></span>
         </span>
       </label>
+    {{else kind === 'json'}}
+      <label class="block min-w-0 text-sm text-nodel-fg" data-link="for{:controlId}">
+        <span class="nodel-schema-control-stack">
+          {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
+          <small class="block text-nodel-muted">Enter any JSON value.</small>
+          <textarea class="nodel-field min-h-32 w-full font-mono text-xs" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; disabled{:~controlsDisabled}" spellcheck="false"></textarea>
+          <span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1" role="alert" data-link="id{:errorId} text{:errors.length ? errors[0] : ''} hidden{:!errors.length}"></span>
+        </span>
+      </label>
     {{else}}
       <label class="block min-w-0 text-sm text-nodel-fg" data-link="for{:controlId}; hidden{:presenceState === 'null'}">
         <span class="nodel-schema-control-stack">
           {^{if label}}<span class="block font-medium">{^{>label}}</span>{{/if}}
           {^{if description}}<small class="block text-nodel-muted">{^{>description}}</small>{{/if}}
-        {^{if enumOptions.length}}
-          <select class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}">
-            <option value=""></option>
-            {^{for enumOptions}}
-              <option value="{{:value}}">{^{>label}}</option>
-            {{/for}}
-          </select>
-        {{else format === 'long'}}
+        {^{if format === 'long'}}
           <textarea class="nodel-field min-h-24 w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; placeholder{:hint}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; disabled{:~controlsDisabled}"></textarea>
         {{else kind === 'number'}}
           <input class="nodel-field w-full" data-schema-field-input data-link="{:value:} trigger=true; id{:controlId}; type{:inputType}; placeholder{:hint}; aria-invalid{:errors.length ? 'true' : 'false'}; aria-describedby{:errors.length ? errorId : ''}; title{:description}; min{:min}; max{:max}; step{:step}; disabled{:~controlsDisabled}" />
@@ -331,12 +348,17 @@ export function handleSchemaFormInput(event: Event, root: HTMLElement, findField
     nextValue = target.value;
   }
   if (form) {
-    markSchemaFormFieldPresent(form, field.id, true);
+    setSchemaFieldValue(form, field.id, nextValue, true);
     markSchemaFieldDirty(form, field.id);
+  } else {
+    field.value = nextValue;
   }
   field.presenceState = 'value';
-  getJQuery().observable(field).setProperty({ value: nextValue, present: field.present, presenceState: field.presenceState });
-  if (form) syncSchemaFormControls(form, root);
+  getJQuery().observable(field).setProperty({ value: field.value, present: field.present, presenceState: field.presenceState, typeMismatch: field.typeMismatch });
+  if (form) {
+    applySchemaFormValidation(form);
+    syncSchemaFormControls(form, root);
+  }
   return true;
 }
 

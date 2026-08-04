@@ -69,6 +69,7 @@ interface RefreshWaiter {
 }
 
 const sources = new Map<string, SourceEntry<unknown>>();
+const frozenSourceObjects = new WeakSet<object>();
 const maxBackoffMs = 30_000;
 const maxJitterMs = 250;
 
@@ -103,7 +104,40 @@ function notifySubscriber<T>(subscriber: SourceSubscriber<T>, state: NodelSource
 }
 
 function snapshotState<T>(state: NodelSourceState<T>): NodelSourceState<T> {
-  return { ...state };
+  return Object.freeze({ ...state });
+}
+
+function isPlainRecord(value: object) {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/** Source fetchers must provide fresh snapshots; subscribers receive immutable JSON-like data. */
+function freezeSourceData<T>(data: T): T {
+  const freeze = (value: unknown): unknown => {
+    if (value === null || typeof value !== 'object' || frozenSourceObjects.has(value)) {
+      return value;
+    }
+    frozenSourceObjects.add(value);
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        freeze(item);
+      }
+      return Object.freeze(value);
+    }
+
+    if (isPlainRecord(value)) {
+      for (const item of Object.values(value)) {
+        freeze(item);
+      }
+      return Object.freeze(value);
+    }
+
+    return value;
+  };
+
+  return freeze(data) as T;
 }
 
 function clearTimer<T>(entry: SourceEntry<T>) {
@@ -213,7 +247,7 @@ async function refreshSource<T>(entry: SourceEntry<T>, force = false) {
         return;
       }
 
-      entry.state.data = data;
+      entry.state.data = freezeSourceData(data);
       entry.state.loading = false;
       entry.state.error = '';
       entry.state.updatedAt = Date.now();

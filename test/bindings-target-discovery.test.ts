@@ -58,6 +58,58 @@ describe('binding target discovery service', () => {
       .rejects.toThrow('Failed to load target definitions');
   });
 
+  it('fetches canonical unscoped IPv6 targets and skips display-only scoped candidates', async () => {
+    discoveryApiMock.getLocalRest.mockResolvedValue({ nodes: {} });
+    discoveryApiMock.searchNodeUrls.mockResolvedValue([
+      { node: 'Display', address: 'http://fe80::1%EtherNet0:8085/nodes/Display/' },
+      { node: 'Display', address: 'http://::1:8085/nodes/Display/' }
+    ]);
+    discoveryApiMock.getRemoteNodeActions.mockResolvedValue({ Power: { name: 'Power', title: 'Power' } });
+    const service = new BindingTargetDiscoveryService();
+
+    await expect(service.getDefinitions({ kind: 'actions', node: 'Display', nodeAddress: '' }, new AbortController().signal)).resolves.toEqual([
+      { name: 'Power', title: 'Power', group: '' }
+    ]);
+    expect(discoveryApiMock.getRemoteNodeActions).toHaveBeenCalledWith('http://[::1]:8085/nodes/Display/', expect.any(Object));
+    expect(discoveryApiMock.getRemoteNodeActions).not.toHaveBeenCalledWith(expect.stringContaining('EtherNet0'), expect.anything());
+  });
+
+  it('does not derive a local target URL from a malformed backend node name', async () => {
+    discoveryApiMock.getLocalRest.mockResolvedValue({ nodes: { malformed: { name: 'Node\ud800' } } });
+    const service = new BindingTargetDiscoveryService();
+
+    await expect(service.getDefinitions({ kind: 'actions', node: 'Node\ud800', nodeAddress: '' }, new AbortController().signal)).resolves.toEqual([]);
+
+    expect(discoveryApiMock.searchNodeUrls).not.toHaveBeenCalled();
+    expect(discoveryApiMock.getRemoteNodeActions).not.toHaveBeenCalled();
+  });
+
+  it('filters before capping remote target requests while preserving deduplicated order', async () => {
+    const pending = deferred<Record<string, unknown>>();
+    discoveryApiMock.getLocalRest.mockResolvedValue({ nodes: {} });
+    discoveryApiMock.searchNodeUrls.mockResolvedValue([
+      ...Array.from({ length: 20 }, (_, index) => ({ node: 'Display', address: `javascript:invalid-${index}` })),
+      { node: 'Display', address: 'http://fe80::1%EtherNet0:8085/nodes/Display/' },
+      ...Array.from({ length: 21 }, (_, index) => ({ node: 'Display', address: `https://candidate-${index}.example/nodes/Display/` }))
+    ]);
+    discoveryApiMock.getRemoteNodeActions.mockReturnValue(pending.promise);
+    const service = new BindingTargetDiscoveryService();
+    const request = service.getDefinitions({
+      kind: 'actions',
+      node: 'Display',
+      nodeAddress: 'https://candidate-0.example/nodes/Display/'
+    }, new AbortController().signal);
+
+    await vi.waitFor(() => expect(discoveryApiMock.getRemoteNodeActions).toHaveBeenCalledTimes(20));
+    expect(discoveryApiMock.getRemoteNodeActions.mock.calls.map(([url]) => url)).toEqual(Array.from(
+      { length: 20 },
+      (_, index) => `https://candidate-${index}.example/nodes/Display/`
+    ));
+    pending.resolve({ Power: { name: 'Power', title: 'Power' } });
+
+    await expect(request).resolves.toEqual([{ name: 'Power', title: 'Power', group: '' }]);
+  });
+
   it('does not cache an empty result from an already aborted lookup', async () => {
     const service = new BindingTargetDiscoveryService();
     const aborted = new AbortController();

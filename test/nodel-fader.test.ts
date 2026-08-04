@@ -10,7 +10,7 @@ const activityMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/api/nodel-host-client', () => ({
-  callNodeAction: actionMock.callNodeAction
+  callNodeAction: (name: string, payload: unknown) => actionMock.callNodeAction(name, payload)
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
@@ -275,5 +275,49 @@ describe('nodel-fader', () => {
 
     expect(fader.getAttribute('value')).toBe('67');
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVolume', { arg: 67 });
+  });
+
+  it('cleans up a drag on disconnect without committing it', async () => {
+    document.body.innerHTML = '<nodel-fader value="50" action="SetVolume"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await flush();
+
+    const fader = document.querySelector('nodel-fader') as HTMLElement;
+    const track = fader.querySelector('.nodel-fader-track') as HTMLElement;
+    track.setPointerCapture = vi.fn();
+    track.releasePointerCapture = vi.fn();
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 40, height: 100, top: 0, right: 40, bottom: 100, left: 0, toJSON: () => ({}) });
+
+    track.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientY: 20 }));
+    expect(fader.dataset.dragging).toBe('true');
+    fader.remove();
+    document.dispatchEvent(pointerEvent('pointerup', { pointerId: 1 }));
+    await flush();
+
+    expect(track.releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(fader.dataset.dragging).toBeUndefined();
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
+
+    document.body.append(fader);
+    track.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientY: 20 }));
+    expect(fader.dataset.dragging).toBe('true');
+  });
+
+  it('does not call actions from a detached fader or a stale nudge release', async () => {
+    document.body.innerHTML = '<nodel-fader value="50" nudge="5" actions="Preview:live; Commit:commit"></nodel-fader>';
+    await customElements.whenDefined('nodel-fader');
+    await Promise.resolve();
+    const fader = document.querySelector<HTMLElement>('nodel-fader')!;
+    const increase = fader.querySelector<HTMLElement>('.nodel-fader-nudge-up')!;
+
+    increase.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1 }));
+    await flush();
+    actionMock.callNodeAction.mockClear();
+    fader.remove();
+    document.dispatchEvent(pointerEvent('pointerup', { pointerId: 1 }));
+    fader.querySelector<HTMLElement>('.nodel-fader-track')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).not.toHaveBeenCalled();
   });
 });

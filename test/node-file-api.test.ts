@@ -10,7 +10,7 @@ import {
   saveNodeFile
 } from '../src/api/nodel-host-client';
 import { isBinaryFile, isEditableFile, languageKindForPath, validateNodeFilePath } from '../src/editor/file-types';
-import { MAX_NODE_FILE_PATH_LENGTH, canonicalNodeFilePath, portableNodeFilePathKey } from '../src/utils/node-file-path';
+import { copyNodeFileReadCapability, MAX_NODE_FILE_PATH_LENGTH, canonicalNodeFilePath, portableNodeFilePathKey } from '../src/utils/node-file-path';
 
 describe('node file api and utilities', () => {
   beforeEach(() => {
@@ -75,7 +75,7 @@ describe('node file api and utilities', () => {
   });
 
   it('uses relative node file endpoints', async () => {
-    await expect(listNodeFiles()).resolves.toEqual([{ path: 'script.py' }]);
+    await expect(listNodeFiles()).resolves.toEqual([{ path: 'script.py', compatibility: 'portable' }]);
     await expect(getNodeDetails()).resolves.toEqual({ name: 'Test Node', desc: '**Description**' });
     await expect(getNodeFileContents('script.py')).resolves.toBe('print("hello")');
     await expect(saveNodeFile('script.py', 'print("updated")')).resolves.toEqual({});
@@ -174,8 +174,35 @@ describe('node file api and utilities', () => {
       { href: 'deep/panel.html', path: 'content/deep/panel.html', title: 'deep/panel.html' },
       { href: 'my-ui.html', path: 'content/my-ui.html', title: 'my-ui.html' },
       { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' },
-      { href: 'room controls.html', path: 'content/room controls.html', title: 'room controls.html' },
-      { href: '展示.html', path: 'content/展示.html', title: '展示.html' }
+      { href: 'room%20controls.html', path: 'content/room controls.html', title: 'room controls.html' },
+      { href: '%E5%B1%95%E7%A4%BA.html', path: 'content/展示.html', title: '展示.html' }
+    ]);
+  });
+
+  it('does not turn legacy custom UI names into navigation routes', () => {
+    const entries = customUiEntriesFromFiles([
+      { path: 'content/safe%2e%2e.html' },
+      { path: 'content/safe#fragment.html' },
+      { path: 'content/legacy?query.html', compatibility: 'legacy' },
+      { path: 'content/legacy#fragment.html', compatibility: 'legacy' },
+      { path: 'content/legacy:stream.html', compatibility: 'legacy' },
+      { path: 'content/legacy\\route.html', compatibility: 'legacy' }
+    ]);
+
+    expect(entries).toEqual([
+      { href: 'safe%23fragment.html', path: 'content/safe#fragment.html', title: 'safe#fragment.html' },
+      { href: 'safe%252e%252e.html', path: 'content/safe%2e%2e.html', title: 'safe%2e%2e.html' }
+    ]);
+    expect(entries.some((entry) => /(?:\?|#|%2e%2e|:|\\)/i.test(entry.href))).toBe(false);
+  });
+
+  it('excludes resolver-reserved custom UI routes even below a static suffix', () => {
+    expect(customUiEntriesFromFiles([
+      { path: 'content/REST/restart/.html' },
+      { path: 'content/rest/panel.html' },
+      { path: 'content/safe/panel.html' }
+    ])).toEqual([
+      { href: 'safe/panel.html', path: 'content/safe/panel.html', title: 'safe/panel.html' }
     ]);
   });
 
@@ -223,5 +250,90 @@ describe('node file api and utilities', () => {
     expect(validateNodeFilePath('content/CON.txt')).toContain('unsupported');
     expect(validateNodeFilePath('content/name.')).toContain('unsupported');
     expect(validateNodeFilePath('content/cafe\u0301.txt')).toContain('unsupported');
+  });
+
+  it('reads exact decoded legacy entries but never mutates or reads arbitrary legacy strings', async () => {
+    const legacyPath = 'content/legacy:back\\line\nname.txt';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === 'REST/files') {
+        return new Response(JSON.stringify([{ path: legacyPath }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === `REST/files/contents?path=${encodeURIComponent(legacyPath)}`) {
+        return new Response('legacy text', { status: 200 });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const [entry] = await listNodeFiles();
+    expect(entry).toMatchObject({ path: legacyPath, compatibility: 'legacy' });
+    await expect(getNodeFileContents(entry)).resolves.toBe('legacy text');
+    expect(fetchMock).toHaveBeenCalledWith(`REST/files/contents?path=content%2Flegacy%3Aback%5Cline%0Aname.txt`, expect.any(Object));
+
+    fetchMock.mockClear();
+    await expect(getNodeFileContents(legacyPath)).rejects.toThrow('not portable');
+    await expect(getNodeFileContents({ path: legacyPath, compatibility: 'legacy' })).rejects.toThrow('exact listed entry');
+    await expect(saveNodeFile(legacyPath, 'changed')).rejects.toThrow('not portable');
+    await expect(deleteNodeFile(legacyPath)).rejects.toThrow('not portable');
+    for (const path of ['../secret.txt', '..\\secret.txt', '/absolute.txt', '\\absolute.txt', 'C:x', '\\\\server\\share', 'bad\u0000name.txt']) {
+      await expect(getNodeFileContents(path)).rejects.toThrow();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects mutable or copied legacy read capabilities before requesting', async () => {
+    const legacyPath = 'content/legacy:entry.txt';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === 'REST/files') {
+        return new Response(JSON.stringify([{ path: legacyPath }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (String(input) === `REST/files/contents?path=${encodeURIComponent(legacyPath)}`) {
+        return new Response('legacy text', { status: 200 });
+      }
+      throw new Error(`Unexpected URL ${String(input)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const [entry] = await listNodeFiles();
+
+    expect(Object.isFrozen(entry)).toBe(true);
+    expect(() => { (entry as { path: string }).path = 'content/retargeted.txt'; }).toThrow();
+    expect(() => copyNodeFileReadCapability(entry, { path: 'content/retargeted.txt', compatibility: 'legacy' })).toThrow('cannot be copied');
+    const copied = copyNodeFileReadCapability(entry, { ...entry });
+    expect(Object.isFrozen(copied)).toBe(true);
+    await expect(getNodeFileContents(copied)).resolves.toBe('legacy text');
+    fetchMock.mockClear();
+    await expect(getNodeFileContents({ ...entry })).rejects.toThrow('exact listed entry');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lists unpaired-surrogate paths but never grants them a read or mutation request', async () => {
+    const path = 'content/unsafe\ud800name.html';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === 'REST/files') {
+        return new Response(JSON.stringify([{ path }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      throw new Error(`Unexpected URL ${String(input)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const [entry] = await listNodeFiles();
+    expect(entry).toMatchObject({ path, compatibility: 'legacy' });
+    expect(customUiEntriesFromFiles([entry])).toEqual([]);
+    await expect(getNodeFileContents(entry)).rejects.toThrow('not portable');
+    await expect(saveNodeFile(path, 'changed')).rejects.toThrow('not portable');
+    await expect(deleteNodeFile(path)).rejects.toThrow('not portable');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects script aliases and generic script deletion before requesting', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    for (const alias of ['Script.py', 'SCRIPT.PY']) {
+      await expect(saveNodeFile(alias, 'unsafe')).rejects.toThrow('Case-only script.py aliases');
+      await expect(deleteNodeFile(alias)).rejects.toThrow('script.py and case-only aliases');
+    }
+    await expect(deleteNodeFile('script.py')).rejects.toThrow('script.py and case-only aliases');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

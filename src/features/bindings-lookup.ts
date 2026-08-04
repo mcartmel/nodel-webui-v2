@@ -25,10 +25,10 @@ interface BindingSuggestion {
   confidence: SuggestionConfidence;
 }
 
-function nodeOption(entry: NodelNodeUrlEntry): BindingOption {
+function nodeOption(entry: NodelNodeUrlEntry): BindingOption | null {
   const url = safeRemoteNodeUrl(entry.address);
   if (!url) {
-    throw new Error('Discovered node URL is invalid');
+    return null;
   }
 
   const label = getSimpleName(entry.node || entry.name || '') || getSimpleName(entry.address);
@@ -50,8 +50,9 @@ export class BindingLookupService {
 
     const entries = await searchNodeUrls(query, { signal });
     return entries
-      .slice(0, maxLookupResults)
-      .map(nodeOption);
+      .map(nodeOption)
+      .filter((option): option is BindingOption => option !== null)
+      .slice(0, maxLookupResults);
   }
 
   async getTargetOptions(request: BindingTargetLookupRequest, query: string, signal: AbortSignal): Promise<TargetOption[]> {

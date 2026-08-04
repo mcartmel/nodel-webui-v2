@@ -3,6 +3,7 @@ import {
   actionErrorMessage,
   actionName,
   buildActionPayload,
+  ControlActionController,
   dispatchControlActionError,
   executeActionPhases
 } from '../data/control-actions';
@@ -12,6 +13,7 @@ import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibi
 import { normalizeFromList, normalizeTone, normalizeVariant, syncInheritedAttributes, truthy } from '../utils/control-values';
 import './nodel-button';
 import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColor, type NodelColorFormat } from '../utils/color';
+import { trimPointReference } from '../utils/edge-whitespace';
 
 type PaletteShape = 'square' | 'rounded' | 'circle';
 type PaletteLabels = 'auto' | 'show' | 'hide';
@@ -55,14 +57,15 @@ export class NodelPalette extends HTMLElement {
   private canonicalColor: NodelColor = { r: 255, g: 255, b: 255, a: 1 };
   private customInvalid = false;
   private customDraftActive = false;
-  private selectionToken = 0;
   private liveTimer: number | null = null;
   private lastLiveDispatchAt = 0;
   private pendingLiveSelection: { value: string; source: HTMLElement } | null = null;
   private inheritedOptionAttributes = new WeakMap<HTMLElement, Map<string, string>>();
   private signalBindings = createSignalBindingController(this);
+  private actionController = new ControlActionController();
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -76,6 +79,7 @@ export class NodelPalette extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
     this.signalBindings.dispose();
     this.removeEventListener('click', this.handleOptionClick, true);
     this.customNode?.removeEventListener('input', this.handleCustomInput);
@@ -85,7 +89,6 @@ export class NodelPalette extends HTMLElement {
     this.customValueNode?.removeEventListener('keydown', this.handleCustomValueKeyDown);
     this.customButton?.removeEventListener('click', this.handleCustomSelect);
     this.cancelLiveSelection();
-    this.selectionToken += 1;
   }
 
   attributeChangedCallback() {
@@ -236,7 +239,11 @@ export class NodelPalette extends HTMLElement {
     if (this.hasAttribute('disabled')) {
       return;
     }
-    const token = ++this.selectionToken;
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      return;
+    }
+    const token = this.actionController.nextToken(scope);
     const currentValue = this.getAttribute('value') ?? '';
     const parsed = parseColor(nextRawValue);
     const canonicalValue = parsed ? formatColor(parsed, 'hex') : nextRawValue;
@@ -248,7 +255,7 @@ export class NodelPalette extends HTMLElement {
       ? { ok: true as const, payload: { arg: formatColor(parsed, format) }, arg: formatColor(parsed, format) }
       : buildActionPayload(nextValue, argType);
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: phase === 'select' ? 'select' : 'commit' });
-    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const action = actionName(bindings, trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''));
     if (!payloadResult.ok) {
       dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload: {}, committed: phase !== 'live', live: phase === 'live', error: payloadResult.error });
       return;
@@ -261,17 +268,20 @@ export class NodelPalette extends HTMLElement {
     }
 
     if (phase !== 'live' && shouldConfirm(confirmSource)) {
-      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm colour', text: `Select ${nextValue || 'colour'}?`, tone: 'info' }), source.querySelector('button') ?? this.customButton);
+      const confirmed = await requestConfirm(confirmSource, confirmRequestFromAttributes(confirmSource, { title: 'Confirm colour', text: `Select ${nextValue || 'colour'}?`, tone: 'info' }), source.querySelector('button') ?? this.customButton, scope.signal);
       if (!confirmed) {
         return;
       }
     }
 
-    if (token !== this.selectionToken || !this.isConnected) {
+    if (!this.actionController.isLatest(token, scope)) {
       return;
     }
 
     if (bindings.length === 0) {
+      if (!this.actionController.isLatest(token, scope)) {
+        return;
+      }
       this.customDraftActive = false;
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, phase, nextValue, payload);
@@ -279,19 +289,19 @@ export class NodelPalette extends HTMLElement {
     }
 
     try {
-      const execution = await executeActionPhases(bindings, [phase], payload);
-      if (token !== this.selectionToken || !this.isConnected) {
+      const execution = await executeActionPhases(bindings, [phase], payload, scope);
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       if (execution.failures.length > 0) {
-        dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: phase !== 'live', live: phase === 'live', failures: execution.failures });
+        dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: phase !== 'live', live: phase === 'live', results: execution.results, failures: execution.failures });
         return;
       }
       this.customDraftActive = false;
       this.setAttribute('value', nextValue);
       this.dispatchChange(action, phase, nextValue, payload, execution.results);
     } catch (error) {
-      if (token !== this.selectionToken || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       dispatchControlActionError(this, { eventName: 'nodel-palette-error', action, phase, value: nextValue, payload, arg: payloadResult.arg, committed: phase !== 'live', live: phase === 'live', error: actionErrorMessage(error) });

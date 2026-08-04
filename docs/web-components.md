@@ -517,6 +517,8 @@ Use `nodel-control-space` for deliberate empty cells. It is scoped to control-gr
 
 `nodel-button` renders a touch-sized native button. Without an `action`, it is inert and can be used for examples or custom scripting. With an `action`, it posts to the current node's relative `REST/actions/<name>/call` endpoint, so action-enabled buttons should be used from a node page.
 
+Action-capable controls (`nodel-button`, `nodel-toggle`, `nodel-pad`, `nodel-stepper`, `nodel-fader`, `nodel-select`, `nodel-segmented`, `nodel-palette`, and page activation) own their action work for the current connection only. Disconnecting aborts pending confirmation and request work, prevents queued phases or bindings from beginning, and suppresses stale completion, error, rollback, and change events. Reconnecting starts fresh work without waiting for an old request to settle; a request already accepted by the node cannot be undone. When an action sequence partly fails, its error event includes both `results` for completed successful actions and `failures` for unsuccessful actions.
+
 ## Templates
 
 Use `nodel-template` with a native HTML `<template>` child when repeated page fragments only differ by a small set of names, labels, actions, or signals. The native template stays inert in source markup, and `nodel-template` renders placeholder-filled clones as siblings so repeated controls remain direct children of their parent layout.
@@ -1348,6 +1350,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Creates empty text files or uploads local files through the accessible file input or single-file drag and drop without replacing the currently open dirty buffer.
 - Stages a selected or dropped file in the add-file form, using its filename as the initial editable path; the file is not saved until the operator activates Upload, and staged work participates in the page-unload guard.
 - Rejects multiple dropped files, non-portable new paths, text reads/uploads above 1 MiB, and binary uploads above 8 MiB. Known file sizes are shown in the picker.
+- Lists existing non-portable Java/Unix file names with escaped labels and opens bounded text reads read-only. Legacy paths, binary legacy files, and large legacy files remain visible, but browser save, delete, overwrite, and duplication mutations are disabled; no browser download behavior is added.
 - Requires explicit shared confirmation before discarding dirty content, overwriting a case-folded existing path, or deleting a file. Overwrite and delete revalidate available metadata/content after confirmation; unverifiable metadata-free binary mutations and case-only script aliases must be managed externally.
 - Deletes files through relative `REST/files/delete`; `script.py` and ambiguous case-only script aliases are protected.
 - Uses CodeMirror 6 for editing with Python, HTML, XML, JavaScript, strict JSON, CSS, Markdown, Java, Groovy, SQL, and shell highlighting. Unsupported editable extensions remain plain text.

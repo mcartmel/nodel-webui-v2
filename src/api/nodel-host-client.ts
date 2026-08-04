@@ -1,5 +1,5 @@
 import { fetchWithConnectivity } from '../data/connectivity';
-import { remoteNodeEndpoint, safeNavigationHref } from '../utils/urls';
+import { encodeUrlPathSegment, hasUnpairedSurrogate, remoteNodeEndpoint, reversibleUrlPathSegment } from '../utils/urls';
 import {
   decodeActions,
   decodeActivityLogs,
@@ -19,7 +19,11 @@ import {
   decodeSignals,
   decodeToolkit
 } from './codecs/nodel-codecs';
-import { assertSafeNodeFilePath } from '../utils/node-file-path';
+import {
+  assertPortableNodeFilePath,
+  isDecodedNodeFileReadCapability,
+  nodeFilePathCompatibility
+} from '../utils/node-file-path';
 import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, runWithDeadline } from './request';
 import { boundedLongPollTimeout, fetchJson, fetchOk, postJson, responseError } from './http-transport';
 import { isRecord, hasOwn } from '../utils/records';
@@ -47,6 +51,7 @@ import type {
   NodelToolkitResponse
 } from './nodel-types';
 import { MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
+import { assertJsonValueBounds } from '../utils/json-value';
 
 export interface NodelCustomUiEntry {
   href: string;
@@ -124,11 +129,21 @@ export async function getNodeSignals(init?: RequestInit): Promise<Record<string,
 }
 
 export async function callNodeAction(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
-  return postJson(`REST/actions/${encodeURIComponent(name)}/call`, payload, init);
+  assertJsonValueBounds(payload);
+  const segment = reversibleUrlPathSegment(name);
+  if (!segment) {
+    throw new Error('Action name cannot be represented safely as a URL path segment');
+  }
+  return postJson(`REST/actions/${segment}/call`, payload, init);
 }
 
 export async function emitNodeSignal(name: string, payload: unknown, init?: RequestInit): Promise<unknown> {
-  return postJson(`REST/events/${encodeURIComponent(name)}/emit`, payload, init);
+  assertJsonValueBounds(payload);
+  const segment = reversibleUrlPathSegment(name);
+  if (!segment) {
+    throw new Error('Signal name cannot be represented safely as a URL path segment');
+  }
+  return postJson(`REST/events/${segment}/emit`, payload, init);
 }
 
 export async function getNodeParamsSchema(init?: RequestInit): Promise<NodelJsonSchema> {
@@ -140,6 +155,7 @@ export async function getNodeParams(init?: RequestInit): Promise<Record<string, 
 }
 
 export async function saveNodeParams(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
+  assertJsonValueBounds(payload);
   return fetchOk('REST/params/save', {
     ...init,
     method: 'POST',
@@ -182,6 +198,7 @@ export async function getNodeEventBinding(alias: string, init?: RequestInit): Pr
 }
 
 export async function saveNodeRemoteBindings(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
+  assertJsonValueBounds(payload);
   return fetchOk('REST/remote/save', {
     ...init,
     method: 'POST',
@@ -206,6 +223,9 @@ export async function listNodeFiles(init?: RequestInit): Promise<NodelFileEntry[
 }
 
 export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUiEntry[] {
+  // NodelHostHTTPD resolves REST before static content. Keep this list in sync
+  // with its first-segment resolver routes.
+  const resolverReservedFirstSegments = new Set(['rest']);
   const excluded = new Set([
     'content/index.htm',
     'content/nodes.xml',
@@ -215,21 +235,27 @@ export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUi
 
   return files
     .filter((file) => {
-      if (!file.path.startsWith('content/') || excluded.has(file.path)) {
+      // A legacy spelling may contain URL delimiters. It remains listable in
+      // the editor, but is never a browser navigation target.
+      if (file.compatibility === 'legacy'
+        || nodeFilePathCompatibility(file.path) !== 'portable'
+        || !file.path.startsWith('content/')
+        || excluded.has(file.path)) {
         return false;
       }
       const title = file.path.slice('content/'.length);
-      return title.length > 0 && /\.(xml|html|htm)$/i.test(title);
+      const firstSegment = title.split('/', 1)[0];
+      return title.length > 0
+        && !resolverReservedFirstSegments.has(firstSegment.toLowerCase())
+        && /\.(xml|html|htm)$/i.test(title);
     })
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((file) => {
       const title = file.path.replace(/^content\//, '');
-      const href = safeNavigationHref(title);
-      if (!href) {
-        return null;
-      }
       return {
-        href,
+        // Do not let a filename contribute routing, query, or fragment
+        // syntax. Every portable relative suffix segment is data.
+        href: title.split('/').map(encodeUrlPathSegment).join('/'),
         path: file.path,
         title
       };
@@ -288,10 +314,27 @@ async function readBoundedText(response: Response, path: string, maxBytes: numbe
   return decodeNodeFileText(bytes, path);
 }
 
-export async function getNodeFileContents(path: string, init?: RequestInit, maxBytes = MAX_NODE_TEXT_EDIT_BYTES): Promise<string> {
-  assertSafeNodeFilePath(path);
+function readableNodeFilePath(pathOrEntry: string | NodelFileEntry) {
+  if (typeof pathOrEntry === 'string') {
+    return assertPortableNodeFilePath(pathOrEntry);
+  }
+  const compatibility = nodeFilePathCompatibility(pathOrEntry.path);
+  if (!compatibility || pathOrEntry.compatibility !== compatibility) {
+    throw new Error('Node file path is invalid');
+  }
+  if (hasUnpairedSurrogate(pathOrEntry.path)) {
+    throw new Error('Node file path is not portable');
+  }
+  if (compatibility === 'legacy' && !isDecodedNodeFileReadCapability(pathOrEntry)) {
+    throw new Error('Legacy node file reads require an exact listed entry');
+  }
+  return pathOrEntry.path;
+}
+
+export async function getNodeFileContents(pathOrEntry: string | NodelFileEntry, init?: RequestInit, maxBytes = MAX_NODE_TEXT_EDIT_BYTES): Promise<string> {
+  const path = readableNodeFilePath(pathOrEntry);
   return runWithDeadline(async (signal) => {
-    const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeURIComponent(path)}`, { ...init, signal });
+    const response = await fetchWithConnectivity(`REST/files/contents?path=${encodeUrlPathSegment(path)}`, { ...init, signal });
     if (!response.ok) {
       throw await responseError(response);
     }
@@ -300,12 +343,15 @@ export async function getNodeFileContents(path: string, init?: RequestInit, maxB
 }
 
 export async function saveNodeFile(path: string, content: BodyInit, init?: RequestInit): Promise<unknown> {
-  assertSafeNodeFilePath(path);
-  if (path === 'script.py') {
+  assertPortableNodeFilePath(path);
+  if (path.toUpperCase().toLowerCase() === 'script.py') {
+    if (path !== 'script.py') {
+      throw new Error('Case-only script.py aliases cannot be saved safely');
+    }
     return postJson('REST/script/save', { script: String(content) }, init, FILE_REQUEST_TIMEOUT_MS);
   }
 
-  return fetchOk(`REST/files/save?path=${encodeURIComponent(path)}`, {
+  return fetchOk(`REST/files/save?path=${encodeUrlPathSegment(path)}`, {
     ...init,
     method: 'POST',
     headers: {
@@ -317,8 +363,11 @@ export async function saveNodeFile(path: string, content: BodyInit, init?: Reque
 }
 
 export async function deleteNodeFile(path: string, init?: RequestInit): Promise<unknown> {
-  assertSafeNodeFilePath(path);
-  return fetchOk(`REST/files/delete?path=${encodeURIComponent(path)}`, init, FILE_REQUEST_TIMEOUT_MS);
+  assertPortableNodeFilePath(path);
+  if (path.toUpperCase().toLowerCase() === 'script.py') {
+    throw new Error('script.py and case-only aliases cannot be deleted through the file API');
+  }
+  return fetchOk(`REST/files/delete?path=${encodeUrlPathSegment(path)}`, init, FILE_REQUEST_TIMEOUT_MS);
 }
 
 export async function listRecipes(init?: RequestInit): Promise<NodelRecipeEntry[]> {

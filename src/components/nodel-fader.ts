@@ -4,6 +4,7 @@ import {
   actionName,
   buildActionPayload,
   ControlActionController,
+  type ControlActionScope,
   dispatchControlActionError,
   executeActionPhases
 } from '../data/control-actions';
@@ -23,6 +24,7 @@ import {
   type LevelUnit
 } from '../utils/level-scale';
 import { throttle, type ThrottledFunction } from '../utils/throttle';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { normalizeFromList, normalizeTone, normalizeVariant, truthy, type ControlArgType } from '../utils/control-values';
 
 type FaderOrientation = 'vertical' | 'horizontal';
@@ -87,9 +89,11 @@ export class NodelFader extends HTMLElement {
   private liveEmitterInterval: number | null = null;
   private nudgeDelay: number | null = null;
   private nudgeRepeat: number | null = null;
+  private nudgePointerId: number | null = null;
   private actionController = new ControlActionController();
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -97,13 +101,17 @@ export class NodelFader extends HTMLElement {
     this.trackNode?.addEventListener('keydown', this.handleKeyDown);
     this.decreaseNode?.addEventListener('pointerdown', this.handleDecreasePointerDown);
     this.increaseNode?.addEventListener('pointerdown', this.handleIncreasePointerDown);
+    this.decreaseNode?.addEventListener('pointerup', this.handleNudgePointerUp);
+    this.increaseNode?.addEventListener('pointerup', this.handleNudgePointerUp);
+    this.decreaseNode?.addEventListener('pointercancel', this.handleNudgePointerUp);
+    this.increaseNode?.addEventListener('pointercancel', this.handleNudgePointerUp);
     this.decreaseNode?.addEventListener('click', this.preventClick);
     this.increaseNode?.addEventListener('click', this.preventClick);
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
     this.signalBindings.dispose();
-    this.actionController.invalidate();
     this.liveEmitter?.cancel();
     this.liveEmitter = null;
     this.liveEmitterInterval = null;
@@ -111,10 +119,15 @@ export class NodelFader extends HTMLElement {
     this.trackNode?.removeEventListener('keydown', this.handleKeyDown);
     this.decreaseNode?.removeEventListener('pointerdown', this.handleDecreasePointerDown);
     this.increaseNode?.removeEventListener('pointerdown', this.handleIncreasePointerDown);
+    this.decreaseNode?.removeEventListener('pointerup', this.handleNudgePointerUp);
+    this.increaseNode?.removeEventListener('pointerup', this.handleNudgePointerUp);
+    this.decreaseNode?.removeEventListener('pointercancel', this.handleNudgePointerUp);
+    this.increaseNode?.removeEventListener('pointercancel', this.handleNudgePointerUp);
     this.decreaseNode?.removeEventListener('click', this.preventClick);
     this.increaseNode?.removeEventListener('click', this.preventClick);
     this.clearNudgeTimers();
-    this.removeDocumentPointerListeners();
+    this.nudgePointerId = null;
+    this.clearDrag();
   }
 
   attributeChangedCallback() {
@@ -312,8 +325,14 @@ export class NodelFader extends HTMLElement {
     if (!this.liveEmitter || this.liveEmitterInterval !== waitMs) {
       this.liveEmitter?.cancel();
       this.liveEmitterInterval = waitMs;
+      const scope = this.actionController.captureScope();
+      if (!scope) {
+        return;
+      }
       this.liveEmitter = throttle<[number]>((nextValue) => {
-        void this.submitValue(nextValue, false);
+        if (scope.isCurrent()) {
+          void this.submitValue(nextValue, false, scope);
+        }
       }, waitMs);
     }
 
@@ -322,15 +341,21 @@ export class NodelFader extends HTMLElement {
 
   private commitValue(value: number) {
     this.liveEmitter?.cancel();
-    void this.submitValue(value, true);
+    const scope = this.actionController.captureScope();
+    if (scope) {
+      void this.submitValue(value, true, scope);
+    }
   }
 
-  private async submitValue(value: number, committed: boolean) {
+  private async submitValue(value: number, committed: boolean, scope: ControlActionScope) {
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
-    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const action = actionName(bindings, trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''));
     const phase = committed ? 'commit' : 'live';
     const phases = [phase];
-    const token = this.actionController.nextToken();
+    const token = this.actionController.nextToken(scope);
+    if (!scope.isCurrent()) {
+      return;
+    }
     if (bindings.length === 0 || this.hasAttribute('disabled')) {
       this.dispatchChange(value, committed);
       return;
@@ -352,8 +377,8 @@ export class NodelFader extends HTMLElement {
         title: 'Confirm value',
         text: `Set ${this.getAttribute('label') || 'value'} to ${formatValue(value, normalizeLevelUnit(this.getAttribute('unit')))}?`,
         tone: 'info'
-      }), this.trackNode);
-      if (!confirmed || !this.actionController.isLatest(token) || !this.isConnected) {
+      }), this.trackNode, scope.signal);
+      if (!confirmed || !this.actionController.isLatest(token, scope)) {
         return;
       }
     }
@@ -366,24 +391,24 @@ export class NodelFader extends HTMLElement {
     }
 
     try {
-      const execution = await executeActionPhases(bindings, phases, payload);
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      const execution = await executeActionPhases(bindings, phases, payload, scope);
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       if (execution.failures.length > 0) {
-        dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload, arg: payloadResult.arg, committed, live: !committed, failures: execution.failures });
+        dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload, arg: payloadResult.arg, committed, live: !committed, results: execution.results, failures: execution.failures });
         return;
       }
       this.dispatchChange(value, committed, execution.results, action);
     } catch (error) {
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       dispatchControlActionError(this, { eventName: 'nodel-fader-error', action, phase, phases, value, payload, arg: payloadResult.arg, committed, live: !committed, error: actionErrorMessage(error) });
     }
   }
 
-  private dispatchChange(value: number, committed: boolean, results: unknown[] = [], action = this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '') {
+  private dispatchChange(value: number, committed: boolean, results: unknown[] = [], action = trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? '')) {
     const phase = committed ? 'commit' : 'live';
     const payload = { arg: normalizeFromList(this.getAttribute('arg-type'), argTypes, 'number') === 'string' ? String(value) : value };
     this.dispatchEvent(new CustomEvent('nodel-fader-change', {
@@ -443,12 +468,20 @@ export class NodelFader extends HTMLElement {
       return;
     }
 
-    this.trackNode?.releasePointerCapture?.(event.pointerId);
+    this.clearDrag();
+    if (this.isConnected) {
+      this.commitValue(parseNumber(this.getAttribute('value'), 0));
+    }
+  };
+
+  private clearDrag() {
+    if (this.drag) {
+      this.trackNode?.releasePointerCapture?.(this.drag.pointerId);
+    }
     this.drag = null;
     delete this.dataset.dragging;
     this.removeDocumentPointerListeners();
-    this.commitValue(parseNumber(this.getAttribute('value'), 0));
-  };
+  }
 
   private removeDocumentPointerListeners() {
     document.removeEventListener('pointermove', this.handlePointerMove);
@@ -497,23 +530,30 @@ export class NodelFader extends HTMLElement {
     }
 
     event.preventDefault();
+    this.nudgePointerId = event.pointerId;
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     this.applyNudge(direction, { live: true });
     this.clearNudgeTimers();
-    document.addEventListener('pointerup', this.handleNudgePointerUp);
-    document.addEventListener('pointercancel', this.handleNudgePointerUp);
     this.nudgeDelay = window.setTimeout(() => {
       this.nudgeDelay = null;
       this.nudgeRepeat = window.setInterval(() => {
-        this.applyNudge(direction, { live: true });
+        if (this.isConnected) {
+          this.applyNudge(direction, { live: true });
+        }
       }, 200);
     }, 300);
   }
 
-  private handleNudgePointerUp = () => {
+  private handleNudgePointerUp = (event: PointerEvent) => {
+    if (this.nudgePointerId === null || event.pointerId !== this.nudgePointerId) {
+      return;
+    }
+    (event.currentTarget as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+    this.nudgePointerId = null;
     this.clearNudgeTimers();
-    document.removeEventListener('pointerup', this.handleNudgePointerUp);
-    document.removeEventListener('pointercancel', this.handleNudgePointerUp);
-    this.commitValue(parseNumber(this.getAttribute('value'), 0));
+    if (this.isConnected) {
+      this.commitValue(parseNumber(this.getAttribute('value'), 0));
+    }
   };
 
   private clearNudgeTimers() {
@@ -528,6 +568,9 @@ export class NodelFader extends HTMLElement {
   }
 
   private applyNudge(direction: -1 | 1, options: { live?: boolean; commit?: boolean }) {
+    if (!this.isConnected) {
+      return;
+    }
     const unit = normalizeLevelUnit(this.getAttribute('unit'));
     const { min } = this.range(unit);
     const step = normalizeStep(parseNumber(this.getAttribute('step'), 1));

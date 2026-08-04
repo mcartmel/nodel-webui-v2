@@ -5,10 +5,11 @@ The schema form consumes Java Nodel's bounded schema dialect; it is not a genera
 The supported emitted subset is:
 
 - scalar `type`: `null`, `string`, `number`, `integer`, and `boolean`;
+- an unconstrained schema with no value-shape keywords, including Java `ParameterBindings` metadata-decorated forms such as `{ "title": "…", "desc": "…", "hint": "…", "caution": "…" }`. It is edited as raw JSON and remains absent until a valid JSON value is supplied, so opening the form cannot invent a value;
 - `object` properties, and Java map objects represented by `type: "object"` plus `items`;
 - arrays with an `items` schema;
-- scalar enum values, retaining their exact JSON scalar identity. Java's `Value.suggestions` generator emits strings, but the boundary does not collapse distinct scalar wire values such as `1` and `"1"`;
-- `title`, `desc`, `format`, `order`, `required`, `advanced`, and Java parameter-binding `group` metadata;
+- scalar enum values, retaining their exact JSON scalar identity. Java's `Value.suggestions` generator emits strings, but the boundary does not collapse distinct scalar wire values such as `1` and `"1"`; every supported scalar enum round-trips exactly under JSON wire semantics, where `-0` and `0` are equivalent. Browser `<option>` values are private index-based form identities, never API values;
+- `title`, `desc`, string `hint` and `caution`, `format`, `order`, `required`, `advanced`, and Java parameter-binding `group` metadata. `hint` is presented as input guidance and `caution` as a warning; neither constrains or changes the wire value;
 - finite `min` and `max`, positive numeric `step` or `"any"` when present in a source schema, plus Java-generated array `minItems` and `maxItems`.
 
 `Schema.java` generates primitive types, object properties, map `items`, array `items`, enum suggestions, field metadata, and array bounds. `ParameterBindings.asSchema()` passes each declared parameter's supplied schema through and adds `title`, `desc`, `group`, and `order`; the fixture's numeric `min`/`max` values therefore represent Nodel-supplied schema data, not generic JSON Schema inference. `min`, `max`, and `step` are accepted only as finite, positive constraints on numeric schemas; `minimum`, `maximum`, and other generic or unknown keywords are unsupported.

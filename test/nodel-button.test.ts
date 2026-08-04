@@ -10,7 +10,7 @@ const activityMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/api/nodel-host-client', () => ({
-  callNodeAction: actionMock.callNodeAction
+  callNodeAction: (name: string, payload: unknown) => actionMock.callNodeAction(name, payload)
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
@@ -376,6 +376,37 @@ describe('nodel-button', () => {
     expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
   });
 
+  it('preserves static active state across reconnects', async () => {
+    document.body.innerHTML = '<nodel-button active>Selected</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    host.remove();
+    document.body.append(host);
+    await flush();
+
+    expect(host.hasAttribute('active')).toBe(true);
+    expect(host.querySelector('button')?.className).toContain('is-active');
+  });
+
+  it('restores authored active state after momentary release', async () => {
+    document.body.innerHTML = '<nodel-button active actions="VolumeUp:press; VolumeStop:release">Up</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const button = host.querySelector('button') as HTMLButtonElement;
+    button.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    await flush();
+    document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(host.hasAttribute('active')).toBe(true);
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'VolumeUp', {});
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
+  });
+
   it('runs confirmed momentary press and release after pointer release', async () => {
     document.body.innerHTML = '<nodel-button actions="VolumeUp:press; VolumeStop:release" confirm-text="Move volume?">Up</nodel-button>';
     await customElements.whenDefined('nodel-button');
@@ -396,6 +427,40 @@ describe('nodel-button', () => {
 
     expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'VolumeUp', {});
     expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
+  });
+
+  it('keeps a new momentary press when an aborted confirmation resolves after reconnect', async () => {
+    document.body.innerHTML = '<nodel-button actions="VolumeUp:press; VolumeStop:release" confirm-text="Move volume?">Up</nodel-button>';
+    await customElements.whenDefined('nodel-button');
+    await flush();
+
+    const host = document.querySelector('nodel-button') as HTMLElement;
+    const confirmations: Array<(confirmed: boolean) => void> = [];
+    const submitted = vi.fn();
+    host.addEventListener('nodel-button-submitted', submitted);
+    host.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      confirmations.push((event as CustomEvent<{ resolve: (confirmed: boolean) => void }>).detail.resolve);
+    });
+
+    (host.querySelector('button') as HTMLButtonElement).dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    expect(confirmations).toHaveLength(1);
+
+    host.remove();
+    document.body.append(host);
+    (host.querySelector('button') as HTMLButtonElement).dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
+    expect(confirmations).toHaveLength(2);
+
+    confirmations[0](true);
+    confirmations[1](true);
+    await flush();
+    document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(1, 'VolumeUp', {});
+    expect(actionMock.callNodeAction).toHaveBeenNthCalledWith(2, 'VolumeStop', {});
+    expect(actionMock.callNodeAction).toHaveBeenCalledTimes(2);
+    expect(submitted.mock.calls.map(([event]) => event.detail.phase)).toEqual(['press', 'release']);
   });
 
   it('allows click actions on buttons that also define momentary phases', async () => {

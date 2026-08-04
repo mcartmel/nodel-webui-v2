@@ -506,9 +506,9 @@ function handleWebSocketMessage(message: MessageEvent<string>) {
     const data = decodeActivityWebSocketMessage(JSON.parse(message.data) as unknown, 'WebSocket activity');
     error = '';
     if (data.error) {
-      error = data.error;
+      error = boundedErrorMessage(new Error(data.error), 'WebSocket activity stream failed');
       emit(null);
-      settleRefreshWaiters({ status: 'failed', detail: data.error });
+      settleRefreshWaiters({ status: 'failed', detail: error });
       return;
     }
 

@@ -2,8 +2,10 @@ import {
   callActionBindings,
   type ActionBinding,
   type ActionBindingExecution,
-  type ActionBindingResult
+  type ActionBindingResult,
+  type ActionBindingExecutionContext
 } from './action-bindings';
+import { throwIfActionExecutionCancelled } from './action-bindings';
 import { parseTypedArgStrict, type ControlArgType } from '../utils/control-values';
 import { apiErrorMessage } from '../utils/errors';
 
@@ -30,6 +32,7 @@ interface ControlActionErrorOptions {
   value?: unknown;
   committed?: boolean;
   live?: boolean;
+  results?: ActionBindingResult[];
   failures?: ActionBindingResult[];
   error?: string;
   toastMessage?: string;
@@ -52,11 +55,12 @@ export function emptyActionExecution(): ActionBindingExecution {
   return { results: [], failures: [] };
 }
 
-export async function executeActionPhases(bindings: ActionBinding[], phases: readonly string[], payload: unknown): Promise<ActionBindingExecution> {
+export async function executeActionPhases(bindings: ActionBinding[], phases: readonly string[], payload: unknown, context?: ActionBindingExecutionContext): Promise<ActionBindingExecution> {
   const results: ActionBindingResult[] = [];
 
   for (const phase of phases) {
-    const execution = await callActionBindings(bindings, phase, payload);
+    throwIfActionExecutionCancelled(context);
+    const execution = await callActionBindings(bindings, phase, payload, context);
     results.push(...execution.results);
   }
 
@@ -98,7 +102,7 @@ export function dispatchControlActionError(host: HTMLElement, options: ControlAc
       value: options.value,
       arg,
       payload,
-      results: [],
+      results: options.results ?? [],
       failures: options.failures ?? [],
       committed: options.committed,
       live: options.live,
@@ -117,39 +121,119 @@ export function dispatchControlActionError(host: HTMLElement, options: ControlAc
 }
 
 export class ControlActionController {
-  private latest = 0;
-  private serialQueue: Promise<unknown> = Promise.resolve();
-  private singleFlightActive = false;
+  private generation = 0;
+  private state: ControlActionConnectionState | null = null;
 
-  nextToken() {
-    this.latest += 1;
-    return this.latest;
+  connect() {
+    this.connectState();
+    return this.captureScope()!;
   }
 
-  isLatest(token: number) {
-    return token === this.latest;
+  disconnect() {
+    const state = this.state;
+    this.state = null;
+    this.generation += 1;
+    state?.controller.abort();
+  }
+
+  captureScope(): ControlActionScope | null {
+    const state = this.state;
+    if (!state || state.controller.signal.aborted) {
+      return null;
+    }
+    return {
+      generation: state.generation,
+      signal: state.controller.signal,
+      isCurrent: () => this.state === state && !state.controller.signal.aborted
+    };
+  }
+
+  private connectState() {
+    if (!this.state || this.state.controller.signal.aborted) {
+      this.state = {
+        generation: ++this.generation,
+        controller: new AbortController(),
+        serialQueue: Promise.resolve(),
+        singleFlightActive: false,
+        latest: 0
+      };
+    }
+    return this.state!;
+  }
+
+  nextToken(scope: ControlActionScope | null) {
+    const state = this.stateFor(scope);
+    if (!state) {
+      return -1;
+    }
+    state.latest += 1;
+    return state.latest;
+  }
+
+  isLatest(token: number, scope: ControlActionScope | null) {
+    const state = this.stateFor(scope);
+    return state !== null && token === state.latest;
   }
 
   invalidate() {
-    this.latest += 1;
-    this.singleFlightActive = false;
+    if (this.state) {
+      this.state.latest += 1;
+    }
   }
 
-  startSingleFlight() {
-    if (this.singleFlightActive) {
+  startSingleFlight(scope: ControlActionScope | null) {
+    const state = this.stateFor(scope);
+    if (!state || state.singleFlightActive) {
       return false;
     }
-    this.singleFlightActive = true;
+    state.singleFlightActive = true;
     return true;
   }
 
-  finishSingleFlight() {
-    this.singleFlightActive = false;
+  finishSingleFlight(scope: ControlActionScope | null) {
+    const state = this.stateFor(scope);
+    if (state) {
+      state.singleFlightActive = false;
+    }
   }
 
-  runSerial<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.serialQueue.then(operation, operation);
-    this.serialQueue = run.catch(() => undefined);
+  runSerial<T>(scope: ControlActionScope | null, operation: () => Promise<T>): Promise<T> {
+    const state = this.stateFor(scope);
+    if (!state || !scope) {
+      return Promise.reject(actionCancelled());
+    }
+    const runOperation = () => {
+      if (!scope.isCurrent()) {
+        throw actionCancelled();
+      }
+      return operation();
+    };
+    const run = state.serialQueue.then(runOperation, runOperation);
+    state.serialQueue = run.catch(() => undefined);
     return run;
   }
+
+  private stateFor(scope: ControlActionScope | null) {
+    return scope?.isCurrent() && this.state?.generation === scope.generation ? this.state : null;
+  }
+}
+
+interface ControlActionConnectionState {
+  generation: number;
+  controller: AbortController;
+  serialQueue: Promise<unknown>;
+  singleFlightActive: boolean;
+  latest: number;
+}
+
+export interface ControlActionScope extends ActionBindingExecutionContext {
+  generation: number;
+  signal: AbortSignal;
+  isCurrent(): boolean;
+}
+
+function actionCancelled() {
+  const error = new Error('Action generation is no longer current');
+  error.name = 'AbortError';
+  return error;
 }

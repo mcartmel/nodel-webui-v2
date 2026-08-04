@@ -1,6 +1,7 @@
 import { listRecipes, searchNodeUrls } from '../api/nodel-host-client';
 import type { NodelNodeUrlEntry, NodelRecipeEntry } from '../api/nodel-types';
 import { boundedErrorMessage, isAbortError } from '../utils/errors';
+import { isDecodedNodeRecipeCapability } from '../utils/node-file-path';
 import { safeRemoteNodeUrl } from '../utils/urls';
 
 export type AddNodeSelection =
@@ -9,12 +10,12 @@ export type AddNodeSelection =
   | null;
 
 interface RecipeCache {
-  data: NodelRecipeEntry[] | null;
+  data: ReadonlyArray<NodelRecipeEntry> | null;
   fetchedAt: number;
 }
 
 export type TemplateResult =
-  | { type: 'recipe'; path: string }
+  | { type: 'recipe'; path: string; recipe?: NodelRecipeEntry }
   | { type: 'node'; address: string; name: string; host: string };
 
 export type TemplateResultView = TemplateResult & {
@@ -51,12 +52,34 @@ export async function refreshAddNodeRecipes(force = false, init?: RequestInit) {
 
   const generation = ++recipeCacheGeneration;
   const data = await listRecipes(init);
-  const result = data || [];
+  const result = Object.freeze([...(data || [])]);
   if (!init?.signal?.aborted && generation === recipeCacheGeneration) {
     recipeCache.data = result;
     recipeCache.fetchedAt = Date.now();
   }
   return result;
+}
+
+/** A legacy recipe base is usable only while this exact decoded cache entry remains current. */
+export function isCurrentAddNodeRecipe(recipe: NodelRecipeEntry) {
+  return currentAddNodeRecipe(recipe) !== null;
+}
+
+/** Returns the exact currently listed capability matching a selected recipe. */
+export function currentAddNodeRecipe(recipe: NodelRecipeEntry) {
+  return addNodeRecipeFromSnapshot(recipeCache.data ?? [], recipe);
+}
+
+/** Returns the exact capability from one immutable recipe-list response. */
+export function addNodeRecipeFromSnapshot(recipes: ReadonlyArray<NodelRecipeEntry>, recipe: NodelRecipeEntry) {
+  if (!isDecodedNodeRecipeCapability(recipe)) {
+    return null;
+  }
+  return recipes.find((candidate) => (
+    candidate.path === recipe.path
+    && candidate.compatibility === recipe.compatibility
+    && isDecodedNodeRecipeCapability(candidate)
+  )) ?? null;
 }
 
 function normalizeNodeResult(node: NodelNodeUrlEntry): Extract<TemplateResult, { type: 'node' }> | null {
@@ -90,15 +113,21 @@ export async function searchAddNodeTemplates(options: TemplateSearchOptions): Pr
   const nodes = nodesResult.status === 'fulfilled' ? nodesResult.value : [];
   const searchLower = query.toLocaleLowerCase();
   const recipeResults = recipes
-    .filter((recipe) => recipe.path.toLocaleLowerCase().includes(searchLower))
+    .filter((recipe) => recipe.path === '' || recipe.path.toLocaleLowerCase().includes(searchLower))
     .slice(0, 10)
-    .map((recipe) => ({ type: 'recipe' as const, path: recipe.path }));
+    .map((recipe) => {
+      const result: Extract<TemplateResult, { type: 'recipe' }> = { type: 'recipe', path: recipe.path };
+      // Keep the decoded capability private to UI rendering while preserving
+      // the existing public result view shape.
+      Object.defineProperty(result, 'recipe', { value: recipe, enumerable: false });
+      return result;
+    });
   const nodeResults = options.allowDuplicate
     ? nodes
         .filter((node) => (node.name || node.node || '').toLocaleLowerCase().includes(searchLower))
-        .slice(0, 10)
         .map((node) => normalizeNodeResult(node))
         .filter((node): node is Extract<TemplateResult, { type: 'node' }> => node !== null)
+        .slice(0, 10)
     : [];
 
   return {
@@ -111,7 +140,7 @@ export function templateResultViews(results: TemplateResult[]) {
   const views = results.map((result, index): TemplateResultView => ({
     ...result,
     index,
-    primary: result.type === 'recipe' ? result.path : result.name,
+    primary: result.type === 'recipe' ? (result.path || '(root recipe)') : result.name,
     secondary: result.type === 'recipe' ? 'Recipe' : result.host
   }));
 

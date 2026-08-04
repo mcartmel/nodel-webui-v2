@@ -94,7 +94,7 @@ describe('nodel-diagnostics', () => {
     expect(document.body.textContent).toContain('Unavailable');
   });
 
-  it('does not render navigation links from an unsafe build origin', async () => {
+  it('displays an unsafe build origin without rendering navigation links', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === '/REST/diagnostics') {
@@ -111,7 +111,70 @@ describe('nodel-diagnostics', () => {
     expect(document.querySelector('nodel-diagnostics table')).not.toBeNull();
     expect(document.body.textContent).toContain('safe-host');
     expect(Array.from(document.querySelectorAll<HTMLAnchorElement>('nodel-diagnostics a')).some((link) => link.href.startsWith('javascript:'))).toBe(false);
-    expect(document.body.textContent).toContain('Unavailable');
+    expect(document.body.textContent).toContain('javascript:alert(1)');
+  });
+
+  it('escapes complete build metadata and links only a native credential-free HTTP origin', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/diagnostics') return new Response(JSON.stringify({ hostname: 'safe-host' }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      return new Response(JSON.stringify({
+        date: '2026-08-04T08:00:00Z',
+        host: '<host>',
+        origin: 'https://user:secret@example.test/repo',
+        branch: '<branch>',
+        id: '<commit>'
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+    }) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
+    await waitForDiagnostics();
+
+    const diagnostics = document.querySelector('nodel-diagnostics')!;
+    expect(diagnostics.textContent).toContain('2026-08-04T08:00:00Z');
+    expect(diagnostics.textContent).toContain('<host>');
+    expect(diagnostics.textContent).toContain('https://user:secret@example.test/repo');
+    expect(diagnostics.textContent).toContain('<branch>');
+    expect(diagnostics.textContent).toContain('<commit>');
+    expect(diagnostics.innerHTML).toContain('&lt;branch&gt;');
+    expect(Array.from(diagnostics.querySelectorAll('a')).some((link) => link.href.includes('user:secret'))).toBe(false);
+  });
+
+  it('displays unpaired Git metadata without producing lossy links', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/diagnostics') return new Response(JSON.stringify({ hostname: 'safe-host' }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      return new Response(JSON.stringify({
+        origin: 'https://example.test/repo',
+        branch: 'branch\ud800name',
+        id: 'commit\udc00id'
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+    }) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
+    await waitForDiagnostics();
+
+    const diagnostics = document.querySelector('nodel-diagnostics')!;
+    expect(diagnostics.textContent).toContain('branch\ud800name');
+    expect(diagnostics.textContent).toContain('commit\udc00id');
+    expect(Array.from(diagnostics.querySelectorAll<HTMLAnchorElement>('a')).map((link) => link.getAttribute('href'))).toEqual([
+      'https://example.test/repo'
+    ]);
+  });
+
+  it('links Java-style unbracketed IPv6 build origins with explicit ports', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/diagnostics') return new Response(JSON.stringify({ hostname: 'ipv6-host' }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      return new Response(JSON.stringify({
+        origin: 'http://2001:db8:::8/nodel',
+        branch: 'main',
+        id: 'abc123'
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+    }) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-diagnostics></nodel-diagnostics>';
+    await waitForDiagnostics();
+
+    expect(Array.from(document.querySelectorAll<HTMLAnchorElement>('nodel-diagnostics a')).map((link) => link.getAttribute('href'))).toEqual(expect.arrayContaining([
+      'http://[2001:db8::]:8/nodel',
+      'http://[2001:db8::]:8/nodel/tree/main',
+      'http://[2001:db8::]:8/nodel/commit/abc123'
+    ]));
   });
 
   it('renders an error when diagnostics cannot load', async () => {

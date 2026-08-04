@@ -2,7 +2,7 @@ import { getBuildInfo, getDiagnostics } from '../api/nodel-host-client';
 import type { NodelBuildInfo, NodelDiagnosticsResponse } from '../api/nodel-types';
 import { registerNodelOneShotSource, type NodelSourceState, type NodelSourceSubscription } from '../data/nodel-data-runtime';
 import { escapeHtml } from '../utils/html';
-import { appendUrlPath, safeAbsoluteHttpUrl } from '../utils/urls';
+import { appendUrlPath, safeJavaAbsoluteHttpUrl } from '../utils/urls';
 
 interface DiagnosticsState {
   loading: boolean;
@@ -26,6 +26,10 @@ function safeText(value: unknown, fallback = 'Unavailable') {
   }
 
   return escapeHtml(fallback);
+}
+
+function buildText(value: unknown) {
+  return typeof value === 'string' ? escapeHtml(value) : 'Unavailable';
 }
 
 function formatDateTime(value?: string) {
@@ -84,25 +88,28 @@ function buildRelease(build: NodelBuildInfo | null) {
 }
 
 function buildLinks(build: NodelBuildInfo | null) {
-  if (!build?.origin) {
-    return 'Unavailable';
-  }
+  const originValue = typeof build?.origin === 'string' ? build.origin : '';
+  const branchValue = typeof build?.branch === 'string' ? build.branch : '';
+  const commitValue = typeof build?.id === 'string' ? build.id : typeof build?.rev === 'string' ? build.rev : '';
+  const parsedOrigin = originValue ? safeJavaAbsoluteHttpUrl(originValue) : null;
+  // Scoped/legacy URL shims are safe for transport, but diagnostics links use native URLs only.
+  const originUrl = parsedOrigin instanceof URL ? parsedOrigin : null;
+  const originText = buildText(originValue);
+  const branchText = buildText(branchValue);
+  const commitText = buildText(commitValue);
+  const origin = originUrl
+    ? `<a class="nodel-link" href="${escapeHtml(originUrl.href)}">${originText}</a>`
+    : originText;
+  const branchUrl = originUrl && branchValue ? appendUrlPath(originUrl, 'tree', branchValue) : null;
+  const commitUrl = originUrl && commitValue ? appendUrlPath(originUrl, 'commit', commitValue) : null;
+  const branch = branchUrl
+    ? `<a class="nodel-link" href="${escapeHtml(branchUrl.href)}">${branchText}</a>`
+    : branchText;
+  const commit = commitUrl
+    ? `<a class="nodel-link" href="${escapeHtml(commitUrl.href)}">${commitText}</a>`
+    : commitText;
 
-  const originUrl = safeAbsoluteHttpUrl(build.origin);
-  if (!originUrl) {
-    return 'Unavailable';
-  }
-  const branchValue = build.branch || 'main';
-  const idValue = build.id || '';
-  const origin = escapeHtml(originUrl.href);
-  const branch = escapeHtml(branchValue);
-  const id = escapeHtml(idValue);
-  const buildDate = build.date ? escapeHtml(formatDateTime(build.date)) : 'Unavailable';
-  const host = build.host ? escapeHtml(build.host) : 'Unavailable';
-  const branchHref = escapeHtml(appendUrlPath(originUrl, 'tree', branchValue).href);
-  const commitHref = idValue ? escapeHtml(appendUrlPath(originUrl, 'commit', idValue).href) : '';
-
-  return `Built ${buildDate} on ${host}<br />Origin <a class="nodel-link" href="${origin}">${origin}</a><br />Branch <a class="nodel-link" href="${branchHref}">${branch}</a>${id ? `, last commit <a class="nodel-link" href="${commitHref}">${id}</a>` : ''}`;
+  return `Built ${buildText(build?.date)} on ${buildText(build?.host)}<br />Origin ${origin}<br />Branch ${branch}<br />Commit ${commit}`;
 }
 
 export class NodelDiagnostics extends HTMLElement {

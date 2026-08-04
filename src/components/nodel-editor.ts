@@ -28,7 +28,7 @@ import { loadCodeEditorModule } from '../utils/dynamic-imports';
 import { renderComponentError } from '../utils/render-component-error';
 import { resetFileInput } from '../utils/file-input';
 import { formatFileSize, MAX_NODE_FILE_UPLOAD_BYTES, MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
-import { canonicalNodeFilePath, portableNodeFilePathKey } from '../utils/node-file-path';
+import { isPortableNodeFilePath, nodeFileAliasKey, portableNodeFilePathKey } from '../utils/node-file-path';
 import { isAbortError } from '../utils/errors';
 import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
 
@@ -39,8 +39,11 @@ interface EditorFileView extends NodelFileEntry {
   active: boolean;
   binary: boolean;
   dirty: boolean;
+  displayPath: string;
   kindLabel: string;
+  legacy: boolean;
   missing: boolean;
+  readEntry: NodelFileEntry;
   sizeLabel: string;
 }
 
@@ -57,6 +60,7 @@ interface EditorViewModel {
   error: string;
   files: EditorFileView[];
   loading: boolean;
+  legacy: boolean;
   notice: boolean;
   pickerPath: string;
   reloadStatus: string;
@@ -73,9 +77,9 @@ const template = `
   <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor space-y-3 is-error' : 'nodel-editor space-y-3'}">
     <div class="nodel-editor-toolbar flex flex-wrap items-center gap-2">
       <div class="nodel-editor-picker-wrap min-w-0 flex-1">
-        <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="value{:pickerPath trigger=true} disabled{:loading || saving || deleting}">
+        <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="{:~fileOptionToken(pickerPath)} disabled{:loading || saving || deleting}">
           {^{for files}}
-            <option value="{{>path}}" data-link="selected{:active}">{^{>path}}{^{if missing}} (local buffer){{else sizeLabel}} ({^{>sizeLabel}}){{/if}}{^{if dirty}} *{{/if}}</option>
+            <option value="{{:~fileOptionToken(path)}}">{^{>displayPath}}{^{if legacy}} (legacy, read-only){{else missing}} (local buffer){{else sizeLabel}} ({^{>sizeLabel}}){{/if}}{^{if dirty}} *{{/if}}</option>
           {{/for}}
         </select>
       </div>
@@ -89,6 +93,10 @@ const template = `
       <button data-editor-save type="button" class="nodel-button nodel-button-primary" data-link="disabled{:!canSave}">Save</button>
       <button data-editor-delete type="button" class="nodel-button nodel-button-danger" data-link="disabled{:!canDelete}">Delete</button>
     </div>
+
+    {^{if legacy}}
+      <div class="nodel-alert nodel-alert-warning nodel-alert-sm" role="status">This legacy file path is read-only. Saving, deleting, and overwriting it are disabled.</div>
+    {{/if}}
 
     {^{if adding}}
       <div class="nodel-editor-add-wrap pt-1">
@@ -130,17 +138,45 @@ function sortFiles(files: NodelFileEntry[]) {
   return [...files].sort((a, b) => a.path.localeCompare(b.path));
 }
 
+function escapedLegacyPath(path: string) {
+  return path.replace(/[\\\u0000-\u001f\u007f-\u009f]/g, (character) => {
+    if (character === '\\') return '\\\\';
+    if (character === '\n') return '\\n';
+    if (character === '\r') return '\\r';
+    if (character === '\t') return '\\t';
+    return `\\u${character.codePointAt(0)!.toString(16).padStart(4, '0')}`;
+  });
+}
+
+// Use fixed-width UTF-16 code units so every JavaScript string has a distinct,
+// attribute-safe option token, including strings containing malformed Unicode.
+function fileOptionToken(path: string) {
+  let token = 'file-';
+  for (let index = 0; index < path.length; index += 1) {
+    token += path.charCodeAt(index).toString(16).padStart(4, '0');
+  }
+  return token;
+}
+
+function editorListsFile(file: NodelFileEntry) {
+  return file.compatibility === 'legacy' || isEditableFile(file.path) || isBinaryFile(file.path);
+}
+
 function toFileView(file: NodelFileEntry, selectedPath: string, dirtyPath: string): EditorFileView {
   const binary = isBinaryFile(file.path);
   const active = file.path === selectedPath;
   const dirty = file.path === dirtyPath;
+  const legacy = file.compatibility === 'legacy';
   return {
     ...file,
     active,
     binary,
     dirty,
+    displayPath: legacy ? escapedLegacyPath(file.path) : file.path,
     kindLabel: binary ? 'binary' : 'text',
+    legacy,
     missing: false,
+    readEntry: (file as EditorFileView).readEntry ?? file,
     sizeLabel: typeof file.size === 'number' ? formatFileSize(file.size) : '',
   };
 }
@@ -185,6 +221,7 @@ export class NodelEditor extends HTMLElement {
     error: '',
     files: [],
     loading: false,
+    legacy: false,
     notice: false,
     pickerPath: '',
     reloadStatus: '',
@@ -218,6 +255,7 @@ export class NodelEditor extends HTMLElement {
         deleting: false,
         dirty: false,
         editorImportError: false,
+        legacy: false,
         loading: false,
         notice: false,
         pickerPath: '',
@@ -290,7 +328,7 @@ export class NodelEditor extends HTMLElement {
   }
 
   private async initialize(scope: ConnectionScope) {
-    const linked = await this.linkController.link(scope, template, this.state);
+    const linked = await this.linkController.link(scope, template, this.state, { fileOptionToken });
     if (!linked || !scope.isCurrent()) {
       return;
     }
@@ -510,9 +548,13 @@ export class NodelEditor extends HTMLElement {
     const correctiveScriptSave = this.state.selectedPath === 'script.py'
       && (restartWriteState === 'unconfirmed' || this.scriptReloadState === 'unconfirmed');
     this.setState({
-      canDelete: Boolean(this.state.selectedPath && portableNodeFilePathKey(this.state.selectedPath) !== 'script.py' && !busy),
+      canDelete: Boolean(this.state.selectedPath
+        && !this.state.legacy
+        && (!isPortableNodeFilePath(this.state.selectedPath) || portableNodeFilePathKey(this.state.selectedPath) !== 'script.py')
+        && !busy),
       canSave: Boolean(this.state.selectedPath
         && !this.state.binary
+        && !this.state.legacy
         && !busy
         && !scriptReloadPending
         && (this.state.dirty || correctiveScriptSave))
@@ -575,8 +617,7 @@ export class NodelEditor extends HTMLElement {
   }
 
   private fileForPath(path: string) {
-    const key = canonicalNodeFilePath(path);
-    return this.state.files.find((file) => canonicalNodeFilePath(file.path) === key);
+    return this.state.files.find((file) => file.path === path);
   }
 
   private restoreTriggerFocus(trigger: Element | null) {
@@ -601,7 +642,7 @@ export class NodelEditor extends HTMLElement {
     this.setState({ error: '', notice: false, status: 'Loading files...' });
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
@@ -634,13 +675,13 @@ export class NodelEditor extends HTMLElement {
     }
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
       if (!this.operationIsCurrent(ticket, scope)) {
         return false;
       }
       this.refreshFileViews(files);
       const selectedMissing = Boolean(this.state.selectedPath)
-        && !files.some((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(this.state.selectedPath));
+        && !files.some((file) => file.path === this.state.selectedPath);
       if (selectedMissing) {
         this.operations.invalidate('open');
         this.documentRevision += 1;
@@ -703,7 +744,7 @@ export class NodelEditor extends HTMLElement {
     this.setState({ error: '', status: context ? 'Refreshing view after node reload...' : 'Refreshing files...' });
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter((file) => isEditableFile(file.path) || isBinaryFile(file.path)));
+      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
       if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
         return { status: 'superseded', detail: 'The node reload refresh was superseded.' };
       }
@@ -717,7 +758,7 @@ export class NodelEditor extends HTMLElement {
       }
 
       const selectedMissing = Boolean(selectedPath)
-        && !files.some((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(selectedPath));
+        && !files.some((file) => file.path === selectedPath);
       if (selectedMissing) {
         this.operations.invalidate('open');
         this.documentRevision += 1;
@@ -845,7 +886,7 @@ export class NodelEditor extends HTMLElement {
 
   private scriptFilePath() {
     return this.state.files.find((file) => file.path === 'script.py')?.path
-      ?? this.state.files.find((file) => portableNodeFilePathKey(file.path) === 'script.py')?.path
+      ?? this.state.files.find((file) => !file.legacy && isPortableNodeFilePath(file.path) && portableNodeFilePathKey(file.path) === 'script.py')?.path
       ?? 'script.py';
   }
 
@@ -858,6 +899,7 @@ export class NodelEditor extends HTMLElement {
       binary,
       dirty,
       error: '',
+      legacy: Boolean(path && this.fileForPath(path)?.legacy),
       notice: false,
       selectedPath: path,
       pickerPath: path,
@@ -898,6 +940,7 @@ export class NodelEditor extends HTMLElement {
 
     const file = this.fileForPath(path);
     const resolvedPath = file?.path ?? path;
+    const legacy = file?.legacy === true;
     const applyReadOnlyDocument = (message: string, placeholder: string) => {
       if (!this.operationIsCurrent(ticket, scope)
         || sourcePath !== this.state.selectedPath
@@ -910,7 +953,13 @@ export class NodelEditor extends HTMLElement {
       this.setState({ notice: true, status: message });
     };
 
-    if (portableNodeFilePathKey(resolvedPath) === 'script.py' && resolvedPath !== 'script.py') {
+    if (!file && !isPortableNodeFilePath(resolvedPath)) {
+      this.setState({ error: 'Legacy file paths can only be opened from the current file list.', pickerPath: this.state.selectedPath });
+      this.finishOperation(ticket);
+      return;
+    }
+
+    if (isPortableNodeFilePath(resolvedPath) && portableNodeFilePathKey(resolvedPath) === 'script.py' && resolvedPath !== 'script.py') {
       applyReadOnlyDocument(
         `${resolvedPath} is a case-only script.py alias and cannot be edited safely across supported hosts.`,
         'Case-only script.py aliases are read-only in the browser editor.'
@@ -920,7 +969,7 @@ export class NodelEditor extends HTMLElement {
     }
 
     if (isBinaryFile(resolvedPath)) {
-      applyReadOnlyDocument('Binary file preview is not available.', binaryPlaceholder);
+      applyReadOnlyDocument(legacy ? 'Legacy binary file paths are read-only; preview is not available.' : 'Binary file preview is not available.', binaryPlaceholder);
       this.finishOperation(ticket);
       return;
     }
@@ -937,7 +986,7 @@ export class NodelEditor extends HTMLElement {
     this.setState({ error: '', notice: false, status: `Loading ${resolvedPath}...` });
 
     try {
-      const content = await getNodeFileContents(resolvedPath, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
+      const content = await getNodeFileContents(file?.legacy ? file.readEntry : resolvedPath, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
@@ -950,9 +999,19 @@ export class NodelEditor extends HTMLElement {
         return;
       }
       this.setEditorDocument(content, resolvedPath);
-      this.editor?.setReadOnly(false);
-      this.setSelectedState(resolvedPath, content, false, false, '', file?.modified, file?.size);
-      this.editor?.focus();
+      this.editor?.setReadOnly(legacy);
+      this.setSelectedState(
+        resolvedPath,
+        content,
+        false,
+        false,
+        legacy ? 'Legacy file path opened read-only; mutation is disabled.' : '',
+        file?.modified,
+        file?.size
+      );
+      if (!legacy) {
+        this.editor?.focus();
+      }
     } catch (error) {
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
@@ -1022,7 +1081,7 @@ export class NodelEditor extends HTMLElement {
   }
 
   private handleEditorChange = (content: string) => {
-    if (this.suppressEditorChange || this.state.binary) {
+    if (this.suppressEditorChange || this.state.binary || this.state.legacy) {
       return;
     }
     this.documentRevision += 1;
@@ -1110,7 +1169,16 @@ export class NodelEditor extends HTMLElement {
   private handleChange = (event: Event) => {
     const target = event.target;
     if (target instanceof HTMLSelectElement && target.matches('[data-editor-file-picker]')) {
-      const nextPath = target.selectedOptions.item(0)?.getAttribute('value') ?? this.state.pickerPath;
+      const token = Reflect.get(target, 'value');
+      const selectedFile = typeof token === 'string'
+        ? this.state.files.find((file) => fileOptionToken(file.path) === token)
+        : undefined;
+      if (!selectedFile) {
+        this.setState({ pickerPath: '' });
+        this.setState({ pickerPath: this.state.selectedPath });
+        return;
+      }
+      const nextPath = selectedFile.path;
       this.setState({ pickerPath: nextPath });
       if (nextPath && nextPath !== this.state.selectedPath) {
         void this.openFile(nextPath, { trigger: target });
@@ -1443,6 +1511,7 @@ export class NodelEditor extends HTMLElement {
     if (!scope
       || !selectedPath
       || this.state.binary
+      || this.state.legacy
       || (!this.state.dirty && !correctiveScriptSave)
       || this.state.deleting
       || this.operations.isActive('list')
@@ -1492,7 +1561,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      let remoteFile = files.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+      let remoteFile = files.find((file) => file.path === path);
       if (!remoteFile) {
         const recreate = await requestConfirm(this, {
           title: 'Recreate missing file?',
@@ -1511,9 +1580,14 @@ export class NodelEditor extends HTMLElement {
         if (!this.operationIsCurrent(ticket, scope)) {
           return;
         }
-        remoteFile = refreshedFiles.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+        remoteFile = refreshedFiles.find((file) => file.path === path);
         if (remoteFile) {
           throw new Error(`${path} was recreated on the node while confirmation was pending. Refresh before saving.`);
+        }
+        const aliasKey = nodeFileAliasKey(path);
+        const alias = aliasKey ? refreshedFiles.find((file) => nodeFileAliasKey(file.path) === aliasKey) : undefined;
+        if (alias) {
+          throw new Error(`${path} now has a case- or NFC-equivalent alias (${alias.path}). Refresh before saving.`);
         }
       }
       if (remoteFile && metadataBaselineValid && openedModified !== remoteFile.modified) {
@@ -1613,7 +1687,6 @@ export class NodelEditor extends HTMLElement {
     }
 
     const ticket = this.beginOperation('create', scope);
-    const requestedCanonicalPath = canonicalNodeFilePath(path);
     const requestedPortableKey = portableNodeFilePathKey(path);
     const requestIsCurrent = () => this.operationIsCurrent(ticket, scope)
       && this.state.addFilePath === path
@@ -1625,13 +1698,16 @@ export class NodelEditor extends HTMLElement {
       if (!requestIsCurrent()) {
         return;
       }
-      const exactExisting = files.find((file) => canonicalNodeFilePath(file.path) === requestedCanonicalPath);
-      const portableMatches = files.filter((file) => portableNodeFilePathKey(file.path) === requestedPortableKey);
-      if (!exactExisting && portableMatches.length > 1) {
+      const exactExisting = files.find((file) => file.path === path);
+      const aliasMatches = files.filter((file) => nodeFileAliasKey(file.path) === requestedPortableKey);
+      if (!exactExisting && aliasMatches.length > 1) {
         throw new Error(`${path} is ambiguous because multiple case variants already exist on the node.`);
       }
-      const existing = exactExisting ?? portableMatches[0];
+      const existing = exactExisting ?? aliasMatches[0];
       const targetPath = existing?.path ?? path;
+      if (existing?.compatibility === 'legacy') {
+        throw new Error(`${existing.path} is a legacy file path and cannot be overwritten.`);
+      }
       if (portableNodeFilePathKey(targetPath) === 'script.py' && targetPath !== 'script.py') {
         throw new Error(`${targetPath} is a case-only script.py alias and cannot be overwritten safely.`);
       }
@@ -1670,9 +1746,9 @@ export class NodelEditor extends HTMLElement {
       if (!requestIsCurrent()) {
         return;
       }
-      const refreshedExact = refreshedFiles.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(targetPath));
-      const refreshedPortable = refreshedFiles.filter((file) => portableNodeFilePathKey(file.path) === requestedPortableKey);
-      if (!existing && refreshedPortable.length > 0) {
+      const refreshedExact = refreshedFiles.find((file) => file.path === targetPath);
+      const refreshedAliases = refreshedFiles.filter((file) => nodeFileAliasKey(file.path) === requestedPortableKey);
+      if (!existing && refreshedAliases.length > 0) {
         throw new Error(`${path} was created on the node while this operation was pending. Review it before overwriting.`);
       }
       if (existing) {
@@ -1717,7 +1793,7 @@ export class NodelEditor extends HTMLElement {
         return;
       }
       let overwriteNotice = '';
-      if (this.state.selectedPath && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath) && typeof content === 'string') {
+      if (this.state.selectedPath === targetPath && typeof content === 'string') {
         this.originalContent = content;
         const dirty = (this.editor?.getDocument() ?? '') !== content;
         overwriteNotice = dirty ? `Overwrote ${targetPath}; current local edits remain unsaved.` : '';
@@ -1746,7 +1822,7 @@ export class NodelEditor extends HTMLElement {
         const refreshed = await this.refreshFilesPreservingEditor(scope, true);
         if (this.operationIsCurrent(ticket, scope)
           && this.state.selectedPath
-          && canonicalNodeFilePath(this.state.selectedPath) === canonicalNodeFilePath(targetPath)) {
+          && this.state.selectedPath === targetPath) {
           if (refreshed) {
             const refreshedFile = this.fileForPath(this.state.selectedPath);
             this.openedModified = refreshedFile?.modified;
@@ -1796,7 +1872,9 @@ export class NodelEditor extends HTMLElement {
       return;
     }
     const path = this.state.selectedPath;
-    if (!path || path === 'script.py') {
+    if (!path
+      || this.state.legacy
+      || (isPortableNodeFilePath(path) && portableNodeFilePathKey(path) === 'script.py')) {
       return;
     }
     if (this.state.binary && this.openedModified === undefined && this.openedSize === undefined) {
@@ -1834,7 +1912,7 @@ export class NodelEditor extends HTMLElement {
       if (!this.operationIsCurrent(ticket, scope)) {
         return;
       }
-      const remoteFile = files.find((file) => canonicalNodeFilePath(file.path) === canonicalNodeFilePath(path));
+      const remoteFile = files.find((file) => file.path === path);
       if (!remoteFile) {
         throw new Error(`${path} no longer exists on the node. Refresh before deleting.`);
       }

@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 type EditorFixture = {
   files: Array<{ path: string }>;
@@ -9,6 +9,11 @@ type EditorFixture = {
 
 function isDesktopThemeProject(testInfo: TestInfo) {
   return testInfo.project.name === 'chromium-light-desktop' || testInfo.project.name === 'chromium-dark-desktop';
+}
+
+async function selectEditorFileByVisibleLabel(picker: Locator, path: string) {
+  const option = picker.locator('option').filter({ hasText: path }).first();
+  await picker.selectOption({ label: await option.textContent() ?? path });
 }
 
 async function openEditorFixture(page: Page, defaultFile: string, fixture: EditorFixture) {
@@ -41,7 +46,7 @@ async function openEditorFixture(page: Page, defaultFile: string, fixture: Edito
   }, defaultFile);
   const editor = page.locator('#stage-8-editor-fixture nodel-editor');
   await expect(editor.locator('.cm-editor')).toBeVisible();
-  await expect(editor.locator('[data-editor-file-picker]')).toHaveValue(defaultFile);
+  await expect(editor.locator('[data-editor-file-picker] option:checked')).toContainText(defaultFile);
   return editor;
 }
 
@@ -140,13 +145,13 @@ test.describe('editor refinements', () => {
     expect(scripts.some((url) => /shell-.*\.js/.test(url))).toBe(false);
     const initialLanguageChunks = scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length;
 
-    await editor.locator('[data-editor-file-picker]').selectOption('Example.java');
+    await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'Example.java');
     await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', 'java');
     await expect.poll(() => scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length).toBeGreaterThan(initialLanguageChunks);
     const beforeSqlChunks = scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length;
 
     for (const path of ['build.groovy', 'query.sql', 'deploy.sh']) {
-      await editor.locator('[data-editor-file-picker]').selectOption(path);
+      await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), path);
       await expect.poll(() => editor.locator('.cm-line').allTextContents()).toEqual(fixture.contents.get(path)!.split('\n'));
       await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', path === 'build.groovy' ? 'groovy' : path === 'query.sql' ? 'sql' : 'shell');
       if (path === 'query.sql') {
@@ -156,7 +161,7 @@ test.describe('editor refinements', () => {
     expect(scripts.some((url) => /groovy-.*\.js/.test(url))).toBe(true);
     expect(scripts.some((url) => /shell-.*\.js/.test(url))).toBe(true);
 
-    await editor.locator('[data-editor-file-picker]').selectOption('settings.yaml');
+    await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'settings.yaml');
     await expect(editor.locator('.cm-content')).toContainText('value: true');
     await expect(editor.locator('.cm-content')).not.toHaveAttribute('data-language');
   });

@@ -1,5 +1,6 @@
 import type { NodelToastTone } from '../components/nodel-toast-host';
 import { asciiToken } from '../utils/text-normalization';
+import { trimPointReference } from '../utils/edge-whitespace';
 
 export const NODEL_CONFIRM = 'nodel-confirm';
 
@@ -42,7 +43,7 @@ export function confirmRequestFromAttributes(element: HTMLElement, defaults: Nod
     cancelLabel: element.getAttribute('cancel-label') ?? defaults.cancelLabel,
     tone: (element.getAttribute('confirm-tone') as NodelToastTone | null) ?? defaults.tone,
     mode,
-    codeSignal: element.getAttribute('confirm-code-signal')?.trim() || defaults.codeSignal?.trim() || (mode === 'code' ? 'ConfirmCode' : undefined)
+    codeSignal: trimPointReference(element.getAttribute('confirm-code-signal') ?? '') || trimPointReference(defaults.codeSignal ?? '') || (mode === 'code' ? 'ConfirmCode' : undefined)
   };
 }
 

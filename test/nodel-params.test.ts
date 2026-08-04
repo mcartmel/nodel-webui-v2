@@ -1,4 +1,6 @@
 import { flush, waitFor } from './helpers';
+import { deferred } from './lifecycle-helpers';
+import { createSchemaForm } from '../src/schema/schema-model';
 
 const paramsMock = vi.hoisted(() => ({
   getNodeParams: vi.fn(),
@@ -116,12 +118,12 @@ describe('nodel-params', () => {
     expect(textInput.value).toBe('ready');
     expect(numberInput.value).toBe('7');
     expect(checkbox.checked).toBe(true);
-    expect(select.value).toBe('Auto');
+    expect(select.value).toBe('enum-option-0');
 
     await setInputValue(textInput, 'updated');
     await setInputValue(numberInput, '12');
     await setCheckboxValue(checkbox, false);
-    await setInputValue(select, 'Manual');
+    await setInputValue(select, 'enum-option-1');
 
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
@@ -133,6 +135,87 @@ describe('nodel-params', () => {
       mode: 'Manual'
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(document.body.textContent).toContain('Saved');
+  });
+
+  it('blocks blank and unbounded values from an empty-schema JSON editor', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({});
+    paramsMock.getNodeParams.mockResolvedValue({});
+    await mountParams();
+    const editor = document.querySelector<HTMLTextAreaElement>('[data-schema-field-input]')!;
+
+    expect(editor).toBeTruthy();
+    await setInputValue(editor, '');
+    submitForm();
+    await flush();
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+
+    await setInputValue(editor, '1e400');
+    submitForm();
+    await flush();
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+
+    await setInputValue(editor, '{"constructor":"value","__proto__":{"safe":true}}');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    const payload = paramsMock.saveNodeParams.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(payload, 'constructor')).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(payload, '__proto__')).toBe(true);
+    expect(({} as { safe?: boolean }).safe).toBeUndefined();
+  });
+
+  it('renders boolean enums as selects and saves their selected raw booleans', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { enabled: { type: 'boolean', title: 'Enabled', enum: [true, false] } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ enabled: true });
+
+    await mountParams();
+
+    const select = document.querySelector<HTMLSelectElement>('[data-schema-field-input]')!;
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+    expect(document.querySelector<HTMLInputElement>('input[type="checkbox"]')).toBeNull();
+    expect(select.value).toBe('enum-option-0');
+
+    await setInputValue(select, 'enum-option-1');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({ enabled: false }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('blocks an unknown loaded enum until a valid identity is selected, then saves its exact raw value', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({
+      type: 'object',
+      properties: { mode: { type: 'string', title: 'Mode', enum: ['ready', 'standby'] } }
+    });
+    paramsMock.getNodeParams.mockResolvedValue({ mode: 'retired' });
+
+    await mountParams();
+    const select = document.querySelector<HTMLSelectElement>('[data-schema-field-input]')!;
+    submitForm();
+    await flush();
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('The loaded value does not match this field schema.');
+
+    await setInputValue(select, 'enum-option-1');
+    expect(document.body.textContent).not.toContain('The loaded value does not match this field schema.');
+    submitForm();
+    await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
+    expect(paramsMock.saveNodeParams).toHaveBeenCalledWith({ mode: 'standby' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('does not send an undefined payload when serialization fails defensively', async () => {
+    paramsMock.getNodeParamsSchema.mockResolvedValue({ type: 'object', properties: { mode: { type: 'string', enum: ['ready'] } } });
+    paramsMock.getNodeParams.mockResolvedValue({ mode: 'ready' });
+    await mountParams();
+
+    const host = document.querySelector('nodel-params') as any;
+    host.state.schemaForm = createSchemaForm({ type: 'object', properties: {} });
+    host.state.schemaForm.rootTypeMismatch = true;
+    await host.saveParams();
+
+    expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('could not be serialized');
   });
 
   it('preserves original JSON property names inside object parameters', async () => {
@@ -640,5 +723,56 @@ describe('nodel-params', () => {
 
     expect(params.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     expect(params.textContent).not.toContain('Parameters saved.');
+  });
+
+  it('keeps only reconnected schema and values when the initial load ignores abort', async () => {
+    const staleSchema = deferred<unknown>();
+    const staleValues = deferred<unknown>();
+    paramsMock.getNodeParamsSchema
+      .mockImplementationOnce(() => staleSchema.promise)
+      .mockResolvedValueOnce({ type: 'object', properties: { current: { type: 'string', title: 'Current' } } });
+    paramsMock.getNodeParams
+      .mockImplementationOnce(() => staleValues.promise)
+      .mockResolvedValueOnce({ current: 'fresh' });
+    const params = document.createElement('nodel-params');
+    document.body.append(params);
+    await waitFor(() => paramsMock.getNodeParamsSchema.mock.calls.length === 1);
+
+    params.remove();
+    document.body.append(params);
+    await waitFor(() => params.querySelector<HTMLInputElement>('input[type="text"]')?.value === 'fresh');
+    staleSchema.resolve({ type: 'object', properties: { stale: { type: 'string', title: 'Stale' } } });
+    staleValues.resolve({ stale: 'old' });
+    await flush();
+
+    expect(params.querySelectorAll('[data-schema-field-input]')).toHaveLength(1);
+    expect(params.querySelector<HTMLInputElement>('input[type="text"]')?.value).toBe('fresh');
+    expect(params.textContent).not.toContain('Stale');
+  });
+
+  it('does not allow a disposed pending instance to update a fresh parameter instance', async () => {
+    const staleSchema = deferred<unknown>();
+    const staleValues = deferred<unknown>();
+    paramsMock.getNodeParamsSchema
+      .mockImplementationOnce(() => staleSchema.promise)
+      .mockResolvedValueOnce({ type: 'object', properties: { current: { type: 'string', title: 'Current' } } });
+    paramsMock.getNodeParams
+      .mockImplementationOnce(() => staleValues.promise)
+      .mockResolvedValueOnce({ current: 'fresh' });
+    const oldParams = document.createElement('nodel-params');
+    document.body.append(oldParams);
+    await waitFor(() => paramsMock.getNodeParamsSchema.mock.calls.length === 1);
+    oldParams.remove();
+
+    const freshParams = document.createElement('nodel-params');
+    document.body.append(freshParams);
+    await waitFor(() => freshParams.querySelector<HTMLInputElement>('input[type="text"]')?.value === 'fresh');
+    staleSchema.resolve({ type: 'object', properties: { stale: { type: 'string', title: 'Stale' } } });
+    staleValues.resolve({ stale: 'old' });
+    await flush();
+
+    expect(oldParams.querySelectorAll('[data-schema-field-input]')).toHaveLength(0);
+    expect(freshParams.querySelectorAll('[data-schema-field-input]')).toHaveLength(1);
+    expect(freshParams.textContent).not.toContain('Stale');
   });
 });

@@ -1,4 +1,5 @@
 import { flush, waitFor } from './helpers';
+import { deferred } from './lifecycle-helpers';
 
 const bindingsMock = vi.hoisted(() => ({
   getLocalRest: vi.fn(),
@@ -79,14 +80,6 @@ async function setInputValue(input: HTMLInputElement, value: string) {
 async function pressKey(input: HTMLInputElement, key: string) {
   input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
   await flush();
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
 }
 
 function submitForm() {
@@ -1140,6 +1133,31 @@ describe('nodel-bindings', () => {
 
     expect(bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     expect(bindings.textContent).not.toContain('Bindings saved.');
+  });
+
+  it('does not replace the reconnected binding model with an abort-insensitive initial load', async () => {
+    const staleSchema = deferred<unknown>();
+    const staleBindings = deferred<unknown>();
+    bindingsMock.getNodeRemoteSchema
+      .mockImplementationOnce(() => staleSchema.promise)
+      .mockResolvedValueOnce(bindingSchema);
+    bindingsMock.getNodeRemoteBindings
+      .mockImplementationOnce(() => staleBindings.promise)
+      .mockResolvedValueOnce({ actions: { setLevel: { node: 'Current' } }, events: {} });
+    const bindings = document.createElement('nodel-bindings');
+    document.body.append(bindings);
+    await waitFor(() => bindingsMock.getNodeRemoteSchema.mock.calls.length === 1);
+
+    bindings.remove();
+    document.body.append(bindings);
+    await waitFor(() => !bindings.textContent?.includes('Loading bindings'));
+    staleSchema.resolve({ type: 'object', properties: { actions: { type: 'object', properties: { stale: { type: 'object' } } } } });
+    staleBindings.resolve({ actions: { stale: { node: 'Stale' } }, events: {} });
+    await flush();
+
+    expect(bindings.querySelectorAll('[data-bindings-row-id]')).toHaveLength(3);
+    expect(bindings.querySelector<HTMLInputElement>('[data-bindings-node]')?.value).toBe('Current');
+    expect(bindings.textContent).not.toContain('Stale');
   });
 
   it('aborts shared target discovery when disconnected', async () => {

@@ -89,8 +89,8 @@ export class NodelDescription extends HTMLElement {
         return { status: 'superseded', detail: 'Description refresh was superseded.' };
       }
 
-      const description = typeof details.desc === 'string' ? details.desc.trim() : '';
-      if (!description || !this.contentNode) {
+      const description = typeof details.desc === 'string' ? details.desc : '';
+      if (!description.trim() || !this.contentNode) {
         this.hidden = true;
         return { status: 'verified' };
       }

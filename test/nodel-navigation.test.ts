@@ -112,4 +112,23 @@ describe('nodel page navigation', () => {
     expect(areasPage.hidden).toBe(false);
     expect(downstairsPage.hidden).toBe(false);
   });
+
+  it('encodes unpaired page and group navigation IDs without throwing', async () => {
+    document.body.innerHTML = `
+      <nodel-app>
+        <nodel-toolbar></nodel-toolbar>
+        <nodel-page nav-id="group\ud800" title="Group \ud800">
+          <nodel-page nav-id="page\udc00" title="Page \udc00"><nodel-text>Page</nodel-text></nodel-page>
+        </nodel-page>
+      </nodel-app>
+    `;
+    await waitForNavigation();
+
+    expect(document.querySelector('[data-nav-group-id]')?.textContent).toContain('Group \ud800');
+    const pageButton = document.querySelector('[data-nav-page-id]') as HTMLButtonElement;
+    expect(pageButton.textContent).toContain('Page \udc00');
+    expect(() => pageButton.click()).not.toThrow();
+    await waitForNavigation();
+    expect(window.location.hash).toBe('#page%EF%BF%BD');
+  });
 });

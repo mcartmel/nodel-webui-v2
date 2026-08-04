@@ -1,4 +1,5 @@
 import { getControlRuntime } from './control-runtime';
+import { trimPointReference } from '../utils/edge-whitespace';
 
 export interface ActionBinding {
   action: string;
@@ -22,17 +23,43 @@ export interface ActionBindingExecution {
   failures: ActionBindingResult[];
 }
 
+export interface ActionBindingExecutionContext {
+  signal?: AbortSignal;
+  isCurrent?: () => boolean;
+}
+
+export function actionExecutionCancelled(context?: ActionBindingExecutionContext) {
+  return context?.signal?.aborted || context?.isCurrent?.() === false;
+}
+
+export function actionCancellationError() {
+  const error = new Error('Action execution was cancelled');
+  error.name = 'AbortError';
+  return error;
+}
+
+export function isActionCancellation(error: unknown, context?: ActionBindingExecutionContext) {
+  return actionExecutionCancelled(context)
+    || (error instanceof Error && error.name === 'AbortError');
+}
+
+export function throwIfActionExecutionCancelled(context?: ActionBindingExecutionContext) {
+  if (actionExecutionCancelled(context)) {
+    throw actionCancellationError();
+  }
+}
+
 function parseBindingList(value: string | null, defaultPhase: string) {
   const bindings: ActionBinding[] = [];
 
   for (const part of (value ?? '').split(/[;,]/)) {
-    const trimmed = part.trim();
+    const trimmed = trimPointReference(part);
     if (!trimmed) {
       continue;
     }
 
     const separatorIndex = trimmed.lastIndexOf(':');
-    const action = separatorIndex > 0 ? trimmed.slice(0, separatorIndex).trim() : trimmed;
+    const action = separatorIndex > 0 ? trimPointReference(trimmed.slice(0, separatorIndex)) : trimmed;
     const phase = separatorIndex > 0 && separatorIndex < trimmed.length - 1
       ? trimmed.slice(separatorIndex + 1).trim()
       : defaultPhase;
@@ -55,11 +82,12 @@ export function parseActionBindings(options: {
   const bindings = [
     ...parseBindingList(options.action ?? null, options.defaultPhase),
     ...parseBindingList(options.actions ?? null, options.defaultPhase),
-    ...(options.aliases ?? []).filter((alias) => alias.action?.trim()).map((alias) => ({ action: alias.action!.trim(), phase: alias.phase }))
+    ...(options.aliases ?? []).map((alias) => ({ action: trimPointReference(alias.action ?? ''), phase: alias.phase })).filter((alias) => alias.action)
   ];
 
-  if (bindings.length === 0 && options.join?.trim()) {
-    bindings.push({ action: options.join.trim(), phase: options.defaultPhase });
+  const join = trimPointReference(options.join ?? '');
+  if (bindings.length === 0 && join) {
+    bindings.push({ action: join, phase: options.defaultPhase });
   }
 
   const seen = new Set<string>();
@@ -81,14 +109,19 @@ export function hasActionPhase(bindings: ActionBinding[], phase: string) {
   return actionBindingsForPhase(bindings, phase).length > 0;
 }
 
-export async function callActionBindings(bindings: ActionBinding[], phase: string, payload: unknown): Promise<ActionBindingExecution> {
+export async function callActionBindings(bindings: ActionBinding[], phase: string, payload: unknown, context?: ActionBindingExecutionContext): Promise<ActionBindingExecution> {
   const results: ActionBindingResult[] = [];
 
   for (const binding of actionBindingsForPhase(bindings, phase)) {
+    throwIfActionExecutionCancelled(context);
     try {
-      await getControlRuntime().callAction(binding.action, payload);
+      await getControlRuntime().callAction(binding.action, payload, context?.signal ? { signal: context.signal } : undefined);
+      throwIfActionExecutionCancelled(context);
       results.push({ action: binding.action, phase, ok: true });
     } catch (error) {
+      if (isActionCancellation(error, context)) {
+        throw error;
+      }
       results.push({
         action: binding.action,
         phase,

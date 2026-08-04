@@ -1,7 +1,7 @@
 import { getLocalRest, getRemoteNodeActions, getRemoteNodeSignals, searchNodeUrls } from '../api/nodel-host-client';
 import type { NodelLocalNodeEntry, NodelNodeUrlEntry } from '../api/nodel-types';
 import { runWithDeadline } from '../api/request';
-import { getSimpleName, getVerySimpleName } from '../utils/node-name';
+import { getSimpleName, getVerySimpleName, isUsableNodeName } from '../utils/node-name';
 import { localNodeUrl, safeRemoteNodeUrl } from '../utils/urls';
 import { unicodeSearchKey } from '../utils/text-normalization';
 import { mergeTargetDefinitions, normalizeDefinitions, type TargetDefinition } from './bindings-matching';
@@ -25,6 +25,7 @@ interface LocalNodeCandidate {
 
 const targetCacheTtlMs = 30 * 1000;
 const targetLookupTimeoutMs = 3000;
+const maxLookupResults = 20;
 
 function normalizeText(value: string) {
   return unicodeSearchKey(value);
@@ -52,11 +53,22 @@ function nodeBaseUrl(nodeUrl: string) {
   return nodeUrl.replace(/\/?$/, '/');
 }
 
+function safeLocalNodeUrl(name: string) {
+  return isUsableNodeName(name) ? localNodeUrl(name) : null;
+}
+
 function uniqueUrls(urls: string[]) {
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const url of urls) {
-    const normalized = safeRemoteNodeUrl(new URL(nodeBaseUrl(url), window.location.origin).href)?.href;
+    let normalized = safeRemoteNodeUrl(url)?.href;
+    if (!normalized) {
+      try {
+        normalized = safeRemoteNodeUrl(new URL(nodeBaseUrl(url), window.location.origin).href)?.href;
+      } catch {
+        continue;
+      }
+    }
     if (!normalized) {
       continue;
     }
@@ -114,7 +126,8 @@ export class BindingTargetDiscoveryService {
       return [];
     }
     if (localNode) {
-      return this.fetchTargetDefinitions(request.kind, localNodeUrl(localNode.name), signal);
+      const nodeUrl = safeLocalNodeUrl(localNode.name);
+      return nodeUrl ? this.fetchTargetDefinitions(request.kind, nodeUrl, signal) : [];
     }
 
     const entries = await searchNodeUrls(request.node, { signal });
@@ -128,8 +141,8 @@ export class BindingTargetDiscoveryService {
       request.nodeAddress,
       ...matchingUrls,
       matchingUrls.length === 0 && entries[0] ? entries[0].address : '',
-      matchingUrls.length === 0 && entries.length === 0 ? localNodeUrl(request.node) : ''
-    ].filter((url): url is string => Boolean(url)));
+      matchingUrls.length === 0 && entries.length === 0 ? safeLocalNodeUrl(request.node) ?? '' : ''
+    ].filter((url): url is string => Boolean(url))).slice(0, maxLookupResults);
     if (candidateUrls.length === 0) {
       return [];
     }

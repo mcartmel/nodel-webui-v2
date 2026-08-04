@@ -1,5 +1,30 @@
 import { flush, waitFor } from './helpers';
+
+const jsViewsGate = vi.hoisted(() => {
+  let release = () => {};
+  let ready = Promise.resolve();
+  return {
+    hold() {
+      ready = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    },
+    release() {
+      release();
+    },
+    wait() {
+      return ready;
+    }
+  };
+});
+
+vi.mock('jsviews', async (importOriginal) => {
+  await jsViewsGate.wait();
+  return importOriginal();
+});
+
 import '../src/components/nodel-add-node';
+import { refreshAddNodeRecipes } from '../src/features/add-node';
 
 async function openAddNodePanel(markup = '<nodel-add-node redirect="false"></nodel-add-node>') {
   document.body.innerHTML = markup;
@@ -52,6 +77,24 @@ describe('nodel-add-node', () => {
     vi.restoreAllMocks();
   });
 
+  it('links only the reconnected generation when JsViews bootstrap is delayed', async () => {
+    jsViewsGate.hold();
+    const addNode = document.createElement('nodel-add-node');
+    document.body.append(addNode);
+    await flush();
+    expect(addNode.querySelector('.nodel-add-node-toggle')).toBeNull();
+
+    addNode.remove();
+    document.body.append(addNode);
+    jsViewsGate.release();
+    await waitFor(() => Boolean(addNode.querySelector('.nodel-add-node-toggle')));
+
+    expect(addNode.querySelectorAll('.nodel-add-node-toggle')).toHaveLength(1);
+    addNode.querySelector<HTMLButtonElement>('.nodel-add-node-toggle')?.click();
+    await flush();
+    expect(addNode.querySelector('.nodel-add-node-panel')?.classList.contains('hidden')).toBe(false);
+  });
+
   it('shows a bounded error when the recipe lookup response is malformed', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === '/REST/recipes/list') {
@@ -83,7 +126,7 @@ describe('nodel-add-node', () => {
           secondResolve = resolve;
         }
       });
-    }) as unknown as typeof fetch;
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     await openAddNodePanel();
@@ -320,6 +363,79 @@ describe('nodel-add-node', () => {
     expect(String(postCall?.init?.body)).toContain('Recipes/Starter');
     expect(calls.some((call) => call.url === `${window.location.origin}/nodes/MyTestNode/REST/`)).toBe(true);
     expect(document.body.textContent).toContain('Node created');
+  });
+
+  it('rejects malformed names before submit makes another request', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/REST/recipes/list') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await openAddNodePanel();
+    fetchMock.mockClear();
+
+    await setInputValue(document.querySelector('.nodel-add-node-name') as HTMLInputElement, 'Node\ud800');
+    document.querySelector<HTMLFormElement>('form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-error')));
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('well-formed UTF-16');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('authorizes a selected recipe only against its own forced-refresh snapshot', async () => {
+    let recipeCalls = 0;
+    let resolveSubmitRefresh!: (response: Response) => void;
+    let resolveConcurrentRefresh!: (response: Response) => void;
+    let creates = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        recipeCalls += 1;
+        if (recipeCalls === 1) {
+          return new Response(JSON.stringify([{ path: 'Recipes/Selected' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+        }
+        return new Promise<Response>((resolve) => {
+          if (recipeCalls === 2) {
+            resolveSubmitRefresh = resolve;
+          } else {
+            resolveConcurrentRefresh = resolve;
+          }
+        }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        creates += 1;
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const nameInput = document.querySelector('.nodel-add-node-name') as HTMLInputElement;
+    const templateInput = document.querySelector('.nodel-add-node-template') as HTMLInputElement;
+    await setInputValue(nameInput, 'Snapshot Check');
+    await setInputValue(templateInput, 'Selected');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    document.querySelector<HTMLButtonElement>('[data-template-result-index]')?.click();
+
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => recipeCalls === 2);
+    const concurrentRefresh = refreshAddNodeRecipes(true);
+    await waitFor(() => recipeCalls === 3);
+
+    // The concurrent refresh keeps the old cache entry current while the
+    // submit refresh proves the selected path is no longer listed.
+    resolveSubmitRefresh(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await waitFor(() => Boolean(document.querySelector('.nodel-add-node-error')));
+
+    expect(creates).toBe(0);
+    expect(document.querySelector('.nodel-add-node-error')?.textContent).toContain('selected recipe is no longer available');
+    resolveConcurrentRefresh(new Response(JSON.stringify([{ path: 'Recipes/Selected' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await concurrentRefresh;
   });
 
   it('shows the server message when a node name already exists', async () => {
@@ -613,7 +729,7 @@ describe('nodel-add-node', () => {
       if (url === 'http://host/nodes/Existing%20Node/REST/files/contents?path=script.py') {
         return new Response('print("old")', { status: 200 }) as never;
       }
-      if (url.endsWith('/nodes/OldCopy/REST/files/save?path=script.py')) {
+      if (url.endsWith('/nodes/OldCopy/REST/script/save')) {
         oldSaveSignal = init?.signal ?? null;
         return oldSave as never;
       }
@@ -669,7 +785,7 @@ describe('nodel-add-node', () => {
       if (url === 'http://host/nodes/Existing%20Node/REST/files/contents?path=script.py') {
         return new Response('print("hello")', { status: 200 }) as never;
       }
-      if (url.includes('/nodes/BrokenCopy/REST/files/save?path=script.py')) {
+      if (url.includes('/nodes/BrokenCopy/REST/script/save')) {
         return new Response('invalid recipe', { status: 500 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -800,5 +916,114 @@ describe('nodel-add-node', () => {
     const nodeLookups = () => (fetchMock as unknown as ReturnType<typeof vi.fn>).mock.calls.filter((call) => String(call[0]) === '/REST/nodeURLs');
     await waitFor(() => nodeLookups().length === 1, { attempts: 30, intervalMs: 25 });
     expect(nodeLookups()).toHaveLength(1);
+  });
+
+  it('creates from an exact selected legacy recipe without DOM injection or spelling changes', async () => {
+    const legacyPath = 'Recipes/<img src=x>:legacy\\line\nname';
+    const creationPayloads: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response(JSON.stringify([{ path: legacyPath }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        creationPayloads.push(JSON.parse(String(init?.body)));
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.endsWith('/nodes/LegacyRecipe/REST/')) {
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const templateInput = document.querySelector<HTMLInputElement>('.nodel-add-node-template')!;
+    await setInputValue(templateInput, 'legacy');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    expect(document.querySelector('.nodel-template-autocomplete img')).toBeNull();
+    document.querySelector<HTMLButtonElement>('.nodel-template-autocomplete .nodel-menu-item')?.click();
+    await setInputValue(document.querySelector<HTMLInputElement>('.nodel-add-node-name')!, 'Legacy Recipe');
+    document.querySelector<HTMLFormElement>('.nodel-add-node form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => creationPayloads.length === 1);
+
+    expect(creationPayloads).toEqual([{ value: 'Legacy Recipe', base: legacyPath }]);
+  });
+
+  it('exposes the root recipe as an explicit selectable capability', async () => {
+    const creationPayloads: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response(JSON.stringify([{ path: '' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        creationPayloads.push(JSON.parse(String(init?.body)));
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url.endsWith('/nodes/RootRecipe/REST/')) {
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const templateInput = document.querySelector<HTMLInputElement>('.nodel-add-node-template')!;
+    await setInputValue(templateInput, 'root');
+    await waitFor(() => document.querySelector('.nodel-template-autocomplete')?.textContent?.includes('(root recipe)') ?? false, {
+      attempts: 80,
+      intervalMs: 5
+    });
+    document.querySelector<HTMLButtonElement>('.nodel-template-autocomplete .nodel-menu-item')?.click();
+    expect(document.body.textContent).toContain('Recipe: (root recipe)');
+    await setInputValue(document.querySelector<HTMLInputElement>('.nodel-add-node-name')!, 'Root Recipe');
+    document.querySelector<HTMLFormElement>('.nodel-add-node form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => creationPayloads.length === 1);
+    expect(creationPayloads).toEqual([{ value: 'Root Recipe', base: '' }]);
+  });
+
+  it('does not create from typed or stale legacy recipe paths', async () => {
+    let recipes = [{ path: 'Recipes/legacy:template' }];
+    const creationPayloads: Record<string, string>[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response(JSON.stringify(recipes), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/nodeURLs') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode') {
+        creationPayloads.push(JSON.parse(String(init?.body)));
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    await openAddNodePanel();
+    const name = document.querySelector<HTMLInputElement>('.nodel-add-node-name')!;
+    const template = document.querySelector<HTMLInputElement>('.nodel-add-node-template')!;
+    await setInputValue(name, 'Blocked Legacy');
+    for (const path of ['C:typed-template', '../traversal', '/absolute', 'bad\u0000name']) {
+      await setInputValue(template, path);
+      document.querySelector<HTMLFormElement>('.nodel-add-node form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+      await waitFor(() => document.body.textContent?.includes('portable relative path policy') ?? false);
+    }
+    expect(creationPayloads).toEqual([]);
+
+    await setInputValue(template, 'legacy');
+    await waitFor(() => document.querySelectorAll('.nodel-template-autocomplete .nodel-menu-item').length === 1, { attempts: 80, intervalMs: 5 });
+    document.querySelector<HTMLButtonElement>('.nodel-template-autocomplete .nodel-menu-item')?.click();
+    recipes = [];
+    const { refreshAddNodeRecipes } = await import('../src/features/add-node');
+    await refreshAddNodeRecipes(true);
+    document.querySelector<HTMLFormElement>('.nodel-add-node form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await waitFor(() => document.body.textContent?.includes('no longer available') ?? false);
+    expect(creationPayloads).toEqual([]);
   });
 });

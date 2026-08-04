@@ -107,6 +107,28 @@ describe('nodel-diagnostic-charts', () => {
     expect(document.querySelector('canvas[data-diagnostic-chart]')?.getAttribute('title')).toBe('');
   });
 
+  it('renders hostile measurement names as text and encoded attributes', async () => {
+    const hostileName = 'x"><img src=x onerror=alert(1)>';
+    mockMeasurements([{ name: hostileName, isRate: false, values: [1] }]);
+
+    document.body.innerHTML = '<nodel-diagnostic-charts></nodel-diagnostic-charts>';
+    await waitFor(() => categoryInputs().length === 1);
+
+    expect(document.querySelectorAll('img')).toHaveLength(0);
+    expect(document.querySelector('.nodel-diagnostic-category-option')?.textContent?.trim()).toBe('general');
+
+    setCategoryChecked('general', true);
+    await waitFor(() => document.querySelector('canvas[data-diagnostic-chart]') !== null);
+
+    expect(document.querySelector('h4')?.textContent).toBe(hostileName);
+    const canvas = document.querySelector('canvas[data-diagnostic-chart]')!;
+    expect(canvas.getAttribute('data-diagnostic-chart')).toBe(hostileName);
+    expect(canvas.getAttribute('aria-label')).toBe(hostileName);
+    expect(canvas.querySelectorAll('img')).toHaveLength(0);
+    expect(canvas.querySelectorAll('[onerror]')).toHaveLength(0);
+    expect((canvas as HTMLCanvasElement & { onerror?: unknown }).onerror).toBeNull();
+  });
+
   it('adds and removes charts when selected categories change', async () => {
     mockMeasurements([
       { name: 'Java runtime.Free bytes', isRate: false, values: [100] },

@@ -1,12 +1,12 @@
 import type { NodelJsonSchema } from '../api/nodel-types';
 import { hasOwn, isRecord, setOwn } from '../utils/records';
 
-export type SchemaFieldKind = 'null' | 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type SchemaFieldKind = 'null' | 'string' | 'number' | 'boolean' | 'object' | 'array' | 'json';
 export type SchemaPresenceState = 'missing' | 'null' | 'value';
 
 export interface SchemaEnumOption {
   label: string;
-  /** Stable DOM value. It is never the stringified raw value. */
+  /** Stable private DOM identity. It is never the stringified raw value. */
   value: string;
   raw: unknown;
 }
@@ -116,6 +116,7 @@ const schemaDialectKeywords = new Set([
   'type', 'title', 'desc', 'hint', 'caution', 'format', 'group', 'enum', 'properties', 'items',
   'order', 'required', 'advanced', 'min', 'max', 'step', 'minItems', 'maxItems'
 ]);
+const valueSchemaKeywords = new Set(['type', 'enum', 'properties', 'items', 'min', 'max', 'step', 'minItems', 'maxItems']);
 
 export function normalizeSchema(input: NodelJsonSchema | null | undefined): SchemaNormalization {
   if (input === null || input === undefined) {
@@ -127,6 +128,15 @@ export function normalizeSchema(input: NodelJsonSchema | null | undefined): Sche
   const unsupportedKeyword = Object.keys(input).find((key) => !schemaDialectKeywords.has(key));
   if (unsupportedKeyword) {
     return unsupportedNormalization(`Schema keyword "${unsupportedKeyword}" is not supported by the Nodel form dialect.`);
+  }
+  const metadataError = validateMetadata(input);
+  if (metadataError) {
+    return unsupportedNormalization(metadataError);
+  }
+  if (!Object.keys(input).some((key) => valueSchemaKeywords.has(key))) {
+    // Java ParameterBindings decorates unconstrained values with presentation
+    // metadata but does not add a type or constraint.
+    return { schema: input, type: 'json', nullable: false, unsupportedReason: '' };
   }
 
   const type = input.type;
@@ -373,6 +383,8 @@ function buildField(key: string, input: NodelJsonSchema | null | undefined, opti
   const format = typeof schema.format === 'string' ? schema.format : '';
   const required = schema.required === true;
   const allowMissing = options.allowMissing ?? !required;
+  const enumOptions = enumOptionsFor(schema);
+  const initialValue = enumOptions.length > 0 ? '' : initialValueFor(kind);
   const field: SchemaField = {
     id: fieldId(options.form.id, options.path, options.entryBaseId),
     controlId: '',
@@ -387,15 +399,16 @@ function buildField(key: string, input: NodelJsonSchema | null | undefined, opti
     format,
     numberType: normalized.type === 'integer' ? 'integer' : kind === 'number' ? 'number' : '',
     advanced: schema.advanced === true,
-    value: initialValueFor(kind),
-    concreteValue: initialValueFor(kind),
+    // A missing enum must remain unselected rather than inheriting a primitive default.
+    value: initialValue,
+    concreteValue: initialValue,
     present: false,
     allowMissing,
     presenceState: allowMissing ? 'missing' : 'value',
     dirty: false,
     nullable: normalized.nullable,
     required,
-    enumOptions: enumOptionsFor(schema),
+    enumOptions,
     children: [],
     entries: [],
     mapEntries: [],
@@ -501,7 +514,7 @@ function containsUnsupported(field: SchemaField): boolean {
 
 function fieldKind(type: string): SchemaFieldKind {
   if (type === 'integer' || type === 'number') return 'number';
-  if (type === 'boolean' || type === 'object' || type === 'array' || type === 'string') return type;
+  if (type === 'boolean' || type === 'object' || type === 'array' || type === 'string' || type === 'json') return type;
   return 'null';
 }
 
@@ -533,21 +546,17 @@ function initialValueFor(kind: SchemaFieldKind) {
 
 function enumOptionsFor(schema: NodelJsonSchema): SchemaEnumOption[] {
   if (!Array.isArray(schema.enum)) return [];
-  const labels = schema.enum.map((raw) => String(raw));
-  const counts = new Map<string, number>();
-  for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
   return schema.enum.map((raw, index) => ({
     label: raw === null ? 'null' : String(raw),
-    value: labels[index] !== '' && counts.get(labels[index]) === 1
-      ? labels[index]
-      : `enum-${encodeURIComponent(enumRawKey(raw))}-${index}`,
+    value: `enum-option-${index}`,
     raw
   }));
 }
 
 export function enumRawKey(value: unknown) {
   if (value === null) return 'null';
-  if (typeof value === 'number') return `number:${Object.is(value, -0) ? '-0' : String(value)}`;
+  // JSON wire encoding canonicalizes negative zero to zero.
+  if (typeof value === 'number') return `number:${String(value)}`;
   if (typeof value === 'string') return `string:${value}`;
   if (typeof value === 'boolean') return `boolean:${String(value)}`;
   return `json:${JSON.stringify(value)}`;

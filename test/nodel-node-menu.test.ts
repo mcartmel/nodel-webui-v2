@@ -19,7 +19,9 @@ vi.mock('../src/api/nodel-host-client', () => ({
 }));
 
 import '../src/components/nodel-app';
+import '../src/components/nodel-toolbar';
 import '../src/components/nodel-node-menu';
+import type { NodelConfirmHostElement } from '../src/components/nodel-confirm-host';
 import { THEME_STORAGE_KEY } from '../src/theme/theme';
 
 function mockSystemTheme(theme: 'light' | 'dark') {
@@ -63,8 +65,8 @@ describe('nodel-node-menu', () => {
     vi.restoreAllMocks();
   });
 
-  async function mountMenu() {
-    document.body.innerHTML = '<nodel-node-menu></nodel-node-menu>';
+  async function mountMenu(content = '') {
+    document.body.innerHTML = `<nodel-app>${content}<nodel-toolbar><nodel-node-menu></nodel-node-menu></nodel-toolbar></nodel-app>`;
     await customElements.whenDefined('nodel-node-menu');
     await waitFor(() => document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Old Node');
     return document.querySelector('nodel-node-menu')!;
@@ -100,9 +102,7 @@ describe('nodel-node-menu', () => {
   });
 
   it('makes background content inert and supports drawer arrow navigation', async () => {
-    document.body.innerHTML = '<main id="background"><button id="outside">Outside</button></main><nodel-node-menu></nodel-node-menu>';
-    await customElements.whenDefined('nodel-node-menu');
-    await waitFor(() => document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Old Node');
+    await mountMenu('<main id="background"><button id="outside">Outside</button></main>');
     const background = document.querySelector<HTMLElement>('#background')!;
 
     openMenu();
@@ -120,6 +120,33 @@ describe('nodel-node-menu', () => {
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(background.inert).toBe(false);
+  });
+
+  it('yields drawer navigation while a confirmation layer is topmost', async () => {
+    await mountMenu();
+    openMenu();
+    await flush();
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const focus = HTMLElement.prototype.focus;
+    const nativeFocus = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (this.closest('[inert]')) {
+        return;
+      }
+      focus.call(this, options);
+    });
+    host.confirm({ text: 'Confirm this action?', resolve: vi.fn() }, document.querySelector('[data-node-menu-close]'));
+    await flush();
+
+    const confirm = host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')!;
+    expect(document.activeElement).toBe(confirm);
+    for (const key of ['ArrowDown', 'Home', 'End']) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      expect(document.activeElement).toBe(confirm);
+    }
+    nativeFocus.mockRestore();
+
+    expect(document.querySelector<HTMLElement>('.nodel-node-menu-layer')?.closest<HTMLElement>('nodel-toolbar')?.inert).toBe(true);
+    expect(host.querySelector<HTMLElement>('.nodel-confirm-backdrop')?.inert).not.toBe(true);
   });
 
   it('renders custom UI links and reference links', async () => {
@@ -147,9 +174,7 @@ describe('nodel-node-menu', () => {
   });
 
   it('switches the app theme from the drawer', async () => {
-    document.body.innerHTML = '<nodel-app><nodel-node-menu></nodel-node-menu></nodel-app>';
-    await customElements.whenDefined('nodel-node-menu');
-    await waitFor(() => document.querySelector<HTMLInputElement>('[data-node-menu-rename-input]')?.value === 'Old Node');
+    await mountMenu();
     openMenu();
 
     const toggle = document.querySelector<HTMLButtonElement>('.nodel-node-menu-section-appearance nodel-theme-toggle button')!;
@@ -205,6 +230,20 @@ describe('nodel-node-menu', () => {
     expect(navigate).toHaveBeenCalledWith(expect.objectContaining({
       detail: { url: `${window.location.origin}/nodes/NewNode/` }
     }));
+  });
+
+  it('rejects malformed names before rename or readiness requests', async () => {
+    const menu = await mountMenu();
+    openMenu();
+
+    // HTML input bindings may normalize malformed UTF-16 before the component
+    // receives it; exercise the component boundary with its authored state.
+    (menu as unknown as { state: { nodeName: string } }).state.nodeName = 'Node\ud800';
+    document.querySelector<HTMLFormElement>('[data-node-menu-rename-form]')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    await waitFor(() => document.body.textContent?.includes('well-formed UTF-16') ?? false);
+    expect(nodeMenuMock.renameCurrentNode).not.toHaveBeenCalled();
+    expect(nodeMenuMock.waitForNodeReady).not.toHaveBeenCalled();
   });
 
   it('restarts the node and shows a toast', async () => {
@@ -268,14 +307,19 @@ describe('nodel-node-menu', () => {
 
   it('keeps one data load and document listener set through rapid reconnect loops', async () => {
     const menu = await mountMenu();
+    const initialLoads = nodeMenuMock.getNodeDetails.mock.calls.length;
+    const initialUiLoads = nodeMenuMock.listCustomUiEntries.mock.calls.length;
     for (let index = 0; index < 3; index += 1) {
       menu.remove();
       document.body.append(menu);
-      await waitFor(() => nodeMenuMock.getNodeDetails.mock.calls.length === index + 2);
+      await waitFor(() => (
+        nodeMenuMock.getNodeDetails.mock.calls.length === initialLoads + index + 1
+        && nodeMenuMock.listCustomUiEntries.mock.calls.length === initialUiLoads + index + 1
+      ));
     }
 
-    expect(nodeMenuMock.getNodeDetails).toHaveBeenCalledTimes(4);
-    expect(nodeMenuMock.listCustomUiEntries).toHaveBeenCalledTimes(4);
+    expect(nodeMenuMock.getNodeDetails).toHaveBeenCalledTimes(initialLoads + 3);
+    expect(nodeMenuMock.listCustomUiEntries).toHaveBeenCalledTimes(initialUiLoads + 3);
     openMenu();
     expect(document.querySelector('.nodel-node-menu-layer')?.hasAttribute('hidden')).toBe(false);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

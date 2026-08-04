@@ -30,6 +30,17 @@ import { assertSafeNodeFilePath } from '../src/utils/node-file-path';
 
 let responses: Record<string, unknown>;
 
+function compatibilityFixture() {
+  return responses.compatibility221 as {
+    displayStrings: string[];
+    emptySchema: Record<string, never>;
+    restartStatusNull: Record<string, never>;
+    httpAddresses: string[];
+    nodeUrls: Array<Record<string, string>>;
+    gitOrigins: string[];
+  };
+}
+
 describe('Nodel API response codecs', () => {
   beforeAll(async () => {
     const fixture = JSON.parse(await readFile(resolve(process.cwd(), 'test/fixtures/java-nodel-api.json'), 'utf8')) as { responses: Record<string, unknown> };
@@ -45,7 +56,7 @@ describe('Nodel API response codecs', () => {
     expect(decodeToolkit(responses.toolkit, 'toolkit').script).toContain('Contract toolkit');
     expect(decodeNodeDetails(responses.nodeDetails, 'node')).toMatchObject({ name: 'Contract Node' });
     expect(decodeRestartStatus(responses.restartStatus, 'restart').timestamp).toBeTypeOf('string');
-    expect(decodeConsoleLogs(responses.console, 'console')).toHaveLength(2);
+    expect(decodeConsoleLogs(responses.console, 'console')).toHaveLength(5);
     const decodedActivity = decodeActivityLogs(responses.activity, 'activity');
     expect(decodedActivity).toHaveLength(3);
     expect(decodedActivity.some((entry) => entry.timestamp === undefined)).toBe(true);
@@ -94,17 +105,84 @@ describe('Nodel API response codecs', () => {
     expect(() => decodeConsoleLogs([{ seq: 1, timestamp, console: 'debug', comment: 'line' }], 'console')).toThrow('$[0].console');
     expect(() => decodeDiagnosticMeasurements([{ name: 'Metric', isRate: false, values: [Number.POSITIVE_INFINITY] }], 'measurements')).toThrow('finite number');
     expect(() => decodeSchema({ type: 'unsupported' }, 'schema')).toThrow('supported JSON schema type');
-    expect(() => decodeActions({ Broken: { name: 42 } }, 'actions')).toThrow('non-empty string');
+    expect(() => decodeActions({ Broken: { name: 42 } }, 'actions')).toThrow('point name');
     expect(() => decodeActions({ Broken: { name: 'Broken', seq: 1.5 } }, 'actions')).toThrow('non-negative safe integer');
     expect(() => decodeSignals({ Broken: { name: 'Broken', timestamp: 'not-a-date' } }, 'signals')).toThrow('valid timestamp');
     expect(() => decodeBuildInfo({ date: 'not-a-date' }, 'build')).toThrow('valid timestamp');
     expect(() => decodeRestartStatus({ timestamp: 'not-a-date' }, 'restart')).toThrow('timestamp');
     expect(() => decodeNodeUrls([{ node: 'Unsafe', address: 'javascript:alert(1)' }], 'node urls')).toThrow('absolute HTTP(S)');
-    expect(() => decodeBuildInfo({ origin: 'https://user:secret@example.test/repo' }, 'build')).toThrow('without credentials');
+    expect(decodeBuildInfo({ origin: 'https://user:secret@example.test/repo' }, 'build').origin).toBe('https://user:secret@example.test/repo');
     expect(() => decodeFiles([{ path: '../secret.py' }], 'files')).toThrow('safe relative node file path');
     expect(() => assertSafeNodeFilePath('content/../secret.py')).toThrow('Node file path is invalid');
     expect(() => assertSafeNodeFilePath('C:/outside/script.py')).toThrow('Node file path is invalid');
     expect(() => assertSafeNodeFilePath('content/script.py:stream')).toThrow('Node file path is invalid');
+  });
+
+  it('classifies exact legacy Java file and recipe names without rewriting them', () => {
+    const longPath = `${'a'.repeat(1025)}.txt`;
+    const legacyPaths = [
+      'content/script.py:stream',
+      'content\\backslash.txt',
+      'content/line\nbreak.txt',
+      'content/control\u0001name.txt',
+      'content/cafe\u0301.txt',
+      'content/unpaired\ud800name.txt',
+      longPath
+    ];
+    const files = decodeFiles(legacyPaths.map((path) => ({ path })), 'files');
+    expect(files.map((file) => file.path)).toEqual(legacyPaths);
+    expect(files.map((file) => file.compatibility)).toEqual(Array(legacyPaths.length).fill('legacy'));
+
+    const recipes = decodeRecipes([{ path: '' }, ...legacyPaths.map((path) => ({ path }))], 'recipes');
+    expect(recipes.map((recipe) => recipe.path)).toEqual(['', ...legacyPaths]);
+    expect(recipes.map((recipe) => recipe.compatibility)).toEqual(['portable', ...Array(legacyPaths.length).fill('legacy')]);
+
+    for (const path of ['', '/absolute.txt', '\\absolute.txt', 'C:x', 'C:/x', '\\\\server\\share', '../secret.txt', 'content/../secret.txt', 'content\\..\\secret.txt', 'content//empty.txt', 'content\u0000nul.txt']) {
+      expect(() => decodeFiles([{ path }], 'files'), path || 'empty').toThrow(NodelApiDecodeError);
+    }
+    for (const path of ['/absolute', '\\absolute', 'C:x', 'content/../secret', 'content\\..\\secret', 'content//empty', 'content\u0000nul']) {
+      expect(() => decodeRecipes([{ path }], 'recipes'), path).toThrow(NodelApiDecodeError);
+    }
+  });
+
+  it('preserves Java console display text including empty lines and stack formatting', () => {
+    const timestamp = '2026-08-01T00:00:00Z';
+    const comments = [...compatibilityFixture().displayStrings, '\tat java.base/java.lang.reflect.Method.invoke(Method.java:580)', 'first line\nsecond line\r\n'];
+    const decoded = decodeConsoleLogs(comments.map((comment, index) => ({
+      seq: index + 1,
+      timestamp,
+      console: index === 0 ? 'err' : 'out',
+      comment
+    })), 'console');
+
+    expect(decoded.map((entry) => entry.comment)).toEqual(comments);
+  });
+
+  it('preserves arbitrary display strings while keeping identifiers strict', () => {
+    const [empty, text] = compatibilityFixture().displayStrings;
+    expect(decodeHostLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', message: text, error: empty }], 'logs')[0]).toMatchObject({ message: text, error: empty });
+    expect(decodeLocalRest({ nodes: { Node: { name: 'Node', desc: text } } }, 'local').nodes?.Node.desc).toBe(text);
+    expect(decodeNodeDetails({ name: 'Node', desc: text }, 'node').desc).toBe(text);
+    expect(decodeSchema({ type: 'string', title: text, desc: text, group: text, caution: text, hint: text }, 'schema')).toMatchObject({ title: text, desc: text, group: text, caution: text, hint: text });
+    expect(decodeActions({ Action: { name: 'Action', title: text, desc: text, group: text, caution: text } }, 'actions').Action).toMatchObject({ title: text, desc: text, group: text, caution: text });
+    expect(decodeSignals({ Signal: { name: 'Signal', title: text, desc: text, group: text, caution: text } }, 'signals').Signal).toMatchObject({ title: text, desc: text, group: text, caution: text });
+    expect(decodeRecipes([{ path: 'recipe', readme: text, changelog: empty }], 'recipes')[0]).toMatchObject({ readme: text, changelog: empty });
+    expect(decodeActivityWebSocketMessage({ error: text }, 'websocket').error).toBe(text);
+    expect(() => decodeActions({ ['Action\u0000']: { name: 'Action\u0000' } }, 'actions')).toThrow('control characters');
+  });
+
+  it('deletes absent and null display fields during composed normalization', () => {
+    const node = decodeNodeDetails({ name: 'Node', desc: null }, 'node');
+    const schema = decodeSchema({ type: 'string', title: null, desc: null }, 'schema');
+    const socket = decodeActivityWebSocketMessage({ error: null }, 'websocket');
+    const recipe = decodeRecipes([{ path: 'recipe', readme: null, changelog: null }], 'recipes')[0];
+    const action = decodeActions({ Action: { name: 'Action', title: null, desc: null } }, 'actions').Action;
+    const hostLog = decodeHostLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', message: null, error: null }], 'logs')[0];
+
+    for (const [value, key] of [[node, 'desc'], [schema, 'title'], [schema, 'desc'], [socket, 'error'], [recipe, 'readme'], [recipe, 'changelog'], [action, 'title'], [action, 'desc'], [hostLog, 'message']] as const) {
+      expect(Object.prototype.hasOwnProperty.call(value, key)).toBe(false);
+    }
+    expect(hostLog.error).toBeNull();
   });
 
   it('preserves the Java variant-schema dialect and explicit null type', () => {
@@ -143,13 +221,67 @@ describe('Nodel API response codecs', () => {
       { node: 'Display', address: 'https://display.test/nodes/Display/' }
     ], 'node urls')).toEqual([{ node: 'Display', address: 'https://display.test/nodes/Display/' }]);
     expect(decodeNodeUrls([{ node: 'Display', address: 'https://display.test/nodes/Display/', host: 'DISPLAY.TEST' }], 'node urls')).toHaveLength(1);
+    expect(decodeNodeUrls([{ node: '\ufeff', address: 'https://display.test/nodes/%EF%BB%BF/' }], 'node urls')[0]?.node).toBe('\ufeff');
+    expect(decodeLocalRest({ nodes: { '\ufeff': { name: '\ufeff' } } }, 'local').nodes?.['\ufeff'].name).toBe('\ufeff');
+    expect(decodeActions({ '\ufeff': { name: '\ufeff' } }, 'actions')['\ufeff'].name).toBe('\ufeff');
+    expect(decodeSignals({ '\ufeff': { name: '\ufeff' } }, 'events')['\ufeff'].name).toBe('\ufeff');
+    expect(decodeActivityLogs([{ seq: 1, source: 'local', type: 'event', alias: '\ufeff' }], 'activity')[0].alias).toBe('\ufeff');
     expect(() => decodeNodeUrls([{ node: 'Display', address: 'https://display.test/nodes/Display/', host: 'display.test\\admin' }], 'node urls')).toThrow('host from the node address');
+    for (const address of [
+      'http://[::1:8085/nodes/Display/',
+      'http://user@::1:8085/nodes/Display/',
+      'http://::1:65536/nodes/Display/',
+      'http://::1:8085/nodes/Display/?query',
+      'http://::1:8085/nodes/Display/#fragment'
+    ]) {
+      expect(() => decodeNodeUrls([{ node: 'Display', address }], 'node urls'), address).toThrow('absolute HTTP(S)');
+    }
+  });
+
+  it('preserves Java IPv6 ports and address hextets during node URL decoding', () => {
+    expect(decodeNodeUrls([
+      { node: 'Port Eight', address: 'http://::1:8/nodes/PortEight/', host: '::1' },
+      { node: 'Address Hextet', address: 'http://2001:db8::8/nodes/AddressHextet/' },
+      { node: 'Compressed Port Eight', address: 'http://2001:db8:::8/nodes/CompressedPortEight/', host: '2001:db8:::8' },
+      { node: 'Bracketed Port Eight', address: 'http://[::1]:8/nodes/BracketedPortEight/', host: '[::1]:8' }
+    ], 'node urls').map((entry) => entry.address)).toEqual([
+      'http://[::1]:8/nodes/PortEight/',
+      'http://[2001:db8::8]/nodes/AddressHextet/',
+      'http://[2001:db8::]:8/nodes/CompressedPortEight/',
+      'http://[::1]:8/nodes/BracketedPortEight/'
+    ]);
+    expect(decodeDiagnostics({ httpAddresses: ['http://::1:8/REST', 'http://2001:db8:::8/REST'] }, 'diagnostics').httpAddresses).toEqual([
+      'http://[::1]:8/REST',
+      'http://[2001:db8::]:8/REST'
+    ]);
   });
 
   it('bounds backend-provided WebSocket error text', () => {
-    const message = decodeActivityWebSocketMessage({ error: `  ${'x'.repeat(800)}\nmore` }, 'websocket');
-    expect(message.error).toHaveLength(500);
-    expect(message.error).not.toContain('\n');
+    const error = `  ${'x'.repeat(800)}\nmore`;
+    expect(decodeActivityWebSocketMessage({ error }, 'websocket').error).toBe(error);
+  });
+
+  it('accepts Java 2.2.1 empty, IPv6, restart, and Git-origin variants', () => {
+    const compatibility = compatibilityFixture();
+    expect(decodeSchema(compatibility.emptySchema, 'schema')).toEqual({});
+    expect(decodeRestartStatus(compatibility.restartStatusNull, 'restart').timestamp).toBeNull();
+    expect(decodeDiagnostics({ httpAddresses: compatibility.httpAddresses }, 'diagnostics').httpAddresses).toEqual([
+      'http://[::1]:8085/REST',
+      'http://[fe80::1%25eth0]:8085/REST'
+    ]);
+    expect(decodeNodeUrls(compatibility.nodeUrls, 'node urls').map((entry) => entry.address)).toEqual([
+      'http://[::1]:8085/nodes/IPv6/',
+      'http://[fe80::1%25eth0]:8085/nodes/Scoped/'
+    ]);
+    for (const origin of compatibility.gitOrigins) {
+      expect(decodeBuildInfo({ origin }, 'build').origin).toBe(origin);
+    }
+  });
+
+  it('normalizes missing and null restart timestamps while rejecting malformed present values', () => {
+    expect(decodeRestartStatus({}, 'restart')).toEqual({ timestamp: null });
+    expect(decodeRestartStatus({ timestamp: null }, 'restart')).toEqual({ timestamp: null });
+    expect(() => decodeRestartStatus({ timestamp: 0 }, 'restart')).toThrow('timestamp');
   });
 
   it('rejects oversized collections and excessively deep schemas', () => {

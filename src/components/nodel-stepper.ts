@@ -11,6 +11,7 @@ import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../
 import { createSignalBindingController } from '../data/signal-bindings';
 import { clampValue, formatValue, normalizeLevelUnit, normalizeStep, parseNumber, snapToStep } from '../utils/level-scale';
 import { accessibleLabelText, syncInternalAccessibleLabel } from '../utils/accessibility';
+import { trimPointReference } from '../utils/edge-whitespace';
 import { formatPlainNumber, normalizeFromList, normalizeTone, normalizeVariant, truthy, type ControlArgType } from '../utils/control-values';
 
 type StepperRepeat = 'hold' | 'off';
@@ -35,6 +36,7 @@ export class NodelStepper extends HTMLElement {
   private actionController = new ControlActionController();
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -46,9 +48,10 @@ export class NodelStepper extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
     this.signalBindings.dispose();
-    this.actionController.invalidate();
     this.clearRepeat();
+    this.repeatStartValue = null;
     this.decreaseNode?.removeEventListener('pointerdown', this.handleDecreasePointerDown);
     this.increaseNode?.removeEventListener('pointerdown', this.handleIncreasePointerDown);
     this.decreaseNode?.removeEventListener('click', this.preventClick);
@@ -151,12 +154,16 @@ export class NodelStepper extends HTMLElement {
     const nextValue = clampValue(snapToStep(value, min, this.step()), min, max);
     const previousValue = committed && this.repeatStartValue !== null ? this.repeatStartValue : this.getAttribute('value');
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
-    const action = actionName(bindings, this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '');
+    const action = actionName(bindings, trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''));
     const directionPhase = direction === 1 ? 'increase' : direction === -1 ? 'decrease' : null;
     const phases = committed
       ? ['commit', ...(directionPhase ? [directionPhase] : [])]
       : ['live'];
-    const token = this.actionController.nextToken();
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      return;
+    }
+    const token = this.actionController.nextToken(scope);
     const payloadResult = this.payload(nextValue);
     if (!payloadResult.ok) {
       dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload: {}, committed, live: !committed, error: payloadResult.error });
@@ -168,8 +175,11 @@ export class NodelStepper extends HTMLElement {
         title: 'Confirm value',
         text: `Set ${this.getAttribute('label') || 'value'} to ${this.formattedValue(nextValue)}?`,
         tone: 'info'
-      }), direction === -1 ? this.decreaseNode : direction === 1 ? this.increaseNode : this.shellNode);
+      }), direction === -1 ? this.decreaseNode : direction === 1 ? this.increaseNode : this.shellNode, scope.signal);
       if (!confirmed) {
+        if (!this.actionController.isLatest(token, scope)) {
+          return;
+        }
         if (previousValue === null) {
           this.removeAttribute('value');
         } else {
@@ -177,12 +187,15 @@ export class NodelStepper extends HTMLElement {
         }
         return;
       }
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
     }
 
     if (shouldConfirm(this) && !committed) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setAttribute('value', String(nextValue));
       this.dispatchChange(nextValue, committed, direction, payloadResult.payload);
       return;
@@ -192,16 +205,22 @@ export class NodelStepper extends HTMLElement {
     const hasRemotePhase = bindings.some((binding) => phases.includes(binding.phase));
 
     if (bindings.length === 0 || !hasRemotePhase) {
+      if (!scope.isCurrent()) {
+        return;
+      }
       this.setAttribute('value', String(nextValue));
       this.dispatchChange(nextValue, committed, direction, payload);
       return;
     }
 
+    if (!scope.isCurrent()) {
+      return;
+    }
     this.setAttribute('value', String(nextValue));
 
     try {
-      const execution = await executeActionPhases(bindings, phases, payload);
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      const execution = await executeActionPhases(bindings, phases, payload, scope);
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       if (execution.failures.length > 0) {
@@ -210,12 +229,12 @@ export class NodelStepper extends HTMLElement {
         } else {
           this.setAttribute('value', previousValue);
         }
-        dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload, arg: payloadResult.arg, committed, live: !committed, failures: execution.failures });
+        dispatchControlActionError(this, { eventName: 'nodel-stepper-error', action, phase: phases[0], phases, value: nextValue, payload, arg: payloadResult.arg, committed, live: !committed, results: execution.results, failures: execution.failures });
         return;
       }
       this.dispatchChange(nextValue, committed, direction, payload, execution.results);
     } catch (error) {
-      if (!this.actionController.isLatest(token) || !this.isConnected) {
+      if (!this.actionController.isLatest(token, scope)) {
         return;
       }
       if (previousValue === null) {
@@ -232,7 +251,7 @@ export class NodelStepper extends HTMLElement {
     const phases = committed
       ? ['commit', ...(directionPhase ? [directionPhase] : [])]
       : ['live'];
-    this.dispatchEvent(new CustomEvent('nodel-stepper-change', { bubbles: true, detail: { action: this.getAttribute('action')?.trim() || this.getAttribute('join')?.trim() || '', phase: phases[0], phases, value, committed, live: !committed, direction, arg: payload.arg, payload, results, failures: [] } }));
+    this.dispatchEvent(new CustomEvent('nodel-stepper-change', { bubbles: true, detail: { action: trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''), phase: phases[0], phases, value, committed, live: !committed, direction, arg: payload.arg, payload, results, failures: [] } }));
   }
 
   private startRepeat(event: PointerEvent, direction: -1 | 1) {

@@ -4,6 +4,7 @@ import {
   actionName,
   buildActionPayload,
   ControlActionController,
+  type ControlActionScope,
   dispatchControlActionError,
   executeActionPhases
 } from '../data/control-actions';
@@ -52,8 +53,10 @@ export class NodelPad extends HTMLElement {
   private startingDirection: PadDirection | null = null;
   private releaseRequested = false;
   private actionController = new ControlActionController();
+  private momentaryScope: ControlActionScope | null = null;
 
   connectedCallback() {
+    this.actionController.connect();
     this.ensureShell();
     this.render();
     this.syncSignalSubscription();
@@ -64,12 +67,13 @@ export class NodelPad extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.actionController.disconnect();
     this.signalBindings.dispose();
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('keydown', this.handleKeyDown);
     this.removeEventListener('keyup', this.handleKeyUp);
-    this.finishMomentary();
+    this.activeDirection = null;
     this.clearMomentaryStart();
   }
 
@@ -192,7 +196,10 @@ export class NodelPad extends HTMLElement {
     return parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), defaultPhase });
   }
 
-  private async submit(direction: PadDirection, phase: 'click' | 'press' | 'release', bindings: ActionBinding[] = this.bindings(direction, phase)): Promise<boolean> {
+  private async submit(direction: PadDirection, phase: 'click' | 'press' | 'release', bindings: ActionBinding[] = this.bindings(direction, phase), scope = this.actionController.captureScope()): Promise<boolean> {
+    if (!scope || !scope.isCurrent()) {
+      return false;
+    }
     if (this.hasAttribute('disabled') || (direction === 'center' && (this.hasAttribute('center-disabled') || this.centerMode() === 'disabled'))) {
       return false;
     }
@@ -212,14 +219,17 @@ export class NodelPad extends HTMLElement {
       return false;
     }
     if (phase !== 'release' && shouldConfirm(this)) {
-      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, { title: 'Confirm action', text: `Run ${this.getAttribute(`${direction}-label`) ?? directionLabels[direction]}?`, tone: 'info' }), this.button(direction));
-      if (!confirmed) {
+      const confirmed = await requestConfirm(this, confirmRequestFromAttributes(this, { title: 'Confirm action', text: `Run ${this.getAttribute(`${direction}-label`) ?? directionLabels[direction]}?`, tone: 'info' }), this.button(direction), scope.signal);
+      if (!confirmed || !scope.isCurrent()) {
         return false;
       }
     }
     const payload = payloadResult.payload;
     try {
-      const execution = await executeActionPhases(bindings, [phase], payload);
+      const execution = await executeActionPhases(bindings, [phase], payload, scope);
+      if (!scope.isCurrent()) {
+        return false;
+      }
       if (execution.failures.length > 0) {
         dispatchControlActionError(this, {
           eventName: 'nodel-pad-error',
@@ -230,6 +240,7 @@ export class NodelPad extends HTMLElement {
           arg: payloadResult.arg,
           committed: phase !== 'press',
           live: phase === 'press',
+          results: execution.results,
           failures: execution.failures
         });
         return false;
@@ -237,6 +248,9 @@ export class NodelPad extends HTMLElement {
       this.dispatchEvent(new CustomEvent('nodel-pad-action', { bubbles: true, detail: { action, direction, phase, phases: [phase], value: direction, payload, arg: payloadResult.arg, results: execution.results, failures: [], committed: phase !== 'press', live: phase === 'press' } }));
       return true;
     } catch (error) {
+      if (!scope.isCurrent()) {
+        return false;
+      }
       dispatchControlActionError(this, {
         eventName: 'nodel-pad-error',
         action,
@@ -263,8 +277,17 @@ export class NodelPad extends HTMLElement {
     document.addEventListener('pointerup', this.handleDocumentPointerUp);
     document.addEventListener('pointercancel', this.handleDocumentPointerUp);
     window.addEventListener('blur', this.handleWindowBlur);
+    const scope = this.actionController.captureScope();
+    if (!scope) {
+      this.clearMomentaryStart();
+      this.render();
+      return;
+    }
     const bindings = this.bindings(direction, 'press');
-    const pressed = await this.actionController.runSerial(() => this.submit(direction, 'press', bindings));
+    const pressed = await this.actionController.runSerial(scope, () => this.submit(direction, 'press', bindings, scope)).catch(() => false);
+    if (!scope.isCurrent()) {
+      return;
+    }
     this.startingDirection = null;
     if (!pressed) {
       this.clearMomentaryStart();
@@ -272,6 +295,7 @@ export class NodelPad extends HTMLElement {
       return;
     }
     this.activeDirection = direction;
+    this.momentaryScope = scope;
     this.render();
     if (this.releaseRequested) {
       this.finishMomentary();
@@ -287,15 +311,20 @@ export class NodelPad extends HTMLElement {
     if (!direction) {
       return;
     }
+    const scope = this.momentaryScope;
     this.activeDirection = null;
     this.clearMomentaryStart();
     this.render();
-    void this.actionController.runSerial(() => this.submit(direction, 'release', this.bindings(direction, 'release')));
+    this.momentaryScope = null;
+    if (scope?.isCurrent()) {
+      void this.actionController.runSerial(scope, () => this.submit(direction, 'release', this.bindings(direction, 'release'), scope)).catch(() => undefined);
+    }
   }
 
   private clearMomentaryStart() {
     this.startingDirection = null;
     this.releaseRequested = false;
+    this.momentaryScope = null;
     document.removeEventListener('pointerup', this.handleDocumentPointerUp);
     document.removeEventListener('pointercancel', this.handleDocumentPointerUp);
     window.removeEventListener('blur', this.handleWindowBlur);

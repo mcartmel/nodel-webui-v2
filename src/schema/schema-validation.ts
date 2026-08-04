@@ -6,8 +6,9 @@ import {
   type SchemaFormModel,
   type SchemaValidationIssue
 } from './schema-model';
-import { parseStrictNumber, serializeSchemaFieldModel } from './schema-values';
+import { parseStrictNumber, selectedEnumOption } from './schema-values';
 import { hasOwn, isRecord } from '../utils/records';
+import { validateJsonValueBounds } from '../utils/json-value';
 
 export function validateSchemaForm(form: SchemaFormModel): SchemaValidationIssue[] {
   if (form.unsupported) {
@@ -42,13 +43,48 @@ export function validateField(field: SchemaField): SchemaValidationIssue[] {
     if (field.value !== null) issues.push(issue(field, 'Value must be null.'));
     return issues;
   }
-  if (field.value === null) {
-    if (!field.nullable) issues.push(issue(field, 'Null is not allowed here.'));
+  if (field.kind === 'json') {
+    if (typeof field.value !== 'string') {
+      issues.push(issue(field, 'Enter a JSON value.'));
+      return issues;
+    }
+    try {
+      const parsed = JSON.parse(field.value);
+      if (validateJsonValueBounds(parsed)) issues.push(issue(field, 'Enter a safe, bounded JSON value.'));
+    } catch {
+      issues.push(issue(field, 'Enter a valid JSON value.'));
+    }
+    return issues;
+  }
+  if (field.enumOptions.length > 0) {
+    if (field.value === null) {
+      if (!field.nullable && !field.enumOptions.some((option) => option.raw === null)) issues.push(issue(field, 'Null is not allowed here.'));
+      return issues;
+    }
+    const option = selectedEnumOption(field);
+    if (!option) {
+      issues.push(issue(field, 'Choose one of the available values.'));
+      return issues;
+    }
+    if (option.raw === null) return issues;
+    if (field.kind === 'number') {
+      const value = option.raw;
+      if (typeof value !== 'number' || !Number.isFinite(value) || (field.numberType === 'integer' && (!Number.isSafeInteger(value) || !Number.isInteger(value)))) {
+        issues.push(issue(field, field.numberType === 'integer' ? 'Enter a whole number.' : 'Enter a finite number.'));
+        return issues;
+      }
+      const min = numeric(field.min);
+      const max = numeric(field.max);
+      if (min !== undefined && value < min) issues.push(issue(field, `Value must be at least ${min}.`));
+      if (max !== undefined && value > max) issues.push(issue(field, `Value must be at most ${max}.`));
+      const step = field.step === 'any' ? undefined : numeric(field.step);
+      if (step !== undefined && !isAligned(value, min ?? 0, step)) issues.push(issue(field, `Value must align to increments of ${step}.`));
+    }
     return issues;
   }
 
-  if (field.enumOptions.length > 0 && !field.enumOptions.some((option) => enumRawKey(option.raw) === enumRawKey(serializeSchemaFieldModel(field)))) {
-    issues.push(issue(field, 'Choose one of the available values.'));
+  if (field.value === null) {
+    if (!field.nullable) issues.push(issue(field, 'Null is not allowed here.'));
     return issues;
   }
 
@@ -93,6 +129,9 @@ export function validateValueAgainstSchema(value: unknown, schema: NodelJsonSche
   const normalized = normalizeSchema(schema);
   if (normalized.unsupportedReason) {
     return [{ fieldId: pointer || 'schema', pointer, message: normalized.unsupportedReason }];
+  }
+  if (normalized.type === 'json' && validateJsonValueBounds(value)) {
+    return [rawIssue(pointer, 'Enter a safe, bounded JSON value.')];
   }
   return validateRaw(value, normalized.schema, normalized.type, normalized.nullable, pointer);
 }

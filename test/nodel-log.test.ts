@@ -1,15 +1,24 @@
 import { waitFor } from './helpers';
+import { rapidReconnect } from './lifecycle-helpers';
 
 const activityMock = vi.hoisted(() => ({
   disposers: [] as Array<ReturnType<typeof vi.fn>>,
-  listeners: [] as Array<(state: unknown) => void>
+  listeners: [] as Array<(state: unknown) => void>,
+  subscriptions: [] as Array<{ active: boolean; dispose: ReturnType<typeof vi.fn> }>
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
     activityMock.listeners.push(listener);
-    const dispose = vi.fn();
+    const subscription = {
+      active: true,
+      dispose: vi.fn(() => {
+        subscription.active = false;
+      })
+    };
+    const { dispose } = subscription;
     activityMock.disposers.push(dispose);
+    activityMock.subscriptions.push(subscription);
     return { dispose, refresh: vi.fn() };
   })
 }));
@@ -21,6 +30,7 @@ describe('nodel-log', () => {
     document.body.innerHTML = '';
     activityMock.disposers = [];
     activityMock.listeners = [];
+    activityMock.subscriptions = [];
   });
 
   afterEach(() => {
@@ -433,40 +443,49 @@ describe('nodel-log', () => {
 
   it('owns exactly one activity subscription through rapid reconnect loops', async () => {
     await mountLog();
-    const log = document.querySelector('nodel-log')!;
-    for (let index = 0; index < 3; index += 1) {
-      log.remove();
-      expect(activityMock.disposers[index]).toHaveBeenCalledOnce();
-      document.body.append(log);
-      await waitFor(() => activityMock.listeners.length === index + 2);
-    }
+    const log = document.querySelector<HTMLElement>('nodel-log')!;
+    let reconnects = 0;
+    await rapidReconnect(log, async () => {
+      expect(activityMock.disposers[reconnects]).toHaveBeenCalledOnce();
+      reconnects += 1;
+      await waitFor(() => activityMock.listeners.length === reconnects + 1);
+    });
 
     expect(activityMock.listeners).toHaveLength(4);
     expect(activityMock.disposers.slice(0, 3).every((dispose) => dispose.mock.calls.length === 1)).toBe(true);
+    expect(activityMock.subscriptions.filter((subscription) => subscription.active)).toHaveLength(1);
 
-    activityMock.listeners[0]?.({
-      loading: false,
-      connected: true,
-      error: '',
-      batch: {
-        replace: true,
-        transport: 'websocket',
-        nextSeq: 2,
-        items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Stale', arg: true }, changed: false, live: false }]
-      }
-    });
-    activityMock.listeners[3]?.({
-      loading: false,
-      connected: true,
-      error: '',
-      batch: {
-        replace: true,
-        transport: 'websocket',
-        nextSeq: 3,
-        items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'action', alias: 'Current', arg: true }, changed: false, live: false }]
-      }
-    });
-    expect(log.textContent).toContain('Current');
-    expect(log.textContent).not.toContain('Stale');
+    vi.useFakeTimers();
+    try {
+      activityMock.listeners[0]?.({
+        loading: false,
+        connected: true,
+        error: '',
+        batch: {
+          replace: true,
+          transport: 'websocket',
+          nextSeq: 2,
+          items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Stale', arg: true }, changed: true, live: true }]
+        }
+      });
+      activityMock.listeners[3]?.({
+        loading: false,
+        connected: true,
+        error: '',
+        batch: {
+          replace: true,
+          transport: 'websocket',
+          nextSeq: 3,
+          items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:01Z', source: 'local', type: 'action', alias: 'Current', arg: true }, changed: true, live: true }]
+        }
+      });
+      expect(log.textContent).toContain('Current');
+      expect(log.textContent).not.toContain('Stale');
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(700);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

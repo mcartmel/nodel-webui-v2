@@ -10,7 +10,7 @@ export interface NodelControlSignalState {
 }
 
 export interface NodelControlRuntime {
-  callAction(name: string, payload: unknown): Promise<unknown>;
+  callAction(name: string, payload: unknown, init?: RequestInit): Promise<unknown>;
   subscribeSignals(
     element: HTMLElement,
     listener: (state: NodelControlSignalState) => void
@@ -19,8 +19,8 @@ export interface NodelControlRuntime {
 
 function defaultRuntime(): NodelControlRuntime {
   return {
-    callAction(name, payload) {
-      return callNodeAction(name, payload);
+    callAction(name, payload, init) {
+      return init ? callNodeAction(name, payload, init) : callNodeAction(name, payload);
     },
     subscribeSignals(element, listener) {
       return subscribeNodeActivity(element, (state) => {

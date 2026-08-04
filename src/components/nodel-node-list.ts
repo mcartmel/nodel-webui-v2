@@ -4,10 +4,11 @@ import { registerNodelPollSource, type NodelSourceState, type NodelSourceSubscri
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
+import { isAbortError } from '../utils/errors';
 import { renderComponentError } from '../utils/render-component-error';
-import { getHostFromAddress, getSimpleName } from '../utils/node-name';
+import { getHostFromAddress, getSimpleName, isUsableNodeName } from '../utils/node-name';
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
-import { localNodePath, safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
+import { canonicalRemoteNodeHref, localNodePath, remoteNodeDisplayHost, safeNavigationHref, safeRemoteNodeUrl } from '../utils/urls';
 import './nodel-host-icon';
 
 type NodeListScope = 'local' | 'network';
@@ -18,6 +19,8 @@ interface NodeListStateItem {
   address: string;
   host: string;
   iconHost: string;
+  navigable: boolean;
+  fetchable: boolean;
   reachable: boolean;
   reachability: NodeReachability;
   sortKey: string;
@@ -42,6 +45,59 @@ const reachabilityConcurrency = 4;
 const maxRetainedNodeRows = 1000;
 const rowAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-list-item-affordance');
 
+interface ReachabilityJob {
+  host: string;
+  controller: AbortController;
+  isCurrent: () => boolean;
+  apply: (reachable: boolean) => void;
+}
+
+/** One queue per element keeps unresolved probes bounded across refresh generations. */
+class ReachabilityScheduler {
+  private active = new Set<ReachabilityJob>();
+  private queued: ReachabilityJob[] = [];
+
+  submit(jobs: ReachabilityJob[]) {
+    this.queued.push(...jobs);
+    this.drain();
+  }
+
+  cancel(predicate: (job: ReachabilityJob) => boolean) {
+    this.queued = this.queued.filter((job) => !predicate(job));
+    for (const job of this.active) {
+      if (predicate(job)) {
+        job.controller.abort();
+      }
+    }
+  }
+
+  private drain() {
+    while (this.active.size < reachabilityConcurrency && this.queued.length > 0) {
+      const job = this.queued.shift()!;
+      if (!job.isCurrent()) {
+        continue;
+      }
+      this.active.add(job);
+      void Promise.resolve()
+        .then(() => checkHostReachable(job.host, 3000, job.controller.signal))
+        .then((result) => {
+          if (job.isCurrent()) {
+            job.apply(result.reachable);
+          }
+        })
+        .catch((error) => {
+          if (!isAbortError(error) && job.isCurrent()) {
+            job.apply(false);
+          }
+        })
+        .finally(() => {
+          this.active.delete(job);
+          this.drain();
+        });
+    }
+  }
+}
+
 const template = `
   <div class="nodel-node-list space-y-4">
     <form class="nodel-node-list-controls flex flex-wrap items-center gap-3">
@@ -60,14 +116,14 @@ const template = `
       <div class="nodel-alert nodel-alert-md">Loading nodes...</div>
     {{else}}
       {^{if error}}
-        <div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">{^{:error}}</div>
+        <div class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert" data-link="text{:error}"></div>
       {{else}}
         <div class="nodel-node-list-results space-y-3">
           {^{if lst.length}}
             <ul class="nodel-node-list-items nodel-list">
               {^{for lst}}
                 <li>
-                  <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:address} data-reachability{:reachability} class{:reachability === 'unreachable' ? 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' }">
+                  <a class="nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition" data-link="href{:navigable ? address : null} aria-disabled{:navigable ? null : 'true'} tabindex{:navigable ? null : '0'} data-reachability{:reachability} class{:!navigable ? 'nodel-node-list-item nodel-list-item is-disabled flex items-center gap-3 px-3 py-2 transition' : reachability === 'unreachable' ? 'nodel-node-list-item nodel-list-item is-unreachable flex items-center gap-3 px-3 py-2 transition' : 'nodel-node-list-item nodel-list-item flex items-center gap-3 px-3 py-2 transition' }">
                     <nodel-host-icon class="nodel-node-icon shrink-0" data-link="host{:host} icon-host{:iconHost} alt{:host}"></nodel-host-icon>
                     <span class="flex min-w-0 flex-1 flex-col">
                       <span class="truncate text-sm font-medium">{^{:~highlight(name, ~root.flt)}}</span>
@@ -116,8 +172,14 @@ export class NodelNodeList extends HTMLElement {
   private lifecycle = Promise.resolve();
   private linked = false;
   private linkController = new JsViewsLinkController(this);
-  private lastAppliedUpdatedAt: number | null = null;
-  private reachabilityToken = 0;
+  private acceptedSnapshotUpdatedAt: number | null = null;
+  private lastSourceUpdatedAt: number | null = null;
+  private lastSourceActive: boolean | null = null;
+  private reachabilityGeneration = 0;
+  private reachabilityScheduler = new ReachabilityScheduler();
+  private currentReachabilityGeneration: number | null = null;
+  private discoveryRows: readonly NodeListStateItem[] = [];
+  private displayRows: readonly NodeListStateItem[] = [];
   private source: NodelSourceSubscription<NodeListStateItem[]> | null = null;
   private state: NodeListState = {
     scope: 'local',
@@ -150,6 +212,7 @@ export class NodelNodeList extends HTMLElement {
 
   attributeChangedCallback() {
     if (this.isConnected) {
+      this.cancelReachability();
       this.queueInitialize();
     }
   }
@@ -257,17 +320,20 @@ export class NodelNodeList extends HTMLElement {
   private handleFilterInput = (event: Event) => {
     const value = (event.currentTarget as HTMLInputElement).value;
     this.state.flt = value;
+    this.cancelReachability();
     this.scheduleRefresh();
   };
 
   private handleShowChange = (event: Event) => {
     const value = Number((event.currentTarget as HTMLSelectElement).value);
     this.state.end = pageSizes.includes(value) ? value : 20;
+    this.restartReachability();
     void this.source?.refresh();
   };
 
   private handleMoreClick = () => {
     this.state.end = nextPageSize(this.state.end);
+    this.restartReachability();
     this.scheduleRefresh();
   };
 
@@ -307,7 +373,19 @@ export class NodelNodeList extends HTMLElement {
     });
 
     this.source = source.subscribe(this, (state: NodelSourceState<NodeListStateItem[]>) => {
+      // A source becoming inactive invalidates component-owned asynchronous work immediately.
+      const becameActive = state.active && this.lastSourceActive === false;
+      const freshnessChanged = state.updatedAt !== this.lastSourceUpdatedAt || state.active !== this.lastSourceActive;
+      this.lastSourceUpdatedAt = state.updatedAt;
+      this.lastSourceActive = state.active;
+
+      if (!state.active) {
+        this.cancelReachability();
+        return;
+      }
+
       if (state.error) {
+        this.cancelReachability();
         this.setLoading(false);
         this.setError(state.error);
         this.applyRows([]);
@@ -316,18 +394,22 @@ export class NodelNodeList extends HTMLElement {
 
       this.setError('');
       this.setLoading(state.loading);
-      if (state.updatedAt !== this.lastAppliedUpdatedAt) {
-        this.lastAppliedUpdatedAt = state.updatedAt;
-        this.applyRows(state.data ?? []);
+      if (state.updatedAt !== this.acceptedSnapshotUpdatedAt) {
+        this.acceptedSnapshotUpdatedAt = state.updatedAt;
+        this.acceptDiscoveryRows(state.data ?? []);
+      } else if (freshnessChanged && becameActive && this.acceptedSnapshotUpdatedAt !== null) {
+        this.restartReachability();
       }
     });
   }
 
   private disposeSource() {
-    this.reachabilityToken += 1;
+    this.cancelReachability();
     this.source?.dispose();
     this.source = null;
-    this.lastAppliedUpdatedAt = null;
+    this.lastSourceUpdatedAt = null;
+    this.lastSourceActive = null;
+    this.acceptedSnapshotUpdatedAt = null;
   }
 
   private setLoading(loading: boolean) {
@@ -340,9 +422,10 @@ export class NodelNodeList extends HTMLElement {
     $.observable(this.state).setProperty('error', error);
   }
 
-  private applyRows(rows: NodeListStateItem[]) {
+  private applyRows(rows: readonly NodeListStateItem[] = this.displayRows) {
     const $ = getJQuery();
-    const visibleRows = rows.slice(0, this.state.end);
+    // JsViews annotates bound view models, so expose copies rather than our frozen snapshot rows.
+    const visibleRows = rows.slice(0, this.state.end).map((row) => ({ ...row }));
     $.observable(this.state).setProperty('total', rows.length);
     $.observable(this.state.lst).refresh(visibleRows);
     $.observable(this.state).setProperty('moreAvailable', rows.length > this.state.end);
@@ -362,63 +445,88 @@ export class NodelNodeList extends HTMLElement {
   }
 
   private async loadNetworkRows(signal: AbortSignal): Promise<NodeListStateItem[]> {
-    const token = ++this.reachabilityToken;
-    const entries = await searchNodeUrls(this.state.flt, { signal });
-    const rows = entries
+    const filter = this.state.flt;
+    const entries = await searchNodeUrls(filter, { signal });
+    if (signal.aborted || this.state.scope !== 'network' || this.state.flt !== filter) {
+      throw new DOMException('The network discovery snapshot was superseded', 'AbortError');
+    }
+    return entries
       .map((entry) => this.toNetworkRow(entry))
       .sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: 'base' }))
       .slice(0, maxRetainedNodeRows);
-
-    const visibleHosts = this.hostsForRows(rows.slice(0, this.state.end));
-    this.applyReachability(rows, await this.probeHosts(visibleHosts, signal));
-
-    const remainingHosts = this.hostsForRows(rows).filter((host) => !visibleHosts.includes(host));
-    if (remainingHosts.length > 0) {
-      void this.expandReachability(rows, remainingHosts, token, signal);
-    }
-
-    return rows;
   }
 
-  private hostsForRows(rows: NodeListStateItem[]) {
-    return Array.from(new Set(rows.map((row) => row.host).filter(Boolean)));
+  private hostsForRows(rows: readonly NodeListStateItem[]) {
+    return Array.from(new Set(rows.filter((row) => row.fetchable).map((row) => row.host).filter(Boolean)));
   }
 
-  private async probeHosts(hosts: string[], signal: AbortSignal) {
-    const results = new Map<string, boolean>();
-    let nextIndex = 0;
-    const workers = Array.from({ length: Math.min(reachabilityConcurrency, hosts.length) }, async () => {
-      while (nextIndex < hosts.length && !signal.aborted) {
-        const host = hosts[nextIndex];
-        nextIndex += 1;
-        const result = await checkHostReachable(host, 3000, signal);
-        if (!signal.aborted) {
-          results.set(host, result.reachable);
-        }
-      }
-    });
-    await Promise.all(workers);
-    return results;
+  private freezeRows(rows: readonly NodeListStateItem[]) {
+    return Object.freeze(rows.map((row) => Object.freeze({ ...row })));
   }
 
-  private applyReachability(rows: NodeListStateItem[], reachableByHost: Map<string, boolean>) {
-    for (const row of rows) {
-      if (!reachableByHost.has(row.host)) {
-        continue;
-      }
-      const reachable = reachableByHost.get(row.host) === true;
-      row.reachable = reachable;
-      row.reachability = reachable ? 'reachable' : 'unreachable';
+  private acceptDiscoveryRows(rows: readonly NodeListStateItem[]) {
+    this.cancelReachability();
+    this.discoveryRows = rows;
+    this.displayRows = this.freezeRows(rows);
+    this.applyRows();
+    if (this.state.scope === 'network') {
+      this.startReachability();
     }
   }
 
-  private async expandReachability(rows: NodeListStateItem[], hosts: string[], token: number, signal: AbortSignal) {
-    const results = await this.probeHosts(hosts, signal);
-    if (signal.aborted || token !== this.reachabilityToken || !this.isConnected) {
+  private restartReachability() {
+    if (!this.lastSourceActive || this.state.scope !== 'network' || this.discoveryRows.length === 0) {
       return;
     }
-    this.applyReachability(rows, results);
-    this.applyRows(rows);
+    this.cancelReachability();
+    this.displayRows = this.freezeRows(this.discoveryRows);
+    this.applyRows();
+    this.startReachability();
+  }
+
+  private cancelReachability() {
+    if (this.currentReachabilityGeneration !== null) {
+      this.reachabilityScheduler.cancel(() => true);
+    }
+    this.currentReachabilityGeneration = null;
+  }
+
+  private startReachability() {
+    const scope = this.connectionLifecycle.current;
+    if (!scope || !this.isConnected || !this.lastSourceActive) {
+      return;
+    }
+    const generation = ++this.reachabilityGeneration;
+    const filter = this.state.flt;
+    const nodeListScope = this.state.scope;
+    const controller = new AbortController();
+    this.currentReachabilityGeneration = generation;
+    const isCurrent = () => this.currentReachabilityGeneration === generation
+      && !controller.signal.aborted
+      && scope.isCurrent()
+      && this.isConnected
+      && this.state.scope === nodeListScope
+      && this.state.flt === filter;
+    const visibleHosts = this.hostsForRows(this.displayRows.slice(0, this.state.end));
+    const remainingHosts = this.hostsForRows(this.displayRows).filter((host) => !visibleHosts.includes(host));
+    this.reachabilityScheduler.submit([...visibleHosts, ...remainingHosts].map((host) => ({
+      host,
+      controller,
+      isCurrent,
+      apply: (reachable) => this.applyReachabilityResult(generation, host, reachable)
+    })));
+  }
+
+  private applyReachabilityResult(generation: number, host: string, reachable: boolean) {
+    if (generation !== this.currentReachabilityGeneration) {
+      return;
+    }
+    const reachability = reachable ? 'reachable' : 'unreachable';
+    const rows = this.displayRows.map((row) => row.host === host
+      ? Object.freeze({ ...row, reachable, reachability })
+      : row);
+    this.displayRows = Object.freeze(rows);
+    this.applyRows();
   }
 
   private matchesFilter(value: string) {
@@ -432,16 +540,16 @@ export class NodelNodeList extends HTMLElement {
   private toLocalRow(entry: NodelLocalNodeEntry, host: string, iconHost: string): NodeListStateItem {
     const name = entry.name || entry.node || '';
     const nodeName = getSimpleName(name);
-    const address = safeNavigationHref(entry.address || localNodePath(name));
-    if (!address) {
-      throw new Error('Local node address is invalid');
-    }
+    const address = safeNavigationHref(entry.address ?? '')
+      ?? (isUsableNodeName(name) ? safeNavigationHref(localNodePath(name)) : null);
 
     return {
       name,
-      address,
+      address: address ?? '',
       host,
       iconHost,
+      navigable: address !== null,
+      fetchable: address !== null,
       reachable: true,
       reachability: 'reachable',
       sortKey: nodeName,
@@ -450,11 +558,11 @@ export class NodelNodeList extends HTMLElement {
 
   private toNetworkRow(entry: NodelNodeUrlEntry): NodeListStateItem {
     const url = safeRemoteNodeUrl(entry.address);
-    if (!url) {
+    const address = url?.href ?? canonicalRemoteNodeHref(entry.address);
+    if (!address) {
       throw new Error('Network node address is invalid');
     }
-    const address = url.href;
-    const host = entry.host || getHostFromAddress(address);
+    const host = entry.host || remoteNodeDisplayHost(address) || url?.host || getHostFromAddress(address);
     const name = entry.name || entry.node || getSimpleName(address);
 
     return {
@@ -462,6 +570,8 @@ export class NodelNodeList extends HTMLElement {
       address,
       host,
       iconHost: host,
+      navigable: url !== null,
+      fetchable: url !== null,
       reachable: false,
       reachability: 'unknown',
       sortKey: entry.node || getSimpleName(name),

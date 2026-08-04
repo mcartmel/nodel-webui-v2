@@ -7,7 +7,13 @@ import {
   getNodeConsoleLogs,
   getNodeUrlsForNode,
   getNodeRestartStatus,
+  listRecipes,
   NodelDuplicateNodeError,
+  callNodeAction,
+  emitNodeSignal,
+  renameCurrentNode,
+  saveNodeParams,
+  saveNodeRemoteBindings,
   waitForNodeReady
 } from '../src/api/nodel-host-client';
 
@@ -49,6 +55,95 @@ describe('nodel host client', () => {
       .rejects.toMatchObject({ name: 'AbortError' });
   });
 
+  it('rejects malformed and supplementary names before create, rename, or duplicate requests', async () => {
+    const invalidNames = ['Node\ud800', 'Node \ud83d\ude00'];
+
+    for (const name of invalidNames) {
+      await expect(createNode(name)).rejects.toThrow();
+      await expect(renameCurrentNode(name)).rejects.toThrow();
+      await expect(duplicateNode('http://source/nodes/Source/', name)).rejects.toThrow();
+    }
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects control names before create, rename, or duplicate requests', async () => {
+    for (const name of ['Node\u0000', 'Node\u001f', 'Node\u007f', 'Node\u0080', 'Node\u009f']) {
+      await expect(createNode(name)).rejects.toThrow('control or supplementary');
+      await expect(renameCurrentNode(name)).rejects.toThrow('control or supplementary');
+      await expect(duplicateNode('http://source/nodes/Source/', name)).rejects.toThrow('control or supplementary');
+    }
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty Java reductions before create, rename, or duplication requests', async () => {
+    const emptyReduction = '\u00a0';
+
+    await expect(createNode(emptyReduction)).rejects.toThrow('reduce to at least one path character');
+    await expect(renameCurrentNode(emptyReduction)).rejects.toThrow('reduce to at least one path character');
+    await expect(duplicateNode('http://source/nodes/Source/', emptyReduction)).rejects.toThrow('reduce to at least one path character');
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('creates, renames, and duplicates ordinary BMP Unicode names exactly', async () => {
+    const destination = 'Node \u4e2d\u6587';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === 'http://source/nodes/Source/REST/files') {
+        return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url === 'REST/rename' || url === `${window.location.origin}/nodes/Node%E4%B8%AD%E6%96%87/REST/`) {
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createNode(destination);
+    await renameCurrentNode(destination);
+    await expect(duplicateNode('http://source/nodes/Source/', destination)).resolves.toMatchObject({
+      url: `${window.location.origin}/nodes/Node%E4%B8%AD%E6%96%87/`,
+      copied: []
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/REST/newNode', expect.objectContaining({
+      body: JSON.stringify({ value: destination })
+    }));
+    expect(fetchMock).toHaveBeenCalledWith('REST/rename', expect.objectContaining({
+      body: JSON.stringify({ value: destination })
+    }));
+    expect(fetchMock).toHaveBeenCalledWith(`${window.location.origin}/nodes/Node%E4%B8%AD%E6%96%87/REST/`, expect.any(Object));
+  });
+
+  it('permits only portable typed recipe bases and exact decoded recipe capabilities', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/REST/recipes/list') {
+        return new Response(JSON.stringify([{ path: '' }, { path: 'Recipes/legacy:template' }]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }) as never;
+      }
+      if (url === '/REST/newNode') {
+        return new Response(JSON.stringify(JSON.parse(String(init?.body))), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    for (const base of ['', '../traversal', '..\\traversal', '/absolute', '\\absolute', 'C:drive', '\\\\server\\share', 'bad\u0000name', 'legacy:template']) {
+      await expect(createNode('Blocked', base)).rejects.toThrow();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const [root, legacy] = await listRecipes();
+    await expect(createNode('Root', root)).resolves.toEqual({ value: 'Root', base: '' });
+    await expect(createNode('Legacy', legacy)).resolves.toEqual({ value: 'Legacy', base: 'Recipes/legacy:template' });
+    await expect(createNode('Copied', { ...legacy })).rejects.toThrow('exact decoded recipe entry');
+  });
+
   it('reads node restart status with optional timestamp and timeout params', async () => {
     await expect(getNodeRestartStatus({ timestamp: '2026-01-01T00:00:00.000Z', timeout: 5000 })).resolves.toEqual({
       timestamp: '2026-01-01T00:00:00.000Z'
@@ -66,6 +161,41 @@ describe('nodel host client', () => {
 
     expect(fetch).toHaveBeenCalledWith('REST/hasRestarted', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(fetch).toHaveBeenCalledWith('REST/console?from=-1&max=200&timeout=120000', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it('blocks unsafe JSON values before parameter, action, signal, and binding writes', async () => {
+    const unsafe = { arg: Number.POSITIVE_INFINITY };
+
+    await expect(callNodeAction('Unsafe', unsafe)).rejects.toThrow('safe bounds');
+    await expect(emitNodeSignal('Unsafe', unsafe)).rejects.toThrow('safe bounds');
+    await expect(saveNodeParams(unsafe)).rejects.toThrow('safe bounds');
+    await expect(saveNodeRemoteBindings(unsafe)).rejects.toThrow('safe bounds');
+    await expect(callNodeAction('Blank', undefined)).rejects.toThrow('safe bounds');
+    await expect(saveNodeParams(undefined as unknown as Record<string, unknown>)).rejects.toThrow('safe bounds');
+    await expect(saveNodeRemoteBindings(undefined as unknown as Record<string, unknown>)).rejects.toThrow('safe bounds');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('accepts and saves prototype-like binding aliases as exact JSON payload properties', async () => {
+    const payload = JSON.parse('{"actions":{"__proto__":{"node":"Display","action":"PowerOn"},"constructor":{"node":"Display","action":"WarmUp"},"prototype":{"node":"Display","action":"CoolDown"}}}');
+
+    await expect(saveNodeRemoteBindings(payload)).resolves.toEqual({ timestamp: '2026-01-01T00:00:00.000Z' });
+    expect(fetch).toHaveBeenCalledWith('REST/remote/save', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }));
+  });
+
+  it('rejects unrepresentable and dot-only action and signal identifiers before requests', async () => {
+    await expect(callNodeAction('\ud800', {})).rejects.toThrow('cannot be represented safely');
+    await expect(emitNodeSignal('..', {})).rejects.toThrow('cannot be represented safely');
+    await expect(callNodeAction('.', {})).rejects.toThrow('cannot be represented safely');
+    expect(fetch).not.toHaveBeenCalled();
+
+    await callNodeAction('run.v2', {});
+    await emitNodeSignal('status.v2', {});
+    expect(fetch).toHaveBeenCalledWith('REST/actions/run.v2/call', expect.anything());
+    expect(fetch).toHaveBeenCalledWith('REST/events/status.v2/emit', expect.anything());
   });
 
   it('reads host diagnostics logs and measurements', async () => {
@@ -129,6 +259,7 @@ describe('nodel host client', () => {
       { path: 'docs/readme.txt' },
       { path: 'assets/image.png' },
       { path: 'bundles/archive.zip' },
+      { path: 'Script.py' },
       { path: '_generated.json' },
       { path: 'nested/_cache.json' },
       { path: 'script_backup_2026.py' },
@@ -156,6 +287,12 @@ describe('nodel host client', () => {
         const path = decodeURIComponent(url.split('path=')[1]);
         return new Response(Uint8Array.from(payloads.get(path) ?? []), { status: 200 }) as never;
       }
+      if (url.endsWith('/nodes/BinaryCopy/REST/script/save')) {
+        saveOrder.push('script.py');
+        saved.set('script.py', Array.from(new TextEncoder().encode(JSON.parse(String(init?.body)).script)));
+        expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+        return new Response('{}', { status: 200 }) as never;
+      }
       if (url.includes('/nodes/BinaryCopy/REST/files/save?path=')) {
         const path = decodeURIComponent(url.split('path=')[1]);
         const body = init?.body as ArrayBuffer;
@@ -178,6 +315,7 @@ describe('nodel host client', () => {
       copied: saveOrder,
       failed: [],
       skipped: [
+        'Script.py',
         '_generated.json',
         'nested/_cache.json',
         'script_backup_2026.py',
@@ -185,6 +323,7 @@ describe('nodel host client', () => {
         'nodeConfig.json'
       ]
     });
+    expect(result.skippedDetails).toContainEqual({ path: 'Script.py', reason: 'Case-only script.py aliases cannot be copied safely.' });
     expect(progress).toEqual(['creating', 'waiting', 'copying', 'copying', 'copying', 'copying', 'complete']);
   });
 
@@ -216,6 +355,49 @@ describe('nodel host client', () => {
     expect(saves).toEqual(['nodeConfig.json']);
   });
 
+  it('treats only root nodeConfig.json case aliases as configuration', async () => {
+    const source = 'http://source/nodes/Original/';
+    const reads: string[] = [];
+    const saves: string[] = [];
+    let files = [
+      { path: 'NODECONFIG.JSON' },
+      { path: 'nodeConfig.json' },
+      { path: 'NodeConfig.json' },
+      { path: 'templates/nodeConfig.json' }
+    ];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === `${source}REST/files`) {
+        return new Response(JSON.stringify(files), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/AliasCopy/REST/')) {
+        return new Response('{}', { status: 200 }) as never;
+      }
+      if (url.startsWith(`${source}REST/files/contents?path=`)) {
+        reads.push(decodeURIComponent(url.split('path=')[1]));
+        return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
+      }
+      if (url.includes('/nodes/AliasCopy/REST/files/save?path=')) {
+        saves.push(decodeURIComponent(url.split('path=')[1]));
+        return new Response('{}', { status: 200 }) as never;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch);
+
+    const excluded = await duplicateNode(source, 'Alias Copy');
+    expect(excluded.skipped).toEqual(['NODECONFIG.JSON', 'nodeConfig.json', 'NodeConfig.json']);
+    expect(reads).toEqual(['templates/nodeConfig.json']);
+    expect(saves).toEqual(['templates/nodeConfig.json']);
+
+    reads.length = 0;
+    saves.length = 0;
+    files = [{ path: 'NODECONFIG.JSON' }, { path: 'NodeConfig.json' }, { path: 'templates/nodeConfig.json' }];
+    const included = await duplicateNode(source, 'Alias Copy', { includeNodeConfig: true });
+    expect(included.skipped).toEqual(['NodeConfig.json']);
+    expect(reads).toEqual(['templates/nodeConfig.json', 'NODECONFIG.JSON']);
+    expect(saves).toEqual(['templates/nodeConfig.json', 'nodeConfig.json']);
+  });
+
   it('deduplicates exact duplicate source paths before copying', async () => {
     const source = 'http://source/nodes/Original/';
     const saves: string[] = [];
@@ -229,6 +411,10 @@ describe('nodel host client', () => {
       }
       if (url.startsWith(`${source}REST/files/contents?path=`)) {
         return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
+      }
+      if (url.endsWith('/nodes/DedupedCopy/REST/script/save')) {
+        saves.push('script.py');
+        return new Response('{}', { status: 200 }) as never;
       }
       if (url.includes('/nodes/DedupedCopy/REST/files/save?path=')) {
         saves.push(decodeURIComponent(url.split('path=')[1]));
@@ -244,20 +430,31 @@ describe('nodel host client', () => {
     expect(result.skipped).toEqual(['same.txt']);
   });
 
-  it('rejects ambiguous duplicate source paths and oversized metadata before creating the destination', async () => {
+  it('skips legacy source paths and rejects oversized portable metadata before creating the destination', async () => {
     const source = 'http://source/nodes/Original/';
     const calls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
       if (url === `${source}REST/files`) {
-        return new Response(JSON.stringify([{ path: 'content/é.txt' }, { path: 'content/é.txt' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+        return new Response(JSON.stringify([{ path: 'content/legacy:one.txt' }, { path: 'content/é.txt' }, { path: 'content/unpaired\ud800name.txt' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
+      }
+      if (url === '/REST/newNode' || url.endsWith('/nodes/AmbiguousCopy/REST/')) {
+        return new Response('{}', { status: 200 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch);
 
-    await expect(duplicateNode(source, 'Ambiguous Copy')).rejects.toThrow('ambiguous duplicate paths');
-    expect(calls).toEqual([`${source}REST/files`]);
+    await expect(duplicateNode(source, 'Ambiguous Copy')).resolves.toMatchObject({
+      copied: [],
+      skipped: ['content/legacy:one.txt', 'content/é.txt', 'content/unpaired\ud800name.txt'],
+      skippedDetails: [
+        { path: 'content/legacy:one.txt', reason: 'Legacy path is read-only and cannot be copied safely.' },
+        { path: 'content/é.txt', reason: 'Legacy path is read-only and cannot be copied safely.' },
+        { path: 'content/unpaired\ud800name.txt', reason: 'Legacy path is read-only and cannot be copied safely.' }
+      ]
+    });
+    expect(calls).toEqual([`${source}REST/files`, '/REST/newNode', expect.stringContaining('/nodes/AmbiguousCopy/REST/')]);
 
     calls.length = 0;
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
@@ -294,6 +491,10 @@ describe('nodel host client', () => {
       }
       if (url.startsWith(`${source}REST/files/contents?path=`)) {
         return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
+      }
+      if (url.endsWith('/nodes/PartialCopy/REST/script/save')) {
+        saves.push('script.py');
+        return new Response('{}', { status: 200 }) as never;
       }
       if (url.includes('/nodes/PartialCopy/REST/files/save?path=')) {
         const path = decodeURIComponent(url.split('path=')[1]);
@@ -332,7 +533,7 @@ describe('nodel host client', () => {
       if (url.includes('/nodes/BrokenCopy/REST/files/save?path=support.txt')) {
         return new Response('{}', { status: 200 }) as never;
       }
-      if (url.includes('/nodes/BrokenCopy/REST/files/save?path=script.py')) {
+      if (url.includes('/nodes/BrokenCopy/REST/script/save')) {
         return new Response('recipe rejected', { status: 500 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);

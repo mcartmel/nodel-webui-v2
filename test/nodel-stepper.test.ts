@@ -3,7 +3,7 @@ import { flush } from './helpers';
 const actionMock = vi.hoisted(() => ({ callNodeAction: vi.fn() }));
 const activityMock = vi.hoisted(() => ({ listeners: [] as Array<(state: any) => void>, dispose: vi.fn() }));
 
-vi.mock('../src/api/nodel-host-client', () => ({ callNodeAction: actionMock.callNodeAction }));
+vi.mock('../src/api/nodel-host-client', () => ({ callNodeAction: (name: string, payload: unknown) => actionMock.callNodeAction(name, payload) }));
 vi.mock('../src/data/node-activity-source', () => ({
   subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
     activityMock.listeners.push(listener);
@@ -98,6 +98,44 @@ describe('nodel-stepper', () => {
 
     expect(actionMock.callNodeAction).not.toHaveBeenCalled();
     expect(stepper.getAttribute('value')).toBe('20');
+  });
+
+  it('does not let a cancelled confirmation from an old connection roll back a fresh value', async () => {
+    document.body.innerHTML = '<nodel-stepper action="SetTemp" value="20" confirm-text="Set value?"></nodel-stepper>';
+    await customElements.whenDefined('nodel-stepper');
+    await Promise.resolve();
+
+    const stepper = document.querySelector('nodel-stepper') as HTMLElement;
+    stepper.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+    });
+    stepper.querySelector('.nodel-stepper-increase')?.dispatchEvent(pointerDown());
+
+    document.body.removeChild(stepper);
+    document.body.appendChild(stepper);
+    stepper.setAttribute('value', '30');
+    stepper.removeAttribute('confirm-text');
+    stepper.querySelector('.nodel-stepper-shell')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetTemp', { arg: 31 });
+    expect(stepper.getAttribute('value')).toBe('31');
+  });
+
+  it('clears repeat ownership when disconnected between generations', async () => {
+    document.body.innerHTML = '<nodel-stepper action="SetTemp" value="20"></nodel-stepper>';
+    await customElements.whenDefined('nodel-stepper');
+    await Promise.resolve();
+
+    const stepper = document.querySelector('nodel-stepper') as HTMLElement & { repeatStartValue?: string | null };
+    stepper.querySelector('.nodel-stepper-increase')?.dispatchEvent(pointerDown());
+    expect(stepper.repeatStartValue).toBe('20');
+
+    document.body.removeChild(stepper);
+    expect(stepper.repeatStartValue).toBeNull();
+    document.body.appendChild(stepper);
+    stepper.setAttribute('value', '30');
+    expect(stepper.repeatStartValue).toBeNull();
   });
 
   it('ignores stale failed commits after a newer stepper value succeeds', async () => {
