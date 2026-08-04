@@ -146,6 +146,17 @@ test.describe('theme first paint and preferences', () => {
     await expectFocusIsNotClipped(control);
   });
 
+  test('keeps embedded collapse surfaces flat', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Surface checks run once for each desktop colour theme.');
+
+    await openCatalogue(page, 'Collapse');
+    const collapses = page.locator('[data-catalogue-example="layout-collapse"] .nodel-collapse');
+    await expect(collapses.first()).toBeVisible();
+    for (const collapse of await collapses.all()) {
+      await expect(collapse).toHaveCSS('box-shadow', 'none');
+    }
+  });
+
   test('uses stronger control boundaries and focus outlines for increased contrast', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
 

@@ -520,6 +520,10 @@
     @apply block min-w-0 space-y-1;
   }
 
+  .nodel-schema-check > .nodel-choice {
+    @apply mt-1.5;
+  }
+
   .nodel-schema-root-object {
     @apply min-w-0 overflow-hidden rounded-control bg-nodel-bg/25;
     background: var(--nodel-subtle-background, rgb(var(--nodel-bg) / 0.25));

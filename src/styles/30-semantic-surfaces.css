@@ -551,7 +551,8 @@
   }
 
   .nodel-collapse {
-    @apply overflow-hidden;
+    @apply overflow-hidden shadow-none;
+    box-shadow: none;
   }
 
   .nodel-collapse-summary {

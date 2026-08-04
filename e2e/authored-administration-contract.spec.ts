@@ -68,14 +68,19 @@ test.describe('no-build authored administration contract', () => {
       body: JSON.stringify({
         type: 'object',
         properties: {
-          label: { type: 'string', title: 'Display label', required: true }
+          label: { type: 'string', title: 'Display label', required: true },
+          connectOnStart: {
+            type: 'boolean',
+            title: 'Connect on start',
+            desc: 'Automatically connect when the node starts.'
+          }
         }
       })
     }));
     await page.route('**/nodes/Demo/REST/params', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ label: 'Fixture value' })
+      body: JSON.stringify({ label: 'Fixture value', connectOnStart: true })
     }));
     await page.route('**/nodes/Demo/REST/remote/schema', (route) => route.fulfill({
       status: 200,
@@ -125,6 +130,16 @@ test.describe('no-build authored administration contract', () => {
     const params = page.locator('nodel-params');
     await expect(params.locator('[data-params-form] .nodel-field')).toHaveValue('Fixture value');
     await expect(params).toContainText('Display label');
+    const checkboxLabel = params.locator('.nodel-schema-check', { hasText: 'Connect on start' });
+    const checkbox = checkboxLabel.getByRole('checkbox');
+    const checkboxTitle = checkboxLabel.locator('.nodel-schema-control-stack > .font-medium');
+    await expect(checkbox).toBeChecked();
+    const [checkboxBox, titleBox] = await Promise.all([checkbox.boundingBox(), checkboxTitle.boundingBox()]);
+    expect(checkboxBox).not.toBeNull();
+    expect(titleBox).not.toBeNull();
+    expect(Math.abs(
+      (checkboxBox!.y + checkboxBox!.height / 2) - (titleBox!.y + titleBox!.height / 2)
+    )).toBeLessThanOrEqual(1);
 
     const bindings = page.locator('nodel-bindings');
     await expect(bindings.locator('[data-bindings-section="actions"]')).toContainText('Start action');
