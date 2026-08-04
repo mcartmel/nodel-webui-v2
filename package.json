@@ -1,6 +1,6 @@
 {
   "name": "nodel-webui-v2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The next-generation web interface for Nodel",
   "license": "MPL-2.0",
   "repository": "github:mcartmel/nodel-webui-v2",
@@ -17,12 +17,18 @@
     "test:watch": "vitest",
     "build:preview": "vite build",
     "test:browser": "npm run build:preview && playwright test",
+    "test:browser:dist": "playwright test",
     "build": "npm run typecheck && npm run check:jsviews && npm run test && vite build && node ./scripts/verify-release-gate.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:preview": "npm run build && node ./scripts/deploy.mjs --target ./build/deploy-preview",
-    "deploy:catalog:preview": "npm run build && node ./scripts/deploy-catalog.mjs --target ./build/deploy-catalog-preview",
-    "deploy:catalog": "npm run build && node ./scripts/deploy-catalog.mjs",
-    "deploy": "npm run build && node ./scripts/deploy.mjs"
+    "deploy:catalog:preview": "npm run build && node ./scripts/deploy.mjs --target ./build/deploy-catalog-support && node ./scripts/deploy-catalog.mjs --support-root ./build/deploy-catalog-support --target ./build/deploy-catalog-preview",
+    "deploy:test": "npm run build && node ./scripts/deploy.mjs --java-checkout ../nodel --expected-java-branch dev --target ./build/stage11-host/custom/content",
+    "deploy:catalog:test": "npm run build && node ./scripts/deploy.mjs --java-checkout ../nodel --expected-java-branch dev --target ./build/stage11-host/custom/content && node ./scripts/deploy-catalog.mjs --support-root ./build/stage11-host/custom/content --target \"./build/stage11-host/nodes/Nodel Components Catalog/content\"",
+    "test:deployment:smoke": "node ./scripts/run-deployment-smoke.mjs",
+    "verify:dist": "node ./scripts/verify-deployment-inventory.mjs",
+    "verify:java-handoff": "node ./scripts/verify-java-handoff.mjs",
+    "release:prepare": "node ./scripts/prepare-release.mjs",
+    "release:build": "npm run build && npm run release:prepare"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.2",

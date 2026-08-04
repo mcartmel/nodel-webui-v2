@@ -11,12 +11,15 @@ permissions:
 
 jobs:
   build:
+    needs: java-handoff
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,11 +33,25 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
-      - name: Build and test
+      - name: Build
         run: npm run build
 
+      - name: Capture tested dist inventory
+        run: npm run verify:dist -- --write --json
+
       - name: Run browser visual and accessibility tests
-        run: npm run test:browser
+        run: npm run test:browser:dist
+
+      - name: Create deployment smoke roots
+        run: |
+          node scripts/deploy.mjs --target ./build/deploy-preview
+          node scripts/deploy.mjs --target ./build/stage11-host/custom/content
+
+      - name: Smoke deployed layouts
+        run: npm run test:deployment:smoke
+
+      - name: Verify tested dist continuity
+        run: npm run verify:dist -- --check --json
 
       - name: Upload Playwright artifacts
         if: failure()
@@ -45,3 +62,54 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+
+  java-handoff:
+    name: Java handoff (${{ matrix.java-branch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        java-branch: [dev, master]
+
+    steps:
+      - name: Checkout web UI
+        uses: actions/checkout@v4
+        with:
+          path: webui
+          persist-credentials: false
+
+      - name: Checkout Java Nodel
+        uses: actions/checkout@v4
+        with:
+          repository: museumsvictoria/nodel
+          ref: ${{ matrix.java-branch }}
+          path: nodel
+          persist-credentials: false
+
+      - name: Put Java checkout on named branch
+        working-directory: webui
+        run: git -C ../nodel switch -C "${{ matrix.java-branch }}" --track "origin/${{ matrix.java-branch }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12.0
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Verify Java handoff manifest and collision compatibility
+        working-directory: webui
+        run: >-
+          node scripts/verify-java-handoff.mjs
+          --java-checkout ../nodel
+          --expected-branch "${{ matrix.java-branch }}"
+          --output "build/java-handoff/${{ matrix.java-branch }}.json"
+          --json
+
+      - name: Upload Java handoff report
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-handoff-${{ matrix.java-branch }}
+          path: webui/build/java-handoff/${{ matrix.java-branch }}.json
+          if-no-files-found: error

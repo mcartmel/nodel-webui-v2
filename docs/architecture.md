@@ -175,9 +175,11 @@ The deploy script follows the v1 convention of a root page plus versioned suppor
 
 `npm run deploy:preview` writes the same structure inside the project at `build/deploy-preview/`. Use this for local smoke tests that should not touch a running Nodel content directory.
 
-`npm run deploy` writes to the Nodel custom content root, defaulting to `/opt/nodel/custom/content/`.
-
-The command clears and replaces its target. Use it only where that custom content directory is intentionally disposable test state. Production Nodel builds consume a validated release bundle through their separate build/integration process.
+The isolated test interface builds first and invokes `scripts/deploy.mjs` with an
+explicit sibling Java checkout and disposable target. It clears and replaces
+that target only after managed-target, inventory, and handoff checks. Production
+Nodel builds consume a validated release bundle through their separate Java
+build/integration process; this repository has no production installer.
 
 Both deployment commands write:
 
@@ -185,24 +187,31 @@ Both deployment commands write:
 - visual pages such as `nodes.html`, `nodel.html`, `toolkit.html`, and the user-facing `components.html` catalogue into the target content root.
 - built JavaScript and CSS under the `v2/` support folder in that same target.
 
-This lets the custom content root override the built-in default document and visual pages for testing without replacing the built-in v1 support files. The support folder can be changed with `--support-subdir`, but `v2` is the default convention for this UI.
+This lets the custom content root override the built-in default document and visual pages for testing without replacing the built-in v1 support files. The deployment contract fixes the support subdirectory at `v2/`; there is no `--support-subdir` deployment option. Changing it requires a new manifest and release contract rather than a per-command override.
 
 ## Release Bundle
 
-Version tags matching `package.json` publish a versioned, deployable ZIP through GitHub Releases. Its root contains the built pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and `release.json`. The manifest identifies the package version, source commit, and tested Java Nodel API contract range used by the release.
+Version tags matching `package.json` publish a versioned release ZIP through GitHub Releases. Its handoff layout contains the five built entry pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `RELEASE_NOTES.md`, and `release.json`; the Java handoff additionally carries `deployment-manifest.json`, `PRODUCTION_HANDOFF.md`, and normalized `java-handoff/dev.json` and `java-handoff/master.json` reports. `deployment-manifest.json` maps integration policy, while `release.json` identifies the exact release and hashed artifact inventory.
+
+Archive construction fixes entry ordering and source timestamps, while archive
+verification enforces the exact root, path safety, duplicate rejection, and
+hash inventory. This is deterministic release layout evidence, not a claim of
+bit-for-bit reproducible ZIP bytes across ZIP implementations or environments.
 
 The release contract includes `index.htm`, `nodes.html`, `nodel.html`, `toolkit.html`, the user-facing `components.html` catalogue, and `RELEASE_NOTES.md`. Consumers must install the entire `v2/` directory because the stable JavaScript and CSS entry files can reference hashed chunks and assets. Other projects should consume a pinned release and checksum rather than rebuilding this project or downloading a mutable branch artifact.
 
-The runtime targets the tested Java Nodel API directly and does not perform generic feature negotiation. The release manifest schema is version 2 and records only the supported API contract range. This is a project-owned version for the source-backed REST/WebSocket contract recorded in `test/fixtures/java-nodel-api.json`, not the Java host's `nodelVersion` and not a value negotiated at runtime. A consuming Java build maps its implementation to this contract during packaging. Alternative-backend negotiation can be designed later from a concrete cross-backend requirement.
+The runtime targets the tested Java Nodel API directly and does not perform generic feature negotiation. The release manifest schema is version 3 and records the supported API contract range, release-process CI/environment provenance, the canonical `dist` inventory digest, and normalized hash-pinned Java handoff reports. This is a project-owned version for the source-backed REST/WebSocket contract recorded in `test/fixtures/java-nodel-api.json`, not the Java host's `nodelVersion` and not a value negotiated at runtime. A consuming Java build maps its implementation to this contract during packaging. Alternative-backend negotiation can be designed later from a concrete cross-backend requirement.
 
-This repository produces the web UI release bundle; it does not install production host files or mutate a Nodel service. The consuming Nodel build is responsible for packaging the complete support directory, MIME types, compression, cache policy, upgrade/rollback behavior, and deployment security headers.
+This repository produces the web UI release bundle; it does not install production host files or mutate a Nodel service. The future consuming Nodel build must verify the ZIP, checksum, provenance, and `release.json`, compare `deployment-manifest.json`, preserve V1 by default, and require approval for the `index.htm` collision. It is responsible for packaging the complete support directory, MIME types, compression, cache policy, upgrade/rollback behavior, and deployment security headers. See `release-handoff.md`.
 
 The Stage 0 build and request baseline is recorded in `production-baseline.md`. It is informational rather than a permanent size budget and should be refreshed after intentional runtime-loading changes.
 
 ### Release Validation
 
 - `npm run build` runs type checking, JsViews compliance, all Vitest tests, the production build, and the built-entry release gate. The gate verifies every entry page, stable assets, the catalogue's single in-memory runtime marker, authored-page modal defaults, and explicit core-page overlays.
-- `npm run test:browser` runs the exhaustive Chromium theme/device/forced-colours matrix plus focused Firefox and WebKit functional and visual release projects. Browser hosts must install Playwright's declared dependencies; the version-matched official Playwright container is the reproducible fallback when host package installation is unavailable.
+- `npm run verify:dist -- --write` creates the canonical, path-safe `build/dist-inventory.json` checkpoint from the exact `dist/` tree and deployment manifest. `--check` regenerates it and requires canonical JSON, unchanged file entries, manifest hash, and inventory digest; the report contains no machine-specific source path.
+- `npm run test:browser` retains its developer convenience build. `npm run test:browser:dist` runs the exhaustive Chromium theme/device/forced-colours matrix plus focused Firefox and WebKit functional and visual release projects against the existing exact `dist/`; CI writes a checkpoint before browser testing, checks it after deployment smoke, passes it to release preparation, and checks it again after packaging.
+- `npm run test:deployment:smoke` never builds. It requires managed markers on `build/deploy-preview` and `build/stage11-host/custom/content`, serves both roots with Chromium, checks five pages/status, stable V2 asset loading, the catalogue memory runtime, and core offline shells. It is a layout smoke boundary, not a Java API, Java package, V1 live-host, or production rollback test.
 - Catalogue runtime tests must report no action/activity backend calls or node WebSockets.
 - Before a tagged release, duplicate a disposable live node containing text, image, archive, nested, configuration, backup, and generated files. Verify byte preservation, nested paths, generated/backup filtering, opt-in configuration copying, transparent partial results, and `script.py` last. Remove the disposable nodes after validation.
 - Exercise modal offline recovery on a representative authored touch page and overlay recovery on `nodes.html`, `nodel.html`, and `toolkit.html` without losing page state or shifting layout.

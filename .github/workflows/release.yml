@@ -6,22 +6,80 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  java-handoff:
+    name: Java handoff (${{ matrix.java-branch }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        java-branch: [dev, master]
+
+    steps:
+      - name: Checkout web UI
+        uses: actions/checkout@v4
+        with:
+          path: webui
+          persist-credentials: false
+
+      - name: Checkout Java Nodel
+        uses: actions/checkout@v4
+        with:
+          repository: museumsvictoria/nodel
+          ref: ${{ matrix.java-branch }}
+          path: nodel
+          persist-credentials: false
+
+      - name: Put Java checkout on named branch
+        working-directory: webui
+        run: git -C ../nodel switch -C "${{ matrix.java-branch }}" --track "origin/${{ matrix.java-branch }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12.0
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Verify Java handoff manifest and collision compatibility
+        working-directory: webui
+        run: >-
+          node scripts/verify-java-handoff.mjs
+          --java-checkout ../nodel
+          --expected-branch "${{ matrix.java-branch }}"
+          --output "build/java-handoff/${{ matrix.java-branch }}.json"
+          --json
+
+      - name: Upload Java handoff report
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-handoff-${{ matrix.java-branch }}
+          path: webui/build/java-handoff/${{ matrix.java-branch }}.json
+          if-no-files-found: error
+
+  release:
+    needs: java-handoff
+    environment: production-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,6 +89,18 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download Java dev handoff report
+        uses: actions/download-artifact@v4
+        with:
+          name: java-handoff-dev
+          path: build/java-handoff
+
+      - name: Download Java master handoff report
+        uses: actions/download-artifact@v4
+        with:
+          name: java-handoff-master
+          path: build/java-handoff
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
@@ -52,17 +122,36 @@ jobs:
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and test
+      - name: Verify tag commit is reachable from origin/main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Build
         run: npm run build
 
+      - name: Capture tested dist inventory
+        run: npm run verify:dist -- --write --json
+
       - name: Run browser visual and accessibility tests
-        run: npm run test:browser
+        run: npm run test:browser:dist
+
+      - name: Create deployment smoke roots
+        run: |
+          node scripts/deploy.mjs --target ./build/deploy-preview
+          node scripts/deploy.mjs --target ./build/stage11-host/custom/content
+
+      - name: Smoke deployed layouts
+        run: npm run test:deployment:smoke
+
+      - name: Verify tested dist continuity before packaging
+        run: npm run verify:dist -- --check --json
 
       - name: Prepare release content
-        run: >-
-          node ./scripts/prepare-release.mjs
-          --version "${{ steps.version.outputs.version }}"
-          --commit "$GITHUB_SHA"
+        run: npm run release:prepare -- --version "${{ steps.version.outputs.version }}" --commit "$GITHUB_SHA" --branch main --tag "$GITHUB_REF_NAME" --repository "${{ github.repository }}" --source-date-epoch "$(git show -s --format=%ct "$GITHUB_SHA")" --dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json --ci-run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --approval-environment production-release
+
+      - name: Verify tested dist continuity after packaging
+        run: npm run verify:dist -- --check --json
 
       - name: Create release archive
         id: archive
@@ -76,6 +165,7 @@ jobs:
             cd build/release
             find . -type f -print | LC_ALL=C sort | zip -X "../${archive}" -@
           )
+          node scripts/verify-release-archive.mjs --target "build/${archive}" --json
           (
             cd build
             sha256sum "${archive}" > "${archive}.sha256"
@@ -102,9 +192,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          core_version="${version%%+*}"
+          release_args=()
+          if [[ "$core_version" == *-* ]]; then
+            release_args+=(--prerelease)
+          fi
+          remote_tag_commit="$(
+            git ls-remote origin "refs/tags/${GITHUB_REF_NAME}" "refs/tags/${GITHUB_REF_NAME}^{}" | {
+              direct_object=""
+              peeled_object=""
+              while IFS=$'\t' read -r object ref; do
+                if [[ "$ref" == "refs/tags/${GITHUB_REF_NAME}" ]]; then
+                  direct_object="$object"
+                elif [[ "$ref" == "refs/tags/${GITHUB_REF_NAME}^{}" ]]; then
+                  peeled_object="$object"
+                fi
+              done
+              printf '%s' "${peeled_object:-$direct_object}"
+            }
+          )"
+          if [[ -z "$remote_tag_commit" || "$remote_tag_commit" != "$GITHUB_SHA" ]]; then
+            echo "Remote origin tag ${GITHUB_REF_NAME} is absent or no longer resolves to ${GITHUB_SHA}" >&2
+            exit 1
+          fi
           gh release create "$GITHUB_REF_NAME" \
             "${{ steps.archive.outputs.archive }}#Deployable Nodel Web UI bundle" \
             "${{ steps.archive.outputs.checksum }}#SHA-256 checksum" \
             --verify-tag \
             --notes-file RELEASE_NOTES.md \
-            --title "Nodel Web UI v2 ${GITHUB_REF_NAME}"
+            --title "Nodel Web UI v2 ${GITHUB_REF_NAME}" \
+            "${release_args[@]}"

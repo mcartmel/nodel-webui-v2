@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "artifact": {
+    "name": "nodel-webui-v2",
+    "repository": "mcartmel/nodel-webui-v2",
+    "stableEntries": [
+      "components.html",
+      "index.htm",
+      "nodel.html",
+      "nodes.html",
+      "toolkit.html"
+    ],
+    "supportTree": "v2/**"
+  },
+  "v1": {
+    "defaultPolicy": "preserve",
+    "protectedOwnership": {
+      "path": "nodel-webui-js/src/**",
+      "rule": "no-overwrite-except-declared-collisions"
+    },
+    "collisions": [
+      {
+        "path": "index.htm",
+        "bundle": "included",
+        "isolatedTestDeployment": "install",
+        "productionJavaMerge": {
+          "default": "preserve-v1",
+          "requiresRecordedApproval": true
+        }
+      }
+    ]
+  },
+  "java": {
+    "repository": "museumsvictoria/nodel",
+    "v1Source": "nodel-webui-js/src",
+    "cleanlinessIgnoredPaths": [
+      ".gradle/**",
+      "build/**"
+    ],
+    "targets": {
+      "dev": "prerelease",
+      "master": "stable"
+    }
+  }
+}
