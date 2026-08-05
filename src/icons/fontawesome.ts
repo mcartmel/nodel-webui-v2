@@ -28,6 +28,10 @@ import {
   faVolumeXmark,
   faXmark
 } from '@fortawesome/free-solid-svg-icons';
+import { controlIconNames, type ControlIconName } from './control-icon-names';
+
+export { controlIconNames } from './control-icon-names';
+export type { ControlIconName } from './control-icon-names';
 
 type FontAwesomeIcon = typeof faSun;
 
@@ -72,7 +76,7 @@ export const toastIcons = {
   warning: faTriangleExclamation
 };
 
-export const controlIcons = {
+const controlIconMap = {
   action: logIcons.action,
   arrow: logIcons.remote,
   event: logIcons.event,
@@ -91,9 +95,11 @@ export const controlIcons = {
   warning: toastIcons.warning,
   volume: uiIcons.volume,
   'volume-low': uiIcons.volumeLow
-} as const;
+} satisfies Record<ControlIconName, FontAwesomeIcon>;
 
-export type ControlIconName = keyof typeof controlIcons;
+export const controlIcons = Object.fromEntries(
+  controlIconNames.map((name) => [name, controlIconMap[name]])
+) as Record<ControlIconName, FontAwesomeIcon>;
 
 export function iconForName(value: string | null, fallback?: FontAwesomeIcon) {
   const key = (value ?? '').trim() as ControlIconName;

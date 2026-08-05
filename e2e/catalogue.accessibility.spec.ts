@@ -7,8 +7,9 @@ type Box = { height: number; width: number; x: number; y: number };
 type BoundarySample = { box: Box; borderWidth: number; name: string; surface: string };
 type StatusSample = { box: Box; name: string; surface: string };
 
-const representativeViews = [
+const representativeViews: Array<{ pageId: string; selector: string; openReference?: boolean }> = [
   { pageId: 'Buttons', selector: '[data-catalogue-example="buttons-variants"]' },
+  { pageId: 'Buttons', selector: '[data-catalogue-reference-for="nodel-button"]', openReference: true },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="palette-native"]' },
   { pageId: 'FadersMeters', selector: '[data-catalogue-example="faders-compound-fader"]' },
@@ -28,6 +29,10 @@ async function openCatalogue(page: Page, pageId: string) {
 
 function isDesktopThemeProject(testInfo: TestInfo) {
   return testInfo.project.name === 'chromium-light-desktop' || testInfo.project.name === 'chromium-dark-desktop';
+}
+
+function isAxeProject(testInfo: TestInfo) {
+  return isDesktopThemeProject(testInfo) || testInfo.project.name === 'chromium-forced-colors';
 }
 
 function parseRgb(value: string): Rgb {
@@ -101,10 +106,29 @@ function sampleStatusMark(png: PNG, box: Box) {
 
 test.describe('catalogue accessibility', () => {
   test('has no axe violations in representative catalogue views in each theme', async ({ page }, testInfo) => {
-    test.skip(!isDesktopThemeProject(testInfo), 'Axe runs once for each desktop colour theme.');
+    test.skip(!isAxeProject(testInfo), 'Axe runs once for each desktop colour theme and the opened reference in forced colours.');
 
-    for (const view of representativeViews) {
+    const views = testInfo.project.name === 'chromium-forced-colors'
+      ? representativeViews.filter((view) => view.openReference)
+      : representativeViews;
+    for (const view of views) {
       await openCatalogue(page, view.pageId);
+      if (view.openReference) {
+        const summary = page.locator(`${view.selector} .nodel-collapse-summary`);
+        await summary.click();
+        if (testInfo.project.name === 'chromium-forced-colors') {
+          const region = page.locator(`${view.selector} .nodel-catalogue-reference-table-scroll`);
+          await summary.focus();
+          await page.keyboard.press('Tab');
+          await expect(region).toBeFocused();
+          const outline = await region.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return { style: style.outlineStyle, width: Number.parseFloat(style.outlineWidth) };
+          });
+          expect(outline.style).not.toBe('none');
+          expect(outline.width).toBeGreaterThanOrEqual(3);
+        }
+      }
       const results = await new AxeBuilder({ page })
         .include(view.selector)
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

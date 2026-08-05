@@ -473,6 +473,19 @@
     @apply min-w-0 flex-1;
   }
 
+  .nodel-confirm-dialog-code {
+    @apply block;
+  }
+
+  .nodel-confirm-dialog-code .nodel-confirm-icon {
+    @apply absolute left-5 top-5;
+  }
+
+  .nodel-confirm-dialog-code .nodel-confirm-title,
+  .nodel-confirm-dialog-code .nodel-confirm-text {
+    margin-left: 3.5rem;
+  }
+
   .nodel-confirm-title {
     @apply m-0 text-base font-semibold leading-6 text-nodel-fg;
   }
@@ -482,7 +495,7 @@
   }
 
   .nodel-confirm-code {
-    @apply mt-4 space-y-3;
+    @apply mt-4 flex flex-col gap-3;
   }
 
   .nodel-confirm-code-status {

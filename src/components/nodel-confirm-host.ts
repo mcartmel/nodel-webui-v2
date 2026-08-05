@@ -56,13 +56,14 @@ export class NodelConfirmHost extends HTMLElement {
       detail.resolve(false);
       return;
     }
+    const mode = detail.mode === 'code' ? 'code' : 'standard';
     this.state = {
       title: detail.title?.trim() || 'Confirm action',
-      text: detail.text?.trim() || 'Continue?',
+      text: detail.text?.trim() || (mode === 'code' ? 'Enter the operator code.' : 'Continue?'),
       confirmLabel: detail.confirmLabel?.trim() || 'Confirm',
       cancelLabel: detail.cancelLabel?.trim() || 'Cancel',
       tone: normalizeToastTone(detail.tone),
-      mode: detail.mode === 'code' ? 'code' : 'standard',
+      mode,
       codeSignal: trimPointReference(detail.codeSignal ?? '') || 'ConfirmCode',
       codeStatus: 'loading',
       expectedCode: null,
@@ -341,11 +342,12 @@ export class NodelConfirmHost extends HTMLElement {
 
     const confirmClass = state.tone === 'danger' ? 'nodel-button nodel-button-danger' : 'nodel-button nodel-button-primary';
     const codeReady = state.mode === 'code' && state.codeStatus === 'ready';
-    const codeStatus = state.codeStatus === 'loading' ? 'Loading operator code...' : state.codeStatus === 'ready' ? 'Enter operator code.' : 'Operator code unavailable.';
+    const codeStatus = state.codeStatus === 'loading' ? 'Loading operator code...' : state.codeStatus === 'ready' ? 'Operator code ready.' : 'Operator code unavailable.';
+    const codeStatusClass = `nodel-confirm-code-status${state.codeStatus === 'ready' ? ' sr-only' : ''}`;
     const enteredCount = state.enteredCode.length;
     const codeMarkup = state.mode === 'code' ? `
       <div class="nodel-confirm-code">
-        <p id="nodel-confirm-code-status" class="nodel-confirm-code-status" role="status" aria-live="polite">${codeStatus}</p>
+        <p id="nodel-confirm-code-status" class="${codeStatusClass}" role="status" aria-live="polite">${codeStatus}</p>
         <div class="nodel-confirm-code-entry" role="status" aria-label="${enteredCount} digit${enteredCount === 1 ? '' : 's'} entered">
           <span aria-hidden="true">${enteredCount > 0 ? '•'.repeat(enteredCount) : 'No digits entered'}</span>
         </div>
@@ -360,7 +362,7 @@ export class NodelConfirmHost extends HTMLElement {
     const describedBy = state.mode === 'code' ? 'nodel-confirm-text nodel-confirm-code-status' : 'nodel-confirm-text';
     this.innerHTML = `
       <div class="nodel-confirm-backdrop" data-confirm-action="cancel"></div>
-      <section class="nodel-confirm-dialog nodel-panel nodel-confirm-${state.tone}" role="dialog" aria-modal="true" aria-labelledby="nodel-confirm-title" aria-describedby="${describedBy}">
+      <section class="nodel-confirm-dialog nodel-panel nodel-confirm-${state.tone}${state.mode === 'code' ? ' nodel-confirm-dialog-code' : ''}" role="dialog" aria-modal="true" aria-labelledby="nodel-confirm-title" aria-describedby="${describedBy}">
         <div class="nodel-confirm-icon" aria-hidden="true">${toneIconMarkup[state.tone]}</div>
         <div class="nodel-confirm-body">
           <h2 id="nodel-confirm-title" class="nodel-confirm-title">${escapeHtml(state.title)}</h2>

@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="/src/styles.css" />
     <!-- The catalogue marker installs the page-only in-memory action/signal runtime before components upgrade. Do not copy it to node pages. -->
     <script type="module" src="/src/main.ts" data-nodel-runtime="memory"></script>
+    <script type="module" src="/src/catalogue/component-reference.ts"></script>
   </head>
   <body>
     <nodel-app title="Nodel UI Components">
@@ -35,6 +36,27 @@
       </nodel-toolbar>
 
       <nodel-page title="Layout">
+        <nodel-page title="App Shell">
+          <header class="nodel-catalogue-header">
+            <h1 class="nodel-catalogue-title">App Shell</h1>
+            <p class="nodel-catalogue-description">
+              Use these components to provide the application shell, generated navigation, toolbar actions, theme selection, and footer structure around authored pages.
+            </p>
+          </header>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Attribute Reference</h2>
+              <p class="nodel-catalogue-description">Open a component to see its complete authored attribute API.</p>
+            </header>
+            <div data-catalogue-reference="nodel-app"></div>
+            <div data-catalogue-reference="nodel-toolbar"></div>
+            <div data-catalogue-reference="nodel-page"></div>
+            <div data-catalogue-reference="nodel-theme-toggle"></div>
+            <div data-catalogue-reference="nodel-footer"></div>
+          </section>
+        </nodel-page>
+
         <nodel-page title="Columns">
           <header class="nodel-catalogue-header">
             <h1 class="nodel-catalogue-title">Columns</h1>
@@ -116,6 +138,9 @@
     &lt;nodel-text surface=&quot;card&quot; tone=&quot;default&quot;&gt;2 column&lt;/nodel-text&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <div data-catalogue-reference="nodel-row"></div>
+          <div data-catalogue-reference="nodel-column"></div>
         </nodel-page>
 
         <nodel-page title="Responsive">
@@ -220,6 +245,8 @@
     &lt;/nodel-collapse&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <div data-catalogue-reference="nodel-collapse"></div>
         </nodel-page>
 
         <nodel-page title="Visibility">
@@ -427,6 +454,8 @@
     &lt;/nodel-group&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-link"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -567,6 +596,10 @@
   &lt;/nodel-control-grid&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
+
+          <div data-catalogue-reference="nodel-control-grid"></div>
+          <div data-catalogue-reference="nodel-control-space"></div>
+          <div data-catalogue-reference="nodel-group"></div>
         </nodel-page>
 
         <nodel-page title="Templates">
@@ -703,6 +736,8 @@
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
           </section>
+
+          <div data-catalogue-reference="nodel-template"></div>
         </nodel-page>
 
         <nodel-page title="Pickers &amp; Precision">
@@ -752,6 +787,9 @@
     &lt;nodel-stepper action=&quot;SetTemp&quot; signal=&quot;Temp&quot; value=&quot;22&quot; min=&quot;16&quot; max=&quot;28&quot; step=&quot;0.5&quot; suffix=&quot;C&quot; variant=&quot;info&quot; tone=&quot;outline&quot;&gt;&lt;/nodel-stepper&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-select"></div>
+            <div data-catalogue-reference="nodel-stepper"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -785,6 +823,8 @@
     &lt;nodel-pad center=&quot;hide&quot; press-mode=&quot;momentary&quot; up-actions=&quot;TiltUp:press; Stop:release&quot; down-actions=&quot;TiltDown:press; Stop:release&quot; left-actions=&quot;PanLeft:press; Stop:release&quot; right-actions=&quot;PanRight:press; Stop:release&quot; variant=&quot;warning&quot; tone=&quot;outline&quot;&gt;&lt;/nodel-pad&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-pad"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -824,6 +864,8 @@
     &lt;nodel-readout type=&quot;boolean&quot; visual=&quot;status&quot; value=&quot;on&quot; variant=&quot;success&quot;&gt;&lt;/nodel-readout&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-readout"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -851,6 +893,8 @@
     &lt;nodel-palette action=&quot;SetColour&quot; value=&quot;#00ff00&quot; picker=&quot;native&quot; format=&quot;hsl&quot; live live-interval=&quot;100&quot; variant=&quot;primary&quot; tone=&quot;soft&quot;&gt;&lt;/nodel-palette&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-palette"></div>
           </section>
         </nodel-page>
 
@@ -1047,6 +1091,9 @@
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
+
+          <div data-catalogue-reference="nodel-fader"></div>
+          <div data-catalogue-reference="nodel-meter"></div>
         </nodel-page>
 
         <nodel-page title="Toggles &amp; Segmented">
@@ -1139,6 +1186,8 @@
     &lt;nodel-toggle action=&quot;SetShutdown&quot; signal=&quot;Shutdown&quot; confirm-mode=&quot;code&quot; confirm-code-signal=&quot;ConfirmCode&quot; confirm-title=&quot;Confirm shutdown&quot; confirm-text=&quot;Enter the operator code&quot; confirm-tone=&quot;danger&quot; variant=&quot;danger&quot;&gt;&lt;/nodel-toggle&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-toggle"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -1186,6 +1235,8 @@
     &lt;/nodel-segmented&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-segmented"></div>
           </section>
         </nodel-page>
 
@@ -1278,6 +1329,9 @@
     &lt;nodel-icon name=&quot;warning&quot; tone=&quot;danger&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-image"></div>
+            <div data-catalogue-reference="nodel-icon"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -1303,6 +1357,8 @@
   &lt;nodel-qrcode value=&quot;https://example.org&quot;&gt;&lt;/nodel-qrcode&gt;
   &lt;nodel-qrcode value=&quot;https://example.org/visitor-guide&quot; signal=&quot;VisitorLink&quot; size=&quot;160&quot; label=&quot;Visitor guide link&quot; help=&quot;Scan to open the visitor guide&quot;&gt;&lt;/nodel-qrcode&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-qrcode"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -1336,6 +1392,8 @@
   &lt;nodel-button&gt;Mixed &lt;nodel-status-indicator value=&quot;mixed&quot; partial-on-value=&quot;mixed&quot; label=&quot;Mixed state&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
   &lt;nodel-button&gt;Zones &lt;nodel-status-indicator value=&quot;standby&quot; partial-off-value=&quot;standby&quot; partial-tone=&quot;info&quot; show-state-label partial-off-label=&quot;Some off&quot; label=&quot;Zone state&quot;&gt;&lt;/nodel-status-indicator&gt;&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-status-indicator"></div>
           </section>
 
           <section class="nodel-catalogue-section">
@@ -1375,6 +1433,8 @@
     &lt;nodel-button action=&quot;RestartNetwork&quot; tone=&quot;outline&quot;&gt;Restart&lt;/nodel-button&gt;
   &lt;/nodel-status&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+
+            <div data-catalogue-reference="nodel-status"></div>
           </section>
         </nodel-page>
 
@@ -1688,6 +1748,8 @@
   &lt;nodel-button action=&quot;SetLevel&quot; arg=&quot;42&quot; arg-type=&quot;number&quot;&gt;Level 42&lt;/nodel-button&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>
+
+          <div data-catalogue-reference="nodel-button"></div>
         </nodel-page>
       </nodel-page>
 
@@ -1749,6 +1811,8 @@
     &lt;nodel-title level=&quot;2&quot; tone=&quot;accent&quot; signal=&quot;SectionTitle&quot;&gt;Accent title waiting for SectionTitle signal&lt;/nodel-title&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <div data-catalogue-reference="nodel-title"></div>
         </nodel-page>
 
         <nodel-page title="Text">
@@ -1922,6 +1986,8 @@
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
           </section>
+
+          <div data-catalogue-reference="nodel-text"></div>
         </nodel-page>
 
         <nodel-page title="Page Primitives">
@@ -1985,6 +2051,9 @@
     &lt;/nodel-footer&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <div data-catalogue-reference="nodel-markdown"></div>
+          <div data-catalogue-reference="nodel-clock"></div>
         </nodel-page>
 
         <nodel-page title="Host Icon">
@@ -2014,6 +2083,8 @@
     &lt;nodel-host-icon signal=&quot;HostName&quot; signals=&quot;HostAddress:icon-host; HostUrl:href; HostTitle:title&quot; host=&quot;Waiting for host signal&quot;&gt;&lt;/nodel-host-icon&gt;
   &lt;/nodel-column&gt;
 &lt;/nodel-row&gt;</code></pre>
+
+          <div data-catalogue-reference="nodel-host-icon"></div>
         </nodel-page>
       </nodel-page>
 

@@ -24,9 +24,13 @@ function cssBeforeEntryScriptPlugin(): Plugin {
           return orderedHtml;
         }
 
+        if (orderedHtml.includes('data-nodel-runtime="memory"')) {
+          return orderedHtml;
+        }
+
         return orderedHtml.replace(
-          /(<script\b[^>]*\bsrc="\.\/v2\/nodel-webui\.js")/,
-          '$1 data-nodel-runtime="memory"'
+          /<script\b(?=[^>]*\btype="module")[^>]*>/,
+          (tag) => tag.replace(/>$/, ' data-nodel-runtime="memory">')
         );
       }
     }

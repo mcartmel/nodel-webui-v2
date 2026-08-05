@@ -145,6 +145,56 @@
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
   }
 
+  .nodel-catalogue-reference-table-scroll {
+    @apply min-w-0 max-w-full overflow-x-auto rounded-card border border-nodel-border bg-nodel-surface;
+  }
+
+  .nodel-catalogue-reference-table-scroll:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus ring-offset-2 ring-offset-nodel-surface;
+  }
+
+  .nodel-catalogue-reference-table {
+    @apply w-full min-w-[46rem] border-collapse text-left text-sm text-nodel-fg;
+  }
+
+  .nodel-catalogue-reference-table caption {
+    @apply sr-only;
+  }
+
+  .nodel-catalogue-reference-table th,
+  .nodel-catalogue-reference-table td {
+    @apply border-b border-nodel-border px-3 py-2.5 align-top;
+  }
+
+  .nodel-catalogue-reference-table thead th {
+    @apply bg-nodel-surfaceRaised text-xs font-semibold uppercase tracking-wide text-nodel-muted;
+  }
+
+  .nodel-catalogue-reference-table tbody tr:last-child th,
+  .nodel-catalogue-reference-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .nodel-catalogue-reference-table code {
+    @apply rounded-control bg-nodel-surfaceRaised px-1 py-0.5 font-mono text-xs text-nodel-fg;
+  }
+
+  .nodel-catalogue-reference-badge {
+    @apply inline-flex rounded-control border border-nodel-accent/40 bg-nodel-accent/10 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-nodel-accent;
+  }
+
+  .nodel-catalogue-reference-description {
+    @apply min-w-56 whitespace-normal break-words text-nodel-muted;
+  }
+
+  .nodel-catalogue-reference-legacy {
+    @apply mt-1 block rounded-control border border-nodel-warning/40 bg-nodel-warning/10 px-1.5 py-1 text-xs text-nodel-warning;
+  }
+
+  .nodel-catalogue-reference-error {
+    @apply my-3 whitespace-pre-wrap break-words;
+  }
+
   .nodel-button {
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
     --nodel-button-tone-rgb: var(--nodel-fg);

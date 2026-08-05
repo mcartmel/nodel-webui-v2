@@ -27,6 +27,8 @@ The component set has two audiences. Custom UI components are public authoring p
 
 `components.html` is a self-contained demonstration catalogue. Its page loader installs an internal in-memory runtime that seeds the signal examples and handles catalogue actions as closed-loop state changes, so the page remains useful without a running node and does not report missing action or event errors. The copied component markup remains ordinary `action`, `signal`, `signals`, `join`, and `options-signal` markup. When that markup is used on a node-specific page, it uses the normal current-node REST action and activity-signal runtime instead; the catalogue-only loader marker must not be copied to those pages.
 
+Each catalogue component also has a collapsed attribute reference generated from `src/nodel-component-metadata.ts`. The editor's HTML attribute and enum-value completions consume the same structured metadata, while this document remains the canonical prose guidance for component behavior, composition, and authoring decisions.
+
 ### Custom UI Components
 
 - `nodel-app`: top-level application shell, theme owner, and page navigation coordinator.
@@ -332,7 +334,7 @@ Pages can call one or more current-node actions whenever they are activated:
 
 `nodel-app` owns theme resolution. The theme is controlled with the `theme` attribute and mirrored to `document.documentElement.dataset.theme`.
 
-Omit `theme` to use the stored preference, then the system color scheme. Explicit `theme="light"` or `theme="dark"` overrides both.
+Omit `theme` to use the stored preference, then the system color scheme. Explicit `theme="light"` or `theme="dark"` overrides both. `theme="default"` remains a compatibility reset alias for the stored/system behavior; prefer omission in new pages.
 
 Add the following synchronous bootstrap before the stylesheet in authored pages to avoid a first-paint mismatch. It accepts only `light` and `dark`, uses a valid root theme first, then storage, then the system preference, and falls back safely when storage or media queries are unavailable.
 
@@ -580,7 +582,7 @@ Touch media components are child-aware. `nodel-image` and `nodel-icon` occupy a 
 Supported `nodel-fader` attributes:
 
 - `orientation="vertical|horizontal"`
-- `compound-align="bottom|center|top"` for vertical faders, or `end|center|start` aliases
+- `compound-align="bottom|center|top"` as the preferred values; `end|right`, `start|left`, and `middle` are compatibility aliases
 - `variant="default|primary|success|info|warning|danger|ghost"`
 - `tone="solid|soft|outline"`
 - `min`, `max`, `step`
@@ -983,8 +985,8 @@ Supported attributes:
 - `signal="SignalName"` as shorthand for `value`.
 - `signals="SignalName:target"` with targets `value`, `state`, `level`, `message`, and `label`.
 - `value`: raw status value used for state inference and auto message text.
-- `state="unknown|success|info|warning|danger|muted"`.
-- `level`: v1-style numeric level. `0` is success, `1` is warning, `2`-`4` are danger, and `5` is info.
+- `state="unknown|success|info|warning|danger|muted"`, or one of the same recognized aliases used by `value`, such as `ready`, `offline`, or `fault`.
+- `level`: v1-style numeric level parsed from an integer prefix. `0` is success, `1` is warning, `2`-`4` are danger, and `5` is info; other parsed values are unknown.
 - `message`: explicit visible status message.
 - `state-map="value:state; other:state"`: case-insensitive exact value mapping for local state words.
 - `surface="card|panel|none"`: group-like surface. Defaults to `card`.
@@ -1357,7 +1359,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Keeps newer edits visible and dirty when an older save completes, and performs best-effort modified-time/content conflict checks before unconditional Java Nodel saves.
 - Uses theme-aware editor colours for the cursor, selection, matching brackets, active line, search matches, and syntax highlighting.
 - Starts at a sensible editor height and supports vertical drag-resize.
-- Provides custom layout hints from `src/editor/nodel-document-definition.ts` for v2 `nodel-*` markup.
+- Provides custom layout hints from the shared `src/nodel-component-metadata.ts` definitions through the CodeMirror adapter in `src/editor/nodel-document-definition.ts`.
 
 Language support is loaded only when a matching file is selected. Java and SQL use maintained CodeMirror 6 language packages; Groovy and shell use the legacy-mode package because maintained CodeMirror 6 language packages are not available for those modes. In the Stage 8 production build, moving language packages out of the base editor chunk reduced that chunk from 705.17 kB / 242.57 kB gzip to 445.76 kB / 141.69 kB gzip. Matching selections load Java at 40.77 kB / 16.77 kB gzip, SQL at 14.03 kB / 6.10 kB gzip, Groovy at 4.14 kB / 1.77 kB gzip, or shell at 2.57 kB / 1.21 kB gzip, plus a shared 26.53 kB / 8.82 kB gzip parser chunk when required.
 

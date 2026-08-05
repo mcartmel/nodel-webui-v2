@@ -1,8 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { nodelDocumentElements, completeNodelDocument } from '../src/editor/nodel-document-definition';
+import { commonNodelAttributes, getEffectiveCatalogueAttributes } from '../src/nodel-component-metadata';
+import { controlIconNames } from '../src/icons/control-icon-names';
 import { bootstrapNodelComponentLoader, loadNodelComponent } from '../src/nodel-component-loader';
 import { readStyleSource } from './style-source';
+
+vi.mock('../src/data/signal-bindings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/data/signal-bindings')>();
+  return { ...actual, bootstrapSignalVisibilityBindings: () => ({ dispose() {} }) };
+});
 
 function fakeCompletionContext(text: string, explicit = true) {
   return {
@@ -203,6 +210,115 @@ describe('nodel document definition', () => {
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
   });
 
+  it('keeps neutral metadata schema, catalogue flags, and editor completions aligned', () => {
+    expect(nodelDocumentElements.find((element) => element.name === 'nodel-editor')?.catalogue).not.toBe(true);
+
+    expect(new Set(nodelDocumentElements.map((element) => element.name)).size).toBe(nodelDocumentElements.length);
+    for (const element of nodelDocumentElements) {
+      const attributes = element.attributes.map((attribute) => attribute.name);
+      expect(new Set(attributes).size, element.name).toBe(attributes.length);
+      for (const attribute of element.attributes) {
+        expect(attribute.valueType, `${element.name}.${attribute.name}`).toBeDefined();
+        if (attribute.values) {
+          expect(['enum', 'enum-or-string']).toContain(attribute.valueType);
+          expect(new Set(attribute.values).size).toBe(attribute.values.length);
+          expect(attribute.numeric, `${element.name}.${attribute.name}`).toBeUndefined();
+          if (attribute.defaultValue) {
+            expect(attribute.values).toContain(attribute.defaultValue);
+          }
+        }
+        if (attribute.numeric?.min !== undefined && attribute.numeric?.max !== undefined) {
+          expect(attribute.numeric.min).toBeLessThanOrEqual(attribute.numeric.max);
+        }
+      }
+    }
+
+    const byName = (name: string) => nodelDocumentElements.find((element) => element.name === name)!;
+    expect(byName('nodel-control-grid').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['xl', '2xl']));
+    expect(byName('nodel-stepper').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['prefix', 'repeat-delay', 'repeat-interval', 'aria-label', 'aria-labelledby']));
+    expect(byName('nodel-pad').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['up-actions', 'down-actions', 'left-actions', 'right-actions', 'center-actions', 'up-arg', 'center-label']));
+    expect(byName('nodel-palette').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['custom-label', 'allow-deselect', 'aria-label', 'aria-labelledby']));
+    expect(byName('nodel-readout').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['unit', 'prefix', 'on-label', 'warn', 'danger', 'empty', 'aria-label']));
+    expect(byName('nodel-page').attributes.map((attribute) => attribute.name)).toContain('nav-label');
+    expect(byName('nodel-button').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['value', 'color']));
+    expect(byName('nodel-template').attributes.map((attribute) => attribute.name)).toContain('data-*');
+    expect(byName('nodel-template').attributes.find((attribute) => attribute.name === 'data-*')?.completable).toBe(false);
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'action-on')?.legacy).toBeDefined();
+    expect(nodelDocumentElements.flatMap((element) => element.attributes).some((attribute) => attribute.name.startsWith('data-nodel-native-'))).toBe(false);
+
+    const effective = getEffectiveCatalogueAttributes('nodel-button');
+    expect(effective.filter((attribute) => attribute.name === 'signals')).toHaveLength(1);
+    expect(effective.find((attribute) => attribute.name === 'signals')?.description).toContain(':visibility');
+    expect(effective.filter((attribute) => attribute.common).map((attribute) => attribute.name)).toEqual(commonNodelAttributes.filter((attribute) => attribute.name !== 'signals').map((attribute) => attribute.name));
+    const rowEffective = getEffectiveCatalogueAttributes('nodel-row');
+    expect(rowEffective.filter((attribute) => attribute.name === 'signals')).toHaveLength(1);
+    expect(rowEffective.find((attribute) => attribute.name === 'signals')?.syntax).toContain('visibility(any|all)');
+    expect(completeNodelDocument(fakeCompletionContext('<nodel-row ') as never)?.options.map((option) => option.label)).toContain('signals');
+    expect(completeNodelDocument(fakeCompletionContext('<nodel-row signals="') as never)?.options).toEqual([]);
+    expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'actions')?.description).toContain('live, commit');
+    expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'actions')?.description).not.toContain('change');
+    expect(byName('nodel-stepper').attributes.find((attribute) => attribute.name === 'actions')?.description).toContain('live, commit, increase, decrease');
+    expect(byName('nodel-stepper').attributes.find((attribute) => attribute.name === 'actions')?.description).not.toContain('change');
+    expect(byName('nodel-palette').attributes.find((attribute) => attribute.name === 'actions')?.description).toContain('select, live, commit');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'actions')?.syntax).toContain('ActionName[:phase]');
+    expect(byName('nodel-pad').attributes.find((attribute) => attribute.name === 'up-actions')?.syntax).toContain('ActionName[:phase]');
+    expect(byName('nodel-select').attributes.find((attribute) => attribute.name === 'options-signal')?.syntax).toBe('SignalName[.path]');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'confirm')?.valueType).toBe('presence-or-text');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'confirm-code-signal')?.syntax).toBe('LocalSignalAlias');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'signals')?.syntax).toContain('[:target]');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'signals')?.syntax).toContain('active(any|all)');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'signal')?.syntax).toContain('[; or ,');
+    expect(effective.find((attribute) => attribute.name === 'signals')?.syntax).toContain('visibility(any|all)');
+    expect(byName('nodel-pad').attributes.find((attribute) => attribute.name === 'signal')?.syntax).toContain('SignalName[.path]:target');
+    expect(byName('nodel-pad').attributes.find((attribute) => attribute.name === 'signal')?.syntax).not.toContain('[:target]');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'disabled')?.valueType).toBe('boolean');
+    expect(byName('nodel-app').attributes.find((attribute) => attribute.name === 'theme')?.values).toEqual(['default', 'light', 'dark']);
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'disabled')?.defaultValue).toBe('false');
+    expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'variant')?.defaultValue).toBe('success');
+    expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'on-label')?.defaultValue).toBe('On');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'confirm-tone')?.defaultDescription).toContain('warning');
+    expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'confirm-title')?.defaultDescription).toContain('contextual');
+    expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'confirm-tone')?.defaultDescription).toContain('Derived');
+    expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'confirm-title')?.defaultValue).toBe('Confirm toggle');
+    expect(byName('nodel-toolbar').attributes.find((attribute) => attribute.name === 'icon-alt')?.defaultDescription).toContain('title');
+    expect(byName('nodel-column').attributes.find((attribute) => attribute.name === 'md')?.defaultDescription).toContain('inherits');
+    expect(byName('nodel-column').attributes.find((attribute) => attribute.name === 'md-order')?.defaultDescription).toContain('inherits');
+    expect(byName('nodel-pad').attributes.find((attribute) => attribute.name === 'up-label')?.defaultDescription).toContain('pad accessible label');
+    expect(byName('nodel-readout').attributes.find((attribute) => attribute.name === 'visual')?.defaultDescription).toContain('Derived');
+    expect(byName('nodel-node-list').attributes.find((attribute) => attribute.name === 'page-size')?.values).toEqual(['10', '20', '50', '100', '99999']);
+    expect(byName('nodel-node-list').attributes.find((attribute) => attribute.name === 'poll-interval')?.numeric).toMatchObject({ min: 0, exclusiveMin: true, unit: 'ms' });
+    expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'compound-align')?.values).toEqual(['bottom', 'center', 'top', 'end', 'right', 'start', 'left', 'middle']);
+    expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'compound-align')?.defaultValue).toBe('bottom');
+    expect(new Set(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'on-icon')?.values)).toEqual(new Set(controlIconNames));
+    expect(completeNodelDocument(fakeCompletionContext('<nodel-toggle on-icon="') as never)?.options[0]?.label).toBe('sun');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values?.[0]).toBe('image');
+    expect(new Set(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values)).toEqual(new Set(controlIconNames));
+    expect(byName('nodel-status').attributes.find((attribute) => attribute.name === 'state')?.valueType).toBe('enum-or-string');
+    expect(byName('nodel-status').attributes.find((attribute) => attribute.name === 'level')?.syntax).toBe('integer-prefixed text');
+    expect(byName('nodel-stepper').attributes.find((attribute) => attribute.name === 'precision')?.syntax).toBe('integer-prefixed text');
+    expect(byName('nodel-palette').attributes.find((attribute) => attribute.name === 'columns')?.syntax).toBe('integer-prefixed text');
+    expect(byName('nodel-palette').attributes.find((attribute) => attribute.name === 'live-interval')?.syntax).toBe('integer-prefixed text');
+    expect(byName('nodel-qrcode').attributes.find((attribute) => attribute.name === 'size')?.syntax).toBe('unsigned decimal');
+    expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'nav-label')?.defaultDescription).toContain('title');
+    expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'nav-id')?.defaultDescription).toContain('slugged');
+    expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'arg-type')?.defaultValue).toBe('string');
+    expect(completeNodelDocument(fakeCompletionContext('<nodel-stepper repeat="') as never)?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['hold', 'off']));
+  });
+
+  it('documents every public attribute observed by catalogue components', async () => {
+    await import('../src/main');
+    await loadNodelComponent('nodel-link');
+
+    for (const element of nodelDocumentElements.filter((definition) => definition.catalogue)) {
+      const constructor = customElements.get(element.name) as (CustomElementConstructor & { observedAttributes?: string[] }) | undefined;
+      expect(constructor, element.name).toBeDefined();
+      const documented = new Set(element.attributes.map((attribute) => attribute.name));
+      const observed = constructor?.observedAttributes ?? [];
+      const missing = observed.filter((attribute) => !attribute.startsWith('data-nodel-native-') && !documented.has(attribute));
+      expect(missing, element.name).toEqual([]);
+    }
+  });
+
   it('has document-definition entries for public main imports', async () => {
     const source = await readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8');
     const importedComponents = parseImportedComponents(source, './components/');
@@ -239,6 +355,7 @@ describe('nodel document definition', () => {
 
     const allDocumentedComponents = toUniqueSorted([...customComponents, ...coreComponents]);
     const allRegistryComponents = toUniqueSorted(nodelDocumentElements.map((element) => element.name));
+    const catalogueComponents = toUniqueSorted(nodelDocumentElements.filter((element) => element.catalogue).map((element) => element.name));
     const eagerSet = new Set(eagerComponents);
     const lazySet = new Set(lazyComponents);
 
@@ -251,6 +368,7 @@ describe('nodel document definition', () => {
     expect(allDocumentedComponents.filter((name) => !allRegistryComponents.includes(name))).toEqual([]);
     expectDisjointSets(eagerSet, lazySet);
     expect(toUniqueSorted([...eagerComponents, ...lazyComponents])).toEqual(allDocumentedComponents);
+    expect(catalogueComponents).toEqual(toUniqueSorted([...customComponents, 'nodel-link']));
 
     expect(allDocumentedComponents.filter((name) => !stylesSource.includes(`${name},`) && !stylesSource.includes(`${name} {`))).toEqual([]);
     expect(allDocumentedComponents.filter((name) => !stylesSource.includes(`${name}:not(:defined)`))).toEqual([]);
@@ -306,45 +424,19 @@ describe('nodel document definition', () => {
 
   it('keeps the component catalogue covering the public components', async () => {
     const componentsUi = await readFile(resolve(process.cwd(), 'components.html'), 'utf8');
-    const expectedComponents = [
-      'nodel-app',
-      'nodel-toolbar',
-      'nodel-page',
-      'nodel-row',
-      'nodel-column',
-      'nodel-footer',
-      'nodel-control-grid',
-      'nodel-control-space',
-      'nodel-group',
-      'nodel-template',
-      'nodel-link',
-      'nodel-button',
-      'nodel-toggle',
-      'nodel-segmented',
-      'nodel-select',
-      'nodel-stepper',
-      'nodel-pad',
-      'nodel-readout',
-      'nodel-palette',
-      'nodel-fader',
-      'nodel-meter',
-      'nodel-image',
-      'nodel-icon',
-      'nodel-qrcode',
-      'nodel-status-indicator',
-      'nodel-status',
-      'nodel-collapse',
-      'nodel-text',
-      'nodel-title',
-      'nodel-markdown',
-      'nodel-clock',
-      'nodel-theme-toggle',
-      'nodel-host-icon'
-    ];
+    const expectedComponents = nodelDocumentElements.filter((element) => element.catalogue).map((element) => element.name);
 
     for (const component of expectedComponents) {
       expect(componentsUi).toContain(`<${component}`);
     }
+
+    const template = document.createElement('template');
+    template.innerHTML = componentsUi;
+    const referenceMarkers = Array.from(template.content.querySelectorAll<HTMLElement>('[data-catalogue-reference]'))
+      .map((marker) => marker.dataset.catalogueReference ?? '');
+    expect(referenceMarkers.filter(Boolean).sort()).toEqual([...expectedComponents].sort());
+    expect(new Set(referenceMarkers).size).toBe(referenceMarkers.length);
+    expect(componentsUi).toContain('src="/src/catalogue/component-reference.ts"');
 
     const internalControlClasses = [
       'nodel-select-trigger',

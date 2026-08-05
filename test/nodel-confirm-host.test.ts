@@ -92,6 +92,7 @@ describe('nodel-confirm-host', () => {
     expect(host.hidden).toBe(false);
     expect(host.textContent).toContain('Confirm power');
     expect(host.querySelector('.nodel-confirm-warning')).not.toBeNull();
+    expect(host.querySelector('.nodel-confirm-dialog-code')).toBeNull();
     expect(trigger.inert).toBe(true);
     expect(trigger.hasAttribute('inert')).toBe(true);
     const confirm = host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')!;
@@ -189,6 +190,7 @@ describe('nodel-confirm-host', () => {
     const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
     host.confirm({ mode: 'code', codeSignal: 'OperatorPin', resolve: vi.fn() });
 
+    expect(host.querySelector('.nodel-confirm-dialog-code')).not.toBeNull();
     expect(host.textContent).toContain('Loading operator code...');
     expect(host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')?.disabled).toBe(true);
     expect(runtime.subscribeSignals).toHaveBeenCalledTimes(1);
@@ -200,6 +202,8 @@ describe('nodel-confirm-host', () => {
     runtime.emit(connectedState([signalEntry('OperatorPin', ['1', '2'])]));
     expect(host.textContent).toContain('Operator code unavailable.');
     runtime.emit(connectedState([signalEntry('OperatorPin', '1234')]));
+    expect(host.querySelector('.nodel-confirm-code-status')?.classList.contains('sr-only')).toBe(true);
+    expect(host.textContent).not.toContain('Enter operator code.');
     const digit = host.querySelector<HTMLButtonElement>('[data-confirm-code-digit="1"]')!;
     digit.focus();
     runtime.emit({ loading: false, connected: false, error: '', entries: [] });
