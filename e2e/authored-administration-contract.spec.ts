@@ -16,6 +16,7 @@ async function serveNodeAssets(page: Page) {
 test.describe('no-build authored administration contract', () => {
   test('renders parameter, binding, and editor components from a static authored page', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-light-desktop', 'The administration contract is focused on the light desktop project.');
+    await page.setViewportSize({ width: 1068, height: 700 });
 
     await page.addInitScript(() => {
       class BlockedWebSocket {
@@ -73,6 +74,18 @@ test.describe('no-build authored administration contract', () => {
             type: 'boolean',
             title: 'Connect on start',
             desc: 'Automatically connect when the node starts.'
+          },
+          topicSignals: {
+            type: 'array',
+            title: 'Topic signals',
+            desc: 'Creates Nodel signals from MQTT topics. Items: {name, topic, type, title, group, qos}. Types: string, boolean, integer, number, json, and binary.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                topic: { type: 'string' }
+              }
+            }
           }
         }
       })
@@ -80,7 +93,7 @@ test.describe('no-build authored administration contract', () => {
     await page.route('**/nodes/Demo/REST/params', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ label: 'Fixture value', connectOnStart: true })
+      body: JSON.stringify({ label: 'Fixture value', connectOnStart: true, topicSignals: [] })
     }));
     await page.route('**/nodes/Demo/REST/remote/schema', (route) => route.fulfill({
       status: 200,
@@ -140,6 +153,22 @@ test.describe('no-build authored administration contract', () => {
     expect(Math.abs(
       (checkboxBox!.y + checkboxBox!.height / 2) - (titleBox!.y + titleBox!.height / 2)
     )).toBeLessThanOrEqual(1);
+    const paramsPanel = params.locator('[data-params-form]');
+    const paramsFieldset = paramsPanel.locator('fieldset').first();
+    const topicSignals = params.locator('[data-schema-kind="array"] .nodel-collapse').first();
+    await expect(paramsFieldset).toHaveCSS('min-width', '0px');
+    await expect(topicSignals).toContainText('Topic signals');
+    const [panelBox, fieldsetBox, fieldBox, topicSignalsBox] = await Promise.all([
+      paramsPanel.boundingBox(),
+      paramsFieldset.boundingBox(),
+      params.locator('.nodel-field').first().boundingBox(),
+      topicSignals.boundingBox()
+    ]);
+    expect(panelBox).not.toBeNull();
+    for (const box of [fieldsetBox, fieldBox, topicSignalsBox]) {
+      expect(box).not.toBeNull();
+      expect(box!.x + box!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width + 1);
+    }
 
     const bindings = page.locator('nodel-bindings');
     await expect(bindings.locator('[data-bindings-section="actions"]')).toContainText('Start action');

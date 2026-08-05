@@ -46,7 +46,7 @@ const template = `
       {{else empty}}
         <div class="nodel-alert nodel-alert-md">No parameters.</div>
       {{else}}
-        <fieldset data-link="disabled{:saving}">
+        <fieldset class="min-w-0" data-link="disabled{:saving}">
           {^{if schemaForm}}
             {{include schemaForm tmpl="nodelSchemaForm"/}}
           {{/if}}
