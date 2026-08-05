@@ -589,6 +589,31 @@ describe('nodel-editor', () => {
     expect(editor.textContent).not.toContain('Files refreshed.');
   });
 
+  it('does not render an empty status pill while the editor is busy', async () => {
+    const editor = await mountEditor();
+    const status = document.querySelector<HTMLElement>('.nodel-editor-status');
+
+    (editor as any).setState({ loading: true, status: 'Loading files...' });
+    expect(status?.hidden).toBe(false);
+
+    (editor as any).setState({ status: '' });
+    expect(status?.hidden).toBe(true);
+  });
+
+  it('only renders the reload status pill when it has a message', async () => {
+    const editor = await mountEditor();
+    const status = document.querySelector<HTMLElement>('.nodel-editor-reload-status');
+
+    expect(status?.hidden).toBe(true);
+
+    (editor as any).setState({ reloadStatus: 'Waiting for node reload...' });
+    expect(status?.hidden).toBe(false);
+    expect(status?.textContent).toContain('Waiting for node reload...');
+
+    (editor as any).setState({ reloadStatus: '' });
+    expect(status?.hidden).toBe(true);
+  });
+
   it('preserves local script text and reports conflict or failure during confirmed reconciliation', async () => {
     const editor = await mountEditor();
     codeEditorMock.currentDoc = 'print("local revision")';

@@ -47,6 +47,7 @@ async function openEditorFixture(page: Page, defaultFile: string, fixture: Edito
   const editor = page.locator('#stage-8-editor-fixture nodel-editor');
   await expect(editor.locator('.cm-editor')).toBeVisible();
   await expect(editor.locator('[data-editor-file-picker] option:checked')).toContainText(defaultFile);
+  await expect(editor.locator('[data-editor-reload-status]')).toBeHidden();
   return editor;
 }
 

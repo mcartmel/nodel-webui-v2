@@ -113,7 +113,7 @@ const template = `
     {{/if}}
 
     <div class="nodel-editor-body relative">
-      <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && !notice && !loading && !saving && !deleting}">
+      <div role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-status" data-link="class{:error ? 'nodel-editor-status is-error' : 'nodel-editor-status'} hidden{:!error && (!status || (!notice && !loading && !saving && !deleting))}">
         {^{if error}}
           {^{>error}}
           {^{if editorImportError}}
@@ -123,7 +123,7 @@ const template = `
           {^{>status}}
         {{/if}}
       </div>
-      <div data-editor-reload-status role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-reload-status" hidden{:!reloadStatus}>{^{>reloadStatus}}</div>
+      <div data-editor-reload-status role="status" aria-live="polite" aria-atomic="true" class="nodel-editor-reload-status" data-link="hidden{:!reloadStatus}">{^{>reloadStatus}}</div>
       <section class="nodel-editor-main min-w-0">
         <div data-editor-host class="nodel-editor-host"></div>
       </section>
