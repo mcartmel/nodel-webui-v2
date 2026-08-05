@@ -20,6 +20,7 @@
     "test:browser:dist": "playwright test",
     "build": "npm run typecheck && npm run check:jsviews && npm run test && vite build && node ./scripts/verify-release-gate.mjs",
     "preview": "vite preview --host 0.0.0.0",
+    "deploy:local": "npm run build:preview && rsync -a --delete dist/ /opt/nodel/custom/content/",
     "deploy:preview": "npm run build && node ./scripts/deploy.mjs --target ./build/deploy-preview",
     "deploy:catalog:preview": "npm run build && node ./scripts/deploy.mjs --target ./build/deploy-catalog-support && node ./scripts/deploy-catalog.mjs --support-root ./build/deploy-catalog-support --target ./build/deploy-catalog-preview",
     "deploy:test": "npm run build && node ./scripts/deploy.mjs --java-checkout ../nodel --expected-java-branch dev --target ./build/stage11-host/custom/content",
