@@ -59,7 +59,7 @@ interface BindingsViewModel {
 
 const template = `
   <div class="nodel-bindings" data-link="class{:loading ? 'nodel-bindings is-loading' : 'nodel-bindings'}">
-    <form class="nodel-bindings-panel space-y-3" data-bindings-form autocomplete="off">
+    <form class="nodel-bindings-panel flex flex-col gap-3" data-bindings-form autocomplete="off">
       {^{if loading}}
         <div class="nodel-alert nodel-alert-md">Loading bindings...</div>
       {{else error}}
@@ -67,7 +67,7 @@ const template = `
       {{else empty}}
         <div class="nodel-alert nodel-alert-md">No bindings.</div>
       {{else}}
-        <fieldset data-link="disabled{:saving}">
+        <fieldset class="flex flex-col gap-3" data-link="disabled{:saving}">
           <div class="nodel-bindings-toolbar-panel">
             <div class="nodel-bindings-toolbar">
               <div class="flex min-w-0 items-center gap-2">
@@ -105,7 +105,7 @@ const template = `
             {^{if toolbarError}}<div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>toolbarError}}</div>{{/if}}
             {^{if message}}<div class="nodel-alert nodel-alert-sm">{^{>message}}</div>{{/if}}
           </div>
-          <div class="space-y-3">
+          <div class="flex flex-col gap-3">
             {^{for sections}}
               <details class="nodel-bindings-section nodel-collapse nodel-panel" open data-link="data-bindings-section{:kind}">
                 <summary class="nodel-collapse-summary">
@@ -113,7 +113,7 @@ const template = `
                   <span class="nodel-collapse-preview">{^{:selectedCount}} selected, {^{:unboundCount}} unwired</span>
                   <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
                 </summary>
-                <div class="nodel-collapse-content space-y-2.5">
+                <div class="nodel-collapse-content flex flex-col gap-2.5">
                   <div class="nodel-bindings-table" role="table">
                     <div class="nodel-bindings-header nodel-section-heading" role="row">
                       <span></span>

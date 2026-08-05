@@ -87,6 +87,8 @@ describe('nodel-params', () => {
 
     await mountParams();
 
+    expect(document.querySelector('[data-params-form]')?.classList.contains('space-y-3')).toBe(false);
+    expect(document.querySelector('[data-params-form]')?.classList.contains('gap-3')).toBe(true);
     expect(document.body.textContent).not.toContain('This form cannot be edited');
     expect(document.querySelector<HTMLInputElement>('[data-schema-field-input]')?.placeholder).toBe('9999');
   });

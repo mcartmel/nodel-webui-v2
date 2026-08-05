@@ -143,6 +143,17 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
+    const bindingsForm = document.querySelector('[data-bindings-form]')!;
+    const bindingsFieldset = bindingsForm.querySelector('fieldset')!;
+    const sections = section('actions').parentElement!;
+    const sectionContent = section('actions').querySelector('.nodel-collapse-content')!;
+    expect(bindingsForm.classList.contains('space-y-3')).toBe(false);
+    expect(bindingsForm.classList.contains('gap-3')).toBe(true);
+    expect(bindingsFieldset.classList.contains('gap-3')).toBe(true);
+    expect(sections.classList.contains('space-y-3')).toBe(false);
+    expect(sections.classList.contains('gap-3')).toBe(true);
+    expect(sectionContent.classList.contains('space-y-2.5')).toBe(false);
+    expect(sectionContent.classList.contains('gap-2.5')).toBe(true);
     expect(document.body.textContent).toContain('Actions');
     expect(document.body.textContent).toContain('Events');
     expect(document.body.textContent).toContain('Set Level');

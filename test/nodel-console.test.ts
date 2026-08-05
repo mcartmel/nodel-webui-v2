@@ -61,6 +61,8 @@ describe('nodel-console', () => {
     expect(document.body.textContent).not.toContain('Console');
     expect(document.body.innerHTML).toContain('bad &lt;value&gt;');
     expect(document.querySelector('[data-console-output]')?.classList.contains('nodel-console-output')).toBe(true);
+    expect(document.querySelector('.nodel-console')?.classList.contains('space-y-3')).toBe(false);
+    expect(document.querySelector('.nodel-console')?.classList.contains('gap-3')).toBe(true);
     expect(document.querySelector('[data-console-status]')).toBeNull();
     expect(document.querySelector('nodel-console')?.getAttribute('data-state')).toBe('active');
     expect(preview).not.toHaveBeenCalled();

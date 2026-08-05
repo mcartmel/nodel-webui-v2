@@ -147,6 +147,8 @@ describe('nodel-actsig', () => {
     await openDetails(section);
     await waitFor(() => Boolean(formByTitle('Volume')) && Boolean(formByTitle('Status')));
 
+    expect(section.querySelector('.nodel-collapse-content')?.classList.contains('space-y-3')).toBe(false);
+    expect(section.querySelector('.nodel-collapse-content')?.classList.contains('gap-3')).toBe(true);
     const groupedTitles = Array.from(section.querySelectorAll('.nodel-actsig-form h3')).map((heading) => heading.textContent?.trim());
     expect(groupedTitles).toEqual(['Status', 'Volume']);
   });
@@ -360,6 +362,20 @@ describe('nodel-actsig', () => {
         tone: 'success'
       })
     }));
+  });
+
+  it('does not reserve form spacing when an action has no argument schema', async () => {
+    actsigMock.getNodeActions.mockResolvedValue({
+      Run: { name: 'Run', title: 'Run', schema: { type: 'null' } },
+      Configure: { name: 'Configure', title: 'Configure', schema: { type: 'string' } }
+    });
+
+    await mountActSig();
+    const runHeader = formByTitle('Run')!.querySelector<HTMLElement>(':scope > div')!;
+    const configureHeader = formByTitle('Configure')!.querySelector<HTMLElement>(':scope > div')!;
+
+    expect(runHeader.classList.contains('mb-2.5')).toBe(false);
+    expect(configureHeader.classList.contains('mb-2.5')).toBe(true);
   });
 
   it('keeps signal copy icons enabled while signal override is off', async () => {

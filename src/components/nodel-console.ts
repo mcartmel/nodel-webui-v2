@@ -24,7 +24,7 @@ interface ConsoleViewModel {
 }
 
 const template = `
-  <div class="nodel-console relative space-y-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
+  <div class="nodel-console relative flex flex-col gap-3" data-link="title{:statusLabel} aria-label{:statusLabel}">
     {^{if commandError}}
       <div data-console-status class="nodel-alert nodel-alert-danger nodel-alert-md" role="alert">{^{>commandError}}</div>
     {{else statusState === 'error'}}

@@ -94,7 +94,7 @@ let nextActSigOrdinal = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
-    <div class="mb-2.5 flex min-w-0 items-start justify-between gap-2">
+    <div class="flex min-w-0 items-start justify-between gap-2" data-link="class{:(materialized && schemaForm && !schemaForm.hasFields && !schemaForm.unsupported && !error) ? 'flex min-w-0 items-start justify-between gap-2' : 'mb-2.5 flex min-w-0 items-start justify-between gap-2'}">
       <div class="min-w-0">
         <h3 class="truncate text-sm font-semibold text-nodel-fg" data-link="title{:name}">{^{>title}}</h3>
         {^{if description}}<p class="mt-1 text-xs leading-5 text-nodel-muted">{^{>description}}</p>{{/if}}
@@ -162,7 +162,7 @@ const template = `
                     <span class="nodel-collapse-icon" aria-hidden="true">${collapseIconMarkup}</span>
                   </summary>
                   {^{if open}}
-                    <div class="nodel-collapse-content space-y-3">
+                    <div class="nodel-collapse-content flex flex-col gap-3">
                       {^{for rows tmpl="nodelActSigRow"/}}
                       {^{if materializing}}<div class="nodel-alert nodel-alert-sm">Preparing forms...</div>{{/if}}
                     </div>

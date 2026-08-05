@@ -38,7 +38,7 @@ interface ParamsViewModel {
 
 const template = `
   <div class="nodel-params" data-link="class{:loading ? 'nodel-params is-loading' : 'nodel-params'}">
-    <form class="nodel-params-panel space-y-3" data-params-form autocomplete="off">
+    <form class="nodel-params-panel flex flex-col gap-3" data-params-form autocomplete="off">
       {^{if loading}}
         <div class="nodel-alert nodel-alert-md">Loading parameters...</div>
       {{else error}}
