@@ -42,10 +42,14 @@ test.describe('no-build authored administration contract', () => {
     const webSockets: string[] = [];
     const responseStatuses = new Map<string, number[]>();
     const pageErrors: string[] = [];
+    const consoleErrors: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
     page.on('requestfailed', (request) => requestFailures.push(request.url()));
     page.on('websocket', (socket) => webSockets.push(socket.url()));
     page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(`${message.text()} ${message.location().url}`.trim());
+    });
     page.on('response', (response) => {
       const pathname = new URL(response.url()).pathname;
       const statuses = responseStatuses.get(pathname) ?? [];
@@ -58,10 +62,30 @@ test.describe('no-build authored administration contract', () => {
       contentType: 'application/json',
       body: '[]'
     }));
+    await page.route('**/nodes/Demo/REST/hasRestarted*', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ timestamp: null })
+    }));
     await page.route('**/nodes/Demo/REST/', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ name: 'Demo' })
+      body: JSON.stringify({ name: 'Demo', nodes: { Demo: { name: 'Demo' } } })
+    }));
+    await page.route('**/nodes/Demo/REST/actions', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ Start: { name: 'Start', title: 'Start' } })
+    }));
+    await page.route('**/REST', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ nodes: { Demo: { name: 'Demo' } } })
+    }));
+    await page.route('**/REST/nodeURLs', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{ node: 'Demo', address: 'http://localhost/nodes/Demo/', host: 'localhost' }])
     }));
     await page.route('**/nodes/Demo/REST/params/schema', (route) => route.fulfill({
       status: 200,
@@ -110,7 +134,7 @@ test.describe('no-build authored administration contract', () => {
                 desc: 'Representative schema row',
                 properties: {
                   node: { type: 'string' },
-                  action: { type: 'string' }
+                  action: { type: 'string', enum: ['Start'] }
                 }
               }
             }
@@ -172,7 +196,33 @@ test.describe('no-build authored administration contract', () => {
 
     const bindings = page.locator('nodel-bindings');
     await expect(bindings.locator('[data-bindings-section="actions"]')).toContainText('Start action');
-    await expect(bindings.locator('[data-bindings-row-id]').first()).toContainText('Representative schema row');
+    const bindingRow = bindings.locator('[data-bindings-row-id]').first();
+    await expect(bindingRow).toContainText('Representative schema row');
+    const bindingNode = bindingRow.locator('[data-bindings-node]');
+    await bindingNode.fill('De');
+    const nodeOption = bindingRow.locator('[data-bindings-option="node"]');
+    await expect(nodeOption).toBeVisible();
+    await nodeOption.click();
+    expect(consoleErrors).toEqual([]);
+    expect(pageErrors).toEqual([]);
+    await expect(bindingNode).toHaveValue('Demo');
+    const bindingTarget = bindingRow.locator('[data-bindings-target]');
+    await bindingTarget.fill('Sta');
+    const targetOption = bindingRow.locator('[data-bindings-option="target"]');
+    await expect(targetOption).toBeVisible();
+    await targetOption.click();
+    await expect(bindingTarget).toHaveValue('Start');
+    await bindingTarget.fill('MissingAction');
+    await expect(bindingTarget).toHaveAttribute('aria-invalid', 'true');
+    const bindingError = bindingRow.getByRole('alert');
+    await expect(bindingError).toBeVisible();
+    const [bindingTargetBox, bindingErrorBox] = await Promise.all([
+      bindingTarget.boundingBox(),
+      bindingError.boundingBox()
+    ]);
+    expect(bindingTargetBox).not.toBeNull();
+    expect(bindingErrorBox).not.toBeNull();
+    expect(bindingErrorBox!.y).toBeGreaterThanOrEqual(bindingTargetBox!.y + bindingTargetBox!.height);
 
     const editor = page.locator('nodel-editor');
     await expect(editor.locator('.cm-editor')).toBeVisible();
@@ -188,5 +238,6 @@ test.describe('no-build authored administration contract', () => {
     expect(requestFailures.filter((url) => new URL(url).pathname.includes('/v2/'))).toEqual([]);
     expect(webSockets).toEqual([]);
     expect(pageErrors).toEqual([]);
+    expect(consoleErrors).toEqual([]);
   });
 });

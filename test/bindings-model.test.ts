@@ -32,6 +32,24 @@ const schema: NodelJsonSchema = {
   }
 };
 
+const requiredSchema: NodelJsonSchema = {
+  type: 'object',
+  properties: {
+    actions: {
+      type: 'object',
+      properties: {
+        Power: {
+          type: 'object',
+          properties: {
+            node: { type: 'string', required: true },
+            action: { type: 'string', enum: ['PowerOn', 'PowerOff'], required: true }
+          }
+        }
+      }
+    }
+  }
+};
+
 describe('bindings model', () => {
   it('creates binding sections from schema and backend values', () => {
     const sections = createBindingSections(schema, {
@@ -108,14 +126,25 @@ describe('bindings model', () => {
     });
   });
 
-  it('validates rows against their backend schema', () => {
-    const sections = createBindingSections(schema, { actions: { Power: { node: 'Display', action: 'PowerOn' } } });
-    const row = sections[0].rows[0];
-    row.target = 'MissingAction';
-    row.dirty = true;
-    row.targetDirty = true;
+  it('allows partial rows while validating supplied values without mutating the backend schema', () => {
+    const validValues = [
+      {},
+      { node: 'Display' },
+      { action: 'PowerOn' },
+      { node: 'Display', action: 'PowerOn' }
+    ];
 
-    expect(validateBindingRow(row)).not.toEqual([]);
+    for (const value of validValues) {
+      const row = createBindingSections(requiredSchema, { actions: { Power: value } })[0].rows[0];
+      expect(validateBindingRow(row)).toEqual([]);
+    }
+
+    const invalidRow = createBindingSections(requiredSchema, { actions: { Power: { action: 'MissingAction' } } })[0].rows[0];
+    expect(validateBindingRow(invalidRow)).toEqual([
+      expect.objectContaining({ pointer: expect.stringMatching(/\/action$/), message: 'Choose one of the available values.' })
+    ]);
+    expect(requiredSchema.properties?.actions?.properties?.Power?.properties?.node?.required).toBe(true);
+    expect(requiredSchema.properties?.actions?.properties?.Power?.properties?.action?.required).toBe(true);
   });
 
   it('does not turn malformed backend names into replacement-character search links', () => {

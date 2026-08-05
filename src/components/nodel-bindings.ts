@@ -151,7 +151,7 @@ const template = `
                                 {{/for}}
                              </div>
                            {{/if}}
-                           {^{if nodeError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert" data-link="id{:id + '-node-error'} text{:nodeError}"></span>{{/if}}
+                           {^{if nodeError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1 block" role="alert" data-link="id{:id + '-node-error'} text{:nodeError}"></span>{{/if}}
                            </span>
                            <span class="nodel-bindings-combobox">
                               <input class="nodel-field nodel-field-compact w-full" type="text" spellcheck="false" data-bindings-target data-link="{:target:} id{:id + '-target'} placeholder{:targetLabel} aria-busy{:searchingTarget ? 'true' : 'false'} aria-invalid{:targetError ? 'true' : 'false'} aria-describedby{:targetError ? id + '-target-error' : ''}" />
@@ -165,7 +165,7 @@ const template = `
                                 {{/for}}
                              </div>
                            {{/if}}
-                           {^{if targetError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm" role="alert" data-link="id{:id + '-target-error'} text{:targetError}"></span>{{/if}}
+                           {^{if targetError}}<span class="nodel-alert nodel-alert-danger nodel-alert-sm mt-1 block" role="alert" data-link="id{:id + '-target-error'} text{:targetError}"></span>{{/if}}
                            </span>
                           <span class="nodel-bindings-suggestion" data-link="class{:suggestionClass}">
                             {^{if suggestionLabel}}{^{>suggestionLabel}}{{else}}-{{/if}}
@@ -279,6 +279,7 @@ export class NodelBindings extends HTMLElement {
     scope.listen(this, 'submit', this.handleSubmit);
     scope.listen(this, 'input', this.handleInput);
     scope.listen(this, 'change', this.handleChange);
+    scope.listen(this, 'mousedown', this.handleMouseDown);
     scope.listen(this, 'click', this.handleClick);
     scope.listen(this, 'keydown', this.handleKeydown);
     scope.listen(this, 'focusout', this.handleFocusOut);
@@ -369,7 +370,7 @@ export class NodelBindings extends HTMLElement {
         sections,
         invalid: false
       });
-      this.validateBindings();
+      this.validateBindings(true);
       this.bindFilterInput();
       this.updateToolbarSummary();
       return { status: 'verified' };
@@ -410,7 +411,7 @@ export class NodelBindings extends HTMLElement {
       return;
     }
 
-    if (this.validateBindings().length > 0) {
+    if (this.validateBindings(true).length > 0) {
       return;
     }
 
@@ -563,6 +564,18 @@ export class NodelBindings extends HTMLElement {
         }
         this.closeAutocompleteForInput(target);
       }
+    }
+  };
+
+  private handleMouseDown = (event: MouseEvent) => {
+    const target = event.target;
+    if (event.button !== 0 || !(target instanceof Element)) {
+      return;
+    }
+
+    const option = target.closest<HTMLElement>('[data-bindings-option]');
+    if (option && this.contains(option)) {
+      event.preventDefault();
     }
   };
 
@@ -1022,7 +1035,7 @@ export class NodelBindings extends HTMLElement {
     if (!scope) {
       return;
     }
-    if (this.validateBindings().length > 0) {
+    if (this.validateBindings(true).length > 0) {
       return;
     }
     const payload = serializeBindingPayload(this.sourceBindings, this.state.sections);
@@ -1066,15 +1079,17 @@ export class NodelBindings extends HTMLElement {
     }
   }
 
-  private validateBindings() {
+  private validateBindings(revealAll = false) {
     const issues = this.allRows().flatMap((row) => validateBindingRow(row));
     for (const row of this.allRows()) {
       const rowIssues = issues.filter((issue) => issue.fieldId === row.id || issue.fieldId.startsWith(`${row.id}/`));
       const nodeIssue = rowIssues.find((issue) => issue.pointer.endsWith('/node'));
       const targetIssue = rowIssues.find((issue) => issue.pointer.endsWith(`/${row.targetKey}`));
+      const revealNodeError = revealAll || row.nodeDirty || Boolean(row.nodeError);
+      const revealTargetError = revealAll || row.targetDirty || Boolean(row.targetError);
       getJQuery().observable(row).setProperty({
-        nodeError: nodeIssue?.message ?? (!targetIssue && rowIssues.length > 0 ? rowIssues[0]?.message ?? '' : ''),
-        targetError: targetIssue?.message ?? ''
+        nodeError: revealNodeError ? nodeIssue?.message ?? (!targetIssue && rowIssues.length > 0 ? rowIssues[0]?.message ?? '' : '') : '',
+        targetError: revealTargetError ? targetIssue?.message ?? '' : ''
       });
     }
     this.setState({ invalid: issues.length > 0 });

@@ -177,14 +177,35 @@ describe('nodel-bindings', () => {
     expect(document.body.textContent).toContain('Saved');
   });
 
-  it('preserves unknown binding metadata and blocks writes for emitted required fields', async () => {
+  it('saves complete, partial, and empty rows while preserving unknown binding metadata', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue({
       type: 'object',
       properties: {
         actions: {
           type: 'object',
           properties: {
-            setLevel: {
+            complete: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            },
+            nodeOnly: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            },
+            targetOnly: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            },
+            empty: {
               type: 'object',
               properties: {
                 node: { type: 'string', required: true },
@@ -199,28 +220,28 @@ describe('nodel-bindings', () => {
       rootMetadata: { keep: true },
       actions: {
         sectionMetadata: 'keep',
-        setLevel: { node: '', rowMetadata: 7 }
+        complete: { node: 'Lighting', action: 'Dim' },
+        nodeOnly: { node: 'Lighting', rowMetadata: 7 },
+        targetOnly: { action: 'Dim' },
+        empty: {}
       }
     });
 
     await mountBindings();
-    submitForm();
-    await flush();
-    expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('required');
-
-    const row = rows('actions')[0];
-    await setInputValue(rowInputs(row).node, 'Lighting');
-    await setInputValue(rowInputs(row).target, 'Dim');
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
     expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({
       rootMetadata: { keep: true },
       actions: {
         sectionMetadata: 'keep',
-        setLevel: { node: 'Lighting', rowMetadata: 7, action: 'Dim' }
+        complete: { node: 'Lighting', action: 'Dim' },
+        nodeOnly: { node: 'Lighting', rowMetadata: 7 },
+        targetOnly: { action: 'Dim' },
+        empty: {}
       }
     });
+    expect(document.body.textContent).not.toContain('required');
   });
 
   it('allows Java-declared empty binding rows while retaining required schema flags', async () => {
@@ -384,7 +405,11 @@ describe('nodel-bindings', () => {
     await waitFor(() => bindingsMock.searchNodeUrls.mock.calls.length > 0);
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
 
-    firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
+    const nodeOption = firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')!;
+    const nodeMouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+    nodeOption.dispatchEvent(nodeMouseDown);
+    expect(nodeMouseDown.defaultPrevented).toBe(true);
+    nodeOption.click();
     await flush();
 
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
@@ -497,7 +522,11 @@ describe('nodel-bindings', () => {
     await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
 
     const liveFirstAction = rows('actions')[0];
-    liveFirstAction.querySelector<HTMLButtonElement>('[data-bindings-option="target"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const targetOption = liveFirstAction.querySelector<HTMLButtonElement>('[data-bindings-option="target"]')!;
+    const targetMouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+    targetOption.dispatchEvent(targetMouseDown);
+    expect(targetMouseDown.defaultPrevented).toBe(true);
+    targetOption.click();
     await flush();
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://host/nodes/Lighting/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
@@ -747,6 +776,86 @@ describe('nodel-bindings', () => {
 
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
     expect(rowInputs(secondAction).node.value).toBe('');
+  });
+
+  it('saves a node-only row after bulk setting without revealing a target error', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            setLevel: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', required: true }
+              }
+            }
+          }
+        }
+      }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {} } });
+
+    await mountBindings();
+
+    const actionRow = rows('actions')[0];
+    await selectRow(actionRow);
+    await setInputValue(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!, 'Lighting');
+    document.querySelector<HTMLButtonElement>('[data-bindings-apply-node]')?.click();
+    await flush();
+
+    const target = rowInputs(actionRow).target;
+    expect(target.getAttribute('aria-invalid')).toBe('false');
+    expect(actionRow.querySelector(`[id="${target.id}-error"]`)).toBeNull();
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+
+    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({ actions: { setLevel: { node: 'Lighting' } } });
+    expect(target.getAttribute('aria-invalid')).toBe('false');
+    expect(actionRow.querySelector(`[id="${target.id}-error"]`)).toBeNull();
+  });
+
+  it('blocks an invalid supplied target and renders its alert below the field', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            setLevel: {
+              type: 'object',
+              properties: {
+                node: { type: 'string', required: true },
+                action: { type: 'string', enum: ['Dim'], required: true }
+              }
+            }
+          }
+        }
+      }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {} } });
+
+    await mountBindings();
+
+    const actionRow = rows('actions')[0];
+    const target = rowInputs(actionRow).target;
+    await setInputValue(target, 'MissingAction');
+
+    const error = actionRow.querySelector<HTMLElement>(`[id="${target.id}-error"]`);
+    expect(target.getAttribute('aria-invalid')).toBe('true');
+    expect(target.getAttribute('aria-describedby')).toBe(error?.id);
+    expect(error?.textContent).toContain('available values');
+    expect(error?.classList.contains('block')).toBe(true);
+    expect(error?.classList.contains('mt-1')).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+
+    submitForm();
+    await flush();
+    expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
   });
 
   it('selects a bulk node autocomplete option with the keyboard before applying it', async () => {
