@@ -319,6 +319,15 @@
     @apply px-4 py-3 text-sm;
   }
 
+  .nodel-component-fallback {
+    @apply my-2 flex flex-wrap items-center gap-3;
+    visibility: visible;
+  }
+
+  .nodel-component-fallback-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
   .nodel-alert-danger {
     @apply border-solid border-nodel-dangerBorder/45 bg-nodel-dangerBg/75 text-nodel-danger;
     background: rgb(var(--nodel-danger-bg) / 0.75);

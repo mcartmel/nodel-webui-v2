@@ -279,4 +279,115 @@ test.describe('no-build authored-page contract', () => {
     expect(result.rejection.length).toBeLessThanOrEqual(200);
     expect(pageErrors).toEqual([]);
   });
+
+  test('shows a recoverable adjacent alert for automatic lazy failures', async ({ page }, testInfo) => {
+    skipOutsideReleaseMatrix(testInfo);
+    const fixture = await readFile(resolve(process.cwd(), 'e2e/fixtures/no-build-authored-page.html'), 'utf8');
+    await serveNodeAssets(page);
+    await serveAuthoredFixture(page, '/authored-page.contract.html', fixture);
+    await page.route('**/v2/chunks/nodel-link-*.js', (route) => route.fulfill({
+      status: 503,
+      contentType: 'text/plain',
+      body: 'blocked lazy component response with private details'
+    }));
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    const traffic = observePage(page);
+    await page.goto('/authored-page.contract.html', { waitUntil: 'domcontentloaded' });
+    await expectStableAssets(page, traffic.responseStatuses, '/authored-page.contract.html');
+
+    await page.evaluate(() => {
+      const generations: number[] = [];
+      const unhandledRejections: string[] = [];
+      window.addEventListener('nodel-component-load-error', (event) => {
+        const generation = (event as CustomEvent).detail?.attemptGeneration;
+        if (typeof generation === 'number') generations.push(generation);
+      });
+      window.addEventListener('unhandledrejection', (event) => {
+        unhandledRejections.push(event.reason instanceof Error ? event.reason.message : String(event.reason));
+      });
+      (window as Window & { __nodelFailureGenerations?: number[] }).__nodelFailureGenerations = generations;
+      (window as Window & { __nodelUnhandledRejections?: string[] }).__nodelUnhandledRejections = unhandledRejections;
+      const host = document.querySelector('#dynamic-contract');
+      host?.insertAdjacentHTML('beforeend', '<nodel-link id="blocked-link" data-authored="keep"><span>Authored fallback content</span></nodel-link>');
+    });
+    const unresolved = page.locator('#blocked-link');
+    const fallback = unresolved.locator('xpath=following-sibling::*[1]');
+    await expect(fallback).toHaveAttribute('role', 'alert');
+    await expect(fallback).toHaveClass(/nodel-component-fallback/);
+    await expect(fallback).toContainText('nodel-link');
+    await expect(fallback).not.toContainText('blocked lazy component response');
+    await expect(fallback).toHaveText(/nodel-link/);
+    expect((await fallback.textContent())?.length ?? 0).toBeLessThanOrEqual(200);
+    await expect(unresolved).toBeHidden();
+    await expect(unresolved).toHaveAttribute('data-authored', 'keep');
+    await expect(unresolved).toContainText('Authored fallback content');
+    await expect(fallback.locator('[data-nodel-component-retry]')).toBeEnabled();
+    await expect(fallback.locator('[data-nodel-component-reload]')).toBeEnabled();
+    await expect(page.locator('nodel-toast-host .nodel-toast')).toHaveCount(1);
+
+    const retry = fallback.locator('[data-nodel-component-retry]');
+    await retry.focus();
+    await expect(retry).toBeFocused();
+    await retry.press('Enter');
+    await expect(fallback.locator('[data-nodel-component-retry]')).toBeEnabled();
+    await expect(fallback).toBeVisible();
+    const reload = fallback.locator('[data-nodel-component-reload]');
+    await reload.focus();
+    await expect(reload).toBeFocused();
+    await expect(retry).toHaveCSS('transition-duration', '0s');
+    await expect(page.locator('nodel-toast-host .nodel-toast')).toHaveCount(2);
+    const generations = await page.evaluate(() => (window as Window & { __nodelFailureGenerations?: number[] }).__nodelFailureGenerations ?? []);
+    const unhandledRejections = await page.evaluate(() => (window as Window & { __nodelUnhandledRejections?: string[] }).__nodelUnhandledRejections ?? []);
+    expect(generations).toEqual([1, 2]);
+    expect(unhandledRejections).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('does not create a toast host when automatic loading fails without an app', async ({ page }, testInfo) => {
+    skipOutsideReleaseMatrix(testInfo);
+    const fixture = await readFile(resolve(process.cwd(), 'e2e/fixtures/no-build-authored-page.html'), 'utf8');
+    await serveNodeAssets(page);
+    await serveAuthoredFixture(page, '/authored-page.contract.html', fixture);
+    await page.route('**/v2/chunks/nodel-link-*.js', (route) => route.fulfill({ status: 503, body: 'blocked' }));
+    await page.goto('/authored-page.contract.html', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => document.querySelector('nodel-app')?.remove());
+    await page.evaluate(() => {
+      const unhandledRejections: string[] = [];
+      window.addEventListener('unhandledrejection', (event) => {
+        unhandledRejections.push(event.reason instanceof Error ? event.reason.message : String(event.reason));
+      });
+      (window as Window & { __nodelUnhandledRejections?: string[] }).__nodelUnhandledRejections = unhandledRejections;
+      document.body.insertAdjacentHTML('beforeend', '<nodel-link id="no-app-blocked"><span>Keep me</span></nodel-link>');
+    });
+    await expect(page.locator('#no-app-blocked + .nodel-component-fallback')).toBeVisible();
+    expect(await page.locator('nodel-toast-host').count()).toBe(0);
+    expect(await page.evaluate(() => (window as Window & { __nodelUnhandledRejections?: string[] }).__nodelUnhandledRejections ?? [])).toEqual([]);
+  });
+
+  test('keeps the failure alert and controls visible in forced colors', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-forced-colors', 'Forced-colors fallback coverage runs in its dedicated project.');
+    const fixture = await readFile(resolve(process.cwd(), 'e2e/fixtures/no-build-authored-page.html'), 'utf8');
+    await serveNodeAssets(page);
+    await serveAuthoredFixture(page, '/authored-page.contract.html', fixture);
+    await page.route('**/v2/chunks/nodel-link-*.js', (route) => route.fulfill({ status: 503, body: 'blocked' }));
+    await page.goto('/authored-page.contract.html', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.querySelector('#dynamic-contract')?.insertAdjacentHTML(
+        'beforeend',
+        '<nodel-link id="forced-colors-blocked"><span>Keep authored content</span></nodel-link>'
+      );
+    });
+    const unresolved = page.locator('#forced-colors-blocked');
+    const fallback = unresolved.locator('xpath=following-sibling::*[1]');
+    await expect(fallback).toBeVisible();
+    await expect(unresolved).toBeHidden();
+    const retry = fallback.locator('[data-nodel-component-retry]');
+    await retry.focus();
+    await expect(retry).toBeFocused();
+    const reload = fallback.locator('[data-nodel-component-reload]');
+    await reload.focus();
+    await expect(reload).toBeFocused();
+    await expect(unresolved).toContainText('Keep authored content');
+  });
 });

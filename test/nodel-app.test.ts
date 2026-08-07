@@ -118,3 +118,54 @@ describe('nodel app base layer', () => {
     expect(document.title).toBe('Example Node');
   });
 });
+
+describe('nodel app component-load error presentation', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  function dispatch(tagName: unknown, attemptGeneration: unknown) {
+    window.dispatchEvent(new CustomEvent('nodel-component-load-error', {
+      detail: { tagName, attemptGeneration }
+    }));
+  }
+
+  it('deduplicates generations and separates tags', async () => {
+    document.body.innerHTML = '<nodel-app></nodel-app>';
+    const app = document.querySelector('nodel-app');
+    await customElements.whenDefined('nodel-app');
+    dispatch('nodel-link', 1);
+    dispatch('nodel-link', 1);
+    dispatch('nodel-link', 2);
+    dispatch('nodel-editor', 1);
+    dispatch('nodel-not-in-loader-registry', 1);
+    await Promise.resolve();
+    expect(app?.querySelectorAll('.nodel-toast')).toHaveLength(3);
+  });
+
+  it('removes the listener while disconnected and preserves generation history on reconnect', async () => {
+    const app = document.createElement('nodel-app');
+    document.body.append(app);
+    await customElements.whenDefined('nodel-app');
+    dispatch('nodel-link', 1);
+    expect(app.querySelectorAll('.nodel-toast')).toHaveLength(1);
+    app.remove();
+    dispatch('nodel-link', 2);
+    expect(document.querySelector('nodel-toast-host')).toBeNull();
+    document.body.append(app);
+    dispatch('nodel-link', 1);
+    dispatch('nodel-link', 2);
+    dispatch('nodel-link', 3);
+    await Promise.resolve();
+    expect(app.querySelectorAll('.nodel-toast')).toHaveLength(2);
+  });
+
+  it('ignores malformed details and does not create a toast host without an app', async () => {
+    dispatch('<nodel-link>', 1);
+    dispatch('nodel-link', '1');
+    dispatch('nodel-link', 0);
+    await Promise.resolve();
+    expect(document.querySelector('nodel-toast-host')).toBeNull();
+  });
+});

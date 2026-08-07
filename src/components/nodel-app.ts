@@ -36,6 +36,11 @@ import { encodeUrlPathSegment } from '../utils/urls';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail } from '../data/app-title';
 import { updateHostFavicon } from '../icons/favicon';
+import {
+  NODEL_COMPONENT_LOAD_ERROR,
+  isNodelComponentTag,
+  type NodelComponentLoadErrorDetail
+} from '../nodel-component-loader';
 
 function setRootTheme(theme: string) {
   document.documentElement.dataset.theme = theme;
@@ -58,6 +63,7 @@ interface ActivatablePage extends HTMLElement {
 
 type ToastCustomEvent = CustomEvent<NodelToastDetail>;
 type ConfirmCustomEvent = CustomEvent<NodelConfirmDetail>;
+type ComponentLoadErrorEvent = CustomEvent<Partial<NodelComponentLoadErrorDetail>>;
 
 interface RestartRefreshOutcome {
   label: string;
@@ -193,6 +199,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private connectivityModalActive = false;
   private connectivityState: NodelConnectivityState = { offline: false, reason: '', retryAttempt: 0 };
   private connectivitySubscription: { dispose(): void } | null = null;
+  private componentLoadGenerations = new Map<string, number>();
 
   connectedCallback() {
     this.setAttribute('data-nodel-app', 'true');
@@ -216,6 +223,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.addEventListener('nodel-bindings-error', this.handleBindingsError);
     this.addEventListener('nodel-editor-error', this.handleEditorError);
     window.addEventListener('hashchange', this.handleHashChange);
+    window.addEventListener(NODEL_COMPONENT_LOAD_ERROR, this.handleComponentLoadError as EventListener);
     this.mutationObserver = new MutationObserver(() => {
       this.queueNavigationSync();
       this.syncConnectivityPresentation();
@@ -242,6 +250,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.removeEventListener('nodel-bindings-error', this.handleBindingsError);
     this.removeEventListener('nodel-editor-error', this.handleEditorError);
     window.removeEventListener('hashchange', this.handleHashChange);
+    window.removeEventListener(NODEL_COMPONENT_LOAD_ERROR, this.handleComponentLoadError as EventListener);
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
     this.restartRefreshGeneration += 1;
@@ -324,6 +333,26 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
 
   private handleToastRequest = (event: ToastCustomEvent) => {
     this.showToast(event.detail);
+  };
+
+  private handleComponentLoadError = (event: ComponentLoadErrorEvent) => {
+    const tagName = event.detail?.tagName;
+    const rawGeneration = event.detail?.attemptGeneration;
+    if (typeof tagName !== 'string' || !isNodelComponentTag(tagName)
+      || typeof rawGeneration !== 'number' || !Number.isSafeInteger(rawGeneration) || rawGeneration < 1) {
+      return;
+    }
+    const generation = rawGeneration;
+    const previousGeneration = this.componentLoadGenerations.get(tagName);
+    if (previousGeneration !== undefined && previousGeneration >= generation) {
+      return;
+    }
+    this.componentLoadGenerations.set(tagName, generation);
+    this.showToast({
+      id: `nodel-component-load-${tagName}-${generation}`,
+      message: `${tagName} could not be loaded.`,
+      tone: 'danger'
+    });
   };
 
   private handleConfirmRequest = (event: ConfirmCustomEvent) => {
