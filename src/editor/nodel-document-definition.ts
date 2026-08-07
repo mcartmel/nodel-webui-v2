@@ -1,12 +1,12 @@
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import {
-  commonNodelAttributes,
-  findNodelElement,
-  nodelDocumentElements
-} from '../nodel-component-metadata';
+  componentContractCommonAttributes as commonNodelAttributes,
+  componentContracts as nodelDocumentElements,
+  findComponentContract as findNodelElement
+} from '../component-contract';
 
-export { commonNodelAttributes, findNodelElement, nodelDocumentElements } from '../nodel-component-metadata';
-export type { NodelAttributeDefinition, NodelElementDefinition } from '../nodel-component-metadata';
+export { commonNodelAttributes, findNodelElement, nodelDocumentElements };
+export type { ComponentAttributeContract as NodelAttributeDefinition, ComponentContract as NodelElementDefinition } from '../component-contract';
 
 export const nodelDocumentSnippets: Completion[] = [
   { label: 'nodel-page scaffold', type: 'text', apply: '<nodel-page title="Page">\n  <nodel-row>\n    <nodel-column>\n      ${}\n    </nodel-column>\n  </nodel-row>\n</nodel-page>', detail: 'Nodel page with row and column' },
@@ -14,7 +14,7 @@ export const nodelDocumentSnippets: Completion[] = [
 ];
 
 function elementCompletions(): Completion[] {
-  return nodelDocumentElements.map((element) => ({ label: element.name, type: 'class', detail: element.description, apply: element.snippet ?? `<${element.name}></${element.name}>` }));
+  return nodelDocumentElements.filter((element) => element.completion !== 'hidden').map((element) => ({ label: element.name, type: 'class', detail: element.description, apply: element.snippet ?? `<${element.name}></${element.name}>` }));
 }
 
 function attributeCompletions(tagName: string): Completion[] {
@@ -22,7 +22,7 @@ function attributeCompletions(tagName: string): Completion[] {
   const attributes = tagName.startsWith('nodel-')
     ? [...(element?.attributes ?? []), ...commonNodelAttributes.filter((common) => !element?.attributes.some((attribute) => attribute.name === common.name))]
     : (element?.attributes ?? []);
-  return attributes.filter((attribute) => attribute.completable !== false).map((attribute) => ({ label: attribute.name, type: 'property', detail: attribute.description, apply: attribute.values?.length ? `${attribute.name}="${attribute.values[0]}"` : `${attribute.name}=""` }));
+  return attributes.filter((attribute) => attribute.completion !== 'hidden').map((attribute) => ({ label: attribute.name, type: 'property', detail: attribute.description, apply: attribute.values?.length ? `${attribute.name}="${attribute.values[0]}"` : `${attribute.name}=""` }));
 }
 
 function valueCompletions(tagName: string, attributeName: string): Completion[] {

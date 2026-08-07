@@ -189,14 +189,15 @@ describe('V1 migration and release guidance', () => {
     expect(deploymentSpec).toContain('offline-mode="overlay"');
   });
 
-  it('documents schema 3 package evidence and executable, non-duplicated runbook commands', async () => {
+  it('documents schema 4 package evidence and executable, non-duplicated runbook commands', async () => {
     const handoff = await readFile(resolve(process.cwd(), 'docs/release-handoff.md'), 'utf8');
     const architecture = await readFile(resolve(process.cwd(), 'docs/architecture.md'), 'utf8');
     const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');
 
     expect(handoff.indexOf('npm run verify:java-handoff')).toBeLessThan(handoff.indexOf('node scripts/deploy.mjs --java-checkout ../nodel-dev'));
     expect(handoff).not.toContain('npm run deploy:test --');
-    expect(handoff).toContain('schema 3');
+    expect(handoff).toContain('schema 4');
+    expect(handoff).toContain('v2/nodel-components.json');
     expect(handoff).toContain('dist-inventory');
     expect(handoff).toContain('canonical\n`dist` inventory SHA-256 digest');
     expect(handoff).toContain('java-handoff/dev.json');
@@ -214,11 +215,13 @@ describe('V1 migration and release guidance', () => {
     expect(handoff).toContain('--dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json');
     expect(handoff).toContain('intentionally nonpublishable');
     expect(handoff).toContain('production-release` environment provenance');
-    expect(architecture).toContain('schema is version 3');
+    expect(architecture).toContain('schema is version 4');
     expect(architecture).toContain('verify:dist');
     expect(architecture).toContain('no `--support-subdir` deployment option');
     expect(architecture).toContain('test:deployment:smoke');
     expect(notes).toContain('best-effort recoverable two-rename');
-    expect(notes).toContain('schema 3');
+    expect(notes).toContain('schema 4');
+    expect(notes).toContain('v2/nodel-components.json');
+    expect(await readFile(resolve(process.cwd(), 'README.md'), 'utf8')).toContain('schema 4 `release.json`');
   });
 });

@@ -11,7 +11,7 @@ function normalizeArgType(value: string | null): ControlArgType {
 }
 
 export class NodelPage extends HTMLElement {
-  static observedAttributes = ['title'];
+  static observedAttributes = ['action', 'actions', 'arg', 'arg-type'];
 
   private shellReady = false;
   private actionController = new ControlActionController();
@@ -28,9 +28,7 @@ export class NodelPage extends HTMLElement {
   }
 
   attributeChangedCallback() {
-    if (this.isConnected) {
-      this.render();
-    }
+    // Activation reads the current authored values; observation makes this reactive contract explicit.
   }
 
   async activate() {

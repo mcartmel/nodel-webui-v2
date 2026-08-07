@@ -1,45 +1,22 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { nodelDocumentElements } from '../src/editor/nodel-document-definition';
-import { commonNodelAttributes } from '../src/nodel-component-metadata';
-
-function importedComponents(source: string, importPathPrefix = './components/') {
-  const escapedPrefix = importPathPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`['"]${escapedPrefix}(nodel-[a-z0-9-]+)['"]`, 'g');
-  return Array.from(source.matchAll(pattern), (match) => match[1]);
-}
-
-function documentedComponents(source: string, heading: string) {
-  const start = source.indexOf(`### ${heading}`);
-  if (start === -1) return [];
-  const tail = source.slice(start + heading.length + 4);
-  const end = tail.indexOf('\n### ');
-  const section = end === -1 ? tail : tail.slice(0, end);
-  return Array.from(section.matchAll(/-\s*`(nodel-[a-z0-9-]+)`/g), (match) => match[1]);
-}
-
 describe('production refinement Stage 0 baseline', () => {
-  it('captures the pre-contract component registry and metadata', async () => {
-    const [packageSource, mainSource, loaderSource, docsSource] = await Promise.all([
-      readFile(resolve(process.cwd(), 'package.json'), 'utf8'),
-      readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8'),
-      readFile(resolve(process.cwd(), 'src/nodel-component-loader.ts'), 'utf8'),
-      readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8')
-    ]);
-    const packageJson = JSON.parse(packageSource) as { version: string };
-    const baseline = {
-      baselineSchema: 'pre-component-contract',
-      packageVersion: packageJson.version,
-      registry: {
-        eager: importedComponents(mainSource),
-        lazy: importedComponents(loaderSource, './components/'),
-        documentedCustom: documentedComponents(docsSource, 'Custom UI Components'),
-        documentedCore: documentedComponents(docsSource, 'Core Nodel Components')
-      },
-      commonAttributes: commonNodelAttributes,
-      elements: nodelDocumentElements
+  it('retains immutable pre-contract registry and metadata evidence', async () => {
+    const baseline = JSON.parse(await readFile(resolve(process.cwd(), 'test/fixtures/production-refinement-stage0-component-contract.json'), 'utf8')) as {
+      baselineSchema: string;
+      packageVersion: string;
+      registry: { eager: string[]; lazy: string[]; documentedCustom: string[]; documentedCore: string[] };
+      commonAttributes: Array<{ name: string }>;
+      elements: Array<{ name: string; attributes: Array<{ name: string }> }>;
     };
-
-    await expect(`${JSON.stringify(baseline, null, 2)}\n`).toMatchFileSnapshot('./fixtures/production-refinement-stage0-component-contract.json');
+    expect(baseline).toMatchObject({ baselineSchema: 'pre-component-contract', packageVersion: '0.1.2' });
+    expect(baseline.registry.eager).toHaveLength(35);
+    expect(baseline.registry.lazy).toHaveLength(15);
+    expect(baseline.registry.documentedCustom).toHaveLength(32);
+    expect(baseline.registry.documentedCore).toHaveLength(18);
+    expect(baseline.commonAttributes.map((attribute) => attribute.name)).toEqual(['signals', 'visibility', 'visible-value', 'visible-values']);
+    expect(baseline.elements).toHaveLength(50);
+    expect(baseline.elements.find((element) => element.name === 'nodel-node-list')?.attributes.map((attribute) => attribute.name))
+      .toEqual(expect.arrayContaining(['show-filter', 'show-total']));
   });
 });

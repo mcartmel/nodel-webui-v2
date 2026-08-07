@@ -1,5 +1,16 @@
 # Release Notes
 
+## Unreleased
+
+### Component Contract
+
+- `v2/nodel-components.json` publishes the deterministic schema 1 component
+  contract used by the catalogue and editor tooling, including audience,
+  registration, completion, consumption, binding, event, and style metadata.
+- `release.json` uses schema 4. Its `componentContract` entry pins the path,
+  schema, and SHA-256 of `v2/nodel-components.json` alongside the existing
+  tested-`dist` inventory and release evidence.
+
 ## 0.1.2
 
 ### Compatibility

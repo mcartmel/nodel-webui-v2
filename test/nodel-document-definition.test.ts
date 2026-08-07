@@ -208,6 +208,12 @@ describe('nodel document definition', () => {
 
     const completions = completeNodelDocument(fakeCompletionContext('<nodel-node-list scope="') as never);
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
+
+    const elementCompletions = completeNodelDocument(fakeCompletionContext('<') as never)?.options.map((option) => option.label) ?? [];
+    expect(elementCompletions).toContain('nodel-link');
+    expect(elementCompletions).not.toEqual(expect.arrayContaining(['nodel-toast-host', 'nodel-confirm-host', 'nodel-connectivity-host']));
+    const templateAttributes = completeNodelDocument(fakeCompletionContext('<nodel-template ') as never)?.options.map((option) => option.label) ?? [];
+    expect(templateAttributes).not.toContain('data-*');
   });
 
   it('keeps neutral metadata schema, catalogue flags, and editor completions aligned', () => {
@@ -242,7 +248,7 @@ describe('nodel document definition', () => {
     expect(byName('nodel-page').attributes.map((attribute) => attribute.name)).toContain('nav-label');
     expect(byName('nodel-button').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['value', 'color']));
     expect(byName('nodel-template').attributes.map((attribute) => attribute.name)).toContain('data-*');
-    expect(byName('nodel-template').attributes.find((attribute) => attribute.name === 'data-*')?.completable).toBe(false);
+    expect(byName('nodel-template').attributes.find((attribute) => attribute.name === 'data-*')?.completion).toBe('hidden');
     expect(byName('nodel-button').attributes.find((attribute) => attribute.name === 'action-on')?.legacy).toBeDefined();
     expect(nodelDocumentElements.flatMap((element) => element.attributes).some((attribute) => attribute.name.startsWith('data-nodel-native-'))).toBe(false);
 

@@ -5,6 +5,8 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import {
   assertProjectBuildTarget,
+  componentContractPath,
+  componentContractSchemaVersion,
   createDeploymentInventory,
   isInside,
   loadDeploymentManifest,
@@ -14,6 +16,7 @@ import {
   safeRelativePath,
   sameTargetIdentity,
   targetState,
+  validateComponentContractArtifact,
   validateCapturedDeploymentInventory,
   validateDeploymentReferences
 } from './deployment-contract.mjs';
@@ -21,7 +24,7 @@ import { verifyDeploymentInventoryReport } from './verify-deployment-inventory.m
 
 const execFileAsync = promisify(execFile);
 export const nodelApiRange = Object.freeze({ min: '1.0', maxExclusive: '2.0' });
-export const releaseSchemaVersion = 3;
+export const releaseSchemaVersion = 4;
 const deploymentManifestName = 'deployment-manifest.json';
 const releaseFile = 'release.json';
 const stableReleasePages = Object.freeze(['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html']);
@@ -259,7 +262,7 @@ export async function resolveReleaseOptions(options, { projectRoot, gitRunner = 
     sourceDateEpoch, initial, publishable: false });
 }
 
-function expectedManifestKeys() { return ['schemaVersion', 'name', 'version', 'commit', 'source', 'sourceDateEpoch', 'nodelApi', 'deploymentManifest', 'releaseProcess', 'javaEvidence', 'inventoryAlgorithm', 'inventoryExcludes', 'files']; }
+function expectedManifestKeys() { return ['schemaVersion', 'name', 'version', 'commit', 'source', 'sourceDateEpoch', 'nodelApi', 'deploymentManifest', 'componentContract', 'releaseProcess', 'javaEvidence', 'inventoryAlgorithm', 'inventoryExcludes', 'files']; }
 
 export function validateReleaseManifest(manifest, expected = undefined, deploymentManifest = undefined) {
   const canonicalRepository = deploymentManifest?.manifest?.artifact?.repository;
@@ -267,7 +270,7 @@ export function validateReleaseManifest(manifest, expected = undefined, deployme
     throw new Error('Release verification requires a canonical deployment manifest repository');
   }
   if (!sameKeys(manifest, expectedManifestKeys()) || manifest.schemaVersion !== releaseSchemaVersion) throw new Error(`release.json must contain exactly the schema ${releaseSchemaVersion} keys`);
-  if (typeof manifest.name !== 'string' || !isVersion(manifest.version) || !isCommit(manifest.commit)) throw new Error('release.json name, version, or commit is invalid');
+  if (manifest.name !== deploymentManifest.manifest.artifact.name || !isVersion(manifest.version) || !isCommit(manifest.commit)) throw new Error('release.json name, version, or commit is invalid');
   if (!sameKeys(manifest.source, ['repository', 'branch', 'tag', 'dirty', 'publishable']) || !normalizeGithubRepository(manifest.source.repository)
     || manifest.source.repository !== canonicalRepository || typeof manifest.source.branch !== 'string' || !manifest.source.branch
     || !(manifest.source.tag === null || manifest.source.tag === `v${manifest.version}`)
@@ -276,7 +279,11 @@ export function validateReleaseManifest(manifest, expected = undefined, deployme
     || manifest.nodelApi.min !== nodelApiRange.min || manifest.nodelApi.maxExclusive !== nodelApiRange.maxExclusive) throw new Error('release.json sourceDateEpoch or nodelApi is invalid');
   if (!sameKeys(manifest.deploymentManifest, ['path', 'sha256', 'defaultV1Policy', 'javaTargets']) || manifest.deploymentManifest.path !== deploymentManifestName
     || !validHash(manifest.deploymentManifest.sha256) || manifest.deploymentManifest.defaultV1Policy !== 'preserve'
-    || !sameKeys(manifest.deploymentManifest.javaTargets, ['dev', 'master']) || manifest.deploymentManifest.javaTargets.dev !== 'prerelease' || manifest.deploymentManifest.javaTargets.master !== 'stable') throw new Error('release.json deployment manifest contract is invalid');
+     || !sameKeys(manifest.deploymentManifest.javaTargets, ['dev', 'master']) || manifest.deploymentManifest.javaTargets.dev !== 'prerelease' || manifest.deploymentManifest.javaTargets.master !== 'stable') throw new Error('release.json deployment manifest contract is invalid');
+  if (!sameKeys(manifest.componentContract, ['path', 'schemaVersion', 'sha256']) || manifest.componentContract.path !== componentContractPath
+    || manifest.componentContract.schemaVersion !== componentContractSchemaVersion || !validHash(manifest.componentContract.sha256)) {
+    throw new Error('release.json component contract is invalid');
+  }
   if (!sameKeys(manifest.releaseProcess, ['ciRunUrl', 'approvalEnvironment', 'distInventorySha256']) || !(manifest.releaseProcess.ciRunUrl === null || validCiRunUrl(manifest.releaseProcess.ciRunUrl, canonicalRepository))
     || !(manifest.releaseProcess.approvalEnvironment === null || typeof manifest.releaseProcess.approvalEnvironment === 'string')
     || !(manifest.releaseProcess.distInventorySha256 === null || validHash(manifest.releaseProcess.distInventorySha256))) throw new Error('release.json release process provenance is invalid');
@@ -298,12 +305,21 @@ export function validateReleaseManifest(manifest, expected = undefined, deployme
   if (manifest.inventoryAlgorithm !== 'sha256' || !Array.isArray(manifest.inventoryExcludes) || manifest.inventoryExcludes.length !== 1 || manifest.inventoryExcludes[0] !== releaseFile) throw new Error('release.json inventory policy is invalid');
   validateInventoryEntries(manifest.files, 'release.json');
   if (manifest.files.some((entry) => entry.path === releaseFile)) throw new Error('release.json cannot inventory itself');
-  if (expected && (!sameKeys(expected, ['name', 'version', 'commit', 'repository', 'branch', 'tag', 'dirty', 'publishable', 'sourceDateEpoch', 'deploymentManifestHash', 'ciRunUrl', 'approvalEnvironment', 'distInventorySha256', 'javaEvidence', 'filesInventorySha256'])
+  const componentContractEntry = manifest.files.find((entry) => entry.path === componentContractPath);
+  if (!componentContractEntry || componentContractEntry.sha256 !== manifest.componentContract.sha256) {
+    throw new Error('release.json component contract descriptor must match its files inventory entry');
+  }
+  const deploymentManifestEntry = manifest.files.find((entry) => entry.path === deploymentManifestName);
+  if (!deploymentManifestEntry || deploymentManifestEntry.sha256 !== manifest.deploymentManifest.sha256) {
+    throw new Error('release.json deployment manifest descriptor must match its files inventory entry');
+  }
+  if (expected && (!sameKeys(expected, ['name', 'version', 'commit', 'repository', 'branch', 'tag', 'dirty', 'publishable', 'sourceDateEpoch', 'deploymentManifestHash', 'componentContract', 'ciRunUrl', 'approvalEnvironment', 'distInventorySha256', 'javaEvidence', 'filesInventorySha256'])
     || !validHash(expected.filesInventorySha256)
     || manifest.name !== expected.name || manifest.version !== expected.version || manifest.commit !== expected.commit
     || manifest.source.repository !== expected.repository || manifest.source.branch !== expected.branch || manifest.source.tag !== expected.tag
     || manifest.source.dirty !== expected.dirty || manifest.source.publishable !== expected.publishable || manifest.sourceDateEpoch !== expected.sourceDateEpoch
     || manifest.deploymentManifest.sha256 !== expected.deploymentManifestHash
+    || JSON.stringify(manifest.componentContract) !== JSON.stringify(expected.componentContract)
     || manifest.releaseProcess.ciRunUrl !== expected.ciRunUrl || manifest.releaseProcess.approvalEnvironment !== expected.approvalEnvironment
     || manifest.releaseProcess.distInventorySha256 !== expected.distInventorySha256
     || JSON.stringify(manifest.javaEvidence) !== JSON.stringify(expected.javaEvidence)
@@ -315,17 +331,13 @@ export async function verifyReleaseBundle(target, { operations = defaultOperatio
   const rootInfo = await operations.lstat(root).catch(() => null);
   if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink()) throw new Error(`Release bundle must be a real directory: ${root}`);
   const deploymentCapture = await regularCapture(join(root, deploymentManifestName), 'Packaged deployment manifest', operations);
-  const manifestData = await loadDeploymentManifest(join(root, deploymentManifestName), { fs: { readFile: operations.readFile } });
+  const manifestData = await loadDeploymentManifest(join(root, deploymentManifestName), { fs: { readFile: async () => deploymentCapture.content.toString('utf8') } });
   const releaseCapture = await regularCapture(join(root, releaseFile), 'release.json', operations);
   let manifest;
   try { manifest = JSON.parse(releaseCapture.content.toString('utf8')); } catch { throw new Error('release.json is not valid JSON'); }
   validateReleaseManifest(manifest, undefined, manifestData);
   if (sha256(deploymentCapture.content) !== manifest.deploymentManifest.sha256) throw new Error('Packaged deployment manifest hash does not match release.json');
   const deploymentFiles = await deploymentFilesInBundle(root, manifestData.manifest, operations);
-  const deploymentDigest = sha256(JSON.stringify(await fileEntries(root, deploymentFiles, operations)));
-  if (manifest.releaseProcess.distInventorySha256 !== null && manifest.releaseProcess.distInventorySha256 !== deploymentDigest) {
-    throw new Error('Packaged deployment files do not match the recorded dist inventory digest');
-  }
   const allowed = new Set([...deploymentFiles, ...handoffFiles.map(([, destination]) => destination)]);
   if (manifest.javaEvidence.available) for (const role of javaRoles) allowed.add(manifest.javaEvidence.targets[role].reportPath);
   const outputFiles = await walkFiles(root, '', operations);
@@ -335,23 +347,36 @@ export async function verifyReleaseBundle(target, { operations = defaultOperatio
   if ((await walkDirectories(root, '', operations)).join('\0') !== expectedDirectories.join('\0')) {
     throw new Error('Release bundle directories do not exactly match its inventory');
   }
+  const capturedFiles = new Map();
   for (const entry of manifest.files) {
     const capture = await regularCapture(join(root, entry.path), 'Release inventory entry', operations);
     if (capture.bytes !== entry.bytes || capture.sha256 !== entry.sha256) throw new Error(`Release inventory hash or size does not match: ${entry.path}`);
+    capturedFiles.set(entry.path, capture.content);
+  }
+  const componentContractContent = capturedFiles.get(componentContractPath);
+  if (!componentContractContent) throw new Error('Release inventory is missing the packaged component contract');
+  validateComponentContractArtifact(componentContractContent, manifest.version);
+  if (sha256(componentContractContent) !== manifest.componentContract.sha256) throw new Error('Packaged component contract hash does not match release.json');
+  const inventoryByPath = new Map(manifest.files.map((entry) => [entry.path, entry]));
+  const deploymentEntries = deploymentFiles.map((path) => inventoryByPath.get(path));
+  if (deploymentEntries.some((entry) => !entry)) throw new Error('Release inventory is missing a packaged deployment file');
+  const deploymentDigest = sha256(JSON.stringify(deploymentEntries));
+  if (manifest.releaseProcess.distInventorySha256 !== null && manifest.releaseProcess.distInventorySha256 !== deploymentDigest) {
+    throw new Error('Packaged deployment files do not match the recorded dist inventory digest');
   }
   for (const [, path] of handoffFiles) if (!inventoryFiles.has(path)) throw new Error(`Release bundle is missing required handoff file: ${path}`);
   if (manifest.javaEvidence.available) {
     for (const role of javaRoles) {
       const targetEvidence = manifest.javaEvidence.targets[role];
-      const capture = await regularCapture(join(root, targetEvidence.reportPath), `Packaged Java ${role} report`, operations);
-      if (capture.sha256 !== targetEvidence.reportSha256) throw new Error(`Packaged Java ${role} report hash does not match release.json`);
+      const content = capturedFiles.get(targetEvidence.reportPath);
+      if (!content || sha256(content) !== targetEvidence.reportSha256) throw new Error(`Packaged Java ${role} report hash does not match release.json`);
       let report;
-      try { report = JSON.parse(capture.content.toString('utf8')); } catch { throw new Error(`Packaged Java ${role} report is not valid JSON`); }
+      try { report = JSON.parse(content.toString('utf8')); } catch { throw new Error(`Packaged Java ${role} report is not valid JSON`); }
       const normalized = normalizeJavaHandoffReport(report, { role, manifest: manifestData.manifest, manifestHash: manifestData.hash });
       if (normalized.commit !== targetEvidence.commit || normalized.v1.inventorySha256 !== targetEvidence.v1InventorySha256) throw new Error(`Packaged Java ${role} report does not match release.json`);
     }
   }
-  await validateDeploymentReferences(root, deploymentFiles, { fs: { readFile: operations.readFile } });
+  await validateDeploymentReferences(root, deploymentFiles, { fs: { readFile: operations.readFile }, capturedEntries: capturedFiles });
   return manifest;
 }
 
@@ -389,7 +414,7 @@ async function captureStageIdentity(stage, operations) {
 
 async function revalidateFinalStage({ stage, expected, manifestData, inventory, handoffs, javaReports, resolved, gitRunner, operations, capturedIdentity }) {
   await validateCapturedDeploymentInventory(inventory);
-  const currentSource = await createDeploymentInventory(resolved.source, manifestData.manifest);
+  const currentSource = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version });
   if (currentSource.inventorySha256 !== inventory.inventorySha256) throw new Error('Deployment source changed after release assembly');
   for (const capture of handoffs) await revalidateCapture(capture, 'Release handoff file', operations);
   if (javaReports) {
@@ -460,7 +485,7 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
   const manifestData = resolved.deploymentManifest;
   if (manifestData.manifest.artifact.name !== resolved.packageMetadata.name || manifestData.manifest.artifact.stableEntries.join('\0') !== stableReleasePages.join('\0')) throw new Error('deployment-manifest.json does not match the release package contract');
   const target = await assertProjectBuildTarget(resolved.target, { source: resolved.source, roots: { projectRoot: resolved.projectRoot } });
-  const inventory = await createDeploymentInventory(resolved.source, manifestData.manifest);
+  const inventory = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version });
   const distInventory = resolved.distInventory
     ? await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot })
     : null;
@@ -474,8 +499,12 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
   const publishable = resolved.tag !== null && !resolved.dirty && javaEvidence.available
     && validCiRunUrl(resolved.ciRunUrl, resolved.repository) && resolved.approvalEnvironment === 'production-release';
   if (resolved.tag && !publishable) throw new Error('Tagged releases require Java evidence, a GitHub CI run URL, and approval environment production-release');
+  const capturedComponentContract = await readCapturedDeploymentEntry(inventory.root, inventory.entries.find((entry) => entry.path === componentContractPath));
+  validateComponentContractArtifact(capturedComponentContract, resolved.version);
+  const componentContract = Object.freeze({ path: componentContractPath, schemaVersion: componentContractSchemaVersion, sha256: sha256(capturedComponentContract) });
   const expected = Object.freeze({ name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit, repository: resolved.repository,
     branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty, publishable, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,
+    componentContract,
     ciRunUrl: resolved.ciRunUrl ?? null, approvalEnvironment: resolved.approvalEnvironment ?? null,
     distInventorySha256: distInventory?.inventory.sha256 ?? null, javaEvidence });
   const stageParent = dirname(target);
@@ -501,6 +530,7 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
       source: { repository: expected.repository, branch: expected.branch, tag: expected.tag, dirty: expected.dirty, publishable: expected.publishable },
       sourceDateEpoch: expected.sourceDateEpoch, nodelApi: nodelApiRange,
       deploymentManifest: { path: deploymentManifestName, sha256: manifestData.hash, defaultV1Policy: manifestData.manifest.v1.defaultPolicy, javaTargets: manifestData.manifest.java.targets },
+      componentContract,
       releaseProcess: { ciRunUrl: resolved.ciRunUrl ?? null, approvalEnvironment: resolved.approvalEnvironment ?? null, distInventorySha256: expected.distInventorySha256 }, javaEvidence,
       inventoryAlgorithm: 'sha256', inventoryExcludes: [releaseFile], files: await fileEntries(stage, bundleFiles, operations)
     };

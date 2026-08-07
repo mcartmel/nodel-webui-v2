@@ -23,11 +23,17 @@ Examples:
 
 ## Current Elements
 
-The component set has two audiences. Custom UI components are public authoring primitives intended for node-specific pages and are eagerly registered by the stable runtime. Core Nodel components implement the standard host and node administration pages. They are documented here because they share the same runtime and may be useful when replacing a core page, but they are intentionally not part of the visual component catalogue except for `nodel-link`, whose safe authored-link behavior is demonstrated there. The stable runtime automatically loads documented core components found in initial markup or inserted later; ordinary authored pages do not need import calls. Advanced module code may import `loadNodelComponent` from `v2/nodel-webui.js` when it must await a core definition before creating the element.
+The component set has two authoring audiences plus an internal implementation audience. Custom UI components are public authoring primitives intended for node-specific pages and are eagerly registered by the stable runtime. Core Nodel components implement the standard host and node administration pages. They are documented here because they share the same runtime and may be useful when replacing a core page, but they are intentionally not part of the visual component catalogue except for `nodel-link`, whose safe authored-link behavior is demonstrated there. Internal components are app-created infrastructure and are not author-instantiated. The stable runtime automatically loads documented core components found in initial markup or inserted later; ordinary authored pages do not need import calls. Advanced module code may import `loadNodelComponent` from `v2/nodel-webui.js` when it must await a core definition before creating the element.
 
 `components.html` is a self-contained demonstration catalogue. Its page loader installs an internal in-memory runtime that seeds the signal examples and handles catalogue actions as closed-loop state changes, so the page remains useful without a running node and does not report missing action or event errors. The copied component markup remains ordinary `action`, `signal`, `signals`, `join`, and `options-signal` markup. When that markup is used on a node-specific page, it uses the normal current-node REST action and activity-signal runtime instead; the catalogue-only loader marker must not be copied to those pages.
 
-Each catalogue component also has a collapsed attribute reference generated from `src/nodel-component-metadata.ts`. The editor's HTML attribute and enum-value completions consume the same structured metadata, while this document remains the canonical prose guidance for component behavior, composition, and authoring decisions.
+Each catalogue component also has a collapsed reference generated from the canonical modules under `src/component-contract/`. The editor's HTML assistance and the published machine-readable contract consume the same structured data, while this document remains the canonical prose guidance for component behavior, composition, and authoring decisions.
+
+### Machine-Readable Contract
+
+Every development server and production package exposes `v2/nodel-components.json`. The deterministic JSON document identifies its schema and package versions, then describes element audience, registration, completion visibility, attributes, consumption modes, dynamic or initialization lifecycle, action phases, signal targets and aggregations, composition, public events, and stable authoring styles. Internal auto-created hosts remain present for tooling and review but are marked `internal`, `auto-host`, and `hidden`; they are not ordinary author-instantiated components.
+
+The JSON contract describes supported syntax and behavior. It does not query a running node, discover action or signal names, validate authored point names, or replace this human guidance. Action and signal names continue to come from the authored XML/HTML and the target node at runtime. Consumers must reject unsupported `schemaVersion` values rather than inferring fields from a different schema, while ignoring unknown additive fields within a supported schema version.
 
 ### Custom UI Components
 
@@ -315,6 +321,8 @@ Use `nav-id` when a page needs a stable explicit hash target:
 If `nav-id` is omitted, the ID is generated from the title by keeping only ASCII letters and digits, matching the v1 concept.
 
 Prefer omitting `nav-id` on core pages unless the generated title-based ID is not sufficient.
+
+`title`, `nav-label`, and `nav-id` are initialization-time navigation inputs consumed by the parent `nodel-app`. Set them in authored markup before connection; changing them after connection is unsupported. Use visible heading components for content that must update dynamically.
 
 Pages can call one or more current-node actions whenever they are activated:
 

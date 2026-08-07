@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-
 const pages = ['index.htm', 'nodes.html', 'nodel.html', 'toolkit.html', 'components.html'];
 const deployedAssets = JSON.parse(process.env.DEPLOYMENT_SMOKE_ASSETS ?? '[]') as string[];
+const packageVersion = process.env.DEPLOYMENT_SMOKE_PACKAGE_VERSION ?? '';
 
 test('serves the complete stable layout without development paths or broken V2 assets', async ({ page, request }) => {
   const failedAssets: string[] = [];
@@ -27,6 +27,12 @@ test('serves the complete stable layout without development paths or broken V2 a
   }
   expect(deployedAssets).toContain('v2/nodel-webui.js');
   expect(deployedAssets).toContain('v2/nodel-webui.css');
+  expect(deployedAssets).toContain('v2/nodel-components.json');
+  const contractResponse = await request.get('/v2/nodel-components.json');
+  expect(contractResponse.status()).toBe(200);
+  expect(contractResponse.headers()['content-type']).toContain('application/json');
+  expect(packageVersion).not.toBe('');
+  await expect(contractResponse.json()).resolves.toMatchObject({ schemaVersion: 1, packageVersion });
   for (const asset of deployedAssets) {
     expect((await request.get(`/${asset}`)).status(), asset).toBe(200);
   }

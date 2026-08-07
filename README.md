@@ -47,7 +47,7 @@ test deployment tooling only with a disposable host, then hand the validated
 release bundle to the Java Nodel release process. See
 [the production handoff runbook](docs/release-handoff.md).
 
-Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths. The built `components.html` page is the user-facing catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
+Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths, with the machine-readable authoring contract at `v2/nodel-components.json`. The built `components.html` page is the user-facing catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
 
 ## Releases
 
@@ -56,7 +56,7 @@ Pushing a `v`-prefixed version tag that matches `package.json`, such as
 exact `dist/`, deploys and smoke-tests the unchanged files, rechecks the
 checkpoint before and after packaging, then publishes a GitHub Release. Each release includes a
 versioned ZIP containing the deployable pages, complete `v2/` support directory,
-schema 3 `release.json`, normalized Java `dev` and `master` handoff reports, a
+schema 4 `release.json`, normalized Java `dev` and `master` handoff reports, a
 SHA-256 checksum, and build provenance attestation.
 
 Consumers should pin a specific release version and verify its checksum and

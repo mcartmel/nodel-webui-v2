@@ -15,6 +15,7 @@ import { createDeploymentInventory, loadDeploymentManifest } from '../scripts/de
 import { runVerifyDeploymentInventory } from '../scripts/verify-deployment-inventory.mjs';
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { runVerifyJavaHandoff } from '../scripts/verify-java-handoff.mjs';
+import { serializeComponentContract } from '../src/component-contract';
 
 const execFileAsync = promisify(execFile);
 const projectRoot = process.cwd();
@@ -38,6 +39,7 @@ async function writeSource() {
   await writeFile(join(source, 'v2', 'chunks', 'main.js'), 'export const main=()=>{}\n');
   await writeFile(join(source, 'v2', 'nodel-webui.css'), 'body { background: url("./assets/pixel.svg"); }\n');
   await writeFile(join(source, 'v2', 'assets', 'pixel.svg'), '<svg/>\n');
+  await writeFile(join(source, 'v2', 'nodel-components.json'), serializeComponentContract('0.1.1'));
 }
 
 async function writeFixtureProject() {
@@ -133,7 +135,7 @@ describe('prepare-release', () => {
     expect(() => parsePrepareReleaseArgs(['--json', '--quiet'])).toThrow(/cannot be used together/);
   });
 
-  it('creates a schema 3 bundle with the exact handoff allowlist and hashes', async () => {
+  it('creates a schema 4 bundle with the exact handoff allowlist and hashes', async () => {
     const derived = await resolveReleaseOptions(await options(), { projectRoot: fixtureRoot });
     expect(derived.sourceDateEpoch).toBe(Number((await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim()));
     const epoch = (await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim();
@@ -144,16 +146,17 @@ describe('prepare-release', () => {
 
     expect(report).toMatchObject({ dirty: false, publishable: false, sourceDateEpoch: Number(epoch) });
     expect(manifest).toMatchObject({
-      schemaVersion: 3,
+       schemaVersion: 4,
       name: 'nodel-webui-v2',
       version: '0.1.1',
       source: { repository: 'mcartmel/nodel-webui-v2', branch: 'main', tag: null, dirty: false, publishable: false },
       sourceDateEpoch: Number(epoch),
       nodelApi: { min: '1.0', maxExclusive: '2.0' },
-      deploymentManifest: {
+       deploymentManifest: {
         path: 'deployment-manifest.json', sha256: manifestData.hash, defaultV1Policy: 'preserve',
         javaTargets: { dev: 'prerelease', master: 'stable' }
-      },
+       },
+       componentContract: { path: 'v2/nodel-components.json', schemaVersion: 1, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
       releaseProcess: { ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null },
       javaEvidence: { available: false, targets: null },
       inventoryAlgorithm: 'sha256',
@@ -167,7 +170,7 @@ describe('prepare-release', () => {
     expect(manifest.files.map((entry: { path: string }) => entry.path)).toEqual([
       'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'THIRD-PARTY-NOTICES.md',
       'components.html', 'deployment-manifest.json', 'index.htm', 'nodel.html', 'nodes.html',
-      'toolkit.html', 'v2/assets/pixel.svg', 'v2/chunks/main.js', 'v2/nodel-webui.css', 'v2/nodel-webui.js'
+       'toolkit.html', 'v2/assets/pixel.svg', 'v2/chunks/main.js', 'v2/nodel-components.json', 'v2/nodel-webui.css', 'v2/nodel-webui.js'
     ]);
     expect(manifest.files.some((entry: { path: string }) => entry.path === 'release.json')).toBe(false);
     for (const entry of manifest.files as Array<{ path: string; bytes: number; sha256: string }>) {
@@ -256,13 +259,13 @@ describe('prepare-release', () => {
 
     const resolved = await resolveReleaseOptions(await options({ target: first, sourceDateEpoch: epoch }), { projectRoot: fixtureRoot });
     const manifestData = await loadDeploymentManifest(join(fixtureRoot, 'deployment-manifest.json'));
-    const inventory = await createDeploymentInventory(source, manifestData.manifest);
+    const inventory = await createDeploymentInventory(source, manifestData.manifest, { packageVersion: '0.1.1' });
     const bundleManifest = JSON.parse(await readFile(join(first, 'release.json'), 'utf8'));
     const expected = {
       name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit,
       repository: resolved.repository, branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty,
       publishable: false, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,
-      ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
+       componentContract: bundleManifest.componentContract, ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
       filesInventorySha256: createHash('sha256').update(JSON.stringify(bundleManifest.files)).digest('hex')
     };
     await writeFile(join(first, 'unexpected.txt'), 'unexpected\n');
@@ -270,6 +273,32 @@ describe('prepare-release', () => {
     await rm(join(first, 'unexpected.txt'));
     await writeFile(join(first, 'v2', 'chunks', 'main.js'), 'corrupt\n');
     await expect(validateReleaseBundle(first, expected, inventory.files)).rejects.toThrow(/hash or size/);
+    await prepareRelease(await options({ target: first, sourceDateEpoch: epoch, force: true }), { projectRoot: fixtureRoot });
+    await writeFile(join(first, 'v2', 'nodel-components.json'), `${serializeComponentContract('0.1.1')}\n`);
+    await expect(verifyReleaseBundle(first)).rejects.toThrow(/component contract hash|inventory hash or size/);
+    await prepareRelease(await options({ target: first, sourceDateEpoch: epoch, force: true }), { projectRoot: fixtureRoot });
+    const wrongSchema = JSON.parse(serializeComponentContract('0.1.1'));
+    wrongSchema.schemaVersion = 2;
+    await writeFile(join(first, 'v2', 'nodel-components.json'), JSON.stringify(wrongSchema));
+    await expect(verifyReleaseBundle(first)).rejects.toThrow(/schemaVersion|inventory hash or size/);
+    await prepareRelease(await options({ target: first, sourceDateEpoch: epoch, force: true }), { projectRoot: fixtureRoot });
+    const wrongPackage = JSON.parse(serializeComponentContract('0.1.1'));
+    wrongPackage.packageVersion = '0.0.0';
+    await writeFile(join(first, 'v2', 'nodel-components.json'), JSON.stringify(wrongPackage));
+    await expect(verifyReleaseBundle(first)).rejects.toThrow(/packageVersion|inventory hash or size/);
+    await prepareRelease(await options({ target: first, sourceDateEpoch: epoch, force: true }), { projectRoot: fixtureRoot });
+    const malformed = JSON.parse(serializeComponentContract('0.1.1'));
+    malformed.elements[0].attributes[0].lifecycle = 'sometimes';
+    const malformedContent = `${JSON.stringify(malformed)}\n`;
+    await writeFile(join(first, 'v2', 'nodel-components.json'), malformedContent);
+    const releaseManifest = JSON.parse(await readFile(join(first, 'release.json'), 'utf8'));
+    const malformedHash = createHash('sha256').update(malformedContent).digest('hex');
+    releaseManifest.componentContract.sha256 = malformedHash;
+    const contractEntry = releaseManifest.files.find((entry: { path: string }) => entry.path === 'v2/nodel-components.json');
+    contractEntry.bytes = Buffer.byteLength(malformedContent);
+    contractEntry.sha256 = malformedHash;
+    await writeFile(join(first, 'release.json'), JSON.stringify(releaseManifest));
+    await expect(verifyReleaseBundle(first)).rejects.toThrow(/lifecycle/);
   });
 
   it('rejects source, handoff, and target substitutions before cutover', async () => {
@@ -383,9 +412,24 @@ describe('prepare-release', () => {
   it('standalone verification rejects corrupted release provenance, report, and inventory paths', async () => {
     await git(['tag', 'v0.1.1']);
     await release(await taggedOptions());
-    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 3 });
+    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 4 });
     const releasePath = join(target, 'release.json');
-    const manifest = JSON.parse(await readFile(releasePath, 'utf8'));
+    let manifest = JSON.parse(await readFile(releasePath, 'utf8'));
+    manifest.componentContract.sha256 = '0'.repeat(64);
+    await writeFile(releasePath, JSON.stringify(manifest));
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/descriptor must match its files inventory entry/);
+    await release(await taggedOptions({ force: true }));
+    manifest = JSON.parse(await readFile(releasePath, 'utf8'));
+    manifest.name = '';
+    await writeFile(releasePath, JSON.stringify(manifest));
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/name, version, or commit/);
+    await release(await taggedOptions({ force: true }));
+    manifest = JSON.parse(await readFile(releasePath, 'utf8'));
+    manifest.deploymentManifest.sha256 = '0'.repeat(64);
+    await writeFile(releasePath, JSON.stringify(manifest));
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/deployment manifest descriptor must match/);
+    await release(await taggedOptions({ force: true }));
+    manifest = JSON.parse(await readFile(releasePath, 'utf8'));
     manifest.files[0].path = '../escape';
     await writeFile(releasePath, JSON.stringify(manifest));
     await expect(verifyReleaseBundle(target)).rejects.toThrow(/inventory is invalid/);

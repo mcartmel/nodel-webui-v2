@@ -10,6 +10,7 @@ vi.mock('../src/api/nodel-host-client', () => ({
 }));
 
 import '../src/components/nodel-description';
+import { findComponentContract } from '../src/component-contract';
 
 describe('nodel-description', () => {
   beforeEach(() => {
@@ -112,6 +113,7 @@ describe('nodel-description', () => {
     expect(button.getAttribute('aria-label')).toBe('Show more');
     expect(button.getAttribute('title')).toBe('Show more');
     expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(findComponentContract('nodel-description')?.attributes.find((attribute) => attribute.name === 'open')?.defaultValue).toBe('false');
     expect(button.className).toContain('nodel-description-toggle');
     expect(button.querySelector('.nodel-collapse-icon')).not.toBeNull();
 

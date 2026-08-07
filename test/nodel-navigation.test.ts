@@ -5,6 +5,7 @@ import '../src/components/nodel-page';
 import '../src/components/nodel-row';
 import '../src/components/nodel-column';
 import '../src/components/nodel-text';
+import { findComponentContract } from '../src/component-contract';
 
 async function waitForNavigation() {
   await customElements.whenDefined('nodel-app');
@@ -63,6 +64,24 @@ describe('nodel page navigation', () => {
     expect(overviewPage.hidden).toBe(false);
     expect(areasPage.hidden).toBe(true);
     expect(upstairsPage.hidden).toBe(true);
+  });
+
+  it('treats page navigation attributes as initialization-time parent inputs', async () => {
+    renderNavigationFixture();
+    await waitForNavigation();
+    const page = document.querySelector('nodel-page[title="Overview"]') as HTMLElement;
+    for (const name of ['title', 'nav-label', 'nav-id']) {
+      expect(findComponentContract('nodel-page')?.attributes.find((attribute) => attribute.name === name))
+        .toMatchObject({ consumption: 'parent', consumer: 'nodel-app' });
+    }
+
+    page.setAttribute('title', 'Changed title');
+    page.setAttribute('nav-label', 'Changed label');
+    page.setAttribute('nav-id', 'ChangedId');
+    await flush();
+
+    expect(document.querySelector('[data-nav-page-id="Overview"]')?.textContent).toContain('Overview');
+    expect(document.querySelector('[data-nav-page-id="ChangedId"]')).toBeNull();
   });
 
   it('selects the page matching the startup hash', async () => {

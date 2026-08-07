@@ -2,8 +2,33 @@ import { configDefaults, defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import packageMetadata from './package.json';
+import { serializeComponentContract } from './src/component-contract/serialize';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+const componentContractPath = '/v2/nodel-components.json';
+
+function componentContractPlugin(): Plugin {
+  const source = serializeComponentContract(packageMetadata.version);
+
+  return {
+    name: 'nodel-component-contract',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const pathname = new URL(request.url ?? '/', 'http://vite.invalid').pathname;
+        if (pathname !== componentContractPath) return next();
+        if (request.method !== 'GET' && request.method !== 'HEAD') return next();
+        response.statusCode = 200;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        response.setHeader('content-length', Buffer.byteLength(source));
+        response.end(request.method === 'HEAD' ? undefined : source);
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: componentContractPath.slice(1), source });
+    }
+  };
+}
 
 function cssBeforeEntryScriptPlugin(): Plugin {
   return {
@@ -39,7 +64,7 @@ function cssBeforeEntryScriptPlugin(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [cssBeforeEntryScriptPlugin()],
+  plugins: [componentContractPlugin(), cssBeforeEntryScriptPlugin()],
   server: {
     host: '0.0.0.0'
   },

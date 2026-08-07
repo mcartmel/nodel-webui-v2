@@ -1,6 +1,6 @@
 import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { basename, dirname, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   assertNoSymlinkAncestors,
@@ -43,7 +43,8 @@ async function assertReportPath(path, { projectRoot, source }) {
 }
 
 export async function createDeploymentInventoryReport({ source, manifestData, manifestPath, projectRoot }) {
-  const inventory = await createDeploymentInventory(source, manifestData.manifest);
+  const packageMetadata = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'));
+  const inventory = await createDeploymentInventory(source, manifestData.manifest, { packageVersion: packageMetadata.version });
   return Object.freeze({
     schemaVersion: deploymentInventorySchemaVersion,
     deploymentManifest: { path: canonicalManifestPath(manifestPath, projectRoot), sha256: manifestData.hash },

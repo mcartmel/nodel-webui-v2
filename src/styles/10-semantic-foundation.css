@@ -183,6 +183,22 @@
     @apply inline-flex rounded-control border border-nodel-accent/40 bg-nodel-accent/10 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-nodel-accent;
   }
 
+  .nodel-catalogue-reference-classifications {
+    @apply flex flex-wrap gap-2 border-b border-nodel-border px-3 py-3;
+  }
+
+  .nodel-catalogue-reference-summaries {
+    @apply grid gap-3 border-b border-nodel-border px-3 py-3 text-sm text-nodel-muted;
+  }
+
+  .nodel-catalogue-reference-summaries ul {
+    @apply m-0 list-none space-y-1 p-0;
+  }
+
+  .nodel-catalogue-reference-summaries code {
+    @apply text-nodel-fg;
+  }
+
   .nodel-catalogue-reference-description {
     @apply min-w-56 whitespace-normal break-words text-nodel-muted;
   }

@@ -4,6 +4,7 @@ import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { validateComponentContractArtifact as validateFullComponentContractArtifact } from './component-contract-validator.mjs';
 
 const execFileAsync = promisify(execFile);
 const moduleRoot = dirname(fileURLToPath(import.meta.url));
@@ -11,6 +12,8 @@ export const projectRoot = resolve(moduleRoot, '..');
 export const projectBuildRoot = resolve(projectRoot, 'build');
 export const markerName = '.nodel-webui-test-deploy.json';
 export const markerSchemaVersion = 2;
+export const componentContractPath = 'v2/nodel-components.json';
+export const componentContractSchemaVersion = 1;
 const stableEntries = Object.freeze(['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html']);
 const fsApi = { lstat, readFile, readdir, realpath };
 
@@ -20,6 +23,11 @@ function isRecord(value) {
 
 function sameKeys(value, keys) {
   return isRecord(value) && Object.keys(value).sort().join('\0') === [...keys].sort().join('\0');
+}
+
+/** Validate the stable, release-facing envelope without coupling scripts to TypeScript contract internals. */
+export function validateComponentContractArtifact(content, packageVersion) {
+  return validateFullComponentContractArtifact(content, packageVersion);
 }
 
 export function sha256(value) {
@@ -379,10 +387,11 @@ function referencePath(root, fromFile, reference) {
 }
 
 /** Shared deployment/release reference closure validation for Vite output. */
-export async function validateDeploymentReferences(root, files, { fs = fsApi } = {}) {
+export async function validateDeploymentReferences(root, files, { fs = fsApi, capturedEntries } = {}) {
   const knownFiles = new Set(files);
   for (const file of files) {
-    const content = await fs.readFile(join(root, file), 'utf8');
+    const captured = capturedEntries?.get(file);
+    const content = captured === undefined ? await fs.readFile(join(root, file), 'utf8') : Buffer.from(captured).toString('utf8');
     if (/["'(]\s*\/(?:src|assets)\/|@vite\/client|https?:\/\/localhost(?::\d+)?/i.test(content)) throw new Error(`Unstable or development reference in ${file}`);
     for (const reference of deploymentReferenceValues(content, file)) {
       const destination = referencePath(root, file, reference);
@@ -391,7 +400,7 @@ export async function validateDeploymentReferences(root, files, { fs = fsApi } =
   }
 }
 
-export async function createDeploymentInventory(source, manifest, { fs = fsApi } = {}) {
+export async function createDeploymentInventory(source, manifest, { fs = fsApi, packageVersion } = {}) {
   const root = resolve(source);
   await assertNoSymlinkAncestors(root, { fs });
   const sourceInfo = await checkedLstat(root, fs);
@@ -415,9 +424,14 @@ export async function createDeploymentInventory(source, manifest, { fs = fsApi }
   if (supportTree.files.length === 0) throw new Error(`Support tree is empty: ${supportDirectory}`);
   const files = [...manifest.artifact.stableEntries, ...supportTree.files].sort();
   if (!files.includes(`${supportDirectory}/nodel-webui.js`)) throw new Error(`Missing stable loader chunk: ${supportDirectory}/nodel-webui.js`);
+  if (!files.includes(componentContractPath)) throw new Error(`Missing component contract: ${componentContractPath}`);
   const entries = [];
   for (const path of files) entries.push(await makeFileEntry(root, path, { fs }));
-  await validateDeploymentReferences(root, files, { fs });
+  const capturedEntries = new Map();
+  for (const entry of entries) capturedEntries.set(entry.path, await readCapturedDeploymentEntry(root, entry, { fs }));
+  const contractEntry = entries.find((entry) => entry.path === componentContractPath);
+  validateComponentContractArtifact(capturedEntries.get(contractEntry.path), packageVersion ?? JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8')).version);
+  await validateDeploymentReferences(root, files, { fs, capturedEntries });
   return Object.freeze({
     root,
     supportDirectory,

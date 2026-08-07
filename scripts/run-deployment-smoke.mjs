@@ -3,7 +3,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertProjectBuildTarget, loadDeploymentManifest, markerName, parseStrictArgs, projectRoot, safeRelativePath, targetState } from './deployment-contract.mjs';
+import { assertProjectBuildTarget, componentContractPath, loadDeploymentManifest, markerName, parseStrictArgs, projectRoot, safeRelativePath, targetState, validateComponentContractArtifact } from './deployment-contract.mjs';
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
@@ -49,17 +49,19 @@ async function serve(root) {
   return { server, url: `http://127.0.0.1:${address.port}` };
 }
 
-async function assertSmokeRoot(root, manifestData) {
+async function assertSmokeRoot(root, manifestData, packageVersion) {
   await assertProjectBuildTarget(root, { roots: { projectRoot } });
   const state = await targetState(root, manifestData);
   if (!state.managed) throw new Error(`Deployment smoke root must have a valid ${markerName} marker: ${root}`);
+  validateComponentContractArtifact(await readFile(join(root, componentContractPath)), packageVersion);
   return { root, state };
 }
 
 export async function runDeploymentSmoke(options) {
   const manifestData = await loadDeploymentManifest(resolve(projectRoot, 'deployment-manifest.json'));
-  const previewDeployment = await assertSmokeRoot(resolve(options.previewRoot), manifestData);
-  const managedDeployment = await assertSmokeRoot(resolve(options.managedRoot), manifestData);
+  const packageVersion = JSON.parse(await readFile(resolve(projectRoot, 'package.json'), 'utf8')).version;
+  const previewDeployment = await assertSmokeRoot(resolve(options.previewRoot), manifestData, packageVersion);
+  const managedDeployment = await assertSmokeRoot(resolve(options.managedRoot), manifestData, packageVersion);
   const assetPaths = previewDeployment.state.marker.files.filter((entry) => entry.path.startsWith('v2/')).map((entry) => entry.path);
   const managedAssetPaths = managedDeployment.state.marker.files.filter((entry) => entry.path.startsWith('v2/')).map((entry) => entry.path);
   if (assetPaths.join('\0') !== managedAssetPaths.join('\0')) throw new Error('Deployment smoke roots do not have the same V2 asset layout');
@@ -72,7 +74,8 @@ export async function runDeploymentSmoke(options) {
           ...process.env,
           DEPLOYMENT_SMOKE_PREVIEW_URL: preview.url,
           DEPLOYMENT_SMOKE_MANAGED_URL: managed.url,
-          DEPLOYMENT_SMOKE_ASSETS: JSON.stringify(assetPaths)
+          DEPLOYMENT_SMOKE_ASSETS: JSON.stringify(assetPaths),
+          DEPLOYMENT_SMOKE_PACKAGE_VERSION: packageVersion
         },
         stdio: 'inherit'
       });

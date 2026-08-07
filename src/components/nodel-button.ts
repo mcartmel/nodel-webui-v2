@@ -11,21 +11,16 @@ import {
 import { confirmRequestFromAttributes, requestConfirm, shouldConfirm } from '../data/confirm';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { truthy } from '../utils/control-values';
+import { nodelButtonArgTypes, nodelButtonLayouts, nodelButtonSizes, nodelButtonTones, nodelButtonVariants } from '../component-values/nodel-button';
 
-type NodelButtonVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost' | 'link';
-type NodelButtonArgType = 'string' | 'number' | 'boolean' | 'json';
-type NodelButtonLayout = 'inline' | 'stack';
-type NodelButtonSize = 'auto' | 'sm' | 'md' | 'lg';
-
-const variants: NodelButtonVariant[] = ['default', 'primary', 'success', 'info', 'warning', 'danger', 'ghost', 'link'];
-const tones = ['solid', 'soft', 'outline'] as const;
-const argTypes: NodelButtonArgType[] = ['string', 'number', 'boolean', 'json'];
-const layouts: NodelButtonLayout[] = ['inline', 'stack'];
-const sizes: NodelButtonSize[] = ['auto', 'sm', 'md', 'lg'];
+type NodelButtonVariant = (typeof nodelButtonVariants)[number];
+type NodelButtonArgType = (typeof nodelButtonArgTypes)[number];
+type NodelButtonLayout = (typeof nodelButtonLayouts)[number];
+type NodelButtonSize = (typeof nodelButtonSizes)[number];
 const aggregatedTrue = '__nodel_aggregate_true__';
 const aggregatedFalse = '__nodel_aggregate_false__';
 
-type NodelButtonTone = (typeof tones)[number];
+type NodelButtonTone = (typeof nodelButtonTones)[number];
 
 const variantClasses: Record<NodelButtonVariant, string> = {
   default: '',
@@ -45,23 +40,23 @@ const toneClasses: Record<NodelButtonTone, string> = {
 };
 
 function normalizeVariant(value: string | null): NodelButtonVariant {
-  return variants.includes(value as NodelButtonVariant) ? (value as NodelButtonVariant) : 'default';
+  return nodelButtonVariants.includes(value as NodelButtonVariant) ? (value as NodelButtonVariant) : 'default';
 }
 
 function normalizeTone(value: string | null): NodelButtonTone {
-  return tones.includes(value as NodelButtonTone) ? (value as NodelButtonTone) : 'solid';
+  return nodelButtonTones.includes(value as NodelButtonTone) ? (value as NodelButtonTone) : 'solid';
 }
 
 function normalizeArgType(value: string | null): NodelButtonArgType {
-  return argTypes.includes(value as NodelButtonArgType) ? (value as NodelButtonArgType) : 'string';
+  return nodelButtonArgTypes.includes(value as NodelButtonArgType) ? (value as NodelButtonArgType) : 'string';
 }
 
 function normalizeLayout(value: string | null): NodelButtonLayout {
-  return layouts.includes(value as NodelButtonLayout) ? (value as NodelButtonLayout) : 'inline';
+  return nodelButtonLayouts.includes(value as NodelButtonLayout) ? (value as NodelButtonLayout) : 'inline';
 }
 
 function normalizeSize(value: string | null): NodelButtonSize {
-  return sizes.includes(value as NodelButtonSize) ? (value as NodelButtonSize) : 'auto';
+  return nodelButtonSizes.includes(value as NodelButtonSize) ? (value as NodelButtonSize) : 'auto';
 }
 
 function valueMatches(value: string, expected: string | null) {

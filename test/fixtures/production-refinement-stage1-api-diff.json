@@ -1,0 +1,62 @@
+{
+  "baseline": "production-refinement-stage0-component-contract.json",
+  "golden": "production-refinement-stage1-component-contract.json",
+  "serializedSha256": "ce14e521685026871c4c101ba720bfbb27227dd6dbb65845718718d9255de579",
+  "reviewedDiff": {
+    "breaking": [
+      "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
+      "elements.nodel-add-node.attributes.recipes.defaultValue: changed",
+      "elements.nodel-add-node.attributes.redirect.defaultValue: changed",
+      "elements.nodel-control-grid.attributes.columns.numeric: narrowed",
+      "elements.nodel-control-grid.attributes.columns.valueType: changed",
+      "elements.nodel-description.attributes.collapsed-height.defaultValue: changed",
+      "elements.nodel-description.attributes.open.defaultValue: changed",
+      "elements.nodel-editor.attributes.default-file.defaultValue: changed",
+      "elements.nodel-node-list.attributes.page-size.defaultValue: changed",
+      "elements.nodel-node-list.attributes.poll-interval.defaultDescription: changed",
+      "elements.nodel-node-list.attributes.scope.defaultValue: changed",
+      "elements.nodel-node-list.attributes.show-filter: removed",
+      "elements.nodel-node-list.attributes.show-total: removed"
+    ],
+    "additive": [],
+    "informational": [],
+    "operational": []
+  },
+  "contractAnnotations": {
+    "elements": 50,
+    "attributes": 441,
+    "audiences": {
+      "custom": 32,
+      "core": 15,
+      "internal": 3
+    },
+    "registrations": {
+      "eager": 32,
+      "lazy": 15,
+      "auto-host": 3
+    },
+    "completion": {
+      "recommended": 32,
+      "advanced": 15,
+      "hidden": 3
+    },
+    "consumption": {
+      "observed": 433,
+      "initialization": 0,
+      "parent": 3,
+      "contextual-child": 4,
+      "wildcard": 1
+    },
+    "actionBindings": 37,
+    "signalBindings": 51,
+    "signalTargets": 154,
+    "events": 41,
+    "compositionRules": 5,
+    "commonAttributes": 4,
+    "styles": {
+      "semanticClasses": 14,
+      "stateClasses": 17,
+      "tailwindUtilities": 8
+    }
+  }
+}

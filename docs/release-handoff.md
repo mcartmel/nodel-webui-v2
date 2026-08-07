@@ -103,10 +103,11 @@ the stable entry pages, `v2/**` support tree, V1 protected ownership and
 collision policy, generated-path cleanliness exception, and the Java branch
 mapping (`dev` prerelease, `master` stable).
 
-`release.json` schema 3 is the exact release identity and artifact inventory.
+`release.json` schema 4 is the exact release identity and artifact inventory.
 It includes `releaseProcess` (CI run URL, environment name, and the canonical
 `dist` inventory SHA-256 digest) and normalized, hash-pinned Java handoff
-evidence. The standalone bundle verifier recomputes the packaged deployment
+evidence. Its `componentContract` entry pins `v2/nodel-components.json`, public
+contract schema 1, and the exact SHA-256 of the packaged bytes. The standalone bundle verifier validates that contract's package version and recomputes the packaged deployment
 subset digest and requires it to match the recorded tested-dist digest. The future Java flow must verify the ZIP,
 its SHA-256 checksum, provenance/attestation, and `release.json`, including the
 source commit and version. It must compare the package against
@@ -133,7 +134,7 @@ index.htm
 nodel.html
 nodes.html
 toolkit.html
-v2/                         # complete V2 tree, including hashed chunks/assets
+v2/                         # complete V2 tree, including nodel-components.json and hashed chunks/assets
 release.json                # exact identity and hashed artifact inventory
 deployment-manifest.json    # policy/integration mapping
 PRODUCTION_HANDOFF.md       # operator handoff copy of this runbook
@@ -146,7 +147,7 @@ java-handoff/master.json        # normalized, hash-pinned Java master evidence
 
 The five entry pages are the complete stable page set. The complete `v2/`
 tree is required; copying only `v2/nodel-webui.js` or the stylesheet omits
-hashed runtime chunks and assets. The ZIP root is the content root, not an
+the machine-readable component contract, hashed runtime chunks, and assets. The ZIP root is the content root, not an
 additional enclosing project directory. The Java reports include the exact V1
 hashed file inventory and inventory hash used for collision review.
 

@@ -58,13 +58,19 @@ function applyContext(node: Node, context: Record<string, string>) {
 }
 
 export class NodelTemplate extends HTMLElement {
+  static observedAttributes = ['template', 'name', 'repeat', 'start', 'step'];
+
   private mutationObserver: MutationObserver | null = null;
   private renderedNodes: Node[] = [];
   private renderQueued = false;
 
   connectedCallback() {
     this.queueRender();
-    this.mutationObserver = new MutationObserver(() => this.queueRender());
+    this.mutationObserver = new MutationObserver((mutations) => {
+      if (mutations.some((mutation) => mutation.type === 'childList' || mutation.attributeName?.startsWith('data-'))) {
+        this.queueRender();
+      }
+    });
     this.mutationObserver.observe(this, {
       attributes: true,
       childList: true,
@@ -76,6 +82,10 @@ export class NodelTemplate extends HTMLElement {
     this.mutationObserver?.disconnect();
     this.mutationObserver = null;
     this.clearRenderedNodes();
+  }
+
+  attributeChangedCallback() {
+    if (this.isConnected) this.queueRender();
   }
 
   private queueRender() {
