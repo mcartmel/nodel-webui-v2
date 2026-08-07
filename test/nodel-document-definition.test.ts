@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { nodelDocumentElements, completeNodelDocument } from '../src/editor/nodel-document-definition';
+import { CompletionContext } from '@codemirror/autocomplete';
+import { htmlLanguage } from '@codemirror/lang-html';
+import { EditorState } from '@codemirror/state';
+import { nodelDocumentElements } from '../src/editor/nodel-document-definition';
+import { nodelHtmlCompletionSource } from '../src/editor/nodel-html-document-support';
 import { commonNodelAttributes, getEffectiveCatalogueAttributes } from '../src/nodel-component-metadata';
 import { controlIconNames } from '../src/icons/control-icon-names';
 import { bootstrapNodelComponentLoader, loadNodelComponent } from '../src/nodel-component-loader';
@@ -12,22 +16,8 @@ vi.mock('../src/data/signal-bindings', async (importOriginal) => {
 });
 
 function fakeCompletionContext(text: string, explicit = true) {
-  return {
-    pos: text.length,
-    explicit,
-    state: {
-      sliceDoc(from: number, to: number) {
-        return text.slice(from, to);
-      }
-    },
-    matchBefore(pattern: RegExp) {
-      const match = text.match(pattern);
-      if (!match || match.index === undefined || match.index + match[0].length !== text.length) {
-        return null;
-      }
-      return { from: match.index, to: text.length, text: match[0] };
-    }
-  };
+  const state = EditorState.create({ doc: text, extensions: [htmlLanguage] });
+  return new CompletionContext(state, text.length, explicit);
 }
 
 function normaliseExampleMarkup(markup: string) {
@@ -197,7 +187,7 @@ describe('nodel document definition', () => {
     const text = nodelDocumentElements.find((element) => element.name === 'nodel-text');
     expect(text?.attributes.find((attribute) => attribute.name === 'tone')?.values).toEqual(['muted', 'default', 'accent', 'success', 'info', 'warning', 'danger']);
     expect(text?.attributes.find((attribute) => attribute.name === 'size')?.values).toEqual(['xs', 'sm', 'md', 'lg', 'xl']);
-    const textAttributeCompletions = completeNodelDocument(fakeCompletionContext('<nodel-text ') as never);
+    const textAttributeCompletions = nodelHtmlCompletionSource(fakeCompletionContext('<nodel-text '));
     expect(textAttributeCompletions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['visibility', 'visible-value', 'visible-values']));
 
     const image = nodelDocumentElements.find((element) => element.name === 'nodel-image');
@@ -206,13 +196,13 @@ describe('nodel document definition', () => {
     const icon = nodelDocumentElements.find((element) => element.name === 'nodel-icon');
     expect(icon?.attributes.find((attribute) => attribute.name === 'variant')).toBeUndefined();
 
-    const completions = completeNodelDocument(fakeCompletionContext('<nodel-node-list scope="') as never);
+    const completions = nodelHtmlCompletionSource(fakeCompletionContext('<nodel-node-list scope="'));
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
 
-    const elementCompletions = completeNodelDocument(fakeCompletionContext('<') as never)?.options.map((option) => option.label) ?? [];
+    const elementCompletions = nodelHtmlCompletionSource(fakeCompletionContext('<'))?.options.map((option) => option.label) ?? [];
     expect(elementCompletions).toContain('nodel-link');
     expect(elementCompletions).not.toEqual(expect.arrayContaining(['nodel-toast-host', 'nodel-confirm-host', 'nodel-connectivity-host']));
-    const templateAttributes = completeNodelDocument(fakeCompletionContext('<nodel-template ') as never)?.options.map((option) => option.label) ?? [];
+    const templateAttributes = nodelHtmlCompletionSource(fakeCompletionContext('<nodel-template '))?.options.map((option) => option.label) ?? [];
     expect(templateAttributes).not.toContain('data-*');
   });
 
@@ -259,8 +249,8 @@ describe('nodel document definition', () => {
     const rowEffective = getEffectiveCatalogueAttributes('nodel-row');
     expect(rowEffective.filter((attribute) => attribute.name === 'signals')).toHaveLength(1);
     expect(rowEffective.find((attribute) => attribute.name === 'signals')?.syntax).toContain('visibility(any|all)');
-    expect(completeNodelDocument(fakeCompletionContext('<nodel-row ') as never)?.options.map((option) => option.label)).toContain('signals');
-    expect(completeNodelDocument(fakeCompletionContext('<nodel-row signals="') as never)?.options).toEqual([]);
+    expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-row '))?.options.map((option) => option.label)).toContain('signals');
+    expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-row signals="'))?.options).toEqual([]);
     expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'actions')?.description).toContain('live, commit');
     expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'actions')?.description).not.toContain('change');
     expect(byName('nodel-stepper').attributes.find((attribute) => attribute.name === 'actions')?.description).toContain('live, commit, increase, decrease');
@@ -296,7 +286,7 @@ describe('nodel document definition', () => {
     expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'compound-align')?.values).toEqual(['bottom', 'center', 'top', 'end', 'right', 'start', 'left', 'middle']);
     expect(byName('nodel-fader').attributes.find((attribute) => attribute.name === 'compound-align')?.defaultValue).toBe('bottom');
     expect(new Set(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'on-icon')?.values)).toEqual(new Set(controlIconNames));
-    expect(completeNodelDocument(fakeCompletionContext('<nodel-toggle on-icon="') as never)?.options[0]?.label).toBe('sun');
+    expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-toggle on-icon="'))?.options[0]?.label).toBe('sun');
     expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values?.[0]).toBe('image');
     expect(new Set(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values)).toEqual(new Set(controlIconNames));
     expect(byName('nodel-status').attributes.find((attribute) => attribute.name === 'state')?.valueType).toBe('enum-or-string');
@@ -308,7 +298,7 @@ describe('nodel document definition', () => {
     expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'nav-label')?.defaultDescription).toContain('title');
     expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'nav-id')?.defaultDescription).toContain('slugged');
     expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'arg-type')?.defaultValue).toBe('string');
-    expect(completeNodelDocument(fakeCompletionContext('<nodel-stepper repeat="') as never)?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['hold', 'off']));
+    expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-stepper repeat="'))?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['hold', 'off']));
   });
 
   it('documents every public attribute observed by catalogue components', async () => {

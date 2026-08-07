@@ -1367,9 +1367,12 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Keeps newer edits visible and dirty when an older save completes, and performs best-effort modified-time/content conflict checks before unconditional Java Nodel saves.
 - Uses theme-aware editor colours for the cursor, selection, matching brackets, active line, search matches, and syntax highlighting.
 - Starts at a sensible editor height and supports vertical drag-resize.
-- Provides custom layout hints from the shared `src/nodel-component-metadata.ts` definitions through the CodeMirror adapter in `src/editor/nodel-document-definition.ts`.
+- Uses the canonical component contract for HTML/XML element, attribute, enum, action-phase, signal-target, aggregation, class-token, and static page-fragment assistance. Native CodeMirror HTML/XML completion remains responsible for ordinary markup, closing tags, quote handling, and replacement ranges.
+- Offers explicit page and complete authored-document scaffolds through `Ctrl/Cmd+Space`; the complete scaffold includes the safe theme bootstrap, stable CSS before module JavaScript, and the standard app/toolbar/page/row/column structure.
+- Shows bounded advisory HTML/XML diagnostics for invalid contract literals, binding grammar, link destinations, composition, legacy APIs, and advanced/internal authoring. Diagnostics never look up action or signal names, do not modify the document, and do not block Save.
+- Keeps completion help and diagnostic counts separate from file-operation, conflict, and restart status.
 
-Language support is loaded only when a matching file is selected. Java and SQL use maintained CodeMirror 6 language packages; Groovy and shell use the legacy-mode package because maintained CodeMirror 6 language packages are not available for those modes. In the Stage 8 production build, moving language packages out of the base editor chunk reduced that chunk from 705.17 kB / 242.57 kB gzip to 445.76 kB / 141.69 kB gzip. Matching selections load Java at 40.77 kB / 16.77 kB gzip, SQL at 14.03 kB / 6.10 kB gzip, Groovy at 4.14 kB / 1.77 kB gzip, or shell at 2.57 kB / 1.21 kB gzip, plus a shared 26.53 kB / 8.82 kB gzip parser chunk when required.
+Language support is loaded only when a matching file is selected. HTML and XML keep their contract adapters and parsers in separate asynchronous chunks. Java and SQL use maintained CodeMirror 6 language packages; Groovy and shell use the legacy-mode package because maintained CodeMirror 6 language packages are not available for those modes.
 
 Supported attributes:
 

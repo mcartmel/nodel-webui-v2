@@ -1,4 +1,3 @@
-import { autocompletion } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import type { Extension } from '@codemirror/state';
@@ -7,7 +6,9 @@ import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
 import { languageKindForPath, type EditorLanguageKind } from './file-types';
-import { completeNodelDocument } from './nodel-document-definition';
+import type { NodelDiagnosticsSummary } from './nodel-document-diagnostics';
+
+export type { NodelDiagnosticsSummary } from './nodel-document-diagnostics';
 
 export interface NodelCodeEditor {
   setDocument(text: string, path: string): void;
@@ -26,6 +27,7 @@ export interface NodelCodeEditorOptions {
   onChange?: (text: string) => void;
   onError?: (error: unknown) => void;
   onSave?: () => void;
+  onDiagnostics?: (summary: NodelDiagnosticsSummary) => void;
 }
 
 const nodelHighlightStyle = HighlightStyle.define([
@@ -43,23 +45,23 @@ const nodelHighlightStyle = HighlightStyle.define([
   { tag: tags.invalid, color: 'var(--nodel-editor-invalid)' }
 ]);
 
-export function languageExtensionForPath(path: string): Promise<Extension> {
-  return languageExtensionForKind(languageKindForPath(path));
+export function languageExtensionForPath(path: string, options?: { onDiagnostics?: (summary: NodelDiagnosticsSummary) => void; isCurrent?: () => boolean }): Promise<Extension> {
+  return languageExtensionForKind(languageKindForPath(path), options);
 }
 
-export async function languageExtensionForKind(kind: EditorLanguageKind): Promise<Extension> {
+export async function languageExtensionForKind(kind: EditorLanguageKind, options?: { onDiagnostics?: (summary: NodelDiagnosticsSummary) => void; isCurrent?: () => boolean }): Promise<Extension> {
   switch (kind) {
     case 'python': {
       const { python } = await import('@codemirror/lang-python');
       return python();
     }
     case 'html': {
-      const { html } = await import('@codemirror/lang-html');
-      return [html(), autocompletion({ override: [completeNodelDocument] })];
+      const { nodelHtmlDocumentSupport } = await import('./nodel-html-document-support');
+      return nodelHtmlDocumentSupport(options);
     }
     case 'xml': {
-      const { xml } = await import('@codemirror/lang-xml');
-      return [xml(), autocompletion({ override: [completeNodelDocument] })];
+      const { nodelXmlDocumentSupport } = await import('./nodel-xml-document-support');
+      return nodelXmlDocumentSupport(options);
     }
     case 'javascript': {
       const { javascript } = await import('@codemirror/lang-javascript');
@@ -102,6 +104,7 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
   const language = new Compartment();
   const editable = new Compartment();
   let path = options.path ?? '';
+  let kind = languageKindForPath(path);
   let languageRequest = 0;
   let destroyed = false;
 
@@ -192,9 +195,14 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
 
   const applyLanguage = async (nextPath: string) => {
     const request = ++languageRequest;
+    const nextKind = languageKindForPath(nextPath);
+    const hasKindChanged = nextKind !== kind;
+    if (!destroyed && request === languageRequest && (hasKindChanged || (nextKind !== 'html' && nextKind !== 'xml'))) {
+      options.onDiagnostics?.({ enabled: false, errors: 0, warnings: 0, truncated: false });
+    }
     let extension: Extension;
     try {
-      extension = await languageExtensionForPath(nextPath);
+      extension = await languageExtensionForPath(nextPath, { onDiagnostics: options.onDiagnostics, isCurrent: () => !destroyed && request === languageRequest });
     } catch (error) {
       if (!destroyed && request === languageRequest) {
         options.onError?.(error);
@@ -204,6 +212,7 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
     if (destroyed || request !== languageRequest) {
       return;
     }
+    kind = nextKind;
     view.dispatch({ effects: language.reconfigure(extension) });
   };
   void applyLanguage(path);
@@ -214,7 +223,7 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
         return;
       }
       path = nextPath;
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+      if (view.state.doc.toString() !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
       void applyLanguage(path);
     },
     getDocument() {

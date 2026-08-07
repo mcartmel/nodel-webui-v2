@@ -21,7 +21,7 @@ const editorApiMock = vi.hoisted(() => ({
 
 const codeEditorMock = vi.hoisted(() => ({
   currentDoc: '',
-  options: null as null | { onChange?: (text: string) => void; onSave?: () => void },
+  options: null as null | { onChange?: (text: string) => void; onSave?: () => void; onDiagnostics?: (summary: { enabled: boolean; errors: number; warnings: number; truncated: boolean }) => void },
   instance: {
     setDocument: vi.fn((text: string, _path?: string) => {
       codeEditorMock.currentDoc = text;
@@ -31,7 +31,7 @@ const codeEditorMock = vi.hoisted(() => ({
     focus: vi.fn(),
     destroy: vi.fn()
   },
-  createNodelCodeEditor: vi.fn((options: { onChange?: (text: string) => void; onSave?: () => void }) => {
+  createNodelCodeEditor: vi.fn((options: { onChange?: (text: string) => void; onSave?: () => void; onDiagnostics?: (summary: { enabled: boolean; errors: number; warnings: number; truncated: boolean }) => void }) => {
     codeEditorMock.options = options;
     return codeEditorMock.instance;
   })
@@ -598,6 +598,64 @@ describe('nodel-editor', () => {
 
     (editor as any).setState({ status: '' });
     expect(status?.hidden).toBe(true);
+  });
+
+  it('preserves dirty file-operation status text through diagnostics updates', async () => {
+    await mountEditor();
+    const authoring = document.querySelector<HTMLElement>('[data-editor-authoring-status]')!;
+    const operationStatus = document.querySelector<HTMLElement>('.nodel-editor-body > .nodel-editor-status')!;
+    const reloadStatus = document.querySelector<HTMLElement>('.nodel-editor-reload-status')!;
+    const editor = document.querySelector('nodel-editor') as any;
+    expect(authoring.hidden).toBe(true);
+    expect(operationStatus.hidden).toBe(true);
+    expect(reloadStatus.hidden).toBe(true);
+
+    codeEditorMock.currentDoc = 'print("local")';
+    codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
+    await waitFor(() => document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled === false);
+    const saveButton = document.querySelector<HTMLButtonElement>('[data-editor-save]')!;
+    expect(saveButton.disabled).toBe(false);
+
+    const conflictMessage = 'Node reload reported a content conflict. Newer node edits remain unsaved.';
+    const reloadMessage = 'Waiting for node reload...';
+    editor.setState({
+      status: conflictMessage,
+      reloadStatus: reloadMessage,
+      dirty: true,
+      notice: true
+    });
+
+    expect(saveButton.disabled).toBe(false);
+    expect(operationStatus).not.toBeNull();
+    expect(operationStatus.hidden).toBe(false);
+    expect(operationStatus.textContent).toContain(conflictMessage);
+    expect(reloadStatus.hidden).toBe(false);
+    expect(reloadStatus.textContent).toContain(reloadMessage);
+
+    codeEditorMock.options?.onDiagnostics?.({ enabled: true, errors: 1, warnings: 2, truncated: false });
+    await flush();
+    expect(authoring.hidden).toBe(false);
+    expect(authoring.textContent).toContain('Ctrl/Cmd+Space for Nodel UI hints.');
+    expect(document.querySelector('[data-editor-diagnostic-status]')?.textContent).toBe('1 error, 2 warnings.');
+    expect(operationStatus.hidden).toBe(false);
+
+    expect(saveButton.disabled).toBe(false);
+    expect(operationStatus.textContent).toContain(conflictMessage);
+    expect(reloadStatus.textContent).toContain(reloadMessage);
+    expect(reloadStatus.hidden).toBe(false);
+
+    codeEditorMock.options?.onDiagnostics?.({ enabled: true, errors: 0, warnings: 0, truncated: true });
+    await flush();
+    expect(document.querySelector('[data-editor-diagnostic-status]')?.textContent).toBe('Diagnostics limited for this document.');
+    expect(saveButton.disabled).toBe(false);
+    expect(operationStatus.textContent).toContain(conflictMessage);
+    expect(reloadStatus.textContent).toContain(reloadMessage);
+    codeEditorMock.options?.onDiagnostics?.({ enabled: false, errors: 0, warnings: 0, truncated: false });
+    await flush();
+    expect(authoring.hidden).toBe(true);
+    expect(operationStatus.hidden).toBe(false);
+    expect(operationStatus.textContent).toContain(conflictMessage);
+    expect(reloadStatus.textContent).toContain(reloadMessage);
   });
 
   it('only renders the reload status pill when it has a message', async () => {

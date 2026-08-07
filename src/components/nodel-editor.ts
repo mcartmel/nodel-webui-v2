@@ -19,7 +19,7 @@ import {
   NodeRestartExpectationObsoleteError,
   type PreparedNodeRestartExpectation
 } from '../data/node-restart-source';
-import type { NodelCodeEditor } from '../editor/codemirror-editor';
+import type { NodelCodeEditor, NodelDiagnosticsSummary } from '../editor/codemirror-editor';
 import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
@@ -56,6 +56,8 @@ interface EditorViewModel {
   deleting: boolean;
   dirty: boolean;
   dragActive: boolean;
+  editorAssistEnabled: boolean;
+  editorDiagnosticStatus: string;
   editorImportError: boolean;
   error: string;
   files: EditorFileView[];
@@ -130,6 +132,10 @@ const template = `
       <div data-editor-drop-target class="nodel-editor-drop-target" data-link="hidden{:!dragActive}" aria-hidden="true">
         <span>Drop one file to upload</span>
       </div>
+    </div>
+    <div data-editor-authoring-status class="nodel-editor-authoring-status" data-link="hidden{:!editorAssistEnabled}">
+      <span>Ctrl/Cmd+Space for Nodel UI hints.</span>
+      <span data-editor-diagnostic-status role="status" aria-live="polite" aria-atomic="true">{^{>editorDiagnosticStatus}}</span>
     </div>
   </div>
 `;
@@ -217,6 +223,8 @@ export class NodelEditor extends HTMLElement {
     deleting: false,
     dirty: false,
     dragActive: false,
+    editorAssistEnabled: false,
+    editorDiagnosticStatus: '',
     editorImportError: false,
     error: '',
     files: [],
@@ -254,6 +262,8 @@ export class NodelEditor extends HTMLElement {
         canSave: false,
         deleting: false,
         dirty: false,
+        editorAssistEnabled: false,
+        editorDiagnosticStatus: '',
         editorImportError: false,
         legacy: false,
         loading: false,
@@ -354,6 +364,7 @@ export class NodelEditor extends HTMLElement {
         readOnly: true,
         onChange: scope.guard(this.handleEditorChange),
         onError: scope.guard((error) => this.handleInitializationError(error)),
+        onDiagnostics: scope.guard(this.handleEditorDiagnostics),
         onSave: () => {
           if (scope.isCurrent()) {
             void this.saveSelectedFile();
@@ -381,6 +392,20 @@ export class NodelEditor extends HTMLElement {
     this.addEventListener('drop', this.handleDrop);
     this.addEventListener('dragend', this.handleDragEnd);
   }
+
+  private handleEditorDiagnostics = (summary: NodelDiagnosticsSummary) => {
+    if (!summary.enabled) {
+      this.setState({ editorAssistEnabled: false, editorDiagnosticStatus: '' });
+      return;
+    }
+    const parts = [];
+    if (summary.errors) parts.push(`${summary.errors} error${summary.errors === 1 ? '' : 's'}`);
+    if (summary.warnings) parts.push(`${summary.warnings} warning${summary.warnings === 1 ? '' : 's'}`);
+    this.setState({
+      editorAssistEnabled: true,
+      editorDiagnosticStatus: summary.truncated ? 'Diagnostics limited for this document.' : parts.length ? `${parts.join(', ')}.` : 'No Nodel diagnostics.'
+    });
+  };
 
   private removeEventListeners() {
     this.removeEventListener('click', this.handleClick);

@@ -31,6 +31,14 @@
     display: none;
   }
 
+  .nodel-editor-authoring-status {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-nodel-muted;
+  }
+
+  .nodel-editor-authoring-status[hidden] {
+    display: none;
+  }
+
   .nodel-editor-host {
     --nodel-editor-font-size: 0.8125rem;
     --nodel-editor-line-height: 1.45;
@@ -46,6 +54,30 @@
     @apply min-h-full;
     font-size: var(--nodel-editor-font-size);
     line-height: var(--nodel-editor-line-height);
+  }
+
+  .nodel-editor-host .cm-diagnostic-error {
+    border-left-color: rgb(var(--nodel-danger));
+  }
+
+  .nodel-editor-host .cm-diagnostic-warning {
+    border-left-color: rgb(var(--nodel-warning));
+  }
+
+  .nodel-editor-completion.cm-tooltip {
+    color: rgb(var(--nodel-fg));
+    background: rgb(var(--nodel-surface));
+    border-color: rgb(var(--nodel-border));
+  }
+
+  .nodel-editor-completion.cm-tooltip-autocomplete > ul > li[aria-selected] {
+    color: rgb(var(--nodel-fg));
+    background: rgb(var(--nodel-accent) / 0.2);
+  }
+
+  .nodel-editor-completion .cm-completionDetail {
+    color: rgb(var(--nodel-muted));
+    opacity: 1;
   }
 
   .nodel-toolkit-editor {
