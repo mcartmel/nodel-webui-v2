@@ -136,9 +136,10 @@ test.describe('stable authored URL matrix', () => {
       await page.goto(`/nodes/Demo/${builtPage}.html`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('nodel-app')).toHaveAttribute('data-nodel-app', 'true');
       await expect(page.locator('link[href*="v2/nodel-webui.css"]')).toHaveCount(1);
-      await expect(page.locator('script[src*="v2/nodel-webui.js"]')).toHaveCount(1);
+      const entryPath = builtPage === 'components' ? '/nodes/Demo/v2/entries/components.js' : '/nodes/Demo/v2/nodel-webui.js';
+      await expect(page.locator(`script[src*="${entryPath.slice('/nodes/Demo/'.length)}"]`)).toHaveCount(1);
       await expect.poll(() => responseStatuses.get('/nodes/Demo/v2/nodel-webui.css')?.includes(200) ?? false).toBe(true);
-      await expect.poll(() => responseStatuses.get('/nodes/Demo/v2/nodel-webui.js')?.includes(200) ?? false).toBe(true);
+      await expect.poll(() => responseStatuses.get(entryPath)?.includes(200) ?? false).toBe(true);
       for (const lazyTag of expectedLazyComponents) {
         await expect.poll(() => page.evaluate((tagName) => Boolean(customElements.get(tagName)), lazyTag)).toBe(true);
         await expect.poll(() => requests.some((url) => (

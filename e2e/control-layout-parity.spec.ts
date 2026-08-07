@@ -68,7 +68,8 @@ test.describe('retained control and layout parity', () => {
     await page.evaluate(() => {
       const fixture = document.createElement('div');
       fixture.id = 'placement-fixture';
-      fixture.style.cssText = 'position:fixed;left:1rem;right:1rem;bottom:1rem;z-index:60';
+      fixture.className = 'nodel-panel';
+      fixture.style.cssText = 'position:fixed;left:1rem;right:1rem;bottom:1rem;z-index:60;padding-top:12rem';
       fixture.innerHTML = `
         <nodel-select placement="auto" label="Placement example">
           <nodel-button value="first">First</nodel-button>

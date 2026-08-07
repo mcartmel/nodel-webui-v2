@@ -60,8 +60,8 @@ async function expectFocusIsNotClipped(control: Locator) {
     return {
       clippingFailures,
       hasVisibleFocus: hasOutline || hasBoxShadow,
-      insideViewport: expanded.left >= 0 && expanded.top >= 0
-        && expanded.right <= window.innerWidth && expanded.bottom <= window.innerHeight
+      insideViewport: rect.left >= 0 && rect.top >= 0
+        && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight
     };
   });
   expect(result.hasVisibleFocus).toBe(true);

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "stage": "production-refinement-stage0",
+  "packageVersion": "0.1.2",
+  "sourceCommit": "212efd91359c185fc614238f81ab6329beb5aac2",
+  "environment": {
+    "declaredNode": "20.12.0",
+    "measuredNode": "24.15.0",
+    "measuredNpm": "11.12.1"
+  },
+  "measurement": {
+    "compression": "gzip level 9, each emitted file compressed independently",
+    "stableEagerClosure": {
+      "bytes": 365685,
+      "gzipBytes": 96992,
+      "roles": [
+        "v2/nodel-webui.js",
+        "v2/chunks/main-*.js"
+      ]
+    },
+    "stableCss": {
+      "bytes": 167293,
+      "gzipBytes": 20811,
+      "roles": [
+        "v2/nodel-webui.css"
+      ]
+    },
+    "codeMirrorBase": {
+      "bytes": 411371,
+      "gzipBytes": 133910,
+      "roles": [
+        "v2/chunks/codemirror-editor-*.js"
+      ]
+    },
+    "cataloguePage": {
+      "bytes": 114520,
+      "gzipBytes": 14077,
+      "roles": [
+        "components.html"
+      ]
+    },
+    "deployableV2": {
+      "bytes": 1986968,
+      "gzipBytes": 617690,
+      "roles": [
+        "v2/**"
+      ]
+    }
+  }
+}

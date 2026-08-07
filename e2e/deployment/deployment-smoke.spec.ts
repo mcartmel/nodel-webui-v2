@@ -15,7 +15,7 @@ test('serves the complete stable layout without development paths or broken V2 a
     expect(response.status(), entry).toBe(200);
     const html = await response.text();
     if (entry !== 'index.htm') {
-      expect(html, entry).toContain('./v2/nodel-webui.js');
+      expect(html, entry).toContain(entry === 'components.html' ? './v2/entries/components.js' : './v2/nodel-webui.js');
       expect(html, entry).toContain('./v2/nodel-webui.css');
     }
     expect(html, entry).not.toMatch(/(?:\/src\/|localhost|vite\b)/i);

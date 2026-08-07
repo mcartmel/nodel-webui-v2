@@ -128,7 +128,8 @@ test.describe('catalogue in-memory runtime', () => {
 
     const host = page.locator('nodel-confirm-host');
     await expect(host).toBeVisible();
-    await expect(host.locator('.nodel-confirm-code-status')).toHaveText('Enter operator code.');
+    await expect(host.locator('.nodel-confirm-code-status')).toHaveText('Operator code ready.');
+    await expect(host.locator('.nodel-confirm-code-status')).toHaveClass(/\bsr-only\b/);
     await expect(host.locator('[data-confirm-action="confirm"]')).toBeDisabled();
     await expect(shutdown).toHaveAttribute('data-state', 'off');
     expect(await host.evaluate((element) => element.innerHTML.includes('0420'))).toBe(false);

@@ -1,0 +1,3934 @@
+{
+  "baselineSchema": "pre-component-contract",
+  "packageVersion": "0.1.2",
+  "registry": {
+    "eager": [
+      "nodel-app",
+      "nodel-toolbar",
+      "nodel-page",
+      "nodel-row",
+      "nodel-column",
+      "nodel-footer",
+      "nodel-control-grid",
+      "nodel-control-space",
+      "nodel-group",
+      "nodel-template",
+      "nodel-button",
+      "nodel-toggle",
+      "nodel-segmented",
+      "nodel-select",
+      "nodel-meter",
+      "nodel-fader",
+      "nodel-stepper",
+      "nodel-pad",
+      "nodel-readout",
+      "nodel-palette",
+      "nodel-image",
+      "nodel-icon",
+      "nodel-qrcode",
+      "nodel-status-indicator",
+      "nodel-status",
+      "nodel-collapse",
+      "nodel-text",
+      "nodel-markdown",
+      "nodel-title",
+      "nodel-clock",
+      "nodel-host-icon",
+      "nodel-theme-toggle",
+      "nodel-toast-host",
+      "nodel-confirm-host",
+      "nodel-connectivity-host"
+    ],
+    "lazy": [
+      "nodel-description",
+      "nodel-node-list",
+      "nodel-add-node",
+      "nodel-node-menu",
+      "nodel-diagnostics",
+      "nodel-host-log",
+      "nodel-diagnostic-charts",
+      "nodel-toolkit",
+      "nodel-console",
+      "nodel-log",
+      "nodel-actsig",
+      "nodel-params",
+      "nodel-bindings",
+      "nodel-editor",
+      "nodel-link"
+    ],
+    "documentedCustom": [
+      "nodel-app",
+      "nodel-toolbar",
+      "nodel-page",
+      "nodel-row",
+      "nodel-column",
+      "nodel-footer",
+      "nodel-control-grid",
+      "nodel-control-space",
+      "nodel-group",
+      "nodel-template",
+      "nodel-button",
+      "nodel-toggle",
+      "nodel-segmented",
+      "nodel-select",
+      "nodel-fader",
+      "nodel-meter",
+      "nodel-stepper",
+      "nodel-pad",
+      "nodel-readout",
+      "nodel-palette",
+      "nodel-image",
+      "nodel-icon",
+      "nodel-qrcode",
+      "nodel-status-indicator",
+      "nodel-status",
+      "nodel-collapse",
+      "nodel-title",
+      "nodel-text",
+      "nodel-markdown",
+      "nodel-clock",
+      "nodel-host-icon",
+      "nodel-theme-toggle"
+    ],
+    "documentedCore": [
+      "nodel-description",
+      "nodel-node-list",
+      "nodel-add-node",
+      "nodel-node-menu",
+      "nodel-diagnostics",
+      "nodel-host-log",
+      "nodel-diagnostic-charts",
+      "nodel-toolkit",
+      "nodel-console",
+      "nodel-log",
+      "nodel-actsig",
+      "nodel-params",
+      "nodel-bindings",
+      "nodel-editor",
+      "nodel-toast-host",
+      "nodel-confirm-host",
+      "nodel-connectivity-host",
+      "nodel-link"
+    ]
+  },
+  "commonAttributes": [
+    {
+      "name": "signals",
+      "description": "Signal binding list. Supported common target: visibility.",
+      "valueType": "binding",
+      "syntax": "SignalName[.path]:visibility[; or , SignalName[.path]:visibility(any|all) ...]",
+      "common": true
+    },
+    {
+      "name": "visibility",
+      "description": "Local signal controlling component visibility. Supports SignalName.path extraction. Without exact values, visible/true/1 shows and hidden/false/0 hides.",
+      "valueType": "binding",
+      "syntax": "SignalName[.path]",
+      "defaultDescription": "Visible unless a visibility source is configured.",
+      "common": true
+    },
+    {
+      "name": "visible-value",
+      "description": "One exact, case-sensitive scalar visibility value. The component starts hidden until this value is received.",
+      "valueType": "string",
+      "defaultDescription": "Derived: hidden until a matching value is received.",
+      "common": true
+    },
+    {
+      "name": "visible-values",
+      "description": "Semicolon-separated exact, case-sensitive scalar visibility values. The component starts hidden until one value matches.",
+      "valueType": "string",
+      "syntax": "value;value;...",
+      "defaultDescription": "Derived: hidden until a matching value is received.",
+      "common": true
+    }
+  ],
+  "elements": [
+    {
+      "name": "nodel-app",
+      "catalogue": true,
+      "defaultSignalTarget": "title",
+      "description": "Top-level Nodel application shell.",
+      "attributes": [
+        {
+          "name": "title",
+          "description": "Runtime page title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: stored theme preference, otherwise the system theme.",
+          "name": "theme",
+          "description": "Theme selection. Omit the attribute for the stored/system preference; default is a compatibility reset alias.",
+          "values": [
+            "default",
+            "light",
+            "dark"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "modal",
+          "name": "offline-mode",
+          "description": "Host-offline presentation. Modal blocks controls; overlay leaves them available.",
+          "values": [
+            "modal",
+            "overlay"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates title.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: title.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-app title=\"Nodel\">\n  ${}\n</nodel-app>"
+    },
+    {
+      "name": "nodel-toolbar",
+      "catalogue": true,
+      "description": "Toolbar with generated navigation and actions slot.",
+      "attributes": [
+        {
+          "defaultDescription": "Derived: app signal title or discovered node name when available.",
+          "name": "title",
+          "description": "Toolbar title override.",
+          "valueType": "string"
+        },
+        {
+          "name": "icon-src",
+          "description": "Static toolbar icon URL.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: title.",
+          "name": "icon-alt",
+          "description": "Static toolbar icon alt text.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-toolbar icon-src=\"./v2/img/logo.png\">\n  ${}\n</nodel-toolbar>"
+    },
+    {
+      "name": "nodel-page",
+      "catalogue": true,
+      "description": "Selectable app page or nav group.",
+      "attributes": [
+        {
+          "defaultDescription": "Derived: Page for parent navigation when neither title nor nav-label is configured.",
+          "name": "title",
+          "description": "Page title used for generated navigation. It does not render a visible heading.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: title, otherwise Page.",
+          "name": "nav-label",
+          "description": "Navigation label override, consumed by the parent nodel-app.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: slugged navigation label/title, with a numeric suffix when needed for uniqueness.",
+          "name": "nav-id",
+          "description": "Stable explicit navigation id.",
+          "valueType": "string"
+        },
+        {
+          "name": "action",
+          "description": "Action called whenever this page is explicitly activated.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Activation action bindings. Supported phase: activate.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "arg",
+          "description": "Optional activation action argument.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for the activation argument.",
+          "values": [
+            "string",
+            "number",
+            "boolean",
+            "json"
+          ],
+          "valueType": "enum"
+        }
+      ],
+      "snippet": "<nodel-page title=\"Page\">\n  ${}\n</nodel-page>"
+    },
+    {
+      "name": "nodel-row",
+      "catalogue": true,
+      "description": "Responsive layout row.",
+      "attributes": [],
+      "snippet": "<nodel-row>\n  <nodel-column>\n    ${}\n  </nodel-column>\n</nodel-row>"
+    },
+    {
+      "name": "nodel-column",
+      "catalogue": true,
+      "description": "Responsive layout column.",
+      "attributes": [
+        {
+          "name": "span",
+          "description": "Base 12-column span. Finite input is truncated and clamped to 1..12.",
+          "defaultValue": "12",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the base span.",
+          "name": "sm",
+          "description": "Small breakpoint span. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint span.",
+          "name": "md",
+          "description": "Medium breakpoint span. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint span.",
+          "name": "lg",
+          "description": "Large breakpoint span. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint span.",
+          "name": "xl",
+          "description": "Extra-large breakpoint span. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint span.",
+          "name": "2xl",
+          "description": "2XL breakpoint span. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultValue": "0",
+          "name": "order",
+          "description": "Base visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the base order.",
+          "name": "sm-order",
+          "description": "Small-breakpoint visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint order.",
+          "name": "md-order",
+          "description": "Medium-breakpoint visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint order.",
+          "name": "lg-order",
+          "description": "Large-breakpoint visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint order.",
+          "name": "xl-order",
+          "description": "Extra-large-breakpoint visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint order.",
+          "name": "2xl-order",
+          "description": "2XL-breakpoint visual order, clamped to -12..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": -12,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        }
+      ],
+      "snippet": "<nodel-column md=\"6\">\n  ${}\n</nodel-column>"
+    },
+    {
+      "name": "nodel-footer",
+      "catalogue": true,
+      "description": "Semantic page footer in normal flow or an explicitly fixed safe-area-aware mode.",
+      "attributes": [
+        {
+          "defaultValue": "false",
+          "name": "fixed",
+          "description": "Fix the footer to the viewport bottom and reserve matching app space.",
+          "valueType": "boolean"
+        }
+      ],
+      "snippet": "<nodel-footer>\n  ${}\n</nodel-footer>"
+    },
+    {
+      "name": "nodel-control-grid",
+      "catalogue": true,
+      "description": "Equal-cell grid for touch controls.",
+      "attributes": [
+        {
+          "name": "columns",
+          "description": "Base control column count. Finite input is truncated and clamped to 1..12.",
+          "defaultValue": "1",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "No override: inherits the base column count.",
+          "name": "sm",
+          "description": "Small breakpoint control column count. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint column count.",
+          "name": "md",
+          "description": "Medium breakpoint control column count. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint column count.",
+          "name": "lg",
+          "description": "Large breakpoint control column count. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint column count.",
+          "name": "xl",
+          "description": "Extra-large breakpoint control column count. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "defaultDescription": "No override: inherits the preceding breakpoint column count.",
+          "name": "2xl",
+          "description": "2XL breakpoint control column count. Finite input is truncated and clamped to 1..12.",
+          "valueType": "number",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        }
+      ],
+      "snippet": "<nodel-control-grid columns=\"3\">\n  ${}\n</nodel-control-grid>"
+    },
+    {
+      "name": "nodel-control-space",
+      "catalogue": true,
+      "description": "Empty placeholder cell inside a nodel-control-grid.",
+      "attributes": [],
+      "snippet": "<nodel-control-space></nodel-control-space>"
+    },
+    {
+      "name": "nodel-group",
+      "catalogue": true,
+      "description": "Labelled composition group for visible captions, passive surfaces, and control grouping.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Visible group label. A single direct child control is auto-labelled for accessibility.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "card",
+          "name": "surface",
+          "description": "Passive group surface.",
+          "values": [
+            "card",
+            "panel",
+            "none"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "padding",
+          "description": "Group interior padding.",
+          "values": [
+            "default",
+            "compact",
+            "none"
+          ],
+          "valueType": "enum"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Group\">\n  ${}\n</nodel-group>"
+    },
+    {
+      "name": "nodel-template",
+      "catalogue": true,
+      "description": "Authoring macro that renders placeholder-filled clones from a native template.",
+      "attributes": [
+        {
+          "name": "template",
+          "description": "ID of a shared native template element to render.",
+          "valueType": "string"
+        },
+        {
+          "name": "name",
+          "description": "Base name exposed as {{name}} and used by {{item}}.",
+          "valueType": "string"
+        },
+        {
+          "name": "repeat",
+          "description": "Number of clones to render. Finite input is truncated and clamped to 0..200.",
+          "defaultValue": "1",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "max": 200,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "name": "start",
+          "description": "First numeric {{number}} value.",
+          "defaultValue": "1",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "step",
+          "description": "Increment between rendered {{number}} values.",
+          "defaultValue": "1",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "data-*",
+          "description": "Additional template context values. For example, data-action-prefix exposes {{action-prefix}} and {{actionPrefix}}.",
+          "valueType": "template-data",
+          "syntax": "data-name=\"value\"",
+          "completable": false
+        }
+      ],
+      "snippet": "<nodel-template name=\"Zone\" repeat=\"4\">\n  <template>\n    <nodel-button join=\"{{item}}\">{{name}} {{number}}</nodel-button>\n  </template>\n</nodel-template>"
+    },
+    {
+      "name": "nodel-button",
+      "catalogue": true,
+      "defaultSignalTarget": "active",
+      "aggregateSignalTargets": [
+        "active",
+        "disabled"
+      ],
+      "description": "Touch-sized action or state button.",
+      "attributes": [
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Button visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost",
+            "link"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Button visual tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "inline",
+          "name": "layout",
+          "description": "Button child layout.",
+          "values": [
+            "inline",
+            "stack"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "size",
+          "description": "Button size. Auto uses the context default.",
+          "values": [
+            "auto",
+            "sm",
+            "md",
+            "lg"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action name to call on click.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings in ActionName:phase format. Supported phases: click, press, release.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and the default signal binding.",
+          "valueType": "string"
+        },
+        {
+          "name": "action-on",
+          "description": "Legacy alias for a press-phase momentary action.",
+          "legacy": "Use actions=\"ActionName:press\" instead.",
+          "valueType": "string"
+        },
+        {
+          "name": "action-off",
+          "description": "Legacy alias for a release-phase momentary action.",
+          "legacy": "Use actions=\"ActionName:release\" instead.",
+          "valueType": "string"
+        },
+        {
+          "name": "arg",
+          "description": "Optional action argument value.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for arg.",
+          "values": [
+            "string",
+            "number",
+            "boolean",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the button.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "active",
+          "description": "Mark the button active/pressed.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "active-value",
+          "description": "Optional active-state signal value when it differs from arg.",
+          "valueType": "string"
+        },
+        {
+          "name": "value",
+          "description": "Contextual option value when this button is a child of nodel-segmented, nodel-select, or nodel-palette.",
+          "valueType": "string"
+        },
+        {
+          "name": "color",
+          "description": "Contextual swatch colour when this button is a child of nodel-palette.",
+          "valueType": "string"
+        },
+        {
+          "name": "border",
+          "description": "Contextual swatch border colour when this button is a child of nodel-palette.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: Confirm action for direct actions; parent controls may provide contextual titles.",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the button label/action unless confirm supplies text; parent controls may provide contextual text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: warning for direct actions; parent controls may provide a contextual tone.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "aria-label",
+          "description": "Accessible label for icon-only or image-only buttons.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible button label.",
+          "valueType": "string"
+        },
+        {
+          "name": "title",
+          "description": "Native button title text.",
+          "valueType": "string"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates active.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: active(any|all), disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: active, label, disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: active(any|all), disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-button action=\"ActionName\">${}</nodel-button>"
+    },
+    {
+      "name": "nodel-toggle",
+      "catalogue": true,
+      "defaultSignalTarget": "state",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Touch switch for boolean action/state controls, including partial feedback states.",
+      "attributes": [
+        {
+          "name": "action",
+          "description": "Current-node action name to call on toggle.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings in ActionName:phase format. Supported phases: toggle, on, off.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and the default signal binding.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "true",
+          "name": "on-arg",
+          "description": "Action argument sent when toggling on. Defaults to true.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "false",
+          "name": "off-arg",
+          "description": "Action argument sent when toggling off. Defaults to false.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "boolean",
+          "name": "arg-type",
+          "description": "Parser for on/off args.",
+          "values": [
+            "boolean",
+            "string",
+            "number",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "off",
+          "name": "value",
+          "description": "Current toggle state.",
+          "values": [
+            "off",
+            "on",
+            "partially-off",
+            "partially-on"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "on-value",
+          "description": "Exact signal value that means on.",
+          "valueType": "string"
+        },
+        {
+          "name": "off-value",
+          "description": "Exact signal value that means off.",
+          "valueType": "string"
+        },
+        {
+          "name": "partial-on-value",
+          "description": "Exact signal value that means partially on.",
+          "valueType": "string"
+        },
+        {
+          "name": "partial-off-value",
+          "description": "Exact signal value that means partially off.",
+          "valueType": "string"
+        },
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "On",
+          "name": "on-label",
+          "description": "State label shown for on/partially-on.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Off",
+          "name": "off-label",
+          "description": "State label shown for off/partially-off.",
+          "valueType": "string"
+        },
+        {
+          "name": "on-icon",
+          "description": "State icon shown for on/partially-on.",
+          "values": [
+            "sun",
+            "moon",
+            "power",
+            "volume",
+            "volume-low",
+            "mute",
+            "warning",
+            "success",
+            "info",
+            "action",
+            "arrow",
+            "event",
+            "image",
+            "link",
+            "pause",
+            "play",
+            "sliders",
+            "stop"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "off-icon",
+          "description": "State icon shown for off/partially-off.",
+          "values": [
+            "sun",
+            "moon",
+            "power",
+            "volume",
+            "volume-low",
+            "mute",
+            "warning",
+            "success",
+            "info",
+            "action",
+            "arrow",
+            "event",
+            "image",
+            "link",
+            "pause",
+            "play",
+            "sliders",
+            "stop"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "hide",
+          "name": "state-label",
+          "description": "Show or hide visible state text. Hidden by default.",
+          "values": [
+            "hide",
+            "show"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "success",
+          "name": "variant",
+          "description": "On-state colour variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "off-variant",
+          "description": "Off-state colour variant. Default keeps the off state neutral.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Switch track tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the switch.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "title",
+          "description": "Native switch title text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm toggle",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the toggle label and requested on/off state unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: success when turning on; info when turning off.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates state.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: state, label, disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Theme\">\n  <nodel-toggle action=\"SetTheme\" signal=\"Theme\" off-label=\"Light\" on-label=\"Dark\" off-icon=\"sun\" on-icon=\"moon\" state-label=\"show\"></nodel-toggle>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-segmented",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Mutually exclusive option group using direct nodel-button children.",
+      "attributes": [
+        {
+          "name": "action",
+          "description": "Current-node action name called when an option is selected.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings in ActionName:phase format. Supported phase: select.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and the default signal binding.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for option values.",
+          "values": [
+            "string",
+            "number",
+            "boolean",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "value",
+          "description": "Current selected option value.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "primary",
+          "name": "variant",
+          "description": "Active option colour variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Active option tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "horizontal",
+          "name": "orientation",
+          "description": "Option group orientation.",
+          "values": [
+            "horizontal",
+            "vertical"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the group.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "allow-deselect",
+          "description": "Allow tapping the active option to clear selection.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "label",
+          "description": "Accessible group label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible group label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible group label.",
+          "valueType": "string"
+        },
+        {
+          "name": "options-signal",
+          "description": "SignalName[.path] source for dynamic option arrays. Accepts scalars, { value, label }, and v1 { key, value } entries.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path]"
+        },
+        {
+          "defaultValue": "Loading options...",
+          "name": "options-loading-label",
+          "description": "Status text while dynamic options are loading. Default: Loading options...",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "No options",
+          "name": "options-empty-label",
+          "description": "Status text for a valid empty dynamic option list. Default: No options.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Options unavailable",
+          "name": "options-error-label",
+          "description": "Status text when dynamic options are unavailable or malformed. Default: Options unavailable.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm selection",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the selected option unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, disabled, options. The options target only supports last-value bindings; options(any) and options(all) are invalid.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Source\">\n  <nodel-segmented action=\"SetSource\" signal=\"Source\">\n    <nodel-button value=\"HDMI 1\">HDMI 1</nodel-button>\n    <nodel-button value=\"HDMI 2\">HDMI 2</nodel-button>\n  </nodel-segmented>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-select",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Touch picker for larger option sets using nodel-button options.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: selected option/value, dynamic state, or Select.",
+          "name": "placeholder",
+          "description": "Text shown when no value is selected.",
+          "valueType": "string"
+        },
+        {
+          "name": "value",
+          "description": "Current selected value.",
+          "valueType": "string"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action called when an option is selected.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings in ActionName:phase format. Supported phase: select.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and value signal.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for selected option values.",
+          "values": [
+            "string",
+            "number",
+            "boolean",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Picker visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Picker visual tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the picker.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "allow-deselect",
+          "description": "Allow selecting the active option to clear value.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "open",
+          "description": "Start with the option panel open.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "placement",
+          "description": "Option panel placement. Auto uses visual-viewport space.",
+          "values": [
+            "auto",
+            "bottom",
+            "top"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "options-signal",
+          "description": "SignalName[.path] source for dynamic option arrays. Accepts scalars, { value, label }, and v1 { key, value } entries.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path]"
+        },
+        {
+          "defaultValue": "Loading options...",
+          "name": "options-loading-label",
+          "description": "Status text while dynamic options are loading. Default: Loading options...",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "No options",
+          "name": "options-empty-label",
+          "description": "Status text for a valid empty dynamic option list. Default: No options.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Options unavailable",
+          "name": "options-error-label",
+          "description": "Status text when dynamic options are unavailable or malformed. Default: Options unavailable.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm selection",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the selected option unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, disabled, options. The options target only supports last-value bindings; options(any) and options(all) are invalid.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Source\">\n  <nodel-select action=\"SetSource\" signal=\"Source\">\n    <nodel-button value=\"HDMI 1\">HDMI 1</nodel-button>\n    <nodel-button value=\"HDMI 2\">HDMI 2</nodel-button>\n  </nodel-select>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-fader",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Touch-first level fader with optional increment buttons and compound rail content.",
+      "attributes": [
+        {
+          "defaultValue": "vertical",
+          "name": "orientation",
+          "description": "Fader orientation.",
+          "values": [
+            "vertical",
+            "horizontal"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "bottom",
+          "name": "compound-align",
+          "description": "Compound rail alignment. Prefer bottom/center/top; end/right, start/left, and middle are compatibility aliases.",
+          "values": [
+            "bottom",
+            "center",
+            "top",
+            "end",
+            "right",
+            "start",
+            "left",
+            "middle"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Fader fill colour variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Fader rail/fill tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "min",
+          "description": "Minimum value.",
+          "defaultDescription": "Derived from unit: 0 for percent/none, -60 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "max",
+          "description": "Maximum value.",
+          "defaultDescription": "Derived from unit: 100 for percent/none, 10 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "step",
+          "description": "Positive finite value step. Non-positive or invalid input falls back to 1.",
+          "defaultValue": "1",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "exclusiveMin": true
+          }
+        },
+        {
+          "name": "unit",
+          "description": "Value display unit and default range.",
+          "values": [
+            "percent",
+            "db",
+            "none"
+          ],
+          "defaultValue": "percent",
+          "valueType": "enum"
+        },
+        {
+          "name": "nudge",
+          "description": "Positive finite increment for +/- controls. Invalid input falls back to step; presence enables increment buttons.",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "exclusiveMin": true
+          }
+        },
+        {
+          "defaultValue": "false",
+          "name": "increment",
+          "description": "Show +/- increment controls.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action name called on change.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings in ActionName:phase format. Supported phases: live, commit.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and the default signal binding.",
+          "valueType": "string"
+        },
+        {
+          "name": "arg-type",
+          "description": "Parser for action arg.",
+          "values": [
+            "number",
+            "string",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultDescription": "Derived: effective minimum.",
+          "name": "value",
+          "description": "Current fader value.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable dragging and increment controls.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "show",
+          "name": "readout",
+          "description": "Show or hide numeric value readout.",
+          "values": [
+            "show",
+            "hide"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "title",
+          "description": "Native slider title text.",
+          "valueType": "string"
+        },
+        {
+          "name": "live-interval",
+          "description": "Throttled live action interval. Finite input is clamped to at least 50ms; invalid input falls back to 250ms.",
+          "defaultValue": "250",
+          "numeric": {
+            "min": 50,
+            "unit": "ms",
+            "clamp": true
+          },
+          "valueType": "number"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm value",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the label and formatted value unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Volume\">\n  <nodel-fader action=\"SetVolume\" signal=\"Volume\" nudge=\"5\">\n    ${}\n  </nodel-fader>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-stepper",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Precise touch numeric increment/decrement control.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: effective minimum.",
+          "name": "value",
+          "description": "Current numeric value.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "min",
+          "description": "Minimum value.",
+          "defaultValue": "0",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "max",
+          "description": "Maximum value.",
+          "defaultValue": "100",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "step",
+          "description": "Positive finite increment. Non-positive or invalid input falls back to 1.",
+          "defaultValue": "1",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "exclusiveMin": true
+          }
+        },
+        {
+          "defaultValue": "none",
+          "name": "unit",
+          "description": "Optional value unit formatting.",
+          "values": [
+            "percent",
+            "db",
+            "none"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "prefix",
+          "description": "Display prefix for plain numbers.",
+          "valueType": "string"
+        },
+        {
+          "name": "suffix",
+          "description": "Display suffix for plain numbers.",
+          "valueType": "string"
+        },
+        {
+          "name": "precision",
+          "description": "Decimal precision for display. An integer prefix is parsed, then clamped to 0..10.",
+          "syntax": "integer-prefixed text",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "max": 10,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "name": "repeat",
+          "description": "Hold repeat mode.",
+          "values": [
+            "hold",
+            "off"
+          ],
+          "defaultValue": "hold",
+          "valueType": "enum"
+        },
+        {
+          "name": "repeat-delay",
+          "description": "Delay before hold repeat begins. Finite input is clamped to at least 0ms; invalid input falls back to 300ms.",
+          "defaultValue": "300",
+          "numeric": {
+            "min": 0,
+            "unit": "ms",
+            "clamp": true
+          },
+          "valueType": "number"
+        },
+        {
+          "name": "repeat-interval",
+          "description": "Hold repeat interval. Finite input is clamped to at least 50ms; invalid input falls back to 200ms.",
+          "defaultValue": "200",
+          "numeric": {
+            "min": 50,
+            "unit": "ms",
+            "clamp": true
+          },
+          "valueType": "number"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action called on value changes.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings. Supported phases: live, commit, increase, decrease.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and value signal.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "number",
+          "name": "arg-type",
+          "description": "Parser for emitted value.",
+          "values": [
+            "number",
+            "string",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Stepper visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Stepper button tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable both buttons.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "show",
+          "name": "readout",
+          "description": "Show or hide the numeric readout.",
+          "values": [
+            "show",
+            "hide"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm value",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the label and formatted value unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Temperature\">\n  <nodel-stepper action=\"SetTemp\" signal=\"Temp\" min=\"16\" max=\"28\" step=\"0.5\" suffix=\"C\"></nodel-stepper>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-pad",
+      "catalogue": true,
+      "aggregateSignalTargets": [
+        "disabled",
+        "center-disabled"
+      ],
+      "description": "Directional touch pad with click or momentary press/release modes.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "center",
+          "description": "Centre button behavior.",
+          "values": [
+            "auto",
+            "show",
+            "hide",
+            "disabled"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "click",
+          "name": "press-mode",
+          "description": "Button action mode.",
+          "values": [
+            "click",
+            "momentary"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "action",
+          "description": "Shared action called with direction arg.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Shared action bindings. Supported phases: click, press, release.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for direction arguments.",
+          "values": [
+            "string",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "up-action",
+          "description": "Action for the up button.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "down-action",
+          "description": "Action for the down button.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "left-action",
+          "description": "Action for the left button.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "right-action",
+          "description": "Action for the right button.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "center-action",
+          "description": "Action for the centre button.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "up-actions",
+          "description": "Action bindings for the up button. Supported phases: click, press, release.",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "valueType": "string"
+        },
+        {
+          "name": "down-actions",
+          "description": "Action bindings for the down button. Supported phases: click, press, release.",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "valueType": "string"
+        },
+        {
+          "name": "left-actions",
+          "description": "Action bindings for the left button. Supported phases: click, press, release.",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "valueType": "string"
+        },
+        {
+          "name": "right-actions",
+          "description": "Action bindings for the right button. Supported phases: click, press, release.",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "valueType": "string"
+        },
+        {
+          "name": "center-actions",
+          "description": "Action bindings for the centre button. Supported phases: click, press, release.",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "valueType": "string"
+        },
+        {
+          "name": "up-arg",
+          "description": "Action argument for the up button.",
+          "defaultValue": "up",
+          "valueType": "string"
+        },
+        {
+          "name": "down-arg",
+          "description": "Action argument for the down button.",
+          "defaultValue": "down",
+          "valueType": "string"
+        },
+        {
+          "name": "left-arg",
+          "description": "Action argument for the left button.",
+          "defaultValue": "left",
+          "valueType": "string"
+        },
+        {
+          "name": "right-arg",
+          "description": "Action argument for the right button.",
+          "defaultValue": "right",
+          "valueType": "string"
+        },
+        {
+          "name": "center-arg",
+          "description": "Action argument for the centre button.",
+          "defaultValue": "center",
+          "valueType": "string"
+        },
+        {
+          "name": "up-label",
+          "description": "Accessible label for the up button.",
+          "defaultDescription": "Derived: pad accessible label plus up, otherwise Up.",
+          "valueType": "string"
+        },
+        {
+          "name": "down-label",
+          "description": "Accessible label for the down button.",
+          "defaultDescription": "Derived: pad accessible label plus down, otherwise Down.",
+          "valueType": "string"
+        },
+        {
+          "name": "left-label",
+          "description": "Accessible label for the left button.",
+          "defaultDescription": "Derived: pad accessible label plus left, otherwise Left.",
+          "valueType": "string"
+        },
+        {
+          "name": "right-label",
+          "description": "Accessible label for the right button.",
+          "defaultDescription": "Derived: pad accessible label plus right, otherwise Right.",
+          "valueType": "string"
+        },
+        {
+          "name": "center-label",
+          "description": "Accessible label for the centre button.",
+          "defaultDescription": "Derived: pad accessible label plus center, otherwise Center.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Pad visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Pad button tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the whole pad.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "center-disabled",
+          "description": "Disable only the centre button.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm action",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the selected direction label unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Explicit signal binding in SignalName[.path]:target format. Supported targets: disabled, label, center-disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path]:target[; or , SignalName[.path]:target ...]; aggregate targets: disabled(any|all), center-disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: disabled, label, center-disabled.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path]:target[; or , SignalName[.path]:target ...]; aggregate targets: disabled(any|all), center-disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Navigate\">\n  <nodel-pad action=\"Navigate\" center=\"show\"></nodel-pad>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-readout",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Read-only touch value/status tile with optional bar, ring, or status visuals.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "value",
+          "description": "Current displayed value.",
+          "valueType": "string"
+        },
+        {
+          "name": "type",
+          "description": "Value type.",
+          "values": [
+            "text",
+            "number",
+            "percent",
+            "db",
+            "boolean",
+            "duration"
+          ],
+          "defaultValue": "text",
+          "valueType": "enum"
+        },
+        {
+          "name": "visual",
+          "description": "Graphical representation.",
+          "values": [
+            "none",
+            "bar",
+            "ring",
+            "status"
+          ],
+          "defaultDescription": "Derived: status for boolean, none otherwise.",
+          "valueType": "enum"
+        },
+        {
+          "name": "min",
+          "description": "Minimum numeric value for visuals.",
+          "defaultDescription": "Derived: 0 except -60 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "max",
+          "description": "Maximum numeric value for visuals.",
+          "defaultDescription": "Derived: 100 except 10 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "defaultValue": "percent",
+          "name": "unit",
+          "description": "Range unit used by numeric visuals when type is number.",
+          "values": [
+            "percent",
+            "db",
+            "none"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "prefix",
+          "description": "Display prefix.",
+          "valueType": "string"
+        },
+        {
+          "name": "suffix",
+          "description": "Display suffix.",
+          "valueType": "string"
+        },
+        {
+          "name": "precision",
+          "description": "Decimal precision. An integer prefix is parsed, then clamped to 0..10.",
+          "syntax": "integer-prefixed text",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "max": 10,
+            "clamp": true,
+            "normalizesToInteger": true
+          }
+        },
+        {
+          "name": "on-value",
+          "description": "Exact value treated as on for boolean type.",
+          "valueType": "string"
+        },
+        {
+          "name": "off-value",
+          "description": "Exact value treated as off for boolean type.",
+          "valueType": "string"
+        },
+        {
+          "name": "on-label",
+          "description": "Boolean on-state display label.",
+          "defaultValue": "On",
+          "valueType": "string"
+        },
+        {
+          "name": "off-label",
+          "description": "Boolean off-state display label.",
+          "defaultValue": "Off",
+          "valueType": "string"
+        },
+        {
+          "name": "warn",
+          "description": "Warning threshold for numeric status visuals.",
+          "defaultDescription": "Derived: 80% of the effective range.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "danger",
+          "description": "Danger threshold for numeric status visuals.",
+          "defaultDescription": "Derived: 95% of the effective range.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "empty",
+          "description": "Text displayed for an empty or invalid value.",
+          "defaultValue": "--",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Readout visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Readout value/visual tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, variant, suffix, prefix.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Brightness\">\n  <nodel-readout type=\"percent\" visual=\"ring\" value=\"72\"></nodel-readout>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-palette",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "aggregateSignalTargets": [
+        "disabled"
+      ],
+      "description": "Swatch-first colour picker with predefined colour buttons and optional native custom colour input.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "value",
+          "description": "Current selected colour or preset value.",
+          "valueType": "string"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action called when a swatch is selected.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "actions",
+          "description": "Action bindings. Supported phases: select, live, commit.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]"
+        },
+        {
+          "name": "join",
+          "description": "Shorthand that uses the same name for action and value signal.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for selected values.",
+          "values": [
+            "string",
+            "json"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "columns",
+          "description": "Internal swatch column count. An integer prefix is parsed, then clamped to 1..12.",
+          "syntax": "integer-prefixed text",
+          "numeric": {
+            "min": 1,
+            "max": 12,
+            "clamp": true,
+            "normalizesToInteger": true
+          },
+          "valueType": "number"
+        },
+        {
+          "name": "shape",
+          "description": "Swatch shape.",
+          "values": [
+            "square",
+            "rounded",
+            "circle"
+          ],
+          "defaultValue": "rounded",
+          "valueType": "enum"
+        },
+        {
+          "name": "picker",
+          "description": "Optional custom colour picker.",
+          "values": [
+            "off",
+            "native"
+          ],
+          "defaultValue": "off",
+          "valueType": "enum"
+        },
+        {
+          "name": "value-field",
+          "description": "Custom colour value feedback mode.",
+          "values": [
+            "readonly",
+            "editable",
+            "hidden"
+          ],
+          "defaultValue": "readonly",
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "hex",
+          "name": "format",
+          "description": "Action payload colour format.",
+          "values": [
+            "hex",
+            "rgb",
+            "hsl",
+            "hsv"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "custom-label",
+          "description": "Visible label for the native custom colour picker. Hidden when omitted.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "false",
+          "name": "live",
+          "description": "Dispatch throttled custom-picker input updates.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "live-interval",
+          "description": "Live update interval. An integer prefix is parsed, then clamped to 50..1000ms.",
+          "syntax": "integer-prefixed text",
+          "defaultValue": "100",
+          "numeric": {
+            "min": 50,
+            "max": 1000,
+            "unit": "ms",
+            "clamp": true,
+            "normalizesToInteger": true
+          },
+          "valueType": "number"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "show-labels",
+          "description": "Swatch label visibility.",
+          "values": [
+            "auto",
+            "show",
+            "hide"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "variant",
+          "description": "Palette visual variant.",
+          "values": [
+            "default",
+            "primary",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "ghost"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "solid",
+          "name": "tone",
+          "description": "Palette swatch/custom-control tone.",
+          "values": [
+            "solid",
+            "soft",
+            "outline"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable all swatches.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "false",
+          "name": "allow-deselect",
+          "description": "Allow selecting the current swatch to clear the value.",
+          "valueType": "boolean"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Confirm colour",
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from the selected colour unless confirm supplies text.",
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "info when confirmation is active.",
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label, disabled, custom-color.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]; aggregate targets: disabled(any|all)"
+        }
+      ],
+      "snippet": "<nodel-group label=\"Colour\">\n  <nodel-palette action=\"SetColour\" signal=\"Colour\" picker=\"native\">\n    <nodel-button value=\"#ff0000\" color=\"#ff0000\">Red</nodel-button>\n    <nodel-button value=\"#00ff00\" color=\"#00ff00\">Green</nodel-button>\n    <nodel-button value=\"#0000ff\" color=\"#0000ff\">Blue</nodel-button>\n  </nodel-palette>\n</nodel-group>"
+    },
+    {
+      "name": "nodel-meter",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Signal-driven level meter for percent or dB values.",
+      "attributes": [
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, peak, label.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "defaultDescription": "Derived: effective minimum.",
+          "name": "value",
+          "description": "Current meter value.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "min",
+          "description": "Minimum value.",
+          "defaultDescription": "Derived from unit: 0 for percent/none, -60 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "max",
+          "description": "Maximum value.",
+          "defaultDescription": "Derived from unit: 100 for percent/none, 10 for dB.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "unit",
+          "description": "Value display unit and default range.",
+          "values": [
+            "percent",
+            "db",
+            "none"
+          ],
+          "defaultValue": "percent",
+          "valueType": "enum"
+        },
+        {
+          "name": "curve",
+          "description": "Visual display curve.",
+          "values": [
+            "linear",
+            "vu",
+            "audio"
+          ],
+          "defaultDescription": "Derived: linear for percent/none and vu for dB.",
+          "valueType": "enum"
+        },
+        {
+          "name": "orientation",
+          "description": "Meter orientation.",
+          "values": [
+            "vertical",
+            "horizontal"
+          ],
+          "defaultValue": "vertical",
+          "valueType": "enum"
+        },
+        {
+          "name": "warn",
+          "description": "Warning zone threshold.",
+          "defaultDescription": "Derived: 80% of the effective range.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "danger",
+          "description": "Danger zone threshold.",
+          "defaultDescription": "Derived: 95% of the effective range.",
+          "valueType": "number",
+          "numeric": {}
+        },
+        {
+          "name": "peak",
+          "description": "Peak marker behavior.",
+          "values": [
+            "off",
+            "hold"
+          ],
+          "defaultValue": "off",
+          "valueType": "enum"
+        },
+        {
+          "name": "readout",
+          "description": "Show or hide numeric value readout.",
+          "values": [
+            "show",
+            "hide"
+          ],
+          "defaultValue": "hide",
+          "valueType": "enum"
+        },
+        {
+          "name": "label",
+          "description": "Accessible meter label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible meter label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible meter label.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-meter signal=\"Level\" label=\"Level\"></nodel-meter>"
+    },
+    {
+      "name": "nodel-image",
+      "catalogue": true,
+      "defaultSignalTarget": "src",
+      "description": "Standalone or inline control image.",
+      "attributes": [
+        {
+          "name": "src",
+          "description": "Image URL.",
+          "valueType": "string"
+        },
+        {
+          "name": "alt",
+          "description": "Alternative text.",
+          "valueType": "string"
+        },
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "contain",
+          "name": "fit",
+          "description": "Image fit mode.",
+          "values": [
+            "contain",
+            "cover"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "rounded",
+          "name": "shape",
+          "description": "Image shape.",
+          "values": [
+            "none",
+            "rounded",
+            "circle"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "size",
+          "description": "Image size.",
+          "values": [
+            "auto",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates src.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: src, alt, label.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-image src=\"${}\" alt=\"\"></nodel-image>"
+    },
+    {
+      "name": "nodel-icon",
+      "catalogue": true,
+      "defaultSignalTarget": "name",
+      "description": "Standalone or inline control icon.",
+      "attributes": [
+        {
+          "defaultValue": "image",
+          "name": "name",
+          "description": "Built-in icon name.",
+          "values": [
+            "image",
+            "action",
+            "arrow",
+            "event",
+            "info",
+            "link",
+            "moon",
+            "mute",
+            "pause",
+            "play",
+            "power",
+            "sliders",
+            "stop",
+            "success",
+            "sun",
+            "warning",
+            "volume",
+            "volume-low"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "label",
+          "description": "Accessibility/fallback label. Use nodel-group label for visible captions.",
+          "valueType": "string"
+        },
+        {
+          "name": "alt",
+          "description": "Accessible label without visible text.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible label.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "default",
+          "name": "tone",
+          "description": "Icon tone.",
+          "values": [
+            "default",
+            "muted",
+            "accent",
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "size",
+          "description": "Icon size.",
+          "values": [
+            "auto",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates name.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: name, alt, label, tone.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-icon name=\"power\"></nodel-icon>"
+    },
+    {
+      "name": "nodel-link",
+      "catalogue": true,
+      "description": "Static, discovered-node, or event-binding-derived link. Author exactly one destination attribute.",
+      "attributes": [
+        {
+          "name": "href",
+          "description": "Safe relative or HTTP(S) URL.",
+          "valueType": "string"
+        },
+        {
+          "name": "node",
+          "description": "Exact Nodel node name resolved through host discovery.",
+          "valueType": "string"
+        },
+        {
+          "name": "event-binding",
+          "description": "Local remote-event binding alias whose target node should be opened.",
+          "valueType": "string"
+        },
+        {
+          "name": "target",
+          "description": "Standard anchor browsing context, such as _blank.",
+          "valueType": "string"
+        },
+        {
+          "name": "rel",
+          "description": "Standard anchor relationship tokens.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Accessible link label override.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "ID reference for the accessible link label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-describedby",
+          "description": "ID reference for supplementary link description.",
+          "valueType": "string"
+        },
+        {
+          "name": "title",
+          "description": "Native link title text.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-link href=\"${}\">Link</nodel-link>"
+    },
+    {
+      "name": "nodel-qrcode",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Scan-safe signal-aware QR code with a fixed black-on-white high-correction symbol.",
+      "attributes": [
+        {
+          "name": "value",
+          "description": "Exact text encoded into the QR code.",
+          "valueType": "string"
+        },
+        {
+          "name": "size",
+          "description": "Square QR size. Unsigned decimal input rounds and clamps to 64..1024px; invalid syntax falls back to 128.",
+          "syntax": "unsigned decimal",
+          "defaultValue": "128",
+          "numeric": {
+            "min": 64,
+            "max": 1024,
+            "unit": "px",
+            "clamp": true,
+            "normalizesToInteger": true
+          },
+          "valueType": "number"
+        },
+        {
+          "name": "help",
+          "description": "Optional visible text below the QR code.",
+          "valueType": "string"
+        },
+        {
+          "name": "label",
+          "description": "Accessible QR code label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-label",
+          "description": "Explicit accessible QR code label.",
+          "valueType": "string"
+        },
+        {
+          "name": "aria-labelledby",
+          "description": "External accessible QR code label reference.",
+          "valueType": "string"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, help, label.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-qrcode value=\"https://example.org\" label=\"Visitor link\"></nodel-qrcode>"
+    },
+    {
+      "name": "nodel-status-indicator",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Small signal-driven status indicator for control children.",
+      "attributes": [
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, label.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "value",
+          "description": "Current indicator value.",
+          "valueType": "string"
+        },
+        {
+          "name": "on-value",
+          "description": "Exact value that means on.",
+          "valueType": "string"
+        },
+        {
+          "name": "off-value",
+          "description": "Exact value that means off.",
+          "valueType": "string"
+        },
+        {
+          "name": "partial-on-value",
+          "description": "Exact value that means partially on.",
+          "valueType": "string"
+        },
+        {
+          "name": "partial-off-value",
+          "description": "Exact value that means partially off.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "success",
+          "name": "tone",
+          "description": "On-state tone.",
+          "values": [
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "off",
+          "name": "off-tone",
+          "description": "Off-state tone.",
+          "values": [
+            "off",
+            "muted"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "warning",
+          "name": "partial-tone",
+          "description": "Partial-state tone. Defaults to warning.",
+          "values": [
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "false",
+          "name": "show-state-label",
+          "description": "Show the current state label beside the dot.",
+          "valueType": "boolean"
+        },
+        {
+          "defaultValue": "On",
+          "name": "on-label",
+          "description": "Visible on-state text.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Off",
+          "name": "off-label",
+          "description": "Visible off-state text.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Partially on",
+          "name": "partial-on-label",
+          "description": "Visible partially-on text.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "Partially off",
+          "name": "partial-off-label",
+          "description": "Visible partially-off text.",
+          "valueType": "string"
+        },
+        {
+          "name": "label",
+          "description": "Accessible status label.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-status-indicator signal=\"${}\" label=\"Status\"></nodel-status-indicator>"
+    },
+    {
+      "name": "nodel-status",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Signal-driven status block with group-like surfaces and flexible state mapping.",
+      "attributes": [
+        {
+          "name": "label",
+          "description": "Visible status title and group accessible label.",
+          "valueType": "string"
+        },
+        {
+          "name": "value",
+          "description": "Raw status value used for message text and inferred state aliases such as ready, warning, fault, or offline.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived from state-map, level, structured value, or recognized value text.",
+          "name": "state",
+          "description": "Explicit normalized state or a recognized state alias such as ready, warning, fault, or offline.",
+          "values": [
+            "unknown",
+            "success",
+            "info",
+            "warning",
+            "danger",
+            "muted"
+          ],
+          "valueType": "enum-or-string",
+          "syntax": "recognized state alias"
+        },
+        {
+          "name": "level",
+          "description": "V1-style numeric status level. An integer prefix is parsed: 0=success, 1=warning, 2-4=danger, 5=info; other values are unknown.",
+          "valueType": "string",
+          "syntax": "integer-prefixed text"
+        },
+        {
+          "name": "message",
+          "description": "Explicit visible status message.",
+          "valueType": "string"
+        },
+        {
+          "name": "state-map",
+          "description": "Custom value-to-state map, e.g. ready:success; standby:muted; fault:danger.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "card",
+          "name": "surface",
+          "description": "Status block surface.",
+          "values": [
+            "card",
+            "panel",
+            "none"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "padding",
+          "description": "Status block interior padding.",
+          "values": [
+            "default",
+            "compact",
+            "none"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "soft",
+          "name": "tone",
+          "description": "Status block emphasis.",
+          "values": [
+            "soft",
+            "outline",
+            "solid"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value, state, level, message, label.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-status label=\"Projector\" signal=\"ProjectorStatus\">\n  ${}\n</nodel-status>"
+    },
+    {
+      "name": "nodel-collapse",
+      "catalogue": true,
+      "description": "Collapsible section, closed by default.",
+      "attributes": [
+        {
+          "defaultValue": "Details",
+          "name": "label",
+          "description": "Visible section label.",
+          "valueType": "string"
+        },
+        {
+          "name": "preview",
+          "description": "Fallback preview text shown while collapsed.",
+          "valueType": "string"
+        },
+        {
+          "defaultValue": "false",
+          "name": "open",
+          "description": "Start expanded.",
+          "valueType": "boolean"
+        }
+      ],
+      "snippet": "<nodel-collapse label=\"Section\">\n  ${}\n</nodel-collapse>"
+    },
+    {
+      "name": "nodel-description",
+      "description": "Current node description rendered as markdown with a collapsed preview.",
+      "attributes": [
+        {
+          "name": "collapsed-height",
+          "description": "Collapsed preview height, e.g. 8rem or 160px.",
+          "valueType": "string"
+        },
+        {
+          "name": "open",
+          "description": "Start expanded.",
+          "valueType": "boolean"
+        }
+      ],
+      "snippet": "<nodel-description></nodel-description>"
+    },
+    {
+      "name": "nodel-text",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Theme-aware text block.",
+      "attributes": [
+        {
+          "defaultValue": "muted",
+          "name": "tone",
+          "description": "Text tone.",
+          "values": [
+            "muted",
+            "default",
+            "accent",
+            "success",
+            "info",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "sm",
+          "name": "size",
+          "description": "Text size.",
+          "values": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "none",
+          "name": "surface",
+          "description": "Optional surface style.",
+          "values": [
+            "none",
+            "card"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal bindings in SignalName[.path]:target format. Use target value for text content.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-text surface=\"card\">${}</nodel-text>"
+    },
+    {
+      "name": "nodel-title",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Theme-aware visible title or section heading.",
+      "attributes": [
+        {
+          "defaultValue": "1",
+          "name": "level",
+          "description": "Heading level.",
+          "values": [
+            "1",
+            "2",
+            "3"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "default",
+          "name": "tone",
+          "description": "Title tone.",
+          "values": [
+            "default",
+            "muted",
+            "accent"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal bindings in SignalName[.path]:target format. Use target value for title content.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ],
+      "snippet": "<nodel-title level=\"1\">${}</nodel-title>"
+    },
+    {
+      "name": "nodel-markdown",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Sanitized literal or signal-driven Markdown content.",
+      "attributes": [
+        {
+          "name": "value",
+          "description": "Markdown source text.",
+          "valueType": "string"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "defaultValue": "none",
+          "name": "max-height",
+          "description": "Constrained internal overflow height.",
+          "values": [
+            "none",
+            "sm",
+            "md",
+            "lg",
+            "screen"
+          ],
+          "valueType": "enum"
+        }
+      ],
+      "snippet": "<nodel-markdown signal=\"${}\"></nodel-markdown>"
+    },
+    {
+      "name": "nodel-clock",
+      "catalogue": true,
+      "defaultSignalTarget": "value",
+      "description": "Explicit signal-driven date/time display without an autonomous timer.",
+      "attributes": [
+        {
+          "name": "value",
+          "description": "Date/time input value.",
+          "valueType": "string"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: value.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "defaultValue": "time",
+          "name": "format",
+          "description": "Displayed date/time fields.",
+          "values": [
+            "time",
+            "date",
+            "datetime"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "hour12",
+          "description": "12-hour clock preference.",
+          "values": [
+            "auto",
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "time-zone",
+          "description": "Optional IANA time zone.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-clock signal=\"${}\" format=\"time\"></nodel-clock>"
+    },
+    {
+      "name": "nodel-theme-toggle",
+      "catalogue": true,
+      "description": "Theme toggle button for the nearest nodel-app.",
+      "attributes": []
+    },
+    {
+      "name": "nodel-host-icon",
+      "catalogue": true,
+      "defaultSignalTarget": "host",
+      "description": "Generated host identicon.",
+      "attributes": [
+        {
+          "defaultDescription": "Derived: window.location.host.",
+          "name": "host",
+          "description": "Displayed/semantic host.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: host.",
+          "name": "icon-host",
+          "description": "Host used to generate the identicon.",
+          "valueType": "string"
+        },
+        {
+          "name": "href",
+          "description": "Optional link target.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: host, or Browse this host when href is valid.",
+          "name": "title",
+          "description": "Title text.",
+          "valueType": "string"
+        },
+        {
+          "defaultDescription": "Derived: host.",
+          "name": "alt",
+          "description": "Image alt text.",
+          "valueType": "string"
+        },
+        {
+          "name": "signal",
+          "description": "Signal binding. A signal name/path without a target updates host.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        },
+        {
+          "name": "signals",
+          "description": "Signal binding list. Supported targets: host, icon-host, href, title, alt.",
+          "valueType": "binding",
+          "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]"
+        }
+      ]
+    },
+    {
+      "name": "nodel-node-list",
+      "description": "Local or network node list.",
+      "attributes": [
+        {
+          "name": "scope",
+          "description": "Node list scope.",
+          "values": [
+            "local",
+            "network"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "poll-interval",
+          "description": "Polling interval in milliseconds.",
+          "valueType": "number",
+          "numeric": {
+            "min": 0,
+            "exclusiveMin": true,
+            "unit": "ms"
+          }
+        },
+        {
+          "name": "page-size",
+          "description": "Initial number of visible rows.",
+          "values": [
+            "10",
+            "20",
+            "50",
+            "100",
+            "99999"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "query-param",
+          "description": "URL query parameter used once to prefill the initial filter.",
+          "valueType": "string"
+        },
+        {
+          "name": "show-filter",
+          "description": "Show filter control.",
+          "values": [
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "show-total",
+          "description": "Show total count.",
+          "values": [
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        }
+      ],
+      "snippet": "<nodel-node-list scope=\"local\"></nodel-node-list>"
+    },
+    {
+      "name": "nodel-add-node",
+      "description": "Create or duplicate a node.",
+      "attributes": [
+        {
+          "name": "redirect",
+          "description": "Redirect after creating node; defaults to true.",
+          "values": [
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "recipes",
+          "description": "Enable recipe selection.",
+          "values": [
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        },
+        {
+          "name": "duplicate",
+          "description": "Enable duplicate-from-existing-node.",
+          "values": [
+            "true",
+            "false"
+          ],
+          "valueType": "enum"
+        }
+      ],
+      "snippet": "<nodel-add-node></nodel-add-node>"
+    },
+    {
+      "name": "nodel-node-menu",
+      "description": "Current-node drawer menu for theme, rename, restart, delete, custom UIs, and reference links.",
+      "attributes": [],
+      "snippet": "<nodel-node-menu></nodel-node-menu>"
+    },
+    {
+      "name": "nodel-diagnostics",
+      "description": "Host diagnostics table.",
+      "attributes": []
+    },
+    {
+      "name": "nodel-host-log",
+      "description": "Host/server log viewer.",
+      "attributes": [],
+      "snippet": "<nodel-host-log></nodel-host-log>"
+    },
+    {
+      "name": "nodel-diagnostic-charts",
+      "description": "Host diagnostics measurement charts.",
+      "attributes": [],
+      "snippet": "<nodel-diagnostic-charts></nodel-diagnostic-charts>"
+    },
+    {
+      "name": "nodel-toolkit",
+      "description": "Host scripting toolkit reference.",
+      "attributes": [],
+      "snippet": "<nodel-toolkit></nodel-toolkit>"
+    },
+    {
+      "name": "nodel-console",
+      "description": "Node console history and command prompt.",
+      "attributes": [
+        {
+          "name": "collapse-preview",
+          "description": "Emit preview updates for a parent nodel-collapse.",
+          "values": [
+            "last-line"
+          ],
+          "valueType": "enum"
+        }
+      ]
+    },
+    {
+      "name": "nodel-log",
+      "description": "Node activity log with hold, filter, and limits.",
+      "attributes": []
+    },
+    {
+      "name": "nodel-actsig",
+      "description": "Schema-driven current-node actions and signals UI.",
+      "attributes": [],
+      "snippet": "<nodel-actsig></nodel-actsig>"
+    },
+    {
+      "name": "nodel-params",
+      "description": "Schema-driven current-node parameters form.",
+      "attributes": [],
+      "snippet": "<nodel-params></nodel-params>"
+    },
+    {
+      "name": "nodel-bindings",
+      "description": "Current-node remote binding workbench.",
+      "attributes": [],
+      "snippet": "<nodel-bindings></nodel-bindings>"
+    },
+    {
+      "name": "nodel-editor",
+      "description": "Node file editor with accessible upload, single-file drop, and lazy CodeMirror syntax modes.",
+      "attributes": [
+        {
+          "name": "default-file",
+          "description": "File path to open by default.",
+          "valueType": "string"
+        }
+      ],
+      "snippet": "<nodel-editor default-file=\"script.py\"></nodel-editor>"
+    },
+    {
+      "name": "nodel-toast-host",
+      "description": "App-level toast notification host.",
+      "attributes": []
+    },
+    {
+      "name": "nodel-confirm-host",
+      "description": "App-level confirmation dialog host.",
+      "attributes": []
+    },
+    {
+      "name": "nodel-connectivity-host",
+      "description": "App-level host-connectivity presentation.",
+      "attributes": []
+    }
+  ]
+}
