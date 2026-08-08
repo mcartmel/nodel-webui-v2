@@ -434,10 +434,16 @@ export class NodelDiagnosticCharts extends HTMLElement {
             existing.destroy();
             this.charts.delete(measurement.name);
           } else {
+            const dataset = data.datasets[0];
+            if (!dataset) {
+              existing.destroy();
+              this.charts.delete(measurement.name);
+              continue;
+            }
             data.labels = labels;
-            data.datasets[0].data = values;
-            data.datasets[0].borderColor = accent;
-            data.datasets[0].backgroundColor = accentFill;
+            dataset.data = values;
+            dataset.borderColor = accent;
+            dataset.backgroundColor = accentFill;
           if (options.plugins?.title) {
             options.plugins.title.color = fg;
           }

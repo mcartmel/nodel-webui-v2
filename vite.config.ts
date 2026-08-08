@@ -98,6 +98,35 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    exclude: [...configDefaults.exclude, 'e2e/**']
+    exclude: [...configDefaults.exclude, 'e2e/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: [
+        'src/api/codecs/nodel-codecs.ts',
+        'src/api/request.ts',
+        'src/utils/urls.ts',
+        'src/utils/node-file-path.ts',
+        'src/utils/json-value.ts',
+        'src/schema/schema-model.ts',
+        'src/schema/schema-values.ts',
+        'src/schema/schema-validation.ts',
+        'src/data/action-bindings.ts',
+        'src/data/signal-bindings.ts',
+        'src/data/control-actions.ts',
+        'src/data/activity-accumulator.ts',
+        'src/data/node-restart-source.ts',
+        'src/utils/latest-operation-coordinator.ts'
+      ],
+      all: false,
+      thresholds: {
+        perFile: true,
+        lines: 90,
+        statements: 90,
+        functions: 90,
+        branches: 85
+      }
+    }
   }
 });

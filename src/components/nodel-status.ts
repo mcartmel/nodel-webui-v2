@@ -162,10 +162,8 @@ function parseStructuredValue(value: string | null): { level?: string; message?:
     return null;
   }
 
-  return {
-    level: String(record.level),
-    message: typeof record.message === 'string' ? record.message : undefined
-  };
+  const message = typeof record.message === 'string' ? record.message : undefined;
+  return { level: String(record.level), ...(message !== undefined ? { message } : {}) };
 }
 
 function isDisplayableValue(value: string) {
@@ -205,8 +203,6 @@ export class NodelStatus extends HTMLElement {
   attributeChangedCallback(name: string) {
     if (name === 'message' && !this.isConnected) {
       this.messageSetBySignal = false;
-    }
-    if (name === 'state' && !this.isConnected) {
     }
     if (name === 'level' && !this.isConnected) {
       this.levelSetBySignal = false;

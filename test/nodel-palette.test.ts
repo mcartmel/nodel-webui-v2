@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({ callNodeAction: vi.fn() }));
 const activityMock = vi.hoisted(() => ({ listeners: [] as Array<(state: any) => void>, dispose: vi.fn() }));
 
@@ -47,16 +52,16 @@ describe('nodel-palette', () => {
     const options = Array.from(document.querySelectorAll<HTMLElement>('nodel-button'));
     expect(palette.dataset.shape).toBe('circle');
     expect(palette.style.getPropertyValue('--nodel-palette-columns')).toBe('3');
-    expect(options[0].dataset.paletteSwatch).toBe('true');
-    expect(options[1].hasAttribute('active')).toBe(true);
-    expect(options[1].getAttribute('variant')).toBe('primary');
-    expect(options[1].getAttribute('tone')).toBe('soft');
+    expect(required(options[0]).dataset.paletteSwatch).toBe('true');
+    expect(required(options[1]).hasAttribute('active')).toBe(true);
+    expect(required(options[1]).getAttribute('variant')).toBe('primary');
+    expect(required(options[1]).getAttribute('tone')).toBe('soft');
 
     palette.setAttribute('value', '#ff0000');
-    expect(options[0].hasAttribute('active')).toBe(true);
-    expect(options[1].hasAttribute('active')).toBe(false);
-    expect(options[1].hasAttribute('variant')).toBe(false);
-    expect(options[1].hasAttribute('tone')).toBe(false);
+    expect(required(options[0]).hasAttribute('active')).toBe(true);
+    expect(required(options[1]).hasAttribute('active')).toBe(false);
+    expect(required(options[1]).hasAttribute('variant')).toBe(false);
+    expect(required(options[1]).hasAttribute('tone')).toBe(false);
   });
 
   it('preserves explicitly authored swatch appearance after selection moves', () => {
@@ -70,11 +75,11 @@ describe('nodel-palette', () => {
     const options = Array.from(palette.querySelectorAll<HTMLElement>('nodel-button'));
     palette.setAttribute('value', '#0000ff');
 
-    expect(options[0].hasAttribute('active')).toBe(false);
-    expect(options[0].getAttribute('variant')).toBe('danger');
-    expect(options[0].getAttribute('tone')).toBe('outline');
-    expect(options[1].getAttribute('variant')).toBe('primary');
-    expect(options[1].getAttribute('tone')).toBe('soft');
+    expect(required(options[0]).hasAttribute('active')).toBe(false);
+    expect(required(options[0]).getAttribute('variant')).toBe('danger');
+    expect(required(options[0]).getAttribute('tone')).toBe('outline');
+    expect(required(options[1]).getAttribute('variant')).toBe('primary');
+    expect(required(options[1]).getAttribute('tone')).toBe('soft');
   });
 
   it('calls an action with selected colour value', async () => {
@@ -334,11 +339,11 @@ describe('nodel-palette', () => {
     input.dispatchEvent(new Event('change', { bubbles: true }));
     expect(resolvers).toHaveLength(3);
 
-    resolvers[2]();
+    required(resolvers[2])();
     await flush();
-    resolvers[1]();
+    required(resolvers[1])();
     await flush();
-    resolvers[0]();
+    required(resolvers[0])();
     await flush();
     expect(palette.getAttribute('value')).toBe('#222222');
   });
@@ -352,13 +357,13 @@ describe('nodel-palette', () => {
       confirmations.push((event as CustomEvent).detail);
     });
     const buttons = palette.querySelectorAll('nodel-button button');
-    buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    buttons[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(buttons[0]).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(buttons[1]).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(confirmations).toHaveLength(2);
 
-    confirmations[1].resolve(true);
+    required(confirmations[1]).resolve(true);
     await flush();
-    confirmations[0].resolve(true);
+    required(confirmations[0]).resolve(true);
     await flush();
     expect(actionMock.callNodeAction).toHaveBeenCalledTimes(1);
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetColour', { arg: '#0000ff' });

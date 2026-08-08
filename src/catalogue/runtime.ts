@@ -62,7 +62,7 @@ function hasPayloadArg(payload: unknown): payload is Record<string, unknown> & {
 }
 
 function nextBooleanValue(value: unknown) {
-  return !Boolean(value);
+  return !value;
 }
 
 function createActivityEntry(seq: number, alias: string, arg: unknown): NodelActivityLogEntry {

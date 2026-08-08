@@ -4,12 +4,20 @@ import {
   enumRawKey
 } from '../src/schema/schema-model';
 import { decodeSchema } from '../src/api/codecs/nodel-codecs';
+import type { NodelJsonSchema } from '../src/api/nodel-types';
 import { hydrateSchemaFormModel, serializeSchemaFormModel, setSchemaFieldPresence, setSchemaFieldValue } from '../src/schema/schema-values';
 import { validateSchemaForm } from '../src/schema/schema-validation';
 import { syncSchemaFormControls } from '../src/schema/schema-form';
 
 function field(form: ReturnType<typeof createSchemaForm>, key: string) {
-  return form.fields.find((item) => item.key === key)!;
+  const result = form.fields.find((item) => item.key === key);
+  if (!result) throw new Error(`Missing schema field ${key}`);
+  return result;
+}
+
+function required<T>(value: T | undefined | null, description: string): T {
+  if (value === undefined || value === null) throw new Error(`Missing ${description}`);
+  return value;
 }
 
 describe('schema form pure layers', () => {
@@ -66,8 +74,10 @@ describe('schema form pure layers', () => {
       actions: { SetPower: { binding: { node: 'Display', action: 'Power', options: [1, false] } } }
     };
     const form = createSchemaForm(schema);
-    const parameter = form.fields[0];
-    const binding = form.fields[1].children[0].children[0];
+    const parameter = required(form.fields[0], 'parameter field');
+    const actions = required(form.fields[1], 'actions field');
+    const action = required(actions.children[0], 'SetPower field');
+    const binding = required(action.children[0], 'binding field');
 
     expect(form.unsupported).toBe(false);
     expect(parameter.kind).toBe('json');
@@ -85,7 +95,7 @@ describe('schema form pure layers', () => {
         emptyArray: { type: 'array' as const, items: { type: 'string' as const } },
         emptyObject: { type: 'object' as const, properties: { value: { type: 'string' as const } } },
         nothing: { type: 'string' as const },
-        nullable: { type: [{ type: 'string' }, { type: 'null' }] as any },
+        nullable: { type: [{ type: 'string' }, { type: 'null' }] },
         enabled: { type: 'boolean' as const },
         count: { type: 'integer' as const },
         map: { type: 'object' as const, items: { type: 'integer' as const } }
@@ -149,7 +159,7 @@ describe('schema form pure layers', () => {
   });
 
   it('canonicalizes enum null, keeps missing unselected, and blocks stale option identities', () => {
-    const schema = { type: 'object', properties: { value: { type: [{ type: 'string', enum: [null, 'ready'] }, { type: 'null' }] } } } as any;
+    const schema: NodelJsonSchema = { type: 'object', properties: { value: { type: [{ type: 'string', enum: [null, 'ready'] }, { type: 'null' }] } } };
     const form = createSchemaForm(schema);
     const value = field(form, 'value');
     hydrateSchemaFormModel(form, { value: null });
@@ -167,9 +177,9 @@ describe('schema form pure layers', () => {
   });
 
   it('round-trips nullable enum null at a scalar root without a null enum option', () => {
-    const schema = { type: [{ type: 'string', enum: ['ready', 'standby'] }, { type: 'null' }] } as any;
+    const schema: NodelJsonSchema = { type: [{ type: 'string', enum: ['ready', 'standby'] }, { type: 'null' }] };
     const form = createSchemaForm(schema);
-    const value = form.fields[0];
+    const value = required(form.fields[0], 'scalar value field');
 
     hydrateSchemaFormModel(form, null);
     expect(value.present).toBe(true);
@@ -195,7 +205,7 @@ describe('schema form pure layers', () => {
 
   it('blocks an unknown scalar raw enum value that matches a private option identity until repaired', () => {
     const form = createSchemaForm({ type: 'string', enum: ['ready', 'standby'] });
-    const value = form.fields[0];
+    const value = required(form.fields[0], 'scalar value field');
 
     hydrateSchemaFormModel(form, 'enum-option-0');
     expect(value.typeMismatch).toBe(true);
@@ -223,16 +233,16 @@ describe('schema form pure layers', () => {
   });
 
   it('repairs a stale nullable enum through null presence at scalar and object roots', () => {
-    const scalar = createSchemaForm({ type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } as any);
+    const scalar = createSchemaForm({ type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] });
     hydrateSchemaFormModel(scalar, 'retired');
-    const scalarValue = scalar.fields[0];
+    const scalarValue = required(scalar.fields[0], 'scalar value field');
     expect(scalarValue.typeMismatch).toBe(true);
     setSchemaFieldPresence(scalar, scalarValue.id, 'null');
     expect(scalarValue.typeMismatch).toBe(false);
     expect(validateSchemaForm(scalar)).toEqual([]);
     expect(serializeSchemaFormModel(scalar)).toBeNull();
 
-    const object = createSchemaForm({ type: 'object', properties: { mode: { type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } } } as any);
+    const object = createSchemaForm({ type: 'object', properties: { mode: { type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } } });
     hydrateSchemaFormModel(object, { mode: 'retired' });
     const mode = field(object, 'mode');
     setSchemaFieldPresence(object, mode.id, 'null');
@@ -242,8 +252,8 @@ describe('schema form pure layers', () => {
   });
 
   it('does not restore a loaded raw enum value that collides with an option identity after null', () => {
-    const scalar = createSchemaForm({ type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } as any);
-    const scalarValue = scalar.fields[0];
+    const scalar = createSchemaForm({ type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] });
+    const scalarValue = required(scalar.fields[0], 'scalar value field');
     hydrateSchemaFormModel(scalar, 'enum-option-0');
     setSchemaFieldPresence(scalar, scalarValue.id, 'null');
     setSchemaFieldPresence(scalar, scalarValue.id, 'value');
@@ -252,7 +262,7 @@ describe('schema form pure layers', () => {
     expect(validateSchemaForm(scalar)).toEqual([expect.objectContaining({ fieldId: scalarValue.id, message: 'Choose one of the available values.' })]);
     expect(serializeSchemaFormModel(scalar)).toBeUndefined();
 
-    const object = createSchemaForm({ type: 'object', properties: { mode: { type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } } } as any);
+    const object = createSchemaForm({ type: 'object', properties: { mode: { type: [{ type: 'string', enum: ['ready'] }, { type: 'null' }] } } });
     const mode = field(object, 'mode');
     hydrateSchemaFormModel(object, { mode: 'enum-option-0' });
     setSchemaFieldPresence(object, mode.id, 'null');
@@ -265,7 +275,7 @@ describe('schema form pure layers', () => {
 
   it('treats setter invalid enum identities as invalid selections rather than loaded mismatches', () => {
     const scalar = createSchemaForm({ type: 'string', enum: ['ready'] });
-    const scalarValue = scalar.fields[0];
+    const scalarValue = required(scalar.fields[0], 'scalar value field');
     setSchemaFieldValue(scalar, scalarValue.id, 'enum-option-missing');
     expect(scalarValue.typeMismatch).toBe(false);
     expect(validateSchemaForm(scalar)).toEqual([expect.objectContaining({ fieldId: scalarValue.id, message: 'Choose one of the available values.' })]);
@@ -283,7 +293,7 @@ describe('schema form pure layers', () => {
     const schema = {
       type: 'object',
       properties: { mode: { type: [{ type: 'string', enum: ['ready', 'standby'] }, { type: 'null' }] } }
-    } as any;
+    };
     const form = createSchemaForm(schema);
     const mode = field(form, 'mode');
 
@@ -328,7 +338,7 @@ describe('schema form pure layers', () => {
   });
 
   it('rejects multi-concrete unions and malformed constraints without a partial form', () => {
-    const union = createSchemaForm({ type: [{ type: 'string' }, { type: 'number' }] as any });
+    const union = createSchemaForm({ type: [{ type: 'string' }, { type: 'number' }] });
     expect(union.unsupported).toBe(true);
     expect(union.controlsDisabled).toBe(true);
     expect(union.fields).toHaveLength(0);
@@ -337,7 +347,7 @@ describe('schema form pure layers', () => {
     expect(malformed.unsupported).toBe(true);
     expect(malformed.controlsDisabled).toBe(true);
 
-    const unsupportedKeyword = createSchemaForm({ type: 'string', pattern: '.*' } as any);
+    const unsupportedKeyword = createSchemaForm({ type: 'string', pattern: '.*' });
     expect(unsupportedKeyword.unsupported).toBe(true);
     expect(unsupportedKeyword.fields).toHaveLength(0);
 
@@ -348,7 +358,7 @@ describe('schema form pure layers', () => {
       { type: 'string', arbitraryConstraint: true },
       { type: [{ type: 'null' }], arbitraryConstraint: true }
     ]) {
-      const unsupported = createSchemaForm(schema as any);
+      const unsupported = createSchemaForm(schema);
       expect(unsupported.unsupported).toBe(true);
       expect(unsupported.controlsDisabled).toBe(true);
       expect(unsupported.fields).toHaveLength(0);
@@ -356,7 +366,7 @@ describe('schema form pure layers', () => {
   });
 
   it('round-trips scalar roots, explicit null, and nullable unions without object wrapping', () => {
-    const cases: Array<{ schema: any; value: unknown }> = [
+    const cases: Array<{ schema: NodelJsonSchema; value: unknown }> = [
       { schema: { type: 'string' }, value: '' },
       { schema: { type: 'number' }, value: 0 },
       { schema: { type: 'integer' }, value: 0 },
@@ -382,7 +392,7 @@ describe('schema form pure layers', () => {
 
   it('edits an empty Java schema as raw JSON without inventing a value', () => {
     const form = createSchemaForm(decodeSchema({}, 'GET REST/params/schema'));
-    const value = form.fields[0];
+    const value = required(form.fields[0], 'JSON value field');
     expect(form.unsupported).toBe(false);
     expect(value.kind).toBe('json');
     expect(serializeSchemaFormModel(form)).toBeUndefined();
@@ -401,7 +411,7 @@ describe('schema form pure layers', () => {
 
   it('bounds generic JSON editors and preserves prototype-named keys as data', () => {
     const form = createSchemaForm(decodeSchema({}, 'GET REST/params/schema'));
-    const value = form.fields[0];
+    const value = required(form.fields[0], 'JSON value field');
     const tooDeep = '{"value":'.repeat(66) + 'null' + '}'.repeat(66);
     const tooLarge = JSON.stringify(Array(10_001).fill(null));
 
@@ -483,9 +493,10 @@ describe('schema form pure layers', () => {
     // Entry identity is generated per form, not from a module-global counter; reorder and rehydration do not rewrite it.
     const hydrated = createSchemaForm(schema, { idPrefix: 'same/form' });
     hydrateSchemaFormModel(hydrated, { rows: ['first', 'second'] });
-    const ids = hydrated.fields.find((item) => item.key === 'rows')!.entries.map((entry) => entry.id);
+    const rowField = field(hydrated, 'rows');
+    const ids = rowField.entries.map((entry) => entry.id);
     const [firstId, secondId] = ids;
-    const rowField = hydrated.fields.find((item) => item.key === 'rows')!;
+    if (firstId === undefined || secondId === undefined) throw new Error('Expected two row entries');
     rowField.entries.reverse();
     expect(rowField.entries.map((entry) => entry.id).sort()).toEqual(ids.sort());
     hydrateSchemaFormModel(hydrated, { rows: ['second', 'first'] });
@@ -502,7 +513,7 @@ describe('schema form pure layers', () => {
         maybe: { type: [{ type: 'object', properties: { label: { type: 'string' } } }, { type: 'null' }] },
         list: { type: 'array', items: { type: 'object', properties: { value: { type: 'number' } } } }
       }
-    } as any;
+    };
     const values = [
       { text: '', count: 0, enabled: false, maybe: null, list: [] },
       { text: 'ready', count: -2, enabled: true, maybe: {}, list: [{}] },
@@ -516,7 +527,7 @@ describe('schema form pure layers', () => {
   });
 
   it('lets nullable fields intentionally distinguish null, empty string, and missing', () => {
-    const schema = { type: 'object', properties: { maybe: { type: [{ type: 'string' }, { type: 'null' }] } } } as any;
+    const schema: NodelJsonSchema = { type: 'object', properties: { maybe: { type: [{ type: 'string' }, { type: 'null' }] } } };
     for (const value of [{ maybe: null }, { maybe: '' }, {}]) {
       const form = createSchemaForm(schema);
       hydrateSchemaFormModel(form, value);
@@ -531,7 +542,7 @@ describe('schema form pure layers', () => {
         maybe: { type: [{ type: 'string' }, { type: 'null' }] },
         requiredMaybe: { type: [{ type: 'string' }, { type: 'null' }], required: true }
       }
-    } as any;
+    };
     const form = createSchemaForm(schema);
     hydrateSchemaFormModel(form, { maybe: '', requiredMaybe: null });
     const maybe = field(form, 'maybe');
@@ -559,10 +570,11 @@ describe('schema form pure layers', () => {
           items: { type: [{ type: 'object', properties: { name: { type: 'string' } } }, { type: 'null' }] }
         }
       }
-    } as any);
+    });
     hydrateSchemaFormModel(form, { rows: [null, {}] });
     const rows = field(form, 'rows');
-    const [nullEntry, concreteEntry] = rows.entries;
+    const nullEntry = required(rows.entries[0], 'null array entry');
+    const concreteEntry = required(rows.entries[1], 'concrete array entry');
     expect(rows.entries.map((entry) => entry.id)).toHaveLength(2);
     expect(nullEntry.nullable).toBe(true);
     expect(nullEntry.fields).toHaveLength(1);
@@ -582,10 +594,11 @@ describe('schema form pure layers', () => {
       properties: {
         values: { type: 'array', items: { type: [{ type: 'string' }, { type: 'null' }] } }
       }
-    } as any);
+    });
     hydrateSchemaFormModel(form, { values: [null, 'ready'] });
     const values = field(form, 'values');
-    const item = values.entries[0].valueField!;
+    const itemEntry = required(values.entries[0], 'array item entry');
+    const item = required(itemEntry.valueField, 'array item field');
     expect(item.allowMissing).toBe(false);
     expect(setSchemaFieldPresence(form, item.id, 'missing')).toBeNull();
     item.present = false;
@@ -601,10 +614,10 @@ describe('schema form pure layers', () => {
         config: { type: [{ type: 'object', properties: { name: { type: 'string' } } }, { type: 'null' }] },
         values: { type: [{ type: 'array', items: { type: 'string' } }, { type: 'null' }] }
       }
-    } as any);
+    });
     hydrateSchemaFormModel(form, {});
     const config = field(form, 'config');
-    const name = config.children[0];
+    const name = required(config.children[0], 'config name field');
     setSchemaFieldPresence(form, name.id, 'value');
     name.value = 'active';
     expect(config.present).toBe(true);
@@ -623,11 +636,11 @@ describe('schema form pure layers', () => {
           ]
         }
       }
-    } as any);
+    });
     hydrateSchemaFormModel(form, {});
 
     const config = field(form, 'config');
-    const name = config.children[0];
+    const name = required(config.children[0], 'config name field');
     expect(config.present).toBe(false);
     expect(config.presenceState).toBe('missing');
     expect(config.value).toEqual({});
@@ -650,7 +663,7 @@ describe('schema form pure layers', () => {
   });
 
   it('reconciles a form with one scoped selector traversal', () => {
-    const form = createSchemaForm({ type: 'object', properties: { maybe: { type: [{ type: 'string' }, { type: 'null' }] } } } as any);
+    const form = createSchemaForm({ type: 'object', properties: { maybe: { type: [{ type: 'string' }, { type: 'null' }] } } });
     hydrateSchemaFormModel(form, { maybe: null });
     const root = document.createElement('div');
     const maybe = field(form, 'maybe');
@@ -667,7 +680,8 @@ describe('schema form pure layers', () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed % limit;
     };
-    const scalar = (_depth: number): { schema: any; value: unknown } => {
+    const scalar = (depth: number): { schema: any; value: unknown } => {
+      void depth;
       const choice = next(5);
       if (choice === 0) return { schema: { type: 'string' }, value: next(3) === 0 ? '' : `s${next(8)}` };
       if (choice === 1) return { schema: { type: 'integer' }, value: next(3) === 0 ? 0 : next(21) - 10 };

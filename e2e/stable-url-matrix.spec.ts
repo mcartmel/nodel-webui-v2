@@ -73,7 +73,7 @@ async function serveMinimalNodeRest(page: Page) {
       return;
     }
 
-    let contentType = 'application/json';
+  const contentType = 'application/json';
     let body = '{}';
     if (pathname.endsWith('/activity')
       || pathname.endsWith('/console')

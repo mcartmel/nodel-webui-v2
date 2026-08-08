@@ -148,11 +148,13 @@ describe('control action semantics', () => {
     await flush();
 
     expect(error).toHaveBeenCalledTimes(1);
-    expect(error.mock.calls[0][0].detail.results).toEqual([
+    const errorEvent = error.mock.calls[0]?.[0] as CustomEvent | undefined;
+    expect(errorEvent).toBeDefined();
+    expect(errorEvent?.detail.results).toEqual([
       { action: 'First', phase: 'click', ok: true },
       { action: 'Second', phase: 'click', ok: false, error: 'Second action failed' }
     ]);
-    expect(error.mock.calls[0][0].detail.failures).toEqual([
+    expect(errorEvent?.detail.failures).toEqual([
       { action: 'Second', phase: 'click', ok: false, error: 'Second action failed' }
     ]);
   });
@@ -336,6 +338,7 @@ describe('control action semantics', () => {
     button.querySelector('button')?.click();
     await waitFor(() => actionMock.callNodeAction.mock.calls.length === 1);
 
-    expect(actionMock.callNodeAction.mock.calls[0][2]?.signal).toBe(confirmationSignal);
+    const actionCall = actionMock.callNodeAction.mock.calls[0];
+    expect(actionCall?.[2]?.signal).toBe(confirmationSignal);
   });
 });

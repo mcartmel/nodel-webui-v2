@@ -440,6 +440,38 @@ describe('node-restart-source', () => {
     expect(coordinator.getExpectation()).toBeNull();
   });
 
+  it('covers the public restart expectation facade and idempotent cancellation paths', async () => {
+    restartMock.getNodeRestartStatus.mockResolvedValue({ timestamp: null });
+    window.history.replaceState(undefined, '', '/');
+    const source = await loadSource();
+    const events: unknown[] = [];
+    const watcher = source.subscribeNodeRestart((event) => events.push(event));
+    const owner = source.acquireNodeRestartPageOwner();
+    expect(source.getNodeRestartExpectation()).toBeNull();
+    expect(source.getNodeRestartScriptWriteState()).toBe('idle');
+    expect(source.isNodeRestartScriptWriteBlocked()).toBe(false);
+
+    const prepared = await source.prepareNodeRestartExpectation();
+    expect(source.isNodeRestartExpectationPreparedForWrite(prepared)).toBe(true);
+    const committed = source.commitNodeRestartExpectation(prepared, false)!;
+    expect(source.isNodeRestartScriptWriteBlocked()).toBe(true);
+    expect(source.activateNodeRestartExpectation(committed.id, committed.generation)).toBe(true);
+    await (source.nodeRestartCoordinator as any).poll();
+    expect(source.activateNodeRestartExpectation(-1, -1)).toBe(false);
+    expect(source.completeNodeRestartExpectation(committed.id, { status: 'verified' })).toBe(false);
+    source.cancelNodeRestartExpectation(committed);
+    source.cancelNodeRestartExpectation(committed);
+    source.cancelNodeRestartExpectation(null);
+    expect(source.getNodeRestartExpectation()).toBeNull();
+    owner.release();
+    owner.release();
+    watcher.dispose();
+    watcher.dispose();
+    source.nodeRestartCoordinator.dispose();
+    await (source.nodeRestartCoordinator as any).poll();
+    expect(events.length).toBeGreaterThan(0);
+  });
+
   function deferred<T>() {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((nextResolve) => {

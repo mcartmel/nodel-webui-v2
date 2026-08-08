@@ -24,7 +24,8 @@ const internalComponentEvents = new Set([
 
 function importedComponents(source: string, prefix: string) {
   const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return Array.from(source.matchAll(new RegExp(`['"]${escaped}(nodel-[a-z0-9-]+)['"]`, 'g')), (match) => match[1]);
+  return Array.from(source.matchAll(new RegExp(`['"]${escaped}(nodel-[a-z0-9-]+)['"]`, 'g')), (match) => match[1])
+    .filter((name): name is string => name !== undefined);
 }
 
 describe('component contract runtime alignment', () => {
@@ -91,7 +92,7 @@ describe('component contract runtime alignment', () => {
       const dispatched = new Set([
         ...Array.from(source.matchAll(/new CustomEvent(?:<[^>]+>)?\(\s*['"](nodel-[a-z0-9-]+)['"]/g), (match) => match[1]),
         ...Array.from(source.matchAll(/eventName:\s*['"](nodel-[a-z0-9-]+)['"]/g), (match) => match[1])
-      ].filter((name) => !internalComponentEvents.has(name)));
+      ].filter((name): name is string => name !== undefined && !internalComponentEvents.has(name)));
       expect(new Set(element.events.map((event) => event.name)), element.name).toEqual(dispatched);
     }
   });

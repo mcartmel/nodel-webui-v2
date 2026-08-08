@@ -19,18 +19,19 @@ interface DuplicateAddNodeOptions extends Pick<NodelDuplicateNodeOptions, 'inclu
 
 export async function createAddNodeFromTemplate(options: CreateAddNodeOptions) {
   assertUsableNodeName(options.name);
-  await createNode(options.name, options.base, { signal: options.signal });
+  const requestOptions: RequestInit = options.signal ? { signal: options.signal } : {};
+  await createNode(options.name, options.base, requestOptions);
   const url = localNodePath(options.name);
   options.onWaiting?.(url);
-  await waitForNodeReady(localNodeUrl(options.name), 30, 1000, { signal: options.signal });
+  await waitForNodeReady(localNodeUrl(options.name), 30, 1000, requestOptions);
   return { url };
 }
 
 export async function duplicateAddNodeFromSource(options: DuplicateAddNodeOptions): Promise<NodelDuplicateNodeResult> {
   assertUsableNodeName(options.name);
   return duplicateNode(options.sourceAddress, options.name, {
-    includeNodeConfig: options.includeNodeConfig,
-    onProgress: options.onProgress,
-    signal: options.signal
+    ...(options.includeNodeConfig !== undefined ? { includeNodeConfig: options.includeNodeConfig } : {}),
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.signal ? { signal: options.signal } : {})
   });
 }

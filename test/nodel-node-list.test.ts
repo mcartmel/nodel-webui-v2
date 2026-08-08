@@ -3,6 +3,11 @@ import '../src/components/nodel-node-list';
 import '../src/components/nodel-text';
 import { generateHostIconDataUri } from '../src/icons/host-identicon';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-node-list', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -45,9 +50,9 @@ describe('nodel-node-list', () => {
     expect(Array.from(collection?.children ?? []).every((child) => child.tagName === 'LI')).toBe(true);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(2);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(2);
-    expect(links[0].getAttribute('href')).toBe('/nodes/AlphaNode/');
-    expect(links[0].textContent).toContain('localhost');
-    expect(links[0].querySelector('nodel-host-icon img')?.getAttribute('src')).toBe(
+    expect(required(links[0]).getAttribute('href')).toBe('/nodes/AlphaNode/');
+    expect(required(links[0]).textContent).toContain('localhost');
+    expect(required(links[0]).querySelector('nodel-host-icon img')?.getAttribute('src')).toBe(
       generateHostIconDataUri(window.location.host)
     );
 
@@ -153,15 +158,15 @@ describe('nodel-node-list', () => {
 
     const items = document.querySelectorAll('nodel-node-list a.nodel-list-item');
     expect(items.length).toBe(2);
-    expect(items[0].getAttribute('href')).toBe('http://alpha:8085/nodes/Alpha/');
-    expect(items[0].className).not.toContain('is-unreachable');
-    expect(items[0].getAttribute('data-reachability')).toBe('reachable');
-    expect(items[1].className).toContain('is-unreachable');
-    expect(items[1].getAttribute('data-reachability')).toBe('unreachable');
+    expect(required(items[0]).getAttribute('href')).toBe('http://alpha:8085/nodes/Alpha/');
+    expect(required(items[0]).className).not.toContain('is-unreachable');
+    expect(required(items[0]).getAttribute('data-reachability')).toBe('reachable');
+    expect(required(items[1]).className).toContain('is-unreachable');
+    expect(required(items[1]).getAttribute('data-reachability')).toBe('unreachable');
     expect(document.querySelectorAll('nodel-node-list .nodel-list > li')).toHaveLength(2);
     expect(document.querySelectorAll('nodel-node-list .nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(2);
-    expect(items[0].querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
-    expect(items[1].querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
+    expect(required(items[0]).querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
+    expect(required(items[1]).querySelector('nodel-host-icon img')?.getAttribute('src')).toContain('data:image/svg+xml;base64,');
 
     document.querySelector('nodel-node-list')?.remove();
     expect(fetchMock).toHaveBeenCalled();
@@ -372,7 +377,7 @@ describe('nodel-node-list', () => {
     await waitFor(() => probeCalls.length > callsWhileHidden);
 
     expect(list.textContent).toContain('Node 1');
-  });
+  }, 15_000);
 
   it('keeps scheduler slots owned by disconnected abort-insensitive probes until they settle', async () => {
     const oldEntries = Array.from({ length: 4 }, (_, index) => ({

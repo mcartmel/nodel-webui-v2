@@ -3,9 +3,9 @@ import {
   type ActionBinding,
   type ActionBindingExecution,
   type ActionBindingResult,
-  type ActionBindingExecutionContext
+  type ActionBindingExecutionContext,
+  throwIfActionExecutionCancelled
 } from './action-bindings';
-import { throwIfActionExecutionCancelled } from './action-bindings';
 import { parseTypedArgStrict, type ControlArgType } from '../utils/control-values';
 import { apiErrorMessage } from '../utils/errors';
 
@@ -83,7 +83,7 @@ export function formatActionFailures(failures: ReadonlyArray<{ action: string; e
     return fallback;
   }
   if (failures.length === 1) {
-    return failures[0].error ?? fallback;
+    return failures[0]?.error ?? fallback;
   }
   return failures.map((failure) => `${failure.action}: ${failure.error ?? fallback}`).join('; ');
 }
@@ -91,7 +91,7 @@ export function formatActionFailures(failures: ReadonlyArray<{ action: string; e
 export function dispatchControlActionError(host: HTMLElement, options: ControlActionErrorOptions) {
   const error = options.error ?? formatActionFailures(options.failures ?? []);
   const payload = options.payload ?? {};
-  const arg = options.arg ?? (payload && typeof payload === 'object' && 'arg' in payload ? (payload as { arg: unknown }).arg : undefined);
+  const arg = options.arg ?? (payload && typeof payload === 'object' && 'arg' in payload ? (payload).arg : undefined);
 
   host.dispatchEvent(new CustomEvent(options.eventName, {
     bubbles: true,
@@ -158,7 +158,7 @@ export class ControlActionController {
         latest: 0
       };
     }
-    return this.state!;
+    return this.state;
   }
 
   nextToken(scope: ControlActionScope | null) {

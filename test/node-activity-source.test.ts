@@ -76,6 +76,49 @@ function setNavigatorOnline(value: boolean) {
   });
 }
 
+type MockFn = ReturnType<typeof vi.fn>;
+
+function getArrayValue<T>(values: readonly T[], index: number, label: string): T {
+  const value = index >= 0 ? values[index] : values.at(index);
+  if (value === undefined) {
+    throw new Error(`Expected ${label}`);
+  }
+  return value;
+}
+
+function getMockCallArg<T>(mockFn: MockFn, callIndex: number, argIndex: number, label: string): T {
+  const call = getArrayValue(mockFn.mock.calls, callIndex, `${label} call`);
+  return getArrayValue(call, argIndex, `${label} call ${callIndex} argument`);
+}
+
+function getLatestState(states: ActivityState[]): ActivityState {
+  return getArrayValue(states, -1, 'activity state');
+}
+
+function getSocket(index: number): MockWebSocket {
+  return getArrayValue(MockWebSocket.instances, index, `MockWebSocket at index ${index}`);
+}
+
+function visibilityHandler(): (visible: boolean) => void {
+  return getArrayValue(activityMock.visibilityHandlers, 0, 'visibility handler');
+}
+
+function getBatchItem(batch: NodeActivityBatch | null, index: number, label: string) {
+  if (batch === null) {
+    throw new Error(`Expected ${label} but batch was null`);
+  }
+
+  return getArrayValue(batch.items, index, `${label} batch item`);
+}
+
+function getAbortSignal(init: { signal?: AbortSignal }, label: string): AbortSignal {
+  const signal = init.signal;
+  if (signal === undefined) {
+    throw new Error(`Expected ${label}`);
+  }
+  return signal;
+}
+
 function activityEntry(overrides: Partial<NodelActivityLogEntry> = {}): NodelActivityLogEntry {
   return {
     seq: 1,
@@ -86,6 +129,13 @@ function activityEntry(overrides: Partial<NodelActivityLogEntry> = {}): NodelAct
     arg: true,
     ...overrides
   };
+}
+
+function activityEntryWithoutTimestamp(overrides: Omit<Partial<NodelActivityLogEntry>, 'timestamp'> = {}): Omit<NodelActivityLogEntry, 'timestamp'> {
+  const entry = activityEntry(overrides);
+  const { timestamp, ...entryWithoutTimestamp } = entry;
+  void timestamp;
+  return entryWithoutTimestamp;
 }
 
 function createSubscriberHost() {
@@ -131,16 +181,16 @@ describe('node-activity-source', () => {
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
     expect(MockWebSocket.instances).toHaveLength(1);
-    expect(MockWebSocket.instances[0].url).toBe(`ws://${window.location.host}${localNodePath('TestUI')}`);
+    expect(getSocket(0).url).toBe(`ws://${window.location.host}${localNodePath('TestUI')}`);
 
-    MockWebSocket.instances[0].open();
+    getSocket(0).open();
 
-    expect(states.at(-1)?.connected).toBe(true);
+    expect(getLatestState(states).connected).toBe(true);
     expect(activityMock.getNodeActivity).not.toHaveBeenCalled();
 
     first.dispose();
     second.dispose();
-    expect(MockWebSocket.instances[0].close).toHaveBeenCalledTimes(1);
+    expect(getSocket(0).close).toHaveBeenCalledTimes(1);
   });
 
   it('isolates throwing subscribers and ignores stale socket callbacks after reconnect', async () => {
@@ -152,7 +202,7 @@ describe('node-activity-source', () => {
     });
     const states: ActivityState[] = [];
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
-    const oldSocket = MockWebSocket.instances[0];
+    const oldSocket = getSocket(0);
 
     activityMock.visibilityHandlers.forEach((handler) => handler(false));
     activityMock.visibilityHandlers.forEach((handler) => handler(true));
@@ -162,12 +212,13 @@ describe('node-activity-source', () => {
 
     expect(activityMock.getNodeActivity).not.toHaveBeenCalled();
     expect(listenerError).toHaveBeenCalled();
-    expect((listenerError.mock.calls[0][0] as CustomEvent).detail).toMatchObject({
+    const listenerErrorEvent = getMockCallArg<CustomEvent>(listenerError, 0, 0, 'listener error event');
+    expect(listenerErrorEvent.detail).toMatchObject({
       message: 'subscriber failed',
       source: 'node-activity-source'
     });
-    MockWebSocket.instances[1].open();
-    expect(states.at(-1)?.connected).toBe(true);
+    getSocket(1).open();
+    expect(getLatestState(states).connected).toBe(true);
 
     first.dispose();
     second.dispose();
@@ -179,7 +230,7 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activityHistory: [
         activityEntry({ seq: 3, alias: 'Power', arg: 'latest' }),
         activityEntry({ seq: 2, source: 'remote', type: 'event', alias: 'Level', arg: 25 }),
@@ -187,14 +238,14 @@ describe('node-activity-source', () => {
       ]
     });
 
-    const batch = states.at(-1)?.batch;
+    const batch = getLatestState(states).batch;
 
     expect(batch?.transport).toBe('websocket');
     expect(batch?.replace).toBe(true);
     expect(batch?.nextSeq).toBe(4);
     expect(batch?.items).toHaveLength(2);
     expect(batch?.items.map((item) => item.entry.alias)).toEqual(['Level', 'Power']);
-    expect(batch?.items[1].entry.arg).toBe('latest');
+    expect(getBatchItem(getLatestState(states).batch, 1, 'sorted websocket batch').entry.arg).toBe('latest');
 
     subscription.dispose();
   });
@@ -204,17 +255,17 @@ describe('node-activity-source', () => {
     const { subscribeNodeActivity } = await loadSource();
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
-    const socket = MockWebSocket.instances[0];
+    const socket = getSocket(0);
     socket.message({ activityHistory: [activityEntry({ seq: 5 })] });
     socket.message({ activity: activityEntry({ seq: 5 }) });
     vi.advanceTimersByTime(100);
     await flushMicrotasks();
     socket.message({ activityHistory: [activityEntry({ seq: 3 })] });
 
-    expect(states.at(-1)?.batch?.nextSeq).toBe(6);
+    expect(getLatestState(states).batch?.nextSeq).toBe(6);
     socket.closeFromServer();
     await flushMicrotasks();
-    expect(activityMock.getNodeActivity.mock.calls.at(-1)?.[0]).toEqual({ from: 6 });
+    expect(getMockCallArg<{ from: number }>(activityMock.getNodeActivity, -1, 0, 'poll refresh request')).toEqual({ from: 6 });
     subscription.dispose();
   });
 
@@ -225,7 +276,7 @@ describe('node-activity-source', () => {
     const historySeq = 1_784_106_123_556;
     const liveSeq = 1_784_102_982_703;
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activityHistory: [activityEntry({
         seq: historySeq,
         timestamp: '2026-08-02T22:24:26.042+10:00',
@@ -235,7 +286,7 @@ describe('node-activity-source', () => {
         arg: '2026-08-02T22:24:26.042+10:00'
       })]
     });
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activity: activityEntry({
         seq: liveSeq,
         timestamp: '2026-08-02T22:24:27.042+10:00',
@@ -248,7 +299,7 @@ describe('node-activity-source', () => {
     vi.advanceTimersByTime(100);
     await flushMicrotasks();
 
-    const batch = states.at(-1)?.batch;
+    const batch = getLatestState(states).batch;
     expect(batch?.replace).toBe(false);
     expect(batch?.transport).toBe('websocket');
     expect(batch?.nextSeq).toBe(historySeq + 1);
@@ -272,9 +323,8 @@ describe('node-activity-source', () => {
 
   it('stops an outer emission when a subscriber refreshes the source', async () => {
     const { subscribeNodeActivity } = await loadSource();
-    let first: ReturnType<typeof subscribeNodeActivity>;
     let refreshed = false;
-    first = subscribeNodeActivity(createSubscriberHost(), (state) => {
+    const first = subscribeNodeActivity(createSubscriberHost(), (state) => {
       if (state.batch && !refreshed) {
         refreshed = true;
         first.refresh();
@@ -284,7 +334,7 @@ describe('node-activity-source', () => {
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => secondBatches.push(state.batch));
     secondBatches.length = 0;
 
-    MockWebSocket.instances[0].message({ activityHistory: [activityEntry({ seq: 1, alias: 'Superseded' })] });
+    getSocket(0).message({ activityHistory: [activityEntry({ seq: 1, alias: 'Superseded' })] });
 
     expect(secondBatches.some((batch) => batch?.items.some((item) => item.entry.alias === 'Superseded'))).toBe(false);
     first.dispose();
@@ -296,15 +346,15 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].message({ activity: activityEntry({ seq: 4, arg: 'first' }) });
-    MockWebSocket.instances[0].message({ activity: activityEntry({ seq: 5, arg: 'second' }) });
+    getSocket(0).message({ activity: activityEntry({ seq: 4, arg: 'first' }) });
+    getSocket(0).message({ activity: activityEntry({ seq: 5, arg: 'second' }) });
 
-    expect(states.at(-1)?.batch?.items[0]?.entry.seq).not.toBe(5);
+    expect(getLatestState(states).batch?.items[0]?.entry.seq).not.toBe(5);
 
     vi.advanceTimersByTime(100);
     await flushMicrotasks();
 
-    const batch = states.at(-1)?.batch;
+    const batch = getLatestState(states).batch;
 
     expect(batch?.transport).toBe('websocket');
     expect(batch?.replace).toBe(false);
@@ -325,19 +375,19 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activity: { seq: 1, timestamp: 'not-a-date', source: 'local', type: 'event', alias: 'Status' }
     });
-    expect(states.at(-1)?.error).toContain('WebSocket activity returned invalid data');
-    expect(states.at(-1)?.error.length).toBeLessThanOrEqual(500);
-    expect(states.at(-1)?.batch).toBeNull();
+    expect(getLatestState(states).error).toContain('WebSocket activity returned invalid data');
+    expect(getLatestState(states).error.length).toBeLessThanOrEqual(500);
+    expect(getLatestState(states).batch).toBeNull();
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activityHistory: [activityEntry({ seq: 2, source: 'local', type: 'event', alias: 'Status', arg: 'Ready' })]
     });
-    expect(states.at(-1)?.error).toBe('');
-    expect(states.at(-1)?.batch?.items[0].entry.alias).toBe('Status');
-    expect(states.at(-1)?.batch?.transport).toBe('websocket');
+    expect(getLatestState(states).error).toBe('');
+    expect(getBatchItem(getLatestState(states).batch, 0, 'malformed recovery batch').entry.alias).toBe('Status');
+    expect(getLatestState(states).batch?.transport).toBe('websocket');
 
     subscription.dispose();
   });
@@ -347,14 +397,14 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activityHistory: [
         { seq: 1, source: 'local', type: 'event', alias: 'Boot', arg: 'ready' },
       ]
     });
 
-    expect(states.at(-1)?.error).toBe('');
-    expect(states.at(-1)?.batch?.items[0]?.entry.timestamp).toBeUndefined();
+    expect(getLatestState(states).error).toBe('');
+    expect(getBatchItem(getLatestState(states).batch, 0, 'uninitialized batch item').entry.timestamp).toBeUndefined();
 
     subscription.dispose();
   });
@@ -364,22 +414,22 @@ describe('node-activity-source', () => {
     const firstStates: ActivityState[] = [];
     const first = subscribeNodeActivity(createSubscriberHost(), (state) => firstStates.push(state));
 
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activityHistory: [
         activityEntry({ seq: 1, source: 'local', type: 'event', alias: 'ConfirmCode', arg: '0420' }),
         activityEntry({ seq: 2, source: 'local', type: 'event', alias: 'Status', arg: 'Ready' })
       ]
     });
-    MockWebSocket.instances[0].message({
+    getSocket(0).message({
       activity: activityEntry({ seq: 3, source: 'local', type: 'event', alias: 'Status', arg: 'Busy' })
     });
     vi.advanceTimersByTime(100);
     await flushMicrotasks();
-    expect(firstStates.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Status']);
+    expect(getLatestState(firstStates).batch?.items.map((item) => item.entry.alias)).toEqual(['Status']);
 
     const secondStates: ActivityState[] = [];
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => secondStates.push(state));
-    const snapshot = secondStates[0].batch;
+    const snapshot = getArrayValue(secondStates, 0, 'second subscriber state').batch;
     expect(snapshot?.replace).toBe(true);
     expect(snapshot?.items.map((item) => [item.entry.alias, item.entry.arg])).toEqual([
       ['ConfirmCode', '0420'],
@@ -394,14 +444,14 @@ describe('node-activity-source', () => {
   it('drops queued live activity when the last subscriber disconnects', async () => {
     const { subscribeNodeActivity } = await loadSource();
     const first = subscribeNodeActivity(createSubscriberHost(), vi.fn());
-    MockWebSocket.instances[0].message({ activity: activityEntry({ seq: 7, alias: 'Queued' }) });
+    getSocket(0).message({ activity: activityEntry({ seq: 7, alias: 'Queued' }) });
     first.dispose();
     vi.advanceTimersByTime(100);
     await flushMicrotasks();
 
     const states: ActivityState[] = [];
     const second = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
-    expect(states[0].batch).toBeNull();
+    expect(getArrayValue(states, 0, 'fallback state').batch).toBeNull();
     second.dispose();
   });
 
@@ -414,17 +464,17 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
 
     expect(activityMock.getNodeActivity).toHaveBeenCalledWith({ from: -1 }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(states.at(-1)?.batch).toMatchObject({
+    expect(getLatestState(states).batch).toMatchObject({
       replace: true,
       transport: 'poll',
       nextSeq: 12
     });
-    expect(states.at(-1)?.batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
-    expect(states.at(-1)?.transport).toBe('poll');
+    expect(getLatestState(states).batch?.items.map((item) => item.entry.alias)).toEqual(['Power', 'Level']);
+    expect(getLatestState(states).transport).toBe('poll');
 
     subscription.dispose();
   });
@@ -434,32 +484,32 @@ describe('node-activity-source', () => {
     const { subscribeNodeActivity } = await loadSource();
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
-    const socket = MockWebSocket.instances[0];
+    const socket = getSocket(0);
 
     vi.advanceTimersByTime(2500);
     await flushMicrotasks();
 
     expect(socket.close).toHaveBeenCalledTimes(1);
     expect(activityMock.getNodeActivity).toHaveBeenCalledWith({ from: -1 }, expect.any(Object));
-    expect(states.at(-1)?.transport).toBe('poll');
-    expect(states.at(-1)?.batch?.items[0]?.entry.alias).toBe('Fallback');
+    expect(getLatestState(states).transport).toBe('poll');
+    expect(getBatchItem(getLatestState(states).batch, 0, 'fallback poll batch').entry.alias).toBe('Fallback');
 
     subscription.dispose();
   });
 
   it('accepts missing timestamps from polled REST activity without a source error', async () => {
     activityMock.getNodeActivity.mockResolvedValue([
-      activityEntry({ seq: 10, timestamp: undefined })
+      activityEntryWithoutTimestamp({ seq: 10 })
     ]);
     const { subscribeNodeActivity } = await loadSource();
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
 
-    expect(states.at(-1)?.error).toBe('');
-    expect(states.at(-1)?.batch?.items[0].entry.timestamp).toBeUndefined();
+    expect(getLatestState(states).error).toBe('');
+    expect(getBatchItem(getLatestState(states).batch, 0, 'missing-timestamp poll batch').entry.timestamp).toBeUndefined();
 
     subscription.dispose();
   });
@@ -469,7 +519,7 @@ describe('node-activity-source', () => {
     const { subscribeNodeActivity } = await loadSource();
     const subscription = subscribeNodeActivity(createSubscriberHost(), vi.fn());
 
-    MockWebSocket.instances[0].onerror?.({} as Event);
+    getSocket(0).onerror?.({} as Event);
     await flushMicrotasks();
 
     expect(activityMock.reportConnectivityFailure).toHaveBeenCalledWith('REST/', expect.any(TypeError));
@@ -488,14 +538,14 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
 
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
-    expect(states.at(-1)).toMatchObject({ loading: false, connected: false, error: '', transport: 'poll' });
+    expect(getLatestState(states)).toMatchObject({ loading: false, connected: false, error: '', transport: 'poll' });
 
     vi.advanceTimersByTime(1000);
     await flushMicrotasks();
     expect(activityMock.getNodeActivity).toHaveBeenCalledTimes(2);
-    expect(states.at(-1)).toMatchObject({ loading: false, connected: false, error: '', batch: null, transport: 'poll' });
+    expect(getLatestState(states)).toMatchObject({ loading: false, connected: false, error: '', batch: null, transport: 'poll' });
 
     resolveNextPoll?.([]);
     await flushMicrotasks();
@@ -507,7 +557,7 @@ describe('node-activity-source', () => {
     activityMock.getNodeActivity.mockRejectedValue(new Error('offline'));
     const { subscribeNodeActivity } = await loadSource();
     const subscription = subscribeNodeActivity(createSubscriberHost(), vi.fn());
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
 
     for (let index = 0; index < 20; index += 1) {
@@ -516,8 +566,8 @@ describe('node-activity-source', () => {
     }
     const socketsBeforeRecovery = MockWebSocket.instances.length;
     activityMock.getNodeActivity.mockResolvedValue([]);
-    activityMock.visibilityHandlers[0]?.(false);
-    activityMock.visibilityHandlers[0]?.(true);
+    visibilityHandler()(false);
+    visibilityHandler()(true);
     await flushMicrotasks();
 
     expect(MockWebSocket.instances.length).toBeGreaterThan(socketsBeforeRecovery);
@@ -531,7 +581,7 @@ describe('node-activity-source', () => {
     }));
     const { subscribeNodeActivity } = await loadSource();
     const first = subscribeNodeActivity(createSubscriberHost(), vi.fn());
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
     const second = subscribeNodeActivity(createSubscriberHost(), vi.fn());
 
@@ -552,12 +602,12 @@ describe('node-activity-source', () => {
       .mockResolvedValue([]);
     const { subscribeNodeActivity } = await loadSource();
     const subscription = subscribeNodeActivity(createSubscriberHost(), vi.fn());
-    MockWebSocket.instances[0].closeFromServer();
+    getSocket(0).closeFromServer();
     await flushMicrotasks();
 
-    activityMock.visibilityHandlers[0]?.(false);
-    activityMock.visibilityHandlers[0]?.(true);
-    MockWebSocket.instances[1].closeFromServer();
+    visibilityHandler()(false);
+    visibilityHandler()(true);
+    getSocket(1).closeFromServer();
     await flushMicrotasks();
     expect(activityMock.getNodeActivity).toHaveBeenCalledTimes(2);
 
@@ -591,17 +641,20 @@ describe('node-activity-source', () => {
     const states: ActivityState[] = [];
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
     await flushMicrotasks();
-    const pollSignal = activityMock.getNodeActivity.mock.calls[0][1].signal as AbortSignal;
+    const pollSignal = getAbortSignal(
+      getMockCallArg<{ signal?: AbortSignal }>(activityMock.getNodeActivity, 0, 1, 'stale poll request'),
+      'stale poll request abort signal'
+    );
 
     vi.advanceTimersByTime(5000);
     await flushMicrotasks();
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(pollSignal.aborted).toBe(true);
-    MockWebSocket.instances[0].open();
+    getSocket(0).open();
     resolvePoll([activityEntry({ seq: 10, alias: 'Stale poll' })]);
     await flushMicrotasks();
 
-    expect(states.at(-1)?.connected).toBe(true);
+    expect(getLatestState(states).connected).toBe(true);
     expect(states.some((state) => state.batch?.items.some((item) => item.entry.alias === 'Stale poll'))).toBe(false);
     subscription.dispose();
   });
@@ -615,14 +668,14 @@ describe('node-activity-source', () => {
     expect(MockWebSocket.instances).toHaveLength(0);
     expect(activityMock.getNodeActivity).not.toHaveBeenCalled();
 
-    activityMock.visibilityHandlers[0]?.(true);
+    visibilityHandler()(true);
     expect(MockWebSocket.instances).toHaveLength(1);
 
-    MockWebSocket.instances[0].open();
-    activityMock.visibilityHandlers[0]?.(false);
+    getSocket(0).open();
+    visibilityHandler()(false);
 
-    expect(MockWebSocket.instances[0].close).toHaveBeenCalledTimes(1);
-    expect(states.at(-1)?.connected).toBe(false);
+    expect(getSocket(0).close).toHaveBeenCalledTimes(1);
+    expect(getLatestState(states).connected).toBe(false);
 
     subscription.dispose();
   });
@@ -645,7 +698,7 @@ describe('node-activity-source', () => {
 
     const resultPromise = refreshNodeActivityForRestart();
     await flushMicrotasks();
-    MockWebSocket.instances.at(-1)?.message({ error: 'Activity unavailable' });
+    getSocket(-1).message({ error: 'Activity unavailable' });
     const result = await resultPromise;
 
     expect(result).toMatchObject({ status: 'failed', detail: 'Activity unavailable' });
@@ -658,10 +711,10 @@ describe('node-activity-source', () => {
     const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
     await flushMicrotasks();
 
-    MockWebSocket.instances.at(-1)?.message({ error: `  ${'x'.repeat(800)}\nmore` });
+    getSocket(-1).message({ error: `  ${'x'.repeat(800)}\nmore` });
 
-    expect(states.at(-1)?.error).toHaveLength(500);
-    expect(states.at(-1)?.error).not.toContain('\n');
+    expect(getLatestState(states).error).toHaveLength(500);
+    expect(getLatestState(states).error).not.toContain('\n');
     subscription.dispose();
   });
 
@@ -677,7 +730,7 @@ describe('node-activity-source', () => {
     await expect(refreshNodeActivityForRestart({ force: true })).resolves.toMatchObject({ status: 'verified' });
 
     expect(activityMock.getNodeActivity).toHaveBeenCalledWith({ from: -1 }, expect.any(Object));
-    expect(states.at(-1)?.batch?.items[0]?.entry.alias).toBe('ForcedStatus');
+    expect(getLatestState(states).batch?.items[0]?.entry.alias).toBe('ForcedStatus');
     subscription.dispose();
   });
 

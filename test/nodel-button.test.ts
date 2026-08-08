@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({
   callNodeAction: vi.fn()
 }));
@@ -93,10 +98,10 @@ describe('nodel-button', () => {
 
     const buttons = Array.from(document.querySelectorAll('nodel-button'));
     expect(buttons.map((button) => button.getAttribute('data-variant'))).toEqual(['success', 'info', 'warning', 'link']);
-    expect(buttons[0].querySelector('button')?.className).toContain('nodel-button-success');
-    expect(buttons[1].querySelector('button')?.className).toContain('nodel-button-info');
-    expect(buttons[2].querySelector('button')?.className).toContain('nodel-button-warning');
-    expect(buttons[3].querySelector('button')?.className).toContain('nodel-button-link');
+    expect(required(buttons[0]).querySelector('button')?.className).toContain('nodel-button-success');
+    expect(required(buttons[1]).querySelector('button')?.className).toContain('nodel-button-info');
+    expect(required(buttons[2]).querySelector('button')?.className).toContain('nodel-button-warning');
+    expect(required(buttons[3]).querySelector('button')?.className).toContain('nodel-button-link');
   });
 
   it('supports soft and outline tones', async () => {
@@ -110,10 +115,10 @@ describe('nodel-button', () => {
 
     const buttons = Array.from(document.querySelectorAll('nodel-button'));
     expect(buttons.map((button) => button.getAttribute('data-tone'))).toEqual(['soft', 'outline', 'solid']);
-    expect(buttons[0].querySelector('button')?.className).toContain('nodel-button-soft');
-    expect(buttons[1].querySelector('button')?.className).toContain('nodel-button-outline');
-    expect(buttons[2].querySelector('button')?.className).not.toContain('nodel-button-soft');
-    expect(buttons[2].querySelector('button')?.className).not.toContain('nodel-button-outline');
+    expect(required(buttons[0]).querySelector('button')?.className).toContain('nodel-button-soft');
+    expect(required(buttons[1]).querySelector('button')?.className).toContain('nodel-button-outline');
+    expect(required(buttons[2]).querySelector('button')?.className).not.toContain('nodel-button-soft');
+    expect(required(buttons[2]).querySelector('button')?.className).not.toContain('nodel-button-outline');
   });
 
   it('supports stacked child layout', async () => {
@@ -235,7 +240,7 @@ describe('nodel-button', () => {
     await flush();
 
     expect(actionMock.callNodeAction).not.toHaveBeenCalled();
-    expect(error.mock.calls[0][0].detail.error).toContain('Invalid number argument');
+    expect(required(error.mock.calls[0])[0].detail.error).toContain('Invalid number argument');
 
     actionMock.callNodeAction.mockClear();
     document.body.innerHTML = '<nodel-button action="SetPayload" arg="{" arg-type="json">Set</nodel-button>';
@@ -247,7 +252,7 @@ describe('nodel-button', () => {
     await flush();
 
     expect(actionMock.callNodeAction).not.toHaveBeenCalled();
-    expect(jsonError.mock.calls[0][0].detail.error).toBe('Invalid JSON argument');
+    expect(required(jsonError.mock.calls[0])[0].detail.error).toBe('Invalid JSON argument');
   });
 
   it('blocks duplicate clicks while busy', async () => {
@@ -284,7 +289,7 @@ describe('nodel-button', () => {
 
     expect(error).toHaveBeenCalledTimes(1);
     expect(toast).toHaveBeenCalledTimes(1);
-    expect(toast.mock.calls[0][0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
+    expect(required(toast.mock.calls[0])[0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
   });
 
   it('does not dispatch submitted events when action calls fail', async () => {
@@ -451,8 +456,8 @@ describe('nodel-button', () => {
     (host.querySelector('button') as HTMLButtonElement).dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }));
     expect(confirmations).toHaveLength(2);
 
-    confirmations[0](true);
-    confirmations[1](true);
+    required(confirmations[0])(true);
+    required(confirmations[1])(true);
     await flush();
     document.dispatchEvent(new Event('pointerup', { bubbles: true, cancelable: true }));
     await flush();
@@ -518,10 +523,10 @@ describe('nodel-button', () => {
     await flush();
 
     const buttons = Array.from(document.querySelectorAll('nodel-button'));
-    expect(buttons[0].querySelector('button')?.getAttribute('aria-label')).toBe('Power');
-    expect(buttons[0].querySelector('[data-button-label]')).toBeNull();
-    expect(buttons[1].querySelector('nodel-image img')?.getAttribute('alt')).toBe('Nodel');
-    expect(buttons[1].querySelector('[data-button-label]')).toBeNull();
+    expect(required(buttons[0]).querySelector('button')?.getAttribute('aria-label')).toBe('Power');
+    expect(required(buttons[0]).querySelector('[data-button-label]')).toBeNull();
+    expect(required(buttons[1]).querySelector('nodel-image img')?.getAttribute('alt')).toBe('Nodel');
+    expect(required(buttons[1]).querySelector('[data-button-label]')).toBeNull();
   });
 
   it('preserves nodel-text children inside buttons', async () => {

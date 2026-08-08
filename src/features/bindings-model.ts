@@ -148,8 +148,10 @@ export function validateBindingRow(row: BindingRow) {
   if (row.nodeDirty || row.nodePresent) value.node = row.node;
   if (row.targetDirty || row.targetPresent) value[row.targetKey] = row.target;
   const schema = cloneSchemaValue(row.schema);
-  if (schema.properties?.node) schema.properties.node.required = false;
-  if (schema.properties?.[row.targetKey]) schema.properties[row.targetKey].required = false;
+  const nodeSchema = schema.properties?.node;
+  if (nodeSchema) nodeSchema.required = false;
+  const targetSchema = schema.properties?.[row.targetKey];
+  if (targetSchema) targetSchema.required = false;
   return validateValueAgainstSchema(value, schema, row.id).map((issue) => ({
     ...issue,
     fieldId: issue.fieldId.startsWith(row.id) ? issue.fieldId : `${row.id}${issue.pointer}`,

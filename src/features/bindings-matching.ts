@@ -45,15 +45,15 @@ function levenshtein(a: string, b: string) {
     for (let j = 0; j < right.length; j += 1) {
       const cost = left[i] === right[j] ? 0 : 1;
       current[j + 1] = Math.min(
-        current[j] + 1,
-        previous[j + 1] + 1,
-        previous[j] + cost
+        (current[j] ?? 0) + 1,
+        (previous[j + 1] ?? 0) + 1,
+        (previous[j] ?? 0) + cost
       );
     }
     previous.splice(0, previous.length, ...current);
   }
 
-  return previous[right.length];
+  return previous[right.length] ?? 0;
 }
 
 export function bindingSimilarity(a: string, b: string) {

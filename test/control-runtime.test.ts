@@ -110,7 +110,7 @@ describe('catalogue runtime', () => {
     const aliases: string[] = [];
     runtime.subscribeSignals(document.createElement('div'), (state) => {
       for (const entry of state.entries) {
-        aliases.push(`${entry.alias}:${entry.arg}`);
+        aliases.push(`${entry.alias}:${String(entry.arg)}`);
       }
     });
 

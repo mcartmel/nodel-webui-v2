@@ -41,7 +41,11 @@ function parseRgb(value: string): Rgb {
     throw new Error(`Expected an RGB colour, received ${value}`);
   }
 
-  return { red: parts[0], green: parts[1], blue: parts[2], alpha: parts[3] ?? 1 };
+  const [red, green, blue] = parts;
+  if (red === undefined || green === undefined || blue === undefined) {
+    throw new Error(`Expected an RGB colour, received ${value}`);
+  }
+  return { red, green, blue, alpha: parts[3] ?? 1 };
 }
 
 function composite(foreground: Rgb, background: Rgb): Rgb {
@@ -63,7 +67,12 @@ function relativeLuminance({ red, green, blue }: Rgb) {
 }
 
 function contrastRatio(left: Rgb, right: Rgb) {
-  const [lighter, darker] = [relativeLuminance(left), relativeLuminance(right)].sort((a, b) => b - a);
+  const luminances = [relativeLuminance(left), relativeLuminance(right)].sort((a, b) => b - a);
+  const lighter = luminances[0];
+  const darker = luminances[1];
+  if (lighter === undefined || darker === undefined) {
+    throw new Error('Expected two luminance values.');
+  }
   return (lighter + 0.05) / (darker + 0.05);
 }
 
@@ -77,10 +86,10 @@ function readPixel(png: PNG, x: number, y: number): Rgb {
   const offset = (pixelY * png.width + pixelX) * 4;
 
   return {
-    red: png.data[offset],
-    green: png.data[offset + 1],
-    blue: png.data[offset + 2],
-    alpha: png.data[offset + 3] / 255
+    red: png.data[offset] ?? 0,
+    green: png.data[offset + 1] ?? 0,
+    blue: png.data[offset + 2] ?? 0,
+    alpha: (png.data[offset + 3] ?? 255) / 255
   };
 }
 
@@ -91,6 +100,9 @@ function sampleBoundary(png: PNG, box: Box, borderWidth: number) {
   const candidates = Array.from({ length: Math.max(3, Math.ceil(borderWidth) + 2) }, (_, index) =>
     readPixel(png, edge + 1 - index, y));
   const border = candidates.sort((left, right) => contrastRatio(right, surface) - contrastRatio(left, surface))[0];
+  if (border === undefined) {
+    throw new Error('Missing boundary sample.');
+  }
 
   return { border, surface };
 }
@@ -100,6 +112,9 @@ function sampleStatusMark(png: PNG, box: Box) {
   const surface = readPixel(png, box.x - 4, y);
   const candidates = Array.from({ length: 4 }, (_, index) => readPixel(png, box.x - 1 + index, y));
   const mark = candidates.sort((left, right) => contrastRatio(right, surface) - contrastRatio(left, surface))[0];
+  if (mark === undefined) {
+    throw new Error('Missing status sample.');
+  }
 
   return { mark, surface };
 }

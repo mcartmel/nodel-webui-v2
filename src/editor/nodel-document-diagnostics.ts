@@ -79,7 +79,9 @@ function parseSignals(value: string, targets: { name: string; aggregations: read
     if (!source || !signalExpressionIsValid(source) || !targetText) return false;
     const match = /^([^()]+?)(?:\((last|any|all)\))?$/i.exec(targetText);
     if (!match) return false;
-    const target = targetMap.get(match[1].trim());
+    const targetName = match[1];
+    if (!targetName) return false;
+    const target = targetMap.get(targetName.trim());
     const mode = match[2]?.toLowerCase();
     if (!target) return false;
     return !mode || mode === 'last' || target.aggregations.includes(mode);
@@ -93,7 +95,8 @@ function checkNumeric(value: string, numeric: NonNullable<ReturnType<typeof find
   if (!strict && !(numeric.normalizesToInteger && prefixed)) return { valid: false, warning: false };
   const number = Number(prefixed?.[0] ?? value);
   if (!Number.isFinite(number)) return { valid: false, warning: false };
-  const normalized = Boolean(numeric.normalizesToInteger && prefixed && (prefixed[0] !== value.trim() || !Number.isInteger(number)));
+    const numericPrefix = prefixed?.[0];
+    const normalized = Boolean(numeric.normalizesToInteger && numericPrefix && (numericPrefix !== value.trim() || !Number.isInteger(number)));
   const invalidInteger = integer && !Number.isInteger(number) && !numeric.normalizesToInteger;
   if (invalidInteger) return { valid: false, warning: false };
   const below = numeric.min !== undefined && (numeric.exclusiveMin ? number <= numeric.min : number < numeric.min);
@@ -101,12 +104,11 @@ function checkNumeric(value: string, numeric: NonNullable<ReturnType<typeof find
   return { valid: true, warning: normalized || below || above };
 }
 
-export function diagnoseNodelDocument(state: EditorState): NodelDocumentDiagnosticsResult {
+export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(state)): NodelDocumentDiagnosticsResult {
   const diagnostics: Diagnostic[] = [];
   let nodes = 0;
   let truncated = state.doc.length > NODEL_DIAGNOSTIC_LIMITS.maxDocumentLength;
   if (truncated) return { diagnostics: [], summary: { enabled: true, errors: 0, warnings: 0, truncated: true } };
-  const tree = syntaxTree(state);
   const elements: Array<{ node: SyntaxNode; name: string; tag: SyntaxNode; attrs: SyntaxNode[] }> = [];
   const cursor = tree.cursor();
   let done = false;
@@ -162,7 +164,10 @@ export function diagnoseNodelDocument(state: EditorState): NodelDocumentDiagnost
     if (item.name === 'nodel-link') {
       const sources = item.attrs.filter((attr) => destinationAttributes.has(attrName(attr, state)));
       if (sources.length !== 1) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Nodel link must have exactly one destination source.');
-      else if (!attrValue(sources[0], state).trim()) add(diagnostics, 'error', sources[0].from, sources[0].to, 'Nodel link destination must be nonempty.');
+      else {
+        const source = sources[0];
+        if (source && !attrValue(source, state).trim()) add(diagnostics, 'error', source.from, source.to, 'Nodel link destination must be nonempty.');
+      }
     }
     const parent = item.node.parent;
     const parentTag = parent ? (child(parent, 'OpenTag') ?? child(parent, 'SelfClosingTag')) : null;

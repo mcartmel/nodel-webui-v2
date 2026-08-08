@@ -11,7 +11,8 @@ describe('ModalFocusController', () => {
   }
 
   function activate(value: ModalFocusController, container: HTMLElement, dialog: HTMLElement, root: HTMLElement, onCancel?: () => void) {
-    value.activate({ container, dialog, inertRoot: root, onCancel });
+    const options = { container, dialog, inertRoot: root, ...(onCancel === undefined ? {} : { onCancel }) };
+    value.activate(options);
   }
 
   afterEach(() => {
@@ -131,7 +132,9 @@ describe('ModalFocusController', () => {
     activate(second, document.querySelector<HTMLElement>('#second-layer')!, document.querySelector<HTMLElement>('#second-dialog')!, root, secondCancel);
 
     const secondButtons = document.querySelectorAll<HTMLElement>('#second-dialog button');
-    secondButtons[1].focus();
+    const secondLast = secondButtons[1];
+    if (secondLast === undefined) throw new Error('Missing second dialog button.');
+    secondLast.focus();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
     expect(document.activeElement).toBe(secondButtons[0]);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
@@ -146,7 +149,9 @@ describe('ModalFocusController', () => {
 
     const firstButtons = document.querySelectorAll<HTMLElement>('#first-dialog button');
     expect(document.activeElement).toBe(firstButtons[0]);
-    firstButtons[1].focus();
+    const firstLast = firstButtons[1];
+    if (firstLast === undefined) throw new Error('Missing first dialog button.');
+    firstLast.focus();
     const tab = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
     document.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(true);

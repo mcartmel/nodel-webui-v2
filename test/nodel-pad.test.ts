@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({ callNodeAction: vi.fn() }));
 const activityMock = vi.hoisted(() => ({ listeners: [] as Array<(state: any) => void>, dispose: vi.fn() }));
 
@@ -47,10 +52,10 @@ describe('nodel-pad', () => {
     const pads = Array.from(document.querySelectorAll('nodel-pad'));
     expect(pads.map((pad) => pad.getAttribute('data-center'))).toEqual(['show', 'hide', 'disabled']);
     for (const direction of ['up', 'down', 'left', 'right']) {
-      expect((pads[1].querySelector(`[data-direction="${direction}"]`) as HTMLButtonElement).hidden).toBe(false);
+      expect((required(required(pads[1]).querySelector(`[data-direction="${direction}"]`)) as HTMLButtonElement).hidden).toBe(false);
     }
-    expect((pads[1].querySelector('[data-direction="center"]') as HTMLButtonElement).hidden).toBe(true);
-    expect((pads[2].querySelector('[data-direction="center"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((required(required(pads[1]).querySelector('[data-direction="center"]')) as HTMLButtonElement).hidden).toBe(true);
+    expect((required(required(pads[2]).querySelector('[data-direction="center"]')) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('calls a shared click action with direction payload', async () => {

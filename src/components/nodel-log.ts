@@ -5,7 +5,7 @@ import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
-import { escapeHtml } from '../utils/html';
+import { escapeHtml, safeText } from '../utils/html';
 
 type RowLimit = '10' | '50' | '100' | 'all';
 
@@ -97,7 +97,7 @@ function formatTimestamp(timestamp: unknown) {
     return '';
   }
   if (typeof timestamp !== 'string') {
-    return String(timestamp);
+    return safeText(timestamp);
   }
   if (!timestamp.trim()) {
     return '';
@@ -117,7 +117,7 @@ function formatArg(arg: unknown) {
 }
 
 function highlightJson(json: string) {
-  const tokenPattern = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g;
+  const tokenPattern = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g;
   let markup = '';
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -143,8 +143,8 @@ function highlightJson(json: string) {
 }
 
 interface LogIconDescriptor {
-  badge: typeof logIcons.remote | typeof logIcons.actionBinding | null;
-  base: typeof logIcons.action | typeof logIcons.event;
+  badge: typeof logIcons.remote   | null;
+  base: typeof logIcons.action  ;
   label: string;
 }
 

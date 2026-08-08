@@ -1,5 +1,7 @@
+import { safeText } from './html';
+
 export function asciiToken(value: unknown) {
-  return String(value ?? '').trim().toLowerCase();
+  return safeText(value).trim().toLowerCase();
 }
 
 export function unicodeSearchKey(value: string) {

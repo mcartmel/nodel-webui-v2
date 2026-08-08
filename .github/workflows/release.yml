@@ -24,13 +24,13 @@ jobs:
 
     steps:
       - name: Checkout web UI
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: webui
           persist-credentials: false
 
       - name: Checkout Java Nodel
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: museumsvictoria/nodel
           ref: ${{ matrix.java-branch }}
@@ -42,7 +42,7 @@ jobs:
         run: git -C ../nodel switch -C "${{ matrix.java-branch }}" --track "origin/${{ matrix.java-branch }}"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20.12.0
           cache: npm
@@ -58,14 +58,75 @@ jobs:
           --json
 
       - name: Upload Java handoff report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: java-handoff-${{ matrix.java-branch }}
           path: webui/build/java-handoff/${{ matrix.java-branch }}.json
           if-no-files-found: error
 
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20.12.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check JsViews templates
+        run: npm run check:jsviews
+
+      - name: Run full per-file coverage tests
+        run: npm run test:coverage -- --coverage.all
+
+      - name: Verify dependency evidence and audit
+        run: npm run verify:dependencies
+
+      - name: Upload dependency evidence and audit reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-evidence
+          path: build/dependency-evidence/
+          if-no-files-found: warn
+
+      - name: Build preview
+        run: npm run build:preview
+
+      - name: Verify release gate
+        run: node scripts/verify-release-gate.mjs
+
+      - name: Capture tested dist inventory
+        run: npm run verify:dist -- --write --json
+
+      - name: Upload exact tested dist and inventory
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tested-dist
+          path: |
+            dist/
+            build/dist-inventory.json
+          if-no-files-found: error
+
   release:
-    needs: java-handoff
+    needs: [quality, java-handoff]
     environment: production-release
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -75,14 +136,14 @@ jobs:
       attestations: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout source for release scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20.12.0
           cache: npm
@@ -90,14 +151,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download exact tested dist and inventory
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tested-dist
+          path: .
+
+      - name: Download exact dependency evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dependency-evidence
+          path: build/dependency-evidence
+
       - name: Download Java dev handoff report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: java-handoff-dev
           path: build/java-handoff
 
       - name: Download Java master handoff report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: java-handoff-master
           path: build/java-handoff
@@ -127,16 +200,16 @@ jobs:
           git fetch --no-tags origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
-      - name: Build
-        run: npm run build
+      - name: Verify release gate against downloaded dist
+        run: node scripts/verify-release-gate.mjs
 
-      - name: Capture tested dist inventory
-        run: npm run verify:dist -- --write --json
+      - name: Verify downloaded dist inventory
+        run: npm run verify:dist -- --check --json
 
-      - name: Run browser visual and accessibility tests
+      - name: Run browser visual and accessibility tests against exact dist
         run: npm run test:browser:dist
 
-      - name: Create deployment smoke roots
+      - name: Create deployment smoke roots from downloaded dist
         run: |
           node scripts/deploy.mjs --target ./build/deploy-preview
           node scripts/deploy.mjs --target ./build/stage11-host/custom/content
@@ -144,13 +217,23 @@ jobs:
       - name: Smoke deployed layouts
         run: npm run test:deployment:smoke
 
-      - name: Verify tested dist continuity before packaging
+      - name: Verify exact dist continuity before packaging
         run: npm run verify:dist -- --check --json
 
-      - name: Prepare release content
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+      - name: Prepare release content from tested artifacts
         run: npm run release:prepare -- --version "${{ steps.version.outputs.version }}" --commit "$GITHUB_SHA" --branch main --tag "$GITHUB_REF_NAME" --repository "${{ github.repository }}" --source-date-epoch "$(git show -s --format=%ct "$GITHUB_SHA")" --dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json --ci-run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --approval-environment production-release
 
-      - name: Verify tested dist continuity after packaging
+      - name: Verify exact dist continuity after packaging
         run: npm run verify:dist -- --check --json
 
       - name: Create release archive
@@ -174,7 +257,7 @@ jobs:
           echo "checksum=build/${archive}.sha256" >> "$GITHUB_OUTPUT"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nodel-webui-v2-${{ steps.version.outputs.version }}
           path: |
@@ -183,7 +266,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest release bundle
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: ${{ steps.archive.outputs.archive }}
 

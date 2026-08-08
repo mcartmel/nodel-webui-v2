@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "src",
+    "test",
+    "e2e",
+    "scripts/**/*.mjs",
+    "eslint.config.mjs",
+    "postcss.config.cjs",
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.deployment.config.ts",
+    "tailwind.config.ts"
+  ]
+}

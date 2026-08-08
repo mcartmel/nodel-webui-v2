@@ -66,7 +66,11 @@ test.describe('log icon geometry', () => {
       const iconRect = icon.getBoundingClientRect();
       const primaryRect = primary.getBoundingClientRect();
       const badgeRect = badge?.getBoundingClientRect() ?? null;
-      const gridColumns = getComputedStyle(row).gridTemplateColumns.split(' ');
+       const gridColumns = getComputedStyle(row).gridTemplateColumns.split(' ');
+       const firstGridColumn = gridColumns[0];
+       if (firstGridColumn === undefined) {
+         throw new Error('Missing log grid column.');
+       }
 
       return {
         ariaLabel: icon.getAttribute('aria-label'),
@@ -79,11 +83,14 @@ test.describe('log icon geometry', () => {
         color: getComputedStyle(icon).color,
         primaryIcon: primary.dataset.icon,
         rowHeight: row.getBoundingClientRect().height,
-        firstGridColumn: Number.parseFloat(gridColumns[0])
+         firstGridColumn: Number.parseFloat(firstGridColumn)
       };
     }));
 
     const first = metrics[0];
+    if (first === undefined) {
+      throw new Error('Missing log metrics.');
+    }
     expect(first.iconWidth).toBeGreaterThan(0);
     expect(first.iconHeight).toBeGreaterThan(0);
     for (const metric of metrics) {

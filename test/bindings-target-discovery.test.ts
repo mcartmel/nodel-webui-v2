@@ -133,7 +133,9 @@ describe('binding target discovery service', () => {
     const service = new BindingTargetDiscoveryService();
     const caller = new AbortController();
     const first = service.getDefinitions({ kind: 'actions', node: 'Display', nodeAddress: '' }, caller.signal);
-    const sharedSignal = discoveryApiMock.getLocalRest.mock.calls[0][0].signal as AbortSignal;
+    const firstCall = discoveryApiMock.getLocalRest.mock.calls[0];
+    if (firstCall === undefined) throw new Error('Missing local REST call.');
+    const sharedSignal = firstCall[0].signal as AbortSignal;
     caller.abort();
     localRest.resolve({ nodes: { Display: { name: 'Display' } } });
 
@@ -183,7 +185,9 @@ describe('binding target discovery service', () => {
 
     const service = new BindingTargetDiscoveryService();
     const first = service.getDefinitions({ kind: 'actions', node: 'Display', nodeAddress: '' }, new AbortController().signal);
-    const sharedSignal = discoveryApiMock.getLocalRest.mock.calls[0][0].signal as AbortSignal;
+    const firstCall = discoveryApiMock.getLocalRest.mock.calls[0];
+    if (firstCall === undefined) throw new Error('Missing local REST call.');
+    const sharedSignal = firstCall[0].signal as AbortSignal;
     service.clear();
 
     expect(sharedSignal.aborted).toBe(true);

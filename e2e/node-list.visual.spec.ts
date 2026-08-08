@@ -150,12 +150,21 @@ function luminance(channels: number[]) {
     const channel = value / 255;
     return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * values[0] + 0.7152 * values[1] + 0.0722 * values[2];
+   const [red, green, blue] = values;
+   if (red === undefined || green === undefined || blue === undefined) {
+     throw new Error('Expected three luminance channels.');
+   }
+   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 function contrast(left: number[], right: number[]) {
   const values = [luminance(left), luminance(right)].sort((a, b) => b - a);
-  return (values[0] + 0.05) / (values[1] + 0.05);
+  const lighter = values[0];
+  const darker = values[1];
+  if (lighter === undefined || darker === undefined) {
+    throw new Error('Expected two luminance values.');
+  }
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 async function renderedBackgroundBehind(page: Page, affordance: Locator) {
@@ -174,7 +183,7 @@ async function renderedBackgroundBehind(page: Page, affordance: Locator) {
     const x = Math.floor(image.width / 2);
     const y = Math.floor(image.height / 2);
     const offset = (image.width * y + x) * 4;
-    return [image.data[offset], image.data[offset + 1], image.data[offset + 2]];
+     return [image.data[offset] ?? 0, image.data[offset + 1] ?? 0, image.data[offset + 2] ?? 0];
   } finally {
     await affordance.evaluate((element, visibility) => {
       (element as SVGElement).style.visibility = visibility;
@@ -208,7 +217,10 @@ test.describe('grouped node list', () => {
     expect(metrics.every((row) => row.height >= 44)).toBe(true);
     expect(metrics.every((row) => row.backgroundColor === 'rgba(0, 0, 0, 0)' && row.backgroundImage === 'none')).toBe(true);
     expect(metrics.every((row) => row.borderWidth === '0px' && row.borderRadius === '0px' && row.boxShadow === 'none')).toBe(true);
-    expect(entries.slice(1).every((entry, index) => Math.abs(entries[index].bottom - entry.top) < 0.5)).toBe(true);
+   expect(entries.slice(1).every((entry, index) => {
+     const previous = entries[index];
+     return previous !== undefined && Math.abs(previous.bottom - entry.top) < 0.5;
+   })).toBe(true);
     await expect(list.locator(':scope > li + li').first()).toHaveCSS('border-top-width', '1px');
     const affordances = list.locator('.nodel-list-item-affordance[data-icon="chevron-right"]');
     await expect(affordances).toHaveCount(Object.keys(nodes).length);

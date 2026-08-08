@@ -148,7 +148,9 @@ export class NodelLink extends HTMLElement {
         return;
       }
 
-      destination = destinations[0];
+      const selectedDestination = destinations[0];
+      if (!selectedDestination) return;
+      destination = selectedDestination;
       const attributeValue = this.getAttribute(destination) ?? '';
       value = destination === 'node'
         ? attributeValue

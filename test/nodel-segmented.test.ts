@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({
   callNodeAction: vi.fn()
 }));
@@ -66,12 +71,12 @@ describe('nodel-segmented', () => {
 
     const options = Array.from(document.querySelectorAll('nodel-button'));
     expect(document.querySelector('nodel-segmented')?.getAttribute('role')).toBe('radiogroup');
-    expect(options[0].hasAttribute('active')).toBe(false);
-    expect(options[1].hasAttribute('active')).toBe(true);
-    expect(options[1].querySelector('nodel-icon')).not.toBeNull();
-    expect(options[1].querySelector('button')?.getAttribute('role')).toBe('radio');
-    expect(options[1].querySelector('button')?.getAttribute('aria-checked')).toBe('true');
-    expect(options[1].querySelector('button')?.hasAttribute('aria-pressed')).toBe(false);
+    expect(required(options[0]).hasAttribute('active')).toBe(false);
+    expect(required(options[1]).hasAttribute('active')).toBe(true);
+    expect(required(options[1]).querySelector('nodel-icon')).not.toBeNull();
+    expect(required(options[1]).querySelector('button')?.getAttribute('role')).toBe('radio');
+    expect(required(options[1]).querySelector('button')?.getAttribute('aria-checked')).toBe('true');
+    expect(required(options[1]).querySelector('button')?.hasAttribute('aria-pressed')).toBe(false);
   });
 
   it('calls one shared action and updates selected value', async () => {
@@ -85,12 +90,12 @@ describe('nodel-segmented', () => {
     await flush();
 
     const host = document.querySelector('nodel-segmented') as HTMLElement;
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetSource', { arg: 'HDMI 2' });
     expect(host.getAttribute('value')).toBe('HDMI 2');
-    expect(document.querySelectorAll('nodel-button')[1].hasAttribute('active')).toBe(true);
+    expect(required(document.querySelectorAll('nodel-button')[1]).hasAttribute('active')).toBe(true);
   });
 
   it('ignores stale failed selections after a newer segmented selection succeeds', async () => {
@@ -112,8 +117,8 @@ describe('nodel-segmented', () => {
     const host = document.querySelector('nodel-segmented') as HTMLElement;
     const error = vi.fn();
     host.addEventListener('nodel-segmented-error', error);
-    document.querySelectorAll('nodel-button button')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(document.querySelectorAll('nodel-button button')[0]).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(host.getAttribute('value')).toBe('B');
@@ -134,7 +139,7 @@ describe('nodel-segmented', () => {
     await flush();
 
     const host = document.querySelector('nodel-segmented') as HTMLElement;
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('Source', { arg: 'HDMI 2' });
 
@@ -207,18 +212,20 @@ describe('nodel-segmented', () => {
 
     const host = document.querySelector('nodel-segmented') as HTMLElement;
     const [auto, manual] = Array.from(document.querySelectorAll('nodel-button')) as HTMLElement[];
-    expect(auto.getAttribute('variant')).toBe('warning');
-    expect(auto.getAttribute('tone')).toBe('outline');
+    const requiredAuto = required(auto);
+    const requiredManual = required(manual);
+    expect(requiredAuto.getAttribute('variant')).toBe('warning');
+    expect(requiredAuto.getAttribute('tone')).toBe('outline');
 
     host.setAttribute('value', 'Manual');
     await flush();
 
-    expect(auto.hasAttribute('active')).toBe(false);
-    expect(auto.hasAttribute('variant')).toBe(false);
-    expect(auto.hasAttribute('tone')).toBe(false);
-    expect(manual.hasAttribute('active')).toBe(true);
-    expect(manual.getAttribute('variant')).toBe('warning');
-    expect(manual.getAttribute('tone')).toBe('outline');
+    expect(requiredAuto.hasAttribute('active')).toBe(false);
+    expect(requiredAuto.hasAttribute('variant')).toBe(false);
+    expect(requiredAuto.hasAttribute('tone')).toBe(false);
+    expect(requiredManual.hasAttribute('active')).toBe(true);
+    expect(requiredManual.getAttribute('variant')).toBe('warning');
+    expect(requiredManual.getAttribute('tone')).toBe('outline');
   });
 
   it('preserves an explicit option variant and tone after selection changes', async () => {
@@ -233,14 +240,15 @@ describe('nodel-segmented', () => {
 
     const host = document.querySelector('nodel-segmented') as HTMLElement;
     const [, manual] = Array.from(document.querySelectorAll('nodel-button')) as HTMLElement[];
+    const requiredManual = required(manual);
     host.setAttribute('value', 'Manual');
     await flush();
     host.setAttribute('value', 'Auto');
     await flush();
 
-    expect(manual.hasAttribute('active')).toBe(false);
-    expect(manual.getAttribute('variant')).toBe('info');
-    expect(manual.getAttribute('tone')).toBe('soft');
+    expect(requiredManual.hasAttribute('active')).toBe(false);
+    expect(requiredManual.getAttribute('variant')).toBe('info');
+    expect(requiredManual.getAttribute('tone')).toBe('soft');
   });
 
   it('supports allow-deselect without an action', async () => {
@@ -259,7 +267,7 @@ describe('nodel-segmented', () => {
     await flush();
 
     expect(host.getAttribute('value')).toBe('');
-    expect(change.mock.calls[0][0].detail.value).toBe('');
+    expect(required(change.mock.calls[0])[0].detail.value).toBe('');
   });
 
   it('updates selected value, label, and disabled from signals', async () => {
@@ -315,7 +323,7 @@ describe('nodel-segmented', () => {
     await flush();
 
     const host = document.querySelector('nodel-segmented') as HTMLElement;
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(host.getAttribute('value')).toBe('HDMI 1');
@@ -354,7 +362,7 @@ describe('nodel-segmented', () => {
     expect(host.dataset.optionsState).toBe('ready');
     expect(options.map((option) => `${option.getAttribute('value')}:${option.textContent}`)).toEqual(['Auto:Auto', 'manual:Manual']);
 
-    options[1].querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    required(options[1]).querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetMode', { arg: 'manual' });
@@ -567,42 +575,44 @@ describe('nodel-segmented', () => {
     await flush();
 
     const [horizontal, vertical] = Array.from(document.querySelectorAll('nodel-segmented')) as HTMLElement[];
+    const requiredHorizontal = required(horizontal);
+    const requiredVertical = required(vertical);
     emitSignal('Horizontal', ['A', 'B', 'C']);
     emitSignal('Vertical', ['One', 'Two', 'Three']);
     await flush();
 
-    (horizontal.querySelector('nodel-button[value="A"] button') as HTMLButtonElement).focus();
+    (requiredHorizontal.querySelector('nodel-button[value="A"] button') as HTMLButtonElement).focus();
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(horizontal.querySelector('nodel-button[value="C"] button'));
+    expect(document.activeElement).toBe(requiredHorizontal.querySelector('nodel-button[value="C"] button'));
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetHorizontal', { arg: 'C' });
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(horizontal.querySelector('nodel-button[value="A"] button'));
+    expect(document.activeElement).toBe(requiredHorizontal.querySelector('nodel-button[value="A"] button'));
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(horizontal.querySelector('nodel-button[value="C"] button'));
+    expect(document.activeElement).toBe(requiredHorizontal.querySelector('nodel-button[value="C"] button'));
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(horizontal.querySelector('nodel-button[value="A"] button'));
+    expect(document.activeElement).toBe(requiredHorizontal.querySelector('nodel-button[value="A"] button'));
 
-    (vertical.querySelector('nodel-button[value="One"] button') as HTMLButtonElement).focus();
+    (requiredVertical.querySelector('nodel-button[value="One"] button') as HTMLButtonElement).focus();
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(vertical.querySelector('nodel-button[value="Two"] button'));
+    expect(document.activeElement).toBe(requiredVertical.querySelector('nodel-button[value="Two"] button'));
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetVertical', { arg: 'Two' });
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(vertical.querySelector('nodel-button[value="One"] button'));
+    expect(document.activeElement).toBe(requiredVertical.querySelector('nodel-button[value="One"] button'));
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(vertical.querySelector('nodel-button[value="Three"] button'));
+    expect(document.activeElement).toBe(requiredVertical.querySelector('nodel-button[value="Three"] button'));
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(vertical.querySelector('nodel-button[value="One"] button'));
+    expect(document.activeElement).toBe(requiredVertical.querySelector('nodel-button[value="One"] button'));
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
     await flush();
-    expect(document.activeElement).toBe(vertical.querySelector('nodel-button[value="Three"] button'));
+    expect(document.activeElement).toBe(requiredVertical.querySelector('nodel-button[value="Three"] button'));
   });
 
   it('recovers segmented focus through reorder, removal, and empty dynamic updates', async () => {

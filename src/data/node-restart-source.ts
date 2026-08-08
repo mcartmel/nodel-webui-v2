@@ -381,7 +381,7 @@ export class NodeRestartExpectationCoordinator {
       ? 'idle'
       : 'verification-failed';
     const event = expectation.state === 'idle' ? 'expected-verified' : 'expected-verification-failed';
-    this.emit({ type: event, expectation: this.snapshot(expectation), result } as NodeRestartEvent);
+    this.emit({ type: event, expectation: this.snapshot(expectation), result });
     this.ensurePolling();
     return true;
   }
@@ -673,21 +673,20 @@ export class NodeRestartExpectationCoordinator {
       pollFailureDelayMs = this.expectedFailureRetryDelayMs;
       this.expectedFailureRetryDelayMs = Math.min(NODE_RESTART_EXPECTED_RETRY_BACKOFF_MAX_MS, pollFailureDelayMs * 2);
     } finally {
-      if (generation !== this.pollGeneration) {
-        return;
-      }
-      this.pollInFlight = false;
-      if (this.abortController === controller) {
-        this.abortController = null;
-      }
-      if (this.hasExpectedReload()) {
-        this.schedule(pollFailed
-          ? pollFailureDelayMs
-          : this.current?.state === 'unconfirmed'
-            ? NODE_RESTART_UNCONFIRMED_RETRY_DELAY_MS
-            : NODE_RESTART_EXPECTED_RETRY_DELAY_MS);
-      } else {
-        this.schedule(NODE_RESTART_POLL_DELAY_MS);
+      if (generation === this.pollGeneration) {
+        this.pollInFlight = false;
+        if (this.abortController === controller) {
+          this.abortController = null;
+        }
+        if (this.hasExpectedReload()) {
+          this.schedule(pollFailed
+            ? pollFailureDelayMs
+            : this.current?.state === 'unconfirmed'
+              ? NODE_RESTART_UNCONFIRMED_RETRY_DELAY_MS
+              : NODE_RESTART_EXPECTED_RETRY_DELAY_MS);
+        } else {
+          this.schedule(NODE_RESTART_POLL_DELAY_MS);
+        }
       }
     }
   }

@@ -48,6 +48,6 @@ export const authoredPageScaffoldSnippet = `<nodel-page title="Page">
   </nodel-row>
 </nodel-page>`;
 
-export const authoredPageDocumentSnippet = authoredPageScaffold.replace('          \n', '          \${}\n');
+export const authoredPageDocumentSnippet = authoredPageScaffold.replace('          \n', '          ${}\n');
 
 export const authoredPageHead = authoredPageScaffold.slice(0, authoredPageScaffold.indexOf('</head>') + 7);

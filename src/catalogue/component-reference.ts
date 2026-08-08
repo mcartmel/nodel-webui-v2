@@ -1,9 +1,10 @@
 import {
   componentContractCommonAttributes,
   componentContracts,
-  findComponentContract
+  findComponentContract,
+  type ComponentAttributeContract,
+  type ComponentContract
 } from '../component-contract';
-import type { ComponentAttributeContract, ComponentContract } from '../component-contract';
 import '../components/nodel-collapse';
 
 const commonAttributeNames = new Set(['signals', 'visibility', 'visible-value', 'visible-values']);
@@ -124,6 +125,7 @@ function effectiveAttributes(element: ComponentContract): ComponentAttributeCont
     if (attribute.name === 'signals' && seen.has(attribute.name)) {
       const index = attributes.findIndex((candidate) => candidate.name === attribute.name);
       const existing = attributes[index];
+      if (!existing) continue;
       if (!existing.description.includes(attribute.description)) {
         attributes[index] = {
           ...existing,
@@ -371,7 +373,7 @@ export function renderCatalogueReferences(options: CatalogueReferenceOptions = {
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
 
   markers.forEach((marker, index) => {
-    const name = values[index];
+    const name = values[index] ?? '';
     const element = findComponentContract(name);
     let issue: CatalogueReferenceIssue | undefined;
     if (!name || !element) {
@@ -386,7 +388,7 @@ export function renderCatalogueReferences(options: CatalogueReferenceOptions = {
       issues.push(issue);
       marker.replaceWith(makeIssueAlert(issue));
     } else {
-      marker.replaceWith(makeReference(element!));
+      if (element) marker.replaceWith(makeReference(element));
     }
   });
 

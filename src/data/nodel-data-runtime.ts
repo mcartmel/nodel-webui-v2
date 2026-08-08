@@ -108,7 +108,7 @@ function snapshotState<T>(state: NodelSourceState<T>): NodelSourceState<T> {
 }
 
 function isPlainRecord(value: object) {
-  const prototype = Object.getPrototypeOf(value);
+  const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
@@ -469,7 +469,7 @@ async function refreshWithResult<T>(entry: SourceEntry<T>, options: NodelSourceR
   return new Promise((resolve) => {
     const waiter: RefreshWaiter = {
       resolve,
-      signal: options.signal,
+      ...(options.signal ? { signal: options.signal } : {}),
       cycleToken: null,
       force: Boolean(options.force),
       settled: false

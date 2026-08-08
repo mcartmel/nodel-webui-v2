@@ -131,7 +131,7 @@ export class NodelDiagnostics extends HTMLElement {
       this.sourceKey = `nodel-diagnostics-${NodelDiagnostics.nextSourceId}`;
     }
 
-    void this.bindSource();
+    this.bindSource();
   }
 
   disconnectedCallback() {
@@ -139,7 +139,7 @@ export class NodelDiagnostics extends HTMLElement {
     this.source = null;
   }
 
-  private async bindSource() {
+  private bindSource() {
     if (this.source) {
       this.source.dispose();
     }

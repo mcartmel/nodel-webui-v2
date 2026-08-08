@@ -10,10 +10,12 @@ import {
 } from './schema-model';
 import { hasOwn, isRecord, setOwn } from '../utils/records';
 import { validateJsonValueBounds } from '../utils/json-value';
+import { safeText } from '../utils/html';
 
 export function cloneSchemaValue<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map((item) => cloneSchemaValue(item)) as T;
+    const items: unknown[] = value;
+    return items.map((item) => cloneSchemaValue(item)) as T;
   }
   if (isRecord(value)) {
     const result: Record<string, unknown> = {};
@@ -175,7 +177,7 @@ export function hydrateSchemaFieldModel(field: SchemaField, containerOrValue: un
         hydrateSchemaFieldModel(entry.valueField, value[index], undefined, true, previous?.valueField ?? undefined, options);
       }
       else {
-        const source = value[index];
+        const source: unknown = value[index];
         for (const child of entry.fields) {
           const previousChild = previous?.fields.find((candidate) => candidate.key === child.key);
           hydrateSchemaFieldModel(child, source, child.key, hasOwn(source, child.key), previousChild, options);
@@ -196,7 +198,7 @@ export function hydrateSchemaFieldModel(field: SchemaField, containerOrValue: un
       return;
     }
     if (typeof value !== 'number' || !Number.isFinite(value)) field.typeMismatch = true;
-    field.value = value === undefined ? '' : String(value);
+    field.value = value === undefined ? '' : safeText(value);
     field.concreteValue = field.value;
     return;
   }
@@ -236,7 +238,7 @@ export function serializeSchemaFieldModel(field: SchemaField): unknown {
   if (field.kind === 'json') {
     if (typeof field.value !== 'string') return undefined;
     try {
-      const parsed = JSON.parse(field.value);
+      const parsed: unknown = JSON.parse(field.value);
       return validateJsonValueBounds(parsed) ? undefined : parsed;
     } catch {
       return undefined;

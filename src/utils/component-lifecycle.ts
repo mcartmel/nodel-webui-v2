@@ -1,7 +1,7 @@
 import { isAbortError } from './errors';
 
 export type LifecycleDisposer = (() => void) | { dispose(): void };
-type LifecycleEventListener = EventListenerOrEventListenerObject | ((event: any) => void);
+type LifecycleEventListener = EventListenerOrEventListenerObject | ((event: never) => void);
 
 export interface ConnectionScope {
   readonly generation: number;
@@ -76,8 +76,11 @@ class ConnectionScopeImpl implements ConnectionScope {
     if (!this.isCurrent()) {
       return;
     }
-    target.addEventListener(type, listener as EventListenerOrEventListenerObject, options);
-    this.own(() => target.removeEventListener(type, listener as EventListenerOrEventListenerObject, options));
+    const eventListener: EventListenerOrEventListenerObject = typeof listener === 'function'
+      ? (event) => listener(event as never)
+      : listener;
+    target.addEventListener(type, eventListener, options);
+    this.own(() => target.removeEventListener(type, eventListener, options));
   }
 
   setTimeout(callback: () => void, delayMs: number) {

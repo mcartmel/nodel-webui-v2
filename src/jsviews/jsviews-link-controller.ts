@@ -19,7 +19,7 @@ export class JsViewsLinkController {
         jq.unlink(linkedTarget);
         this.linkedGeneration = null;
       }
-      jq.templates(template).link(linkedTarget as JQuery<HTMLElement>, data, helpersOrContext);
+      jq.templates(template).link(linkedTarget, data, helpersOrContext);
       this.linkedGeneration = generation;
       return true;
     });

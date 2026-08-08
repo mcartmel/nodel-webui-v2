@@ -1,6 +1,11 @@
 import { flush, waitFor } from './helpers';
 import '../src/components/nodel-page';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test value to be present');
+  return value;
+}
+
 const chartMock = vi.hoisted(() => {
   const instances: Array<{
     canvas: HTMLCanvasElement;
@@ -97,7 +102,7 @@ describe('nodel-diagnostic-charts', () => {
 
     await waitFor(() => chartMock.instances.length === 1);
 
-    const chartConfig = chartMock.instances[0].config;
+    const chartConfig = required(chartMock.instances[0]).config;
     expect(document.body.textContent).toContain('Receive.rate');
     expect(chartConfig.data.datasets[0].data).toEqual([1, 2, 3]);
     expect(chartConfig.options.animation).toBe(false);
@@ -163,7 +168,7 @@ describe('nodel-diagnostic-charts', () => {
 
     setCategoryChecked('Java runtime', true);
     await waitFor(() => chartMock.instances.length === 1);
-    const firstChart = chartMock.instances[0];
+    const firstChart = required(chartMock.instances[0]);
     const firstCanvas = firstChart.canvas;
 
     setCategoryChecked('Java runtime', false);
@@ -172,7 +177,7 @@ describe('nodel-diagnostic-charts', () => {
 
     setCategoryChecked('Java runtime', true);
     await waitFor(() => chartMock.instances.length === 2);
-    const secondChart = chartMock.instances[1];
+    const secondChart = required(chartMock.instances[1]);
 
     expect(secondChart.canvas).not.toBe(firstCanvas);
     expect(secondChart.canvas).toBe(document.querySelector('canvas[data-diagnostic-chart]'));
@@ -190,7 +195,7 @@ describe('nodel-diagnostic-charts', () => {
     setCategoryChecked('HTTP client', true);
     await waitFor(() => chartMock.instances.length === 1);
 
-    const firstChart = chartMock.instances[0];
+    const firstChart = required(chartMock.instances[0]);
     document.documentElement.setAttribute('data-theme', 'dark');
     await waitFor(() => firstChart.update.mock.calls.length > 0);
 
@@ -224,13 +229,13 @@ describe('nodel-diagnostic-charts', () => {
     await waitFor(() => chartMock.instances.length === 1);
 
     await ((document.querySelector('nodel-diagnostic-charts') as unknown as { source: { refresh: () => Promise<void> } }).source.refresh());
-    await waitFor(() => chartMock.instances[0].config.data.datasets[0].data[0] === 2);
+    await waitFor(() => required(chartMock.instances[0]).config.data.datasets[0].data[0] === 2);
 
     const nextCheckbox = categoryInputs()[0];
     expect(nextCheckbox).toBe(checkbox);
     expect(checkedValues()).toEqual(['HTTP client']);
     expect(chartMock.instances).toHaveLength(1);
-    expect(chartMock.instances[0].config.data.datasets[0].data).toEqual([2]);
+    expect(required(chartMock.instances[0]).config.data.datasets[0].data).toEqual([2]);
   });
 
   it('clears stale controls and canvases when a polling refresh fails', async () => {
@@ -260,7 +265,7 @@ describe('nodel-diagnostic-charts', () => {
     resolveRetry(measurementsResponse([{ name: 'Runtime.Current', isRate: false, values: [2] }]));
     await retry;
     await waitFor(() => categoryInputs().length === 1);
-    expect(categoryInputs()[0].value).toBe('Runtime');
+    expect(required(categoryInputs()[0]).value).toBe('Runtime');
   });
 
   it('renders empty and error states', async () => {
@@ -304,7 +309,7 @@ describe('nodel-diagnostic-charts', () => {
     await waitFor(() => categoryInputs().length === 1);
     setCategoryChecked('Runtime', true);
     await waitFor(() => chartMock.instances.length === 1);
-    const first = chartMock.instances[0];
+    const first = required(chartMock.instances[0]);
 
     charts.remove();
     expect(first.destroy).toHaveBeenCalledOnce();
@@ -313,7 +318,7 @@ describe('nodel-diagnostic-charts', () => {
     await waitFor(() => chartMock.instances.length === 2);
 
     expect(charts.querySelectorAll('canvas[data-diagnostic-chart]')).toHaveLength(1);
-    expect(chartMock.instances[1].destroy).not.toHaveBeenCalled();
+    expect(required(chartMock.instances[1]).destroy).not.toHaveBeenCalled();
   });
 
   it('does not retain stale measurements when reconnect loading fails', async () => {

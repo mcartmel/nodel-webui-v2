@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { CompletionContext } from '@codemirror/autocomplete';
 import { htmlLanguage } from '@codemirror/lang-html';
 import { EditorState } from '@codemirror/state';
+import type * as signalBindings from '../src/data/signal-bindings';
 import { nodelDocumentElements } from '../src/editor/nodel-document-definition';
 import { nodelHtmlCompletionSource } from '../src/editor/nodel-html-document-support';
 import { commonNodelAttributes, getEffectiveCatalogueAttributes } from '../src/nodel-component-metadata';
@@ -11,7 +12,7 @@ import { bootstrapNodelComponentLoader, loadNodelComponent } from '../src/nodel-
 import { readStyleSource } from './style-source';
 
 vi.mock('../src/data/signal-bindings', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/data/signal-bindings')>();
+  const actual = await importOriginal<typeof signalBindings>();
   return { ...actual, bootstrapSignalVisibilityBindings: () => ({ dispose() {} }) };
 });
 
@@ -95,13 +96,15 @@ function parseDocumentedComponents(docsSource: string, section: 'Custom UI Compo
   const nextHeadingStart = sectionTail.indexOf('\n### ');
   const sectionSource = nextHeadingStart === -1 ? sectionTail : sectionTail.slice(0, nextHeadingStart);
 
-  return Array.from(sectionSource.matchAll(/-\s*`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1]);
+  return Array.from(sectionSource.matchAll(/-\s*`(nodel-[a-z0-9-]+)`/g)).map((match) => match[1])
+    .filter((name): name is string => name !== undefined);
 }
 
 function parseImportedComponents(source: string, importPathPrefix: './components/') {
   const escapedImportPathPrefix = importPathPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`['\"]${escapedImportPathPrefix}(nodel-[a-z0-9-]+)['\"]`, 'g');
-  return Array.from(source.matchAll(pattern)).map((match) => match[1]);
+  const pattern = new RegExp(`["']${escapedImportPathPrefix}(nodel-[a-z0-9-]+)["']`, 'g');
+  return Array.from(source.matchAll(pattern)).map((match) => match[1])
+    .filter((name): name is string => name !== undefined);
 }
 
 function toUniqueSorted(values: string[]) {
@@ -229,7 +232,11 @@ describe('nodel document definition', () => {
       }
     }
 
-    const byName = (name: string) => nodelDocumentElements.find((element) => element.name === name)!;
+    const byName = (name: string) => {
+      const element = nodelDocumentElements.find((item) => item.name === name);
+      if (!element) throw new Error(`Missing document element ${name}`);
+      return element;
+    };
     expect(byName('nodel-control-grid').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['xl', '2xl']));
     expect(byName('nodel-stepper').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['prefix', 'repeat-delay', 'repeat-interval', 'aria-label', 'aria-labelledby']));
     expect(byName('nodel-pad').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['up-actions', 'down-actions', 'left-actions', 'right-actions', 'center-actions', 'up-arg', 'center-label']));

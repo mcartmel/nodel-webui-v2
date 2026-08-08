@@ -66,7 +66,7 @@ function asArray(value: unknown, context: string, path = '$') {
   if (value.length > MAX_API_COLLECTION_ITEMS) {
     invalid(context, path, `expected at most ${MAX_API_COLLECTION_ITEMS} items`);
   }
-  return value;
+  return value as unknown[];
 }
 
 function limitedEntries(value: Record<string, unknown>, context: string, path: string) {
@@ -311,7 +311,7 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
     if (record.step === null || (typeof record.step !== 'string' && (typeof record.step !== 'number' || !Number.isFinite(record.step)))) {
       invalid(context, `${path}.step`, 'expected a positive finite number or "any"');
     }
-    if (record.step !== 'any' && ((typeof record.step === 'string' && (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?$/.test(record.step) || !Number.isFinite(Number(record.step)) || Number(record.step) <= 0)) || (typeof record.step === 'number' && record.step <= 0))) {
+    if (record.step !== 'any' && ((typeof record.step === 'string' && (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(record.step) || !Number.isFinite(Number(record.step)) || Number(record.step) <= 0)) || (typeof record.step === 'number' && record.step <= 0))) {
       invalid(context, `${path}.step`, 'expected a positive finite number or "any"');
     }
   }
@@ -327,7 +327,7 @@ function decodeSchemaAt(value: unknown, context: string, path: string, depth: nu
   if (typeof result.minItems === 'number' && typeof result.maxItems === 'number' && result.minItems > result.maxItems) {
     invalid(context, path, 'minItems cannot exceed maxItems');
   }
-  return result as NodelJsonSchema;
+  return result;
 }
 
 export function decodeSchema(value: unknown, context: string): NodelJsonSchema {
@@ -392,7 +392,7 @@ export function decodeDiagnostics(value: unknown, context: string): NodelDiagnos
     limitedEntries(systemProperties, context, '$.systemProperties');
     result.systemProperties = systemProperties;
   }
-  return result as NodelDiagnosticsResponse;
+  return result;
 }
 
 export function decodeDiagnosticMeasurements(value: unknown, context: string): NodelDiagnosticMeasurement[] {
@@ -431,7 +431,7 @@ export function decodeDiagnosticMeasurements(value: unknown, context: string): N
       return entry;
     });
     optionalFiniteNumber(record, 'capacity', context, path);
-    return { ...record, name, isRate: record.isRate, values } as NodelDiagnosticMeasurement;
+    return { ...record, name, isRate: record.isRate, values };
   });
 }
 
@@ -458,7 +458,7 @@ export function decodeHostLogs(value: unknown, context: string): NodelHostLogEnt
     normalizeOptionalDisplayStringsInto(result, record, ['message'], context, path);
     if (record.error === null) result.error = null;
     else normalizeOptionalDisplayStringsInto(result, record, ['error'], context, path);
-    return { ...result, seq, timestamp } as NodelHostLogEntry;
+    return { ...result, seq, timestamp };
   });
 }
 
@@ -472,7 +472,7 @@ export function decodeRestartStatus(value: unknown, context: string): NodelResta
   if (record.timestamp !== undefined && record.timestamp !== null && (typeof record.timestamp !== 'string' || !Number.isFinite(Date.parse(record.timestamp)))) {
     invalid(context, '$.timestamp', 'expected a valid timestamp or null');
   }
-  return { ...record, timestamp: record.timestamp ?? null } as unknown as NodelRestartStatus;
+  return { ...record, timestamp: record.timestamp ?? null };
 }
 
 export function decodeConsoleLogs(value: unknown, context: string): NodelConsoleLogEntry[] {
@@ -610,7 +610,7 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
     if (size !== undefined && (!Number.isSafeInteger(size) || size < 0)) {
       invalid(context, `${path}.size`, 'expected a non-negative safe integer');
     }
-    return registerDecodedNodeFileEntry({ ...result, path: filePath, compatibility, ...(size !== undefined ? { size } : {}) } as NodelFileEntry);
+    return registerDecodedNodeFileEntry({ ...result, path: filePath, compatibility, ...(size !== undefined ? { size } : {}) });
   });
 }
 
@@ -637,7 +637,7 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
       if (host && !hostMatchesRemoteNodeUrl(host, href)) {
         invalid(context, `${path}.host`, 'expected the host from the node address');
       }
-      decoded.push({ ...result, address: href } as NodelNodeUrlEntry);
+      decoded.push({ ...result, address: href });
     } catch (error) {
       if (!(error instanceof NodelApiDecodeError)) {
         throw error;
@@ -645,8 +645,9 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
       firstError ??= error;
     }
   });
-  if (items.length > 0 && decoded.length === 0 && firstError) {
-    throw firstError;
+  if (items.length > 0 && decoded.length === 0 && firstError !== null) {
+    const errorToThrow: Error = firstError;
+    throw errorToThrow;
   }
   return decoded;
 }

@@ -1,4 +1,3 @@
-import '../src/components/nodel-toast-host';
 import { MAX_NODEL_TOASTS, type NodelToastHost } from '../src/components/nodel-toast-host';
 
 describe('nodel-toast-host', () => {

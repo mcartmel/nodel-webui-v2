@@ -1,4 +1,5 @@
 import { flush, waitFor } from './helpers';
+import type * as nodelHostClient from '../src/api/nodel-host-client';
 
 const integrationMock = vi.hoisted(() => {
   let restartWaiter: { resolve: (value: { timestamp: string | null }) => void } | null = null;
@@ -69,7 +70,7 @@ const integrationMock = vi.hoisted(() => {
 });
 
 vi.mock('../src/api/nodel-host-client', async () => {
-  const actual = await vi.importActual<typeof import('../src/api/nodel-host-client')>('../src/api/nodel-host-client');
+  const actual = await vi.importActual<typeof nodelHostClient>('../src/api/nodel-host-client');
   return {
     ...actual,
     getNodeDetails: integrationMock.getNodeDetails,

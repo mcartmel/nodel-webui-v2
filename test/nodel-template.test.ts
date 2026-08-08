@@ -1,6 +1,11 @@
 import { flush } from './helpers';
 import '../src/components/nodel-template';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-template', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -21,8 +26,8 @@ describe('nodel-template', () => {
 
     const buttons = Array.from(document.querySelectorAll('button'));
     expect(buttons).toHaveLength(1);
-    expect(buttons[0].textContent?.trim()).toBe('Zone 1');
-    expect(buttons[0].dataset.item).toBe('Zone1');
+    expect(required(buttons[0]).textContent?.trim()).toBe('Zone 1');
+    expect(required(buttons[0]).dataset.item).toBe('Zone1');
   });
 
   it('renders repeated clones and replaces placeholders in text and attributes', async () => {

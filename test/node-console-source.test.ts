@@ -1,5 +1,20 @@
 import { waitFor } from './helpers';
 
+type MockFn = ReturnType<typeof vi.fn>;
+
+function getArrayValue<T>(values: readonly T[], index: number, label: string): T {
+  const value = index >= 0 ? values[index] : values.at(index);
+  if (value === undefined) {
+    throw new Error(`Expected ${label}`);
+  }
+  return value;
+}
+
+function getMockCallArg<T>(mockFn: MockFn, callIndex: number, argIndex: number, label: string): T {
+  const call = getArrayValue(mockFn.mock.calls, callIndex, `${label} call`);
+  return getArrayValue(call, argIndex, `${label} call ${callIndex} argument`);
+}
+
 const consoleSourceMock = vi.hoisted(() => ({
   getNodeConsoleLogs: vi.fn()
 }));
@@ -42,7 +57,7 @@ describe('node console source lifecycle', () => {
     const second = subscribeNodeConsole(host(), (state) => states.push(state));
     await waitFor(() => consoleSourceMock.getNodeConsoleLogs.mock.calls.length === 2);
     await waitFor(() => states.some((state: any) => state.data?.entries?.[0]?.comment === 'current'));
-    expect(consoleSourceMock.getNodeConsoleLogs.mock.calls[1][0]).toEqual({ from: -1, max: 200 });
+    expect(getMockCallArg<{ from: number; max: number }>(consoleSourceMock.getNodeConsoleLogs, 1, 0, 'second subscriber console request')).toEqual({ from: -1, max: 200 });
 
     resolveStale([{ seq: 100, timestamp: '2026-01-01T00:01:40Z', console: 'out', comment: 'stale' }]);
     await Promise.resolve();
@@ -76,7 +91,7 @@ describe('node console source lifecycle', () => {
     await waitFor(() => consoleSourceMock.getNodeConsoleLogs.mock.calls.length === 3);
     await waitFor(() => states.some((state: any) => state.data?.entries?.[0]?.comment === 'after restart'));
 
-    expect(consoleSourceMock.getNodeConsoleLogs.mock.calls[2][0]).toEqual({ from: -1, max: 200 });
+    expect(getMockCallArg<{ from: number; max: number }>(consoleSourceMock.getNodeConsoleLogs, 2, 0, 'post-restart console request')).toEqual({ from: -1, max: 200 });
     expect(states.some((state: any) => state.data?.entries?.some((entry: any) => entry.comment === 'stale incremental'))).toBe(false);
     subscription.dispose();
   });

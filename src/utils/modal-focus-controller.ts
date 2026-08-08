@@ -164,6 +164,10 @@ function handleTab(layer: ModalLayer, event: KeyboardEvent) {
 
   const first = focusables[0];
   const last = focusables[focusables.length - 1];
+  if (!first || !last) {
+    layer.dialog.focus();
+    return;
+  }
   if (event.shiftKey && document.activeElement === first) {
     event.preventDefault();
     last.focus();
@@ -184,7 +188,11 @@ export class ModalFocusController {
     if (existingLayer && stack.includes(existingLayer)) {
       existingLayer.container = options.container;
       existingLayer.dialog = options.dialog;
-      existingLayer.onCancel = options.onCancel;
+      if (options.onCancel) {
+        existingLayer.onCancel = options.onCancel;
+      } else {
+        delete existingLayer.onCancel;
+      }
       existingLayer.inertRoot = options.inertRoot ?? document.body;
 
       // A host may replace its dialog during a render. Keep this layer at its
@@ -211,7 +219,7 @@ export class ModalFocusController {
       container: options.container,
       dialog: options.dialog,
       trigger: options.trigger ?? document.activeElement,
-      onCancel: options.onCancel,
+      ...(options.onCancel ? { onCancel: options.onCancel } : {}),
       inertRoot: options.inertRoot ?? document.body,
       observer: null,
       keydown: (event) => {

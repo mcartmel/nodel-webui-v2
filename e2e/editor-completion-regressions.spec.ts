@@ -47,7 +47,8 @@ async function editorText(content: Locator) {
 }
 
 test.describe('Stage 2 CodeMirror completion regressions', () => {
-  test.beforeEach(({}, testInfo) => {
+  test.beforeEach(({ page }, testInfo) => {
+    void page;
     test.skip(!['chromium-light-desktop', 'chromium-dark-desktop'].includes(testInfo.project.name), 'Focused real-editor coverage runs in Chromium light and dark.');
   });
 

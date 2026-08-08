@@ -1,40 +1,60 @@
 import { flush, waitFor } from './helpers';
 import { deferred } from './lifecycle-helpers';
+import type { NodeRestartRefreshResult } from '../src/data/node-restart-source';
+import type {
+  NodelActionDefinition,
+  NodelActivityLogEntry,
+  NodelJsonSchema,
+  NodelLocalRestResponse,
+  NodelNodeUrlEntry,
+  NodelRemoteBindings,
+  NodelSignalDefinition
+} from '../src/api/nodel-types';
+import type { NodelBindings } from '../src/components/nodel-bindings';
+
+type BindingActivityBatch = {
+  items: Array<{ changed: boolean; live: boolean; entry: NodelActivityLogEntry }>;
+  replace: boolean;
+  transport: 'websocket' | 'poll' | null;
+  nextSeq: number;
+};
+
+type BindingActivityState = {
+  loading: boolean;
+  connected: boolean;
+  error: string;
+  batch: BindingActivityBatch | null;
+};
+
+type ActivitySubscriber = {
+  listener: ((state: BindingActivityState) => void) | null;
+  subscribeNodeActivity: ReturnType<typeof vi.fn>;
+};
 
 const bindingsMock = vi.hoisted(() => ({
-  getLocalRest: vi.fn(),
-  getNodeRemoteBindings: vi.fn(),
-  getNodeRemoteSchema: vi.fn(),
-  getRemoteNodeActions: vi.fn(),
-  getRemoteNodeSignals: vi.fn(),
-  saveNodeRemoteBindings: vi.fn(),
-  searchNodeUrls: vi.fn()
+  getLocalRest: vi.fn<(options?: RequestInit) => Promise<NodelLocalRestResponse>>(),
+  getNodeRemoteBindings: vi.fn<(options?: RequestInit) => Promise<NodelRemoteBindings>>(),
+  getNodeRemoteSchema: vi.fn<(options?: RequestInit) => Promise<NodelJsonSchema>>(),
+  getRemoteNodeActions: vi.fn<(nodeUrl: string, options?: RequestInit) => Promise<Record<string, NodelActionDefinition>>>(),
+  getRemoteNodeSignals: vi.fn<(nodeUrl: string, options?: RequestInit) => Promise<Record<string, NodelSignalDefinition>>>(),
+  saveNodeRemoteBindings: vi.fn<(payload: Record<string, unknown>, options?: RequestInit) => Promise<unknown>>(),
+  searchNodeUrls: vi.fn<(filter: string, options?: RequestInit) => Promise<NodelNodeUrlEntry[]>>()
 }));
 
-const activityMock = vi.hoisted(() => ({
-  listener: null as null | ((state: any) => void),
-  subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: any) => void) => {
-    activityMock.listener = listener;
+const activityMock = vi.hoisted(() => {
+  const subscribeNodeActivity: ActivitySubscriber['subscribeNodeActivity'] = vi.fn((
+    _element: HTMLElement,
+    listener: (state: BindingActivityState) => void
+  ) => {
+    state.listener = listener;
     listener({ loading: false, connected: true, error: '', batch: null });
     return { dispose: vi.fn(), refresh: vi.fn() };
-  })
-}));
+  });
 
-vi.mock('../src/api/nodel-host-client', () => ({
-  getLocalRest: bindingsMock.getLocalRest,
-  getNodeRemoteBindings: bindingsMock.getNodeRemoteBindings,
-  getNodeRemoteSchema: bindingsMock.getNodeRemoteSchema,
-  getRemoteNodeActions: bindingsMock.getRemoteNodeActions,
-  getRemoteNodeSignals: bindingsMock.getRemoteNodeSignals,
-  saveNodeRemoteBindings: bindingsMock.saveNodeRemoteBindings,
-  searchNodeUrls: bindingsMock.searchNodeUrls
-}));
+  const state: ActivitySubscriber = { listener: null, subscribeNodeActivity };
 
-vi.mock('../src/data/node-activity-source', () => ({
-  subscribeNodeActivity: activityMock.subscribeNodeActivity
-}));
-
-import '../src/components/nodel-bindings';
+  return state;
+});
 
 const bindingSchema = {
   type: 'object',
@@ -55,6 +75,85 @@ const bindingSchema = {
   }
 };
 
+type RefreshableBindingsElement = NodelBindings & {
+  refreshAfterRestart(): Promise<NodeRestartRefreshResult>;
+};
+
+type BindingsInternalState = {
+  busy: boolean;
+  message: string;
+};
+
+function failOnMissing(message: string): never {
+  throw new Error(message);
+}
+
+function assertDefined<T>(value: T | undefined | null, message: string): Exclude<T, undefined | null> {
+  if (value === undefined || value === null) {
+    failOnMissing(message);
+  }
+
+  return value as Exclude<T, undefined | null>;
+}
+
+function queryRequired<T extends Element>(selector: string, context: ParentNode = document): T {
+  const element = context.querySelector(selector);
+  return assertDefined(element as T | null, `Expected element ${selector} to exist`);
+}
+
+function rowAt(kind: 'actions' | 'events', index: number, label: string): HTMLElement {
+  const list = rows(kind);
+  const row = list[index];
+  return assertDefined(row, `Expected ${label} ${kind} row at index ${index}`);
+}
+
+function callAt<T extends readonly unknown[]>(calls: T[], label: string, index = 0): T {
+  const call = calls[index];
+  return assertDefined(call, `Expected ${label} call at index ${index}`);
+}
+
+function requireBindingsState(element: NodelBindings): BindingsInternalState {
+  const value = (element as unknown as { state?: BindingsInternalState }).state;
+  return assertDefined(value, 'Expected nodel-bindings state to be present');
+}
+
+function requireRefreshableBindings(element: HTMLElement): RefreshableBindingsElement {
+  const casted = element as unknown as RefreshableBindingsElement;
+  const refresh = casted.refreshAfterRestart;
+  if (typeof refresh !== 'function') {
+    failOnMissing('Expected nodel-bindings element to expose refreshAfterRestart');
+  }
+  return casted;
+}
+
+function requireAbortSignal(signal: AbortSignal | null, message: string): AbortSignal {
+  if (signal === null) {
+    failOnMissing(message);
+  }
+
+  return signal;
+}
+
+function queryInput(selector: string, context: ParentNode = document): HTMLInputElement {
+  return queryRequired<HTMLInputElement>(selector, context);
+}
+
+vi.mock('../src/api/nodel-host-client', () => ({
+  getLocalRest: bindingsMock.getLocalRest,
+  getNodeRemoteBindings: bindingsMock.getNodeRemoteBindings,
+  getNodeRemoteSchema: bindingsMock.getNodeRemoteSchema,
+  getRemoteNodeActions: bindingsMock.getRemoteNodeActions,
+  getRemoteNodeSignals: bindingsMock.getRemoteNodeSignals,
+  saveNodeRemoteBindings: bindingsMock.saveNodeRemoteBindings,
+  searchNodeUrls: bindingsMock.searchNodeUrls
+}));
+
+vi.mock('../src/data/node-activity-source', () => ({
+  subscribeNodeActivity: activityMock.subscribeNodeActivity
+}));
+
+import '../src/components/nodel-bindings';
+
 async function mountBindings() {
   document.body.innerHTML = '<nodel-bindings></nodel-bindings>';
   await customElements.whenDefined('nodel-bindings');
@@ -67,7 +166,7 @@ async function mountBindings() {
     intervalMs: 1
   });
   await flush();
-  return document.querySelector('nodel-bindings')!;
+  return queryRequired<NodelBindings>('nodel-bindings');
 }
 
 async function setInputValue(input: HTMLInputElement, value: string) {
@@ -83,11 +182,11 @@ async function pressKey(input: HTMLInputElement, key: string) {
 }
 
 function submitForm() {
-  document.querySelector<HTMLFormElement>('[data-bindings-form]')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  queryRequired<HTMLFormElement>('[data-bindings-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 }
 
 function section(kind: 'actions' | 'events') {
-  return document.querySelector<HTMLElement>(`[data-bindings-section="${kind}"]`)!;
+  return queryRequired<HTMLElement>(`[data-bindings-section="${kind}"]`);
 }
 
 function rows(kind: 'actions' | 'events') {
@@ -96,9 +195,9 @@ function rows(kind: 'actions' | 'events') {
 
 function rowInputs(row: HTMLElement) {
   return {
-    select: row.querySelector<HTMLInputElement>('[data-bindings-row-select]')!,
-    node: row.querySelector<HTMLInputElement>('[data-bindings-node]')!,
-    target: row.querySelector<HTMLInputElement>('[data-bindings-target]')!
+    select: queryRequired<HTMLInputElement>('[data-bindings-row-select]', row),
+    node: queryRequired<HTMLInputElement>('[data-bindings-node]', row),
+    target: queryRequired<HTMLInputElement>('[data-bindings-target]', row)
   };
 }
 
@@ -143,10 +242,10 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const bindingsForm = document.querySelector('[data-bindings-form]')!;
-    const bindingsFieldset = bindingsForm.querySelector('fieldset')!;
-    const sections = section('actions').parentElement!;
-    const sectionContent = section('actions').querySelector('.nodel-collapse-content')!;
+    const bindingsForm = queryRequired<HTMLFormElement>('[data-bindings-form]');
+    const bindingsFieldset = queryRequired<HTMLFieldSetElement>('fieldset', bindingsForm);
+    const sections = assertDefined(section('actions').parentElement, 'Expected actions section container to have parent');
+    const sectionContent = queryRequired<HTMLElement>('.nodel-collapse-content', section('actions'));
     expect(bindingsForm.classList.contains('space-y-3')).toBe(false);
     expect(bindingsForm.classList.contains('gap-3')).toBe(true);
     expect(bindingsFieldset.classList.contains('gap-3')).toBe(true);
@@ -159,7 +258,7 @@ describe('nodel-bindings', () => {
     expect(document.body.textContent).toContain('Set Level');
     expect(document.body.textContent).toContain('Status Changed');
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     await setInputValue(rowInputs(firstAction).target, 'SetDim');
 
     submitForm();
@@ -231,7 +330,7 @@ describe('nodel-bindings', () => {
     expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({
+    expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0]).toEqual({
       rootMetadata: { keep: true },
       actions: {
         sectionMetadata: 'keep',
@@ -267,7 +366,7 @@ describe('nodel-bindings', () => {
     await mountBindings();
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({ actions: { unbound: {} } });
+    expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0]).toEqual({ actions: { unbound: {} } });
   });
 
   it('does not manufacture untouched schema rows missing from a replacement payload', async () => {
@@ -284,7 +383,7 @@ describe('nodel-bindings', () => {
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
 
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({
+    expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0]).toEqual({
       rootMetadata: { keep: true },
       actions: {
         sectionMetadata: { keep: true },
@@ -349,7 +448,7 @@ describe('nodel-bindings', () => {
       }
     });
 
-    await (element as any).refreshAfterRestart();
+    await requireRefreshableBindings(element).refreshAfterRestart();
     await waitFor(() => document.body.textContent?.includes('New Action'));
 
     expect(document.body.textContent).not.toContain('Set Level');
@@ -385,7 +484,7 @@ describe('nodel-bindings', () => {
     bindingsMock.getNodeRemoteSchema.mockRejectedValueOnce(new Error('Restart bindings unavailable'));
     bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({});
 
-    const result = await (element as any).refreshAfterRestart();
+    const result = await requireRefreshableBindings(element).refreshAfterRestart();
 
     expect(result).toMatchObject({ status: 'failed', detail: 'Restart bindings unavailable' });
     expect(element.textContent).toContain('Restart bindings unavailable');
@@ -400,12 +499,12 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     await setInputValue(rowInputs(firstAction).node, 'Light');
     await waitFor(() => bindingsMock.searchNodeUrls.mock.calls.length > 0);
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
 
-    const nodeOption = firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')!;
+    const nodeOption = queryRequired<HTMLButtonElement>('[data-bindings-option="node"]', firstAction);
     const nodeMouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
     nodeOption.dispatchEvent(nodeMouseDown);
     expect(nodeMouseDown.defaultPrevented).toBe(true);
@@ -422,7 +521,8 @@ describe('nodel-bindings', () => {
     bindingsMock.searchNodeUrls.mockRejectedValue(new Error('Node lookup failed'));
     await mountBindings();
 
-    await setInputValue(rowInputs(rows('actions')[0]).node, 'Light');
+    const firstAction = rowAt('actions', 0, 'first');
+    await setInputValue(rowInputs(firstAction).node, 'Light');
     await waitFor(() => document.body.textContent?.includes('Node lookup failed'));
 
     expect(document.querySelector('.nodel-alert-danger')?.textContent).toContain('Node lookup failed');
@@ -437,7 +537,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     const nodeInput = rowInputs(firstAction).node;
     await setInputValue(nodeInput, 'Light');
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
@@ -451,7 +551,7 @@ describe('nodel-bindings', () => {
   });
 
   it('does not reopen the node dropdown from stale autocomplete responses after selection', async () => {
-    const pendingSearch = deferred<any[]>();
+    const pendingSearch = deferred<NodelNodeUrlEntry[]>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
     bindingsMock.searchNodeUrls
@@ -460,7 +560,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     const nodeInput = rowInputs(firstAction).node;
     await setInputValue(nodeInput, 'Light');
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
@@ -476,8 +576,8 @@ describe('nodel-bindings', () => {
   });
 
   it('keeps row node autocomplete lookups independent', async () => {
-    const firstSearch = deferred<any[]>();
-    const secondSearch = deferred<any[]>();
+    const firstSearch = deferred<NodelNodeUrlEntry[]>();
+    const secondSearch = deferred<NodelNodeUrlEntry[]>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
     bindingsMock.searchNodeUrls
@@ -486,7 +586,8 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const [firstAction, secondAction] = rows('actions');
+    const firstAction = rowAt('actions', 0, 'first');
+    const secondAction = rowAt('actions', 1, 'second');
     await setInputValue(rowInputs(firstAction).node, 'Light');
     expect(rowInputs(firstAction).node.getAttribute('aria-busy')).toBe('true');
     await setInputValue(rowInputs(secondAction).node, 'Projector');
@@ -516,13 +617,12 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     await setInputValue(rowInputs(firstAction).target, 'Dim');
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 1);
 
-    const liveFirstAction = rows('actions')[0];
-    const targetOption = liveFirstAction.querySelector<HTMLButtonElement>('[data-bindings-option="target"]')!;
+    const targetOption = queryRequired<HTMLButtonElement>('[data-bindings-option="target"]', firstAction);
     const targetMouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
     targetOption.dispatchEvent(targetMouseDown);
     expect(targetMouseDown.defaultPrevented).toBe(true);
@@ -530,8 +630,8 @@ describe('nodel-bindings', () => {
     await flush();
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://host/nodes/Lighting/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(rowInputs(rows('actions')[0]).target.value).toBe('dim');
-    expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
+    expect(rowInputs(firstAction).target.value).toBe('dim');
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
   it('aborts target definition requests when lookup timeout elapses', async () => {
@@ -551,13 +651,15 @@ describe('nodel-bindings', () => {
     });
 
     await mountBindings();
-    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    const firstAction = rowAt('actions', 0, 'first');
+    await setInputValue(rowInputs(firstAction).target, 'Dim');
     expect(targetSignal).not.toBeNull();
 
     await new Promise((resolve) => window.setTimeout(resolve, 3100));
     await flush();
 
-    expect((targetSignal as AbortSignal | null)?.aborted).toBe(true);
+    const targetRequestSignal = requireAbortSignal(targetSignal, 'Expected target request signal to be set');
+    expect(targetRequestSignal.aborted).toBe(true);
     expect(document.body.textContent).toContain('Request timed out after 3000 ms');
   }, 7000);
 
@@ -576,17 +678,17 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     const targetInput = rowInputs(firstAction).target;
     await setInputValue(targetInput, 'Dim');
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 1);
 
-    await pressKey(rowInputs(rows('actions')[0]).target, 'ArrowDown');
-    await pressKey(rowInputs(rows('actions')[0]).target, 'Enter');
+    await pressKey(rowInputs(firstAction).target, 'ArrowDown');
+    await pressKey(rowInputs(firstAction).target, 'Enter');
 
-    expect(rowInputs(rows('actions')[0]).target.value).toBe('dim');
-    expect(rows('actions')[0].querySelector('.nodel-bindings-popover')).toBeNull();
+    expect(rowInputs(firstAction).target.value).toBe('dim');
+    expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
   });
 
   it('uses same-origin local node URLs for target lookup before advertised URLs', async () => {
@@ -608,13 +710,14 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const targetInput = rowInputs(rows('actions')[0]).target;
+    const firstAction = rowAt('actions', 0, 'first');
+    const targetInput = rowInputs(firstAction).target;
     await setInputValue(targetInput, 'Dim');
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 1);
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith(`${window.location.origin}/nodes/Lighting/`, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(bindingsMock.searchNodeUrls).not.toHaveBeenCalled();
-    expect(rows('actions')[0].textContent).toContain('Dim Level');
+    expect(firstAction.textContent).toContain('Dim Level');
   });
 
   it('prefers same-origin local lookup even after a selected advertised node URL', async () => {
@@ -633,14 +736,14 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     await setInputValue(rowInputs(firstAction).node, 'Light');
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
     firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
     await flush();
 
-    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+    await setInputValue(rowInputs(firstAction).target, 'Dim');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 1);
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith(`${window.location.origin}/nodes/Lighting/`, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(bindingsMock.getRemoteNodeActions).not.toHaveBeenCalledWith('http://lan-host/nodes/Lighting/', expect.anything());
@@ -665,13 +768,14 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 1);
+    const firstAction = rowAt('actions', 0, 'first');
+    await setInputValue(rowInputs(firstAction).target, 'Dim');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 1);
 
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://bad-host/nodes/Lighting/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(bindingsMock.getRemoteNodeActions).toHaveBeenCalledWith('http://good-host/nodes/Lighting/', expect.objectContaining({ signal: expect.any(AbortSignal) }));
-    expect(rowInputs(rows('actions')[0]).target.value).toBe('Dim');
-    expect(rows('actions')[0].textContent).toContain('Dim Level');
+    expect(rowInputs(firstAction).target.value).toBe('Dim');
+    expect(firstAction.textContent).toContain('Dim Level');
   });
 
   it('merges definitions from multiple successful discovered URLs without duplicate names', async () => {
@@ -699,10 +803,13 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    await setInputValue(rowInputs(rows('actions')[0]).target, '');
-    await waitFor(() => rows('actions')[0].querySelectorAll('[data-bindings-option="target"]').length === 3);
+    const firstAction = rowAt('actions', 0, 'first');
+    await setInputValue(rowInputs(firstAction).target, '');
+    await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="target"]').length === 3);
 
-    const options = Array.from(rows('actions')[0].querySelectorAll('[data-bindings-option="target"]')).map((option) => option.textContent ?? '');
+    const options = Array
+      .from(firstAction.querySelectorAll<HTMLButtonElement>('[data-bindings-option="target"]'))
+      .map((option) => option.textContent ?? '');
     expect(options.join(' ')).toContain('Dim Level');
     expect(options.join(' ')).not.toContain('Duplicate Dim');
     expect(options.join(' ')).toContain('Power On');
@@ -725,7 +832,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const targetInput = rowInputs(rows('actions')[0]).target;
+    const targetInput = rowInputs(rowAt('actions', 0, 'first')).target;
     await setInputValue(targetInput, 'Dim');
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
 
@@ -748,7 +855,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     await setInputValue(rowInputs(firstAction).node, 'Light');
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
     firstAction.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
@@ -757,7 +864,8 @@ describe('nodel-bindings', () => {
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
 
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0].actions.setLevel).toEqual({
+    const saveCall = callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0] as NodelRemoteBindings;
+    expect(assertDefined(saveCall.actions, 'Expected actions payload to be present').setLevel).toEqual({
       node: 'Lighting'
     });
   });
@@ -768,9 +876,10 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const [firstAction, secondAction] = rows('actions');
+    const firstAction = rowAt('actions', 0, 'first');
+    const secondAction = rowAt('actions', 1, 'second');
     await selectRow(firstAction);
-    await setInputValue(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!, 'Lighting');
+    await setInputValue(queryInput('[data-bindings-bulk-node]'), 'Lighting');
     document.querySelector<HTMLButtonElement>('[data-bindings-apply-node]')?.click();
     await flush();
 
@@ -800,9 +909,9 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const actionRow = rows('actions')[0];
+    const actionRow = rowAt('actions', 0, 'first');
     await selectRow(actionRow);
-    await setInputValue(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!, 'Lighting');
+    await setInputValue(queryInput('[data-bindings-bulk-node]'), 'Lighting');
     document.querySelector<HTMLButtonElement>('[data-bindings-apply-node]')?.click();
     await flush();
 
@@ -814,7 +923,7 @@ describe('nodel-bindings', () => {
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
 
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0]).toEqual({ actions: { setLevel: { node: 'Lighting' } } });
+    expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0]).toEqual({ actions: { setLevel: { node: 'Lighting' } } });
     expect(target.getAttribute('aria-invalid')).toBe('false');
     expect(actionRow.querySelector(`[id="${target.id}-error"]`)).toBeNull();
   });
@@ -841,7 +950,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const actionRow = rows('actions')[0];
+    const actionRow = rowAt('actions', 0, 'first');
     const target = rowInputs(actionRow).target;
     await setInputValue(target, 'MissingAction');
 
@@ -867,9 +976,10 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const [firstAction, secondAction] = rows('actions');
+    const firstAction = rowAt('actions', 0, 'first');
+    const secondAction = rowAt('actions', 1, 'second');
     await selectRow(firstAction);
-    const bulkNode = document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!;
+    const bulkNode = queryInput('[data-bindings-bulk-node]');
     await setInputValue(bulkNode, 'Light');
     await waitFor(() => document.querySelectorAll('[data-bindings-option="bulk-node"]').length === 1);
 
@@ -895,7 +1005,7 @@ describe('nodel-bindings', () => {
     expect(document.querySelectorAll('.nodel-bindings-toolbar-panel').length).toBe(1);
     expect(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')?.placeholder).toBe('Search node');
 
-    const bulkNode = document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!;
+    const bulkNode = queryInput('[data-bindings-bulk-node]');
     await setInputValue(bulkNode, 'Light');
     await waitFor(() => document.querySelectorAll('[data-bindings-option="bulk-node"]').length === 1);
 
@@ -906,7 +1016,7 @@ describe('nodel-bindings', () => {
   });
 
   it('closes an open node dropdown with Escape and ignores stale responses', async () => {
-    const pendingSearch = deferred<any[]>();
+    const pendingSearch = deferred<NodelNodeUrlEntry[]>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
     bindingsMock.searchNodeUrls
@@ -915,7 +1025,7 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     const nodeInput = rowInputs(firstAction).node;
     await setInputValue(nodeInput, 'Light');
     await waitFor(() => firstAction.querySelectorAll('[data-bindings-option="node"]').length === 1);
@@ -932,13 +1042,13 @@ describe('nodel-bindings', () => {
   });
 
   it('clears bulk node busy state synchronously on focusout', async () => {
-    const pendingSearch = deferred<any[]>();
+    const pendingSearch = deferred<NodelNodeUrlEntry[]>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
     bindingsMock.searchNodeUrls.mockReturnValue(pendingSearch.promise);
 
     await mountBindings();
-    const bulkNode = document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')!;
+    const bulkNode = queryInput('[data-bindings-bulk-node]');
     await setInputValue(bulkNode, 'Light');
     await waitFor(() => bindingsMock.searchNodeUrls.mock.calls.length === 1);
     expect(bulkNode.getAttribute('aria-busy')).toBe('true');
@@ -952,7 +1062,7 @@ describe('nodel-bindings', () => {
   });
 
   it('clears target busy state synchronously on Escape before options appear', async () => {
-    const pendingTarget = deferred<Record<string, unknown>>();
+    const pendingTarget = deferred<Record<string, NodelActionDefinition>>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({
       actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
@@ -961,7 +1071,7 @@ describe('nodel-bindings', () => {
     bindingsMock.getRemoteNodeActions.mockReturnValue(pendingTarget.promise);
 
     await mountBindings();
-    const targetInput = rowInputs(rows('actions')[0]).target;
+    const targetInput = rowInputs(rowAt('actions', 0, 'first')).target;
     await setInputValue(targetInput, 'Dim');
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
     expect(targetInput.getAttribute('aria-busy')).toBe('true');
@@ -972,11 +1082,11 @@ describe('nodel-bindings', () => {
     await flush();
 
     expect(targetInput.getAttribute('aria-busy')).toBe('false');
-    expect(rows('actions')[0].querySelectorAll('[data-bindings-option="target"]')).toHaveLength(0);
+    expect(rowAt('actions', 0, 'first').querySelectorAll('[data-bindings-option="target"]').length).toBe(0);
   });
 
   it('invalidates stale target completions when the row node changes', async () => {
-    const pendingTarget = deferred<Record<string, unknown>>();
+    const pendingTarget = deferred<Record<string, NodelActionDefinition>>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({
       actions: { setLevel: { node: 'Lighting', action: '' }, powerOn: {} },
@@ -985,7 +1095,7 @@ describe('nodel-bindings', () => {
     bindingsMock.getRemoteNodeActions.mockReturnValue(pendingTarget.promise);
 
     await mountBindings();
-    const firstAction = rows('actions')[0];
+    const firstAction = rowAt('actions', 0, 'first');
     const inputs = rowInputs(firstAction);
     await setInputValue(inputs.target, 'Dim');
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
@@ -1006,10 +1116,10 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
 
-    const filter = document.querySelector<HTMLInputElement>('[data-bindings-filter]')!;
+    const filter = queryInput('[data-bindings-filter]');
     await setInputValue(filter, 'power');
     await waitFor(() => rows('actions').length === 1);
-    expect(rows('actions')[0].textContent).toContain('Power On');
+    expect(rowAt('actions', 0, 'first').textContent).toContain('Power On');
 
     filter.value = '';
     filter.dispatchEvent(new Event('search'));
@@ -1047,20 +1157,20 @@ describe('nodel-bindings', () => {
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
 
-    expect(bindingsMock.saveNodeRemoteBindings.mock.calls[0][0].actions).toEqual({
+    expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0].actions).toEqual({
       setLevel: { node: 'Lighting', action: 'setLevel' },
       powerOn: { node: 'Lighting', action: 'powerOn' }
     });
   });
 
   it('ignores an abort-insensitive suggestion after the row node changes', async () => {
-    const pendingSuggestion = deferred<Record<string, unknown>>();
+    const pendingSuggestion = deferred<Record<string, NodelActionDefinition>>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
     bindingsMock.getRemoteNodeActions.mockReturnValue(pendingSuggestion.promise);
 
     await mountBindings();
-    const row = rows('actions')[0];
+    const row = rowAt('actions', 0, 'first');
     await selectRow(row);
     document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
@@ -1078,13 +1188,13 @@ describe('nodel-bindings', () => {
   });
 
   it('ignores an abort-insensitive suggestion after the target text changes', async () => {
-    const pendingSuggestion = deferred<Record<string, unknown>>();
+    const pendingSuggestion = deferred<Record<string, NodelActionDefinition>>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
     bindingsMock.getRemoteNodeActions.mockReturnValue(pendingSuggestion.promise);
 
     await mountBindings();
-    const row = rows('actions')[0];
+    const row = rowAt('actions', 0, 'first');
     await selectRow(row);
     document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
     await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length === 1);
@@ -1102,7 +1212,7 @@ describe('nodel-bindings', () => {
   });
 
   it('ignores an abort-insensitive suggestion after a target option selection', async () => {
-    const pendingSuggestion = deferred<Record<string, unknown>>();
+    const pendingSuggestion = deferred<Record<string, NodelActionDefinition>>();
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({
       actions: { setLevel: { node: 'Lighting' } },
@@ -1114,8 +1224,8 @@ describe('nodel-bindings', () => {
     });
 
     await mountBindings();
-    const actionRow = rows('actions')[0];
-    const eventRow = rows('events')[0];
+    const actionRow = rowAt('actions', 0, 'first');
+    const eventRow = rowAt('events', 0, 'first');
     await setInputValue(rowInputs(eventRow).target, 'Sta');
     await waitFor(() => eventRow.querySelectorAll('[data-bindings-option="target"]').length === 1);
     await selectRow(actionRow);
@@ -1136,7 +1246,7 @@ describe('nodel-bindings', () => {
   });
 
   it('clears and ignores an abort-insensitive suggestion after disconnect', async () => {
-    const pendingSuggestion = deferred<Record<string, unknown>>();
+    const pendingSuggestion = deferred<Record<string, NodelActionDefinition>>();
     let suggestionSignal: AbortSignal | null = null;
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting' } }, events: {} });
@@ -1146,19 +1256,20 @@ describe('nodel-bindings', () => {
     });
 
     const bindings = await mountBindings();
-    await selectRow(rows('actions')[0]);
+    await selectRow(rowAt('actions', 0, 'first'));
     document.querySelector<HTMLButtonElement>('[data-bindings-suggest]')?.click();
     await waitFor(() => suggestionSignal !== null);
 
     bindings.remove();
-    expect((suggestionSignal as AbortSignal | null)?.aborted).toBe(true);
-    expect((bindings as any).state.busy).toBe(false);
+    const suggestionRequestSignal = requireAbortSignal(suggestionSignal, 'Expected suggestion request signal to be set');
+    expect(suggestionRequestSignal.aborted).toBe(true);
+    expect(requireBindingsState(bindings).busy).toBe(false);
 
     pendingSuggestion.resolve({ setLevel: { name: 'setLevel', title: 'Set Level' } });
     await flush();
 
-    expect((bindings as any).state.busy).toBe(false);
-    expect((bindings as any).state.message).toBe('');
+    expect(requireBindingsState(bindings).busy).toBe(false);
+    expect(requireBindingsState(bindings).message).toBe('');
   });
 
   it('updates row status from remote binding activity entries', async () => {
@@ -1193,8 +1304,9 @@ describe('nodel-bindings', () => {
     });
     await flush();
 
-    expect(rows('actions')[0].textContent).toContain('Wired');
-    const statusLink = rows('actions')[0].querySelector<HTMLAnchorElement>('.nodel-bindings-status');
+    const actionRow = rowAt('actions', 0, 'first');
+    expect(actionRow.textContent).toContain('Wired');
+    const statusLink = actionRow.querySelector<HTMLAnchorElement>('.nodel-bindings-status');
     expect(statusLink?.getAttribute('href')).toBe('/nodes.html?filter=Display%20%C3%9Cnit#Network');
     expect(statusLink?.getAttribute('aria-label')).toBe('Open Display Ünit in Network nodes');
   });
@@ -1231,8 +1343,9 @@ describe('nodel-bindings', () => {
     });
     await flush();
 
-    expect(rows('actions')[0].textContent).toContain('Unwired');
-    expect(rows('actions')[0].textContent).not.toContain('Empty');
+    const actionRow = rowAt('actions', 0, 'first');
+    expect(actionRow.textContent).toContain('Unwired');
+    expect(actionRow.textContent).not.toContain('Empty');
   });
 
   it('clears stale busy state when reconnected during an abort-insensitive save', async () => {
@@ -1256,8 +1369,8 @@ describe('nodel-bindings', () => {
   });
 
   it('does not replace the reconnected binding model with an abort-insensitive initial load', async () => {
-    const staleSchema = deferred<unknown>();
-    const staleBindings = deferred<unknown>();
+    const staleSchema = deferred<NodelJsonSchema>();
+    const staleBindings = deferred<NodelRemoteBindings>();
     bindingsMock.getNodeRemoteSchema
       .mockImplementationOnce(() => staleSchema.promise)
       .mockResolvedValueOnce(bindingSchema);
@@ -1287,9 +1400,13 @@ describe('nodel-bindings', () => {
     bindingsMock.getLocalRest.mockReturnValue(localRest.promise);
 
     const bindings = await mountBindings();
-    await setInputValue(rowInputs(rows('actions')[0]).target, 'Dim');
+    await setInputValue(rowInputs(rowAt('actions', 0, 'first')).target, 'Dim');
     await waitFor(() => bindingsMock.getLocalRest.mock.calls.length === 1);
-    const sharedSignal = bindingsMock.getLocalRest.mock.calls[0][0].signal as AbortSignal;
+    const sharedRequest = callAt(bindingsMock.getLocalRest.mock.calls, 'getLocalRest call')[0];
+    const sharedSignal = assertDefined(
+      assertDefined(sharedRequest, 'Expected getLocalRest to be called with request options').signal,
+      'Expected local REST request to include an AbortSignal'
+    );
 
     bindings.remove();
 

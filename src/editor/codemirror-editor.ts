@@ -1,7 +1,6 @@
 import { indentLess, indentMore } from '@codemirror/commands';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
-import type { Extension } from '@codemirror/state';
-import { Compartment, EditorState } from '@codemirror/state';
+import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
@@ -95,6 +94,8 @@ export async function languageExtensionForKind(kind: EditorLanguageKind, options
       const { shell } = await import('@codemirror/legacy-modes/mode/shell');
       return StreamLanguage.define(shell);
     }
+    case 'plain':
+      return [];
     default:
       return [];
   }
@@ -202,7 +203,10 @@ export function createNodelCodeEditor(options: NodelCodeEditorOptions): NodelCod
     }
     let extension: Extension;
     try {
-      extension = await languageExtensionForPath(nextPath, { onDiagnostics: options.onDiagnostics, isCurrent: () => !destroyed && request === languageRequest });
+      extension = await languageExtensionForPath(nextPath, {
+        ...(options.onDiagnostics ? { onDiagnostics: options.onDiagnostics } : {}),
+        isCurrent: () => !destroyed && request === languageRequest
+      });
     } catch (error) {
       if (!destroyed && request === languageRequest) {
         options.onError?.(error);

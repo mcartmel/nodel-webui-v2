@@ -49,7 +49,7 @@ export async function linkTemplate(target: Element | string, template: string, d
   const jq = await bootstrapJsViews();
   const compiled = jq.templates(template);
   const linkedTarget = typeof target === 'string' ? jq(target) : jq(target as HTMLElement);
-  compiled.link(linkedTarget as JQuery<HTMLElement>, data, helpersOrContext);
+  compiled.link(linkedTarget, data, helpersOrContext);
   return linkedTarget;
 }
 

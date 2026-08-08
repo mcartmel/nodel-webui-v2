@@ -3,6 +3,11 @@ import '../src/components/nodel-markdown';
 import { sanitizeHtml } from '../src/utils/markdown';
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-markdown', () => {
   let listener: ((state: NodelControlSignalState) => void) | null = null;
   let dispose: ReturnType<typeof vi.fn>;
@@ -60,8 +65,8 @@ describe('nodel-markdown', () => {
 
     expect(span?.textContent).toBe('Overlay');
     expect(span?.hasAttribute('class')).toBe(false);
-    expect(codes[0].getAttribute('class')).toBe('language-typescript');
-    expect(codes[1].hasAttribute('class')).toBe(false);
+    expect(required(codes[0]).getAttribute('class')).toBe('language-typescript');
+    expect(required(codes[1]).hasAttribute('class')).toBe(false);
   });
 
   it('uses constrained overflow tokens and a plain-text empty fallback', async () => {

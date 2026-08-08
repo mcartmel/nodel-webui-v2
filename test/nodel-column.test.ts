@@ -1,6 +1,11 @@
 import '../src/components/nodel-row';
 import '../src/components/nodel-column';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-column responsive spans', () => {
   beforeEach(() => {
     document.body.innerHTML = `
@@ -48,7 +53,7 @@ describe('nodel-column responsive spans', () => {
 
   it('sets bounded responsive order variables and removes them when omitted', async () => {
     document.body.insertAdjacentHTML('beforeend', '<nodel-column order="-2" sm-order="3" md-order="99" 2xl-order="-99">Ordered</nodel-column>');
-    const column = document.querySelectorAll<HTMLElement>('nodel-column')[1];
+    const column = required(document.querySelectorAll<HTMLElement>('nodel-column')[1]);
 
     expect(column.style.getPropertyValue('--nodel-column-order')).toBe('-2');
     expect(column.style.getPropertyValue('--nodel-column-sm-order')).toBe('3');

@@ -10,12 +10,12 @@ export class NodelThemeToggle extends HTMLElement {
     this.appNode = this.closest('nodel-app');
     this.render();
     this.addEventListener('click', this.handleClick);
-    this.appNode?.addEventListener('nodel-theme-change', this.handleThemeChange as EventListener);
+    this.appNode?.addEventListener('nodel-theme-change', this.handleThemeChange);
   }
 
   disconnectedCallback() {
     this.removeEventListener('click', this.handleClick);
-    this.appNode?.removeEventListener('nodel-theme-change', this.handleThemeChange as EventListener);
+    this.appNode?.removeEventListener('nodel-theme-change', this.handleThemeChange);
     this.appNode = null;
   }
 

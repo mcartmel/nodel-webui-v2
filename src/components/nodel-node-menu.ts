@@ -260,7 +260,7 @@ export class NodelNodeMenu extends HTMLElement {
     }
 
     event.preventDefault();
-    void this.renameNode(form);
+    void this.renameNode();
   };
 
   private handleDocumentKeydown = (event: KeyboardEvent) => {
@@ -352,7 +352,7 @@ export class NodelNodeMenu extends HTMLElement {
     document.documentElement.classList.toggle(scrollLockClass, locked);
   }
 
-  private async renameNode(_form: HTMLFormElement) {
+  private async renameNode() {
     const scope = this.lifecycle.current;
     if (!scope) {
       return;

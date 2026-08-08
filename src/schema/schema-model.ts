@@ -144,7 +144,7 @@ export function normalizeSchema(input: NodelJsonSchema | null | undefined): Sche
     if (type.length === 0 || type.some((variant) => !isRecord(variant))) {
       return unsupportedNormalization('Schema variants must be non-empty schema objects.');
     }
-    const variants = type.map((variant) => normalizeSchema(variant as NodelJsonSchema));
+    const variants = type.map((variant) => normalizeSchema(variant));
     const unsupported = variants.find((variant) => variant.unsupportedReason);
     if (unsupported) {
       return unsupportedNormalization(unsupported.unsupportedReason);
@@ -157,6 +157,9 @@ export function normalizeSchema(input: NodelJsonSchema | null | undefined): Sche
       return { schema: { ...input, type: 'null' }, type: 'null', nullable: false, unsupportedReason: '' };
     }
     const selected = concrete[0];
+    if (!selected) {
+      return unsupportedNormalization('Schema variants must include a concrete schema.');
+    }
     const nullable = variants.some((variant) => variant.type === 'null');
     const merged = { ...input, ...selected.schema, type: selected.type } as NodelJsonSchema;
     delete (merged as { type?: unknown }).type;
@@ -281,7 +284,7 @@ function validateMetadata(schema: NodelJsonSchema) {
     if (step !== 'any' && (typeof step === 'number' && (!Number.isFinite(step) || step <= 0))) {
       return 'step must be positive.';
     }
-    if (typeof step === 'string' && step !== 'any' && (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+\-]?\d+)?$/.test(step) || !Number.isFinite(Number(step)) || Number(step) <= 0)) {
+    if (typeof step === 'string' && step !== 'any' && (!/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(step) || !Number.isFinite(Number(step)) || Number(step) <= 0)) {
       return 'step must be a positive number or "any".';
     }
   }
@@ -332,23 +335,24 @@ export function createSchemaForm(schema: NodelJsonSchema | null | undefined, opt
     if (normalized.type === 'object') {
       form.fields = orderedProperties(normalized.schema).map(([key, childSchema]) => buildField(key, childSchema, {
         form,
-        hideKeyLabel: options.hideRootKeyLabels,
+        ...(options.hideRootKeyLabels !== undefined ? { hideKeyLabel: options.hideRootKeyLabels } : {}),
         inObject: false,
         path: `/${escapePointerSegment(key)}`
       }));
     } else {
       form.fields = [buildField('value', normalized.schema, {
         form,
-        hideKeyLabel: options.hideRootKeyLabels,
+        ...(options.hideRootKeyLabels !== undefined ? { hideKeyLabel: options.hideRootKeyLabels } : {}),
         inObject: false,
         path: '',
         normalization: normalized
       })];
     }
   }
-  if (options.initialPresent && form.fields.length === 1) {
-    form.fields[0].present = true;
-    form.fields[0].presenceState = 'value';
+  const rootField = form.fields[0];
+  if (options.initialPresent && form.fields.length === 1 && rootField) {
+    rootField.present = true;
+    rootField.presenceState = 'value';
   }
   form.hasFields = form.fields.some((field) => field.kind !== 'null' || field.present);
   if (form.fields.some(containsUnsupported)) {
@@ -426,7 +430,7 @@ function buildField(key: string, input: NodelJsonSchema | null | undefined, opti
     unsupportedReason: normalized.unsupportedReason,
     unknownProperties: {},
     typeMismatch: false,
-    parent: options.parent,
+    ...(options.parent ? { parent: options.parent } : {}),
     nextEntryOrdinal: 0
   };
   field.controlId = `${field.id}-input`;
@@ -439,7 +443,7 @@ function buildField(key: string, input: NodelJsonSchema | null | undefined, opti
       inObject: true,
       path: `${options.path}/${escapePointerSegment(childKey)}`,
       parent: field,
-      entryBaseId: undefined
+      // Nested fields retain their own stable path-derived IDs.
     }));
   }
   return field;
@@ -547,7 +551,7 @@ function initialValueFor(kind: SchemaFieldKind) {
 function enumOptionsFor(schema: NodelJsonSchema): SchemaEnumOption[] {
   if (!Array.isArray(schema.enum)) return [];
   return schema.enum.map((raw, index) => ({
-    label: raw === null ? 'null' : String(raw),
+    label: raw === null ? 'null' : typeof raw === 'object' ? JSON.stringify(raw) ?? '' : String(raw as string | number | boolean),
     value: `enum-option-${index}`,
     raw
   }));

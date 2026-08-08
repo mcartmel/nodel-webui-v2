@@ -36,15 +36,13 @@ function normalizeConfirmMode(value: string | null | undefined): NodelConfirmMod
 
 export function confirmRequestFromAttributes(element: HTMLElement, defaults: NodelConfirmRequest = {}): NodelConfirmRequest {
   const mode = normalizeConfirmMode(element.getAttribute('confirm-mode') ?? defaults.mode);
-  return {
-    title: element.getAttribute('confirm-title') ?? defaults.title,
-    text: element.getAttribute('confirm-text') ?? element.getAttribute('confirm') ?? defaults.text,
-    confirmLabel: element.getAttribute('confirm-label') ?? defaults.confirmLabel,
-    cancelLabel: element.getAttribute('cancel-label') ?? defaults.cancelLabel,
-    tone: (element.getAttribute('confirm-tone') as NodelToastTone | null) ?? defaults.tone,
-    mode,
-    codeSignal: trimPointReference(element.getAttribute('confirm-code-signal') ?? '') || trimPointReference(defaults.codeSignal ?? '') || (mode === 'code' ? 'ConfirmCode' : undefined)
-  };
+  const title = element.getAttribute('confirm-title') ?? defaults.title;
+  const text = element.getAttribute('confirm-text') ?? element.getAttribute('confirm') ?? defaults.text;
+  const confirmLabel = element.getAttribute('confirm-label') ?? defaults.confirmLabel;
+  const cancelLabel = element.getAttribute('cancel-label') ?? defaults.cancelLabel;
+  const tone = (element.getAttribute('confirm-tone') as NodelToastTone | null) ?? defaults.tone;
+  const codeSignal = trimPointReference(element.getAttribute('confirm-code-signal') ?? '') || trimPointReference(defaults.codeSignal ?? '') || (mode === 'code' ? 'ConfirmCode' : undefined);
+  return { ...(title ? { title } : {}), ...(text ? { text } : {}), ...(confirmLabel ? { confirmLabel } : {}), ...(cancelLabel ? { cancelLabel } : {}), ...(tone ? { tone } : {}), mode, ...(codeSignal ? { codeSignal } : {}) };
 }
 
 export function requestConfirm(element: HTMLElement, request: NodelConfirmRequest, trigger?: Element | null, signal?: AbortSignal): Promise<boolean> {
@@ -80,7 +78,7 @@ export function requestConfirm(element: HTMLElement, request: NodelConfirmReques
     const event = new CustomEvent<NodelConfirmDetail>(NODEL_CONFIRM, {
       bubbles: true,
       cancelable: true,
-      detail: { ...request, trigger: focusTrigger, signal, resolve: finish }
+      detail: { ...request, trigger: focusTrigger, ...(signal ? { signal } : {}), resolve: finish }
     });
 
     handled = !element.dispatchEvent(event);

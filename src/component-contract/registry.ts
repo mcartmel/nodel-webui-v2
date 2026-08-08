@@ -163,7 +163,11 @@ export const historicalElementIndex = Object.freeze(
   }, {})
 );
 
-export const rawNodelDocumentElements: NodelElementDefinition[] = historicalContractOrder.map((name) => historicalElementIndex[name]);
+export const rawNodelDocumentElements: NodelElementDefinition[] = historicalContractOrder.map((name) => {
+  const definition = historicalElementIndex[name];
+  if (!definition) throw new Error(`Missing contract definition while building ordered list for ${name}`);
+  return definition;
+});
 
 function numericMetadataFor(elementName: string, attribute: NodelAttributeDefinition): NodelNumericConstraint | undefined {
   const name = attribute.name;
@@ -197,24 +201,28 @@ function consumptionFor(elementName: string, name: string): { consumption: Attri
 
 function actionBindingsFor(element: NodelElementDefinition): ComponentActionBindingContract[] {
   const bindings = actionBindingMap[element.name] ?? {};
-  return element.attributes.filter((attribute) => bindings[attribute.name]).map((attribute) => ({ attribute: attribute.name, ...bindings[attribute.name] }));
+  return element.attributes.flatMap((attribute) => {
+    const binding = bindings[attribute.name];
+    return binding ? [{ attribute: attribute.name, ...binding }] : [];
+  });
 }
 
 function signalBindingsFor(element: NodelElementDefinition): ComponentSignalBindingContract[] {
   const targets = signalTargetMap[element.name] ?? [];
   const aggregateTargets = new Set(element.aggregateSignalTargets ?? []);
-  return element.attributes.filter((attribute) => attribute.name === 'signal' || attribute.name === 'signals' || attribute.name === 'options-signal' || (attribute.name === 'join' && element.defaultSignalTarget)).map((attribute) => {
+  return element.attributes.filter((attribute) => attribute.name === 'signal' || attribute.name === 'signals' || attribute.name === 'options-signal' || (attribute.name === 'join' && element.defaultSignalTarget)).flatMap((attribute) => {
     if (attribute.name === 'join') {
-      return { attribute: attribute.name, defaultTarget: element.defaultSignalTarget, targets: [{ name: element.defaultSignalTarget!, aggregations: [] }] };
+      const defaultTarget = element.defaultSignalTarget;
+      return defaultTarget ? [{ attribute: attribute.name, defaultTarget, targets: [{ name: defaultTarget, aggregations: [] }] }] : [];
     }
     const bindingTargets = attribute.name === 'options-signal'
       ? ['options']
       : attribute.name === 'signals' && !targets.includes('visibility') ? [...targets, 'visibility'] : targets;
-    return {
+    return [{
       attribute: attribute.name,
       ...(attribute.name !== 'options-signal' && element.defaultSignalTarget ? { defaultTarget: element.defaultSignalTarget } : {}),
       targets: bindingTargets.map((name) => ({ name, aggregations: aggregateTargets.has(name) || name === 'visibility' ? ['any', 'all'] : [] }))
-    };
+    }];
   });
 }
 
@@ -237,7 +245,7 @@ function enrichAttribute(element: NodelElementDefinition, attribute: NodelAttrib
   const { completable, ...canonicalAttribute } = attribute;
   return {
     ...attributeDefaultMetadata[`${element.name}.${attribute.name}`], ...canonicalAttribute,
-    ...(binding ? { valueType: 'binding' as const, syntax: signalSyntax } : optionSignal ? { valueType: 'binding' as const, syntax: 'SignalName[.path]' } : confirmationCodeSignal ? { valueType: 'string' as const, syntax: 'LocalSignalAlias' } : action ? { valueType: 'string' as const, syntax: 'ActionName[:phase][; or , ActionName[:phase] ...]' } : {}),
+    ...(binding ? { valueType: 'binding' as const, syntax: signalSyntax ?? 'SignalName[.path]:target' } : optionSignal ? { valueType: 'binding' as const, syntax: 'SignalName[.path]' } : confirmationCodeSignal ? { valueType: 'string' as const, syntax: 'LocalSignalAlias' } : action ? { valueType: 'string' as const, syntax: 'ActionName[:phase][; or , ActionName[:phase] ...]' } : {}),
     valueType: binding || optionSignal ? 'binding' : confirmationCodeSignal || action ? 'string' : attribute.valueType ?? (attribute.values ? 'enum' : numeric ? (numeric.integer ? 'integer' : 'number') : booleanAttributeNames.has(attribute.name) ? 'boolean' : 'string'),
     ...(numeric ? { numeric } : {}), completion: completable === false ? 'hidden' : completion, lifecycle, ...consumption
   };
@@ -252,8 +260,11 @@ function classify(name: string): { audience: ComponentAudience; registration: Co
 export const componentContracts: ComponentContract[] = rawNodelDocumentElements.map((raw) => {
   const classification = classify(raw.name);
   const element = { ...raw };
-  const { defaultSignalTarget: _defaultSignalTarget, aggregateSignalTargets: _aggregateSignalTargets, ...canonical } = element;
-  return { ...canonical, ...classification, attributes: raw.attributes.map((attribute) => enrichAttribute(element, attribute, classification.completion)), actionBindings: actionBindingsFor(element), signalBindings: signalBindingsFor(element), events: componentEventMap[raw.name] ?? [], ...(compositionMap[raw.name] ? { composition: compositionMap[raw.name] } : {}) };
+  const canonical = { ...element };
+  delete canonical.defaultSignalTarget;
+  delete canonical.aggregateSignalTargets;
+  const composition = compositionMap[raw.name];
+  return { ...canonical, ...classification, attributes: raw.attributes.map((attribute) => enrichAttribute(element, attribute, classification.completion)), actionBindings: actionBindingsFor(element), signalBindings: signalBindingsFor(element), events: componentEventMap[raw.name] ?? [], ...(composition ? { composition } : {}) };
 });
 
 export const componentContractCommonAttributes = commonComponentAttributes;

@@ -1,12 +1,14 @@
 import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { getJQuery } from '../jsviews/jsviews-runtime';
+import { safeText } from '../utils/html';
 import {
   attachSchemaFormContext,
   buildArrayEntry,
   type SchemaArrayEntry,
   type SchemaField,
   type SchemaFormModel,
-  type SchemaPresenceState
+  type SchemaPresenceState,
+  type SchemaValidationIssue
 } from './schema-model';
 import {
   hydrateSchemaFormModel,
@@ -20,7 +22,6 @@ import {
   type SchemaHydrateOptions
 } from './schema-values';
 import { validateSchemaForm } from './schema-validation';
-import type { SchemaValidationIssue } from './schema-model';
 
 export type { SchemaArrayEntry, SchemaEnumOption, SchemaField, SchemaFieldKind, SchemaFormModel, SchemaMapEntry } from './schema-model';
 export { createSchemaForm } from './schema-model';
@@ -255,7 +256,7 @@ export function syncSchemaFormControls(form: SchemaFormModel, root: HTMLElement)
     const control = elements.control;
     if (!control) continue;
     if (control instanceof HTMLInputElement && control.type === 'checkbox') control.checked = field.value === true;
-    else control.value = field.value === null || field.value === undefined ? '' : String(field.value);
+    else control.value = safeText(field.value);
     control.setAttribute('aria-invalid', field.errors.length > 0 ? 'true' : 'false');
     if (field.errors.length > 0) control.setAttribute('aria-describedby', field.errorId);
     else control.removeAttribute('aria-describedby');
@@ -316,7 +317,7 @@ export function handleSchemaFormInput(event: Event, root: HTMLElement, findField
     const arrayField = arrayFieldFor(target, findField);
     const entryId = target.closest<HTMLElement>('[data-schema-array-entry]')?.dataset.schemaArrayEntry;
     const entry = arrayField?.entries.find((candidate) => candidate.id === entryId);
-    const form = (arrayField as (SchemaField & { form?: SchemaFormModel }) | null)?.form;
+    const form: SchemaFormModel | undefined = (arrayField as SchemaField & { form?: SchemaFormModel }).form;
     if (!arrayField || !entry || !form) return false;
     getJQuery().observable(entry).setProperty('nullValue', target.value === 'null');
     arrayField.dirty = true;
@@ -451,6 +452,7 @@ export function moveArrayEntry(field: SchemaField, entryId: string, direction: '
   field.dirty = true;
   const next = [...field.entries];
   const [entry] = next.splice(index, 1);
+  if (!entry) return;
   next.splice(targetIndex, 0, entry);
   getJQuery().observable(field.entries).refresh(syncArrayEntryIndexes(field, next));
   const form = (field as SchemaField & { form?: SchemaFormModel }).form;

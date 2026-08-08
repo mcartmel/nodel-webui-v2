@@ -1,7 +1,11 @@
 const consoleMock = vi.hoisted(() => ({
   dispose: vi.fn(),
   listeners: [] as Array<(state: unknown) => void>,
-  execute: vi.fn(async (_command?: string, _init?: RequestInit) => ({})),
+  execute: vi.fn(async (command?: string, init?: RequestInit) => {
+    void command;
+    void init;
+    return {};
+  }),
   refresh: vi.fn(async () => undefined)
 }));
 
@@ -215,7 +219,8 @@ describe('nodel-console', () => {
 
   it('aborts pending commands on disconnect and renders current command failures', async () => {
     let rejectCommand!: (error: Error) => void;
-    consoleMock.execute.mockImplementationOnce((_command?: string, init?: RequestInit) => new Promise((_, reject) => {
+    consoleMock.execute.mockImplementationOnce((command?: string, init?: RequestInit) => new Promise((_, reject) => {
+      void command;
       rejectCommand = reject;
       init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
     }));

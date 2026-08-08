@@ -154,7 +154,7 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
 
   const markLoaded = (state: ReturnType<typeof getState>) => {
     state.status = 'loaded';
-    state.promise = undefined;
+    delete state.promise;
     for (const element of state.instances) removeFallback(state, element);
     state.instances.clear();
   };
@@ -196,7 +196,7 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
       markLoaded(state);
     }).catch((cause: unknown) => {
       state.status = 'failed';
-      state.promise = undefined;
+      delete state.promise;
       if (disposed) {
         for (const element of state.instances) removeInstance(state, element);
         throw errorForTag(tagName, cause);
@@ -213,7 +213,7 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
     setRetryDisabled(tagName, true);
     if (state.status === 'failed') {
       state.status = 'idle';
-      state.promise = undefined;
+      delete state.promise;
     }
     const promise = startLoad(tagName);
     return promise.catch((error: unknown) => {
@@ -288,5 +288,5 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
 }
 
 const productionLoader = createNodelComponentLoader();
-export const loadNodelComponent = productionLoader.loadNodelComponent;
-export const bootstrapNodelComponentLoader = productionLoader.bootstrapNodelComponentLoader;
+export const loadNodelComponent = productionLoader.loadNodelComponent.bind(productionLoader);
+export const bootstrapNodelComponentLoader = productionLoader.bootstrapNodelComponentLoader.bind(productionLoader);

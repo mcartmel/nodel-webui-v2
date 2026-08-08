@@ -4,6 +4,11 @@ import '../src/components/nodel-page';
 import '../src/components/nodel-toolbar';
 import { flush, waitFor } from './helpers';
 
+function required<T>(value: T | null | undefined): T {
+  if (value == null) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-page activation actions', () => {
   const callAction = vi.fn();
   let restoreRuntime: (() => void) | null = null;
@@ -35,18 +40,18 @@ describe('nodel-page activation actions', () => {
   }
 
   function deferred() {
-    let reject!: (error: unknown) => void;
+    let reject: ((error: unknown) => void) | undefined;
     const promise = new Promise<void>((_resolve, nextReject) => {
       reject = nextReject;
     });
-    return { promise, reject };
+    return { promise, reject: (error: unknown) => required(reject)(error) };
   }
 
   it('invokes the initial page once with the V1 empty-object payload', async () => {
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
 
-    expect(callAction.mock.calls[0].slice(0, 2)).toEqual(['OpenOverview', {}]);
+    expect(required(callAction.mock.calls[0]).slice(0, 2)).toEqual(['OpenOverview', {}]);
   });
 
   it('activates the startup hash page and later hash navigation', async () => {
@@ -89,7 +94,7 @@ describe('nodel-page activation actions', () => {
   it('does not reactivate merely because the same app reconnects', async () => {
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
-    const app = document.querySelector('nodel-app')!;
+    const app = required(document.querySelector('nodel-app'));
     app.remove();
     document.body.append(app);
     await flush();
@@ -101,7 +106,7 @@ describe('nodel-page activation actions', () => {
   it('activates a valid hash selected while the app was disconnected', async () => {
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
-    const app = document.querySelector('nodel-app')!;
+    const app = required(document.querySelector('nodel-app'));
     app.remove();
     window.history.replaceState(undefined, '', '/#Details');
     document.body.append(app);
@@ -116,7 +121,7 @@ describe('nodel-page activation actions', () => {
     callAction.mockReturnValue(pending.promise);
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
-    const app = document.querySelector('nodel-app')!;
+    const app = required(document.querySelector('nodel-app'));
     app.remove();
     document.body.append(app);
     pending.reject(new Error('stale failure'));
@@ -131,7 +136,7 @@ describe('nodel-page activation actions', () => {
     let resolveFirst!: () => void;
     callAction.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveFirst = resolve; }));
     document.body.innerHTML = '<nodel-page actions="Prepare; Present"></nodel-page>';
-    const page = document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page')!;
+    const page = required(document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page'));
     const activation = page.activate();
     await waitFor(() => callAction.mock.calls.length === 1);
 
@@ -181,7 +186,7 @@ describe('nodel-page activation actions', () => {
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('Present failed'));
     document.body.innerHTML = '<nodel-page actions="Prepare; Present"></nodel-page>';
-    const page = document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page')!;
+    const page = required(document.querySelector<HTMLElement & { activate(): Promise<void> }>('nodel-page'));
     const error = vi.fn();
     const toast = vi.fn();
     page.addEventListener('nodel-page-action-error', error);
@@ -190,7 +195,7 @@ describe('nodel-page activation actions', () => {
     await page.activate();
 
     expect(error).toHaveBeenCalledTimes(1);
-    expect(error.mock.calls[0][0].detail).toMatchObject({
+    expect(required(error.mock.calls[0])[0].detail).toMatchObject({
       action: 'Prepare',
       phase: 'activate',
       results: [
@@ -200,6 +205,6 @@ describe('nodel-page activation actions', () => {
       failures: [{ action: 'Present', phase: 'activate', ok: false, error: 'Present failed' }]
     });
     expect(toast).toHaveBeenCalledTimes(1);
-    expect(toast.mock.calls[0][0].detail.detail).toContain('Present failed');
+    expect(required(toast.mock.calls[0])[0].detail.detail).toContain('Present failed');
   });
 });

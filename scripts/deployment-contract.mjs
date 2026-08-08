@@ -82,7 +82,7 @@ export async function loadDeploymentManifest(manifestPath, { fs = fsApi } = {}) 
     text = await fs.readFile(path, 'utf8');
     manifest = JSON.parse(text);
   } catch (error) {
-    throw new Error(`Cannot read deployment manifest ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Cannot read deployment manifest ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
   if (!sameKeys(manifest, ['schemaVersion', 'artifact', 'v1', 'java']) || manifest.schemaVersion !== 1
     || !isRecord(manifest.artifact) || !isRecord(manifest.v1) || !isRecord(manifest.java)) {
@@ -291,7 +291,7 @@ function javascriptReferenceValues(content) {
     }
     const wordEnd = index + 6;
     if (content.slice(index, wordEnd) === 'import' && !isJavaScriptIdentifierCharacter(content[index - 1]) && !isJavaScriptIdentifierCharacter(content[wordEnd])) {
-      let cursor = skipJavaScriptSpace(content, wordEnd);
+      const cursor = skipJavaScriptSpace(content, wordEnd);
       if (content[cursor] === '(') {
         const string = readJavaScriptString(content, skipJavaScriptSpace(content, cursor + 1));
         if (string && isLocalJavaScriptModuleReference(string.value)) values.push(string.value);
@@ -448,7 +448,7 @@ async function git(checkout, args) {
   try {
     return await execFileAsync('git', ['-C', checkout, ...args], { encoding: 'utf8' });
   } catch (error) {
-    throw new Error(`Invalid Java checkout ${checkout}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Invalid Java checkout ${checkout}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 

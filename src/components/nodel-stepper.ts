@@ -14,8 +14,6 @@ import { accessibleLabelText, syncInternalAccessibleLabel } from '../utils/acces
 import { trimPointReference } from '../utils/edge-whitespace';
 import { formatPlainNumber, normalizeFromList, normalizeTone, normalizeVariant, truthy, type ControlArgType } from '../utils/control-values';
 
-type StepperRepeat = 'hold' | 'off';
-type StepperReadout = 'show' | 'hide';
 type StepperArgType = Extract<ControlArgType, 'number' | 'string' | 'json'>;
 
 const argTypes: StepperArgType[] = ['number', 'string', 'json'];
@@ -123,7 +121,7 @@ export class NodelStepper extends HTMLElement {
     const variant = normalizeVariant(this.getAttribute('variant'));
     const tone = normalizeTone(this.getAttribute('tone'));
     const disabled = this.hasAttribute('disabled');
-    const readout = normalizeFromList(this.getAttribute('readout'), ['show', 'hide'] as const, 'show' as StepperReadout);
+    const readout = normalizeFromList(this.getAttribute('readout'), ['show', 'hide'] as const, 'show');
     const accessibleLabel = accessibleLabelText(this);
 
     this.dataset.variant = variant;
@@ -156,7 +154,7 @@ export class NodelStepper extends HTMLElement {
     const bindings = parseActionBindings({ action: this.getAttribute('action'), actions: this.getAttribute('actions'), join: this.getAttribute('join'), defaultPhase: 'commit' });
     const action = actionName(bindings, trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''));
     const directionPhase = direction === 1 ? 'increase' : direction === -1 ? 'decrease' : null;
-    const phases = committed
+    const phases: [string, ...string[]] = committed
       ? ['commit', ...(directionPhase ? [directionPhase] : [])]
       : ['live'];
     const scope = this.actionController.captureScope();
@@ -248,7 +246,7 @@ export class NodelStepper extends HTMLElement {
 
   private dispatchChange(value: number, committed: boolean, direction: -1 | 1 | 0, payload: Record<string, unknown>, results: unknown[] = []) {
     const directionPhase = direction === 1 ? 'increase' : direction === -1 ? 'decrease' : null;
-    const phases = committed
+    const phases: [string, ...string[]] = committed
       ? ['commit', ...(directionPhase ? [directionPhase] : [])]
       : ['live'];
     this.dispatchEvent(new CustomEvent('nodel-stepper-change', { bubbles: true, detail: { action: trimPointReference(this.getAttribute('action') ?? '') || trimPointReference(this.getAttribute('join') ?? ''), phase: phases[0], phases, value, committed, live: !committed, direction, arg: payload.arg, payload, results, failures: [] } }));
@@ -260,7 +258,7 @@ export class NodelStepper extends HTMLElement {
     }
     event.preventDefault();
     const nextValue = this.currentValue() + this.step() * direction;
-    if (normalizeFromList(this.getAttribute('repeat'), ['hold', 'off'] as const, 'hold' as StepperRepeat) === 'off') {
+    if (normalizeFromList(this.getAttribute('repeat'), ['hold', 'off'] as const, 'hold') === 'off') {
       this.repeatStartValue = this.getAttribute('value');
       void this.setValue(nextValue, direction, true);
       this.clearRepeat();

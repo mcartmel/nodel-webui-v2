@@ -59,7 +59,7 @@ const hostLogInitialPageSize = 200;
 const hostLogIncrementalPageSize = 200;
 
 function formatTimestamp(timestamp: unknown) {
-  const value = String(timestamp ?? '');
+  const value = safeText(timestamp);
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString();
 }
@@ -144,7 +144,8 @@ export class NodelHostLog extends HTMLElement {
           throw new DOMException('Aborted', 'AbortError');
         }
         const chronological = [...entries].reverse();
-        const nextSeq = chronological.length > 0 ? Math.max(this.seq ?? 0, chronological[chronological.length - 1].seq + 1) : (this.seq ?? 0);
+        const lastEntry = chronological.at(-1);
+        const nextSeq = lastEntry ? Math.max(this.seq ?? 0, lastEntry.seq + 1) : (this.seq ?? 0);
 
         return {
           entries: chronological,
@@ -212,3 +213,4 @@ export class NodelHostLog extends HTMLElement {
 if (!customElements.get('nodel-host-log')) {
   customElements.define('nodel-host-log', NodelHostLog);
 }
+import { safeText } from '../utils/html';

@@ -181,7 +181,7 @@ describe('nodel-data-runtime', () => {
     const data = [{ nested: { labels: ['original'] }, date }];
     const source = registerNodelOneShotSource<typeof data>({ key: uniqueKey(), fetcher: async () => data });
     let snapshot: typeof data | null = null;
-    const first = source.subscribe(createPage(false).host, (state) => {
+    const firstSubscription = source.subscribe(createPage(false).host, (state) => {
       if (!state.data) {
         return;
       }
@@ -195,19 +195,24 @@ describe('nodel-data-runtime', () => {
     });
 
     await waitFor(() => received.length > 0);
-    expect(snapshot).not.toBeNull();
-    expect(Object.isFrozen(snapshot)).toBe(true);
-    expect(Object.isFrozen(snapshot![0])).toBe(true);
-    expect(Object.isFrozen(snapshot![0].nested)).toBe(true);
-    expect(Object.isFrozen(snapshot![0].nested.labels)).toBe(true);
-    expect(Object.isFrozen(snapshot![0].date)).toBe(false);
-    expect(() => snapshot![0].nested.labels.push('changed')).toThrow();
+    const snapshotData: typeof data | null = snapshot;
+    if (snapshotData === null) throw new Error('Expected snapshot to be present');
+    expect(snapshotData).not.toBeNull();
+    expect(Object.isFrozen(snapshotData)).toBe(true);
+    const firstEntryCandidate = snapshotData[0];
+    if (firstEntryCandidate === undefined) throw new Error('Expected snapshot entry to be present');
+    const firstEntry: typeof data[number] = firstEntryCandidate;
+    expect(Object.isFrozen(firstEntry)).toBe(true);
+    expect(Object.isFrozen(firstEntry.nested)).toBe(true);
+    expect(Object.isFrozen(firstEntry.nested.labels)).toBe(true);
+    expect(Object.isFrozen(firstEntry.date)).toBe(false);
+    expect(() => firstEntry.nested.labels.push('changed')).toThrow();
     expect(() => {
-      snapshot![0].nested = { labels: [] };
+      firstEntry.nested = { labels: [] };
     }).toThrow();
-    expect(received.at(-1)?.[0].nested.labels).toEqual(['original']);
-    expect(source.getState().data?.[0].nested.labels).toEqual(['original']);
-    first.dispose();
+    expect(received.at(-1)?.[0]?.nested.labels).toEqual(['original']);
+    expect(source.getState().data?.[0]?.nested.labels).toEqual(['original']);
+    firstSubscription.dispose();
     second.dispose();
   });
 
@@ -253,8 +258,7 @@ describe('nodel-data-runtime', () => {
     const source = registerNodelOneShotSource<string>({ key: uniqueKey(), fetcher });
     let disposeDuringEmit = false;
     let refreshDuringEmit = false;
-    let subscription!: ReturnType<typeof source.subscribe>;
-    subscription = source.subscribe(createPage(false).host, () => {
+    const subscription = source.subscribe(createPage(false).host, () => {
       if (refreshDuringEmit) {
         refreshDuringEmit = false;
         void source.refresh();

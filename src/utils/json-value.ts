@@ -33,7 +33,8 @@ export function validateJsonValueBounds(value: unknown): JsonValueBoundsFailure 
     if (seen.has(current)) return { issue: 'cyclic', path };
 
     const isArray = Array.isArray(current);
-    const prototype = Object.getPrototypeOf(current);
+    const objectValue: object = current;
+    const prototype: unknown = Object.getPrototypeOf(objectValue);
     if (isArray ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
       return { issue: 'prototype', path };
     }

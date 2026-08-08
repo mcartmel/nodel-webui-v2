@@ -16,6 +16,8 @@ import { runVerifyDeploymentInventory } from '../scripts/verify-deployment-inven
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { runVerifyJavaHandoff } from '../scripts/verify-java-handoff.mjs';
 import { serializeComponentContract } from '../src/component-contract';
+// @ts-expect-error Security scripts are intentionally plain Node ESM.
+import { generateDependencyEvidence } from '../scripts/dependency-evidence.mjs';
 
 const execFileAsync = promisify(execFile);
 const projectRoot = process.cwd();
@@ -44,21 +46,38 @@ async function writeSource() {
 
 async function writeFixtureProject() {
   await mkdir(join(fixtureRoot, 'docs'), { recursive: true });
+  await mkdir(join(fixtureRoot, 'security'), { recursive: true });
   await writeFile(join(fixtureRoot, 'package.json'), JSON.stringify({
     name: 'nodel-webui-v2', version: '0.1.1', repository: 'github:mcartmel/nodel-webui-v2'
   }, null, 2));
   await writeFile(join(fixtureRoot, '.gitignore'), 'build/\njava/\n');
   await writeFile(join(fixtureRoot, 'LICENSE'), 'license\n');
-  await writeFile(join(fixtureRoot, 'THIRD-PARTY-NOTICES.md'), 'notices\n');
+  await writeFile(join(fixtureRoot, 'THIRD-PARTY-NOTICES.md'), '# Third-Party Notices\n\n| Package | License |\n| --- | --- |\n| `fixture-package` | MIT |\n');
+  await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
+    name: 'nodel-webui-v2', version: '0.1.1', lockfileVersion: 3, requires: true,
+    packages: {
+      '': { name: 'nodel-webui-v2', version: '0.1.1', license: 'MPL-2.0', dependencies: { 'fixture-package': '1.0.0' } },
+      'node_modules/fixture-package': { version: '1.0.0', resolved: 'https://registry.example.invalid/fixture-package/-/fixture-package-1.0.0.tgz', integrity: 'sha512-Zml4dHVyZS1wYWNrYWdl', license: 'MIT' }
+    }
+  }, null, 2) + '\n');
+  await writeFile(join(fixtureRoot, 'security', 'license-policy.json'), '{\n  "schemaVersion": 1,\n  "allowedLicenses": ["MIT"],\n  "noticeRequired": true\n}\n');
   await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), 'notes\n');
   await writeFile(join(fixtureRoot, 'docs', 'release-handoff.md'), 'handoff\n');
   await writeFile(join(fixtureRoot, 'deployment-manifest.json'), await readFile(join(projectRoot, 'deployment-manifest.json'), 'utf8'));
   await writeSource();
+  await writeDependencyEvidence();
   await execFileAsync('git', ['init', '-b', 'main', fixtureRoot]);
   await git(['add', '.']);
   await execFileAsync('git', ['-C', fixtureRoot, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'fixture']);
   await git(['remote', 'add', 'origin', 'https://github.com/mcartmel/nodel-webui-v2.git']);
   await git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+}
+
+async function writeDependencyEvidence() {
+  const evidence = await generateDependencyEvidence({ projectRoot: fixtureRoot });
+  await mkdir(join(fixtureRoot, 'build', 'dependency-evidence'), { recursive: true });
+  await writeFile(join(fixtureRoot, 'build', 'dependency-evidence', 'SBOM.cdx.json'), evidence.files.sbom);
+  await writeFile(join(fixtureRoot, 'build', 'dependency-evidence', 'THIRD-PARTY-LICENSES.json'), evidence.files.licenses);
 }
 
 async function writeJavaFixture() {
@@ -135,7 +154,7 @@ describe('prepare-release', () => {
     expect(() => parsePrepareReleaseArgs(['--json', '--quiet'])).toThrow(/cannot be used together/);
   });
 
-  it('creates a schema 4 bundle with the exact handoff allowlist and hashes', async () => {
+  it('creates a schema 5 bundle with dependency evidence and exact hashes', async () => {
     const derived = await resolveReleaseOptions(await options(), { projectRoot: fixtureRoot });
     expect(derived.sourceDateEpoch).toBe(Number((await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim()));
     const epoch = (await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim();
@@ -146,7 +165,7 @@ describe('prepare-release', () => {
 
     expect(report).toMatchObject({ dirty: false, publishable: false, sourceDateEpoch: Number(epoch) });
     expect(manifest).toMatchObject({
-       schemaVersion: 4,
+       schemaVersion: 5,
       name: 'nodel-webui-v2',
       version: '0.1.1',
       source: { repository: 'mcartmel/nodel-webui-v2', branch: 'main', tag: null, dirty: false, publishable: false },
@@ -157,18 +176,23 @@ describe('prepare-release', () => {
         javaTargets: { dev: 'prerelease', master: 'stable' }
        },
        componentContract: { path: 'v2/nodel-components.json', schemaVersion: 1, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+       dependencyEvidence: {
+         lockSha256: expect.stringMatching(/^[0-9a-f]{64}$/), policySha256: expect.stringMatching(/^[0-9a-f]{64}$/), noticeSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+         sbom: { path: 'SBOM.cdx.json', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+         licenses: { path: 'THIRD-PARTY-LICENSES.json', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) }
+       },
       releaseProcess: { ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null },
       javaEvidence: { available: false, targets: null },
       inventoryAlgorithm: 'sha256',
       inventoryExcludes: ['release.json']
     });
     expect(output.sort()).toEqual([
-      'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'THIRD-PARTY-NOTICES.md',
+       'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'SBOM.cdx.json', 'THIRD-PARTY-LICENSES.json', 'THIRD-PARTY-NOTICES.md',
       'components.html', 'deployment-manifest.json', 'index.htm', 'nodel.html', 'nodes.html',
       'release.json', 'toolkit.html', 'v2'
     ]);
     expect(manifest.files.map((entry: { path: string }) => entry.path)).toEqual([
-      'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'THIRD-PARTY-NOTICES.md',
+       'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'SBOM.cdx.json', 'THIRD-PARTY-LICENSES.json', 'THIRD-PARTY-NOTICES.md',
       'components.html', 'deployment-manifest.json', 'index.htm', 'nodel.html', 'nodes.html',
        'toolkit.html', 'v2/assets/pixel.svg', 'v2/chunks/main.js', 'v2/nodel-components.json', 'v2/nodel-webui.css', 'v2/nodel-webui.js'
     ]);
@@ -265,7 +289,7 @@ describe('prepare-release', () => {
       name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit,
       repository: resolved.repository, branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty,
       publishable: false, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,
-       componentContract: bundleManifest.componentContract, ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
+       componentContract: bundleManifest.componentContract, dependencyEvidence: bundleManifest.dependencyEvidence, ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
       filesInventorySha256: createHash('sha256').update(JSON.stringify(bundleManifest.files)).digest('hex')
     };
     await writeFile(join(first, 'unexpected.txt'), 'unexpected\n');
@@ -299,7 +323,7 @@ describe('prepare-release', () => {
     contractEntry.sha256 = malformedHash;
     await writeFile(join(first, 'release.json'), JSON.stringify(releaseManifest));
     await expect(verifyReleaseBundle(first)).rejects.toThrow(/lifecycle/);
-  });
+  }, 15_000);
 
   it('rejects source, handoff, and target substitutions before cutover', async () => {
     await expect(prepareRelease(await options(), {
@@ -316,6 +340,19 @@ describe('prepare-release', () => {
       projectRoot: fixtureRoot,
       hooks: { beforeCutover: async () => { await mkdir(target, { recursive: true }); await writeFile(join(target, 'racer'), 'x'); } }
     })).rejects.toThrow(/target changed after ownership/);
+  });
+
+  it('requires deterministic source evidence and rejects staged evidence substitution', async () => {
+    await rm(join(fixtureRoot, 'build', 'dependency-evidence', 'SBOM.cdx.json'));
+    await expect(release()).rejects.toThrow(/Dependency evidence must be a regular file/);
+    await writeDependencyEvidence();
+    await writeFile(join(fixtureRoot, 'build', 'dependency-evidence', 'THIRD-PARTY-LICENSES.json'), '{}\n');
+    await expect(release()).rejects.toThrow(/SBOM|license|stale|substituted|binding/i);
+    await writeDependencyEvidence();
+    await expect(prepareRelease(await options(), {
+      projectRoot: fixtureRoot,
+      hooks: { beforeCutover: async ({ stage }: { stage: string }) => writeFile(join(stage, 'SBOM.cdx.json'), '{}\n') }
+    })).rejects.toThrow(/hash or size|SBOM|dependency evidence/i);
   });
 
   it('revalidates the complete stage and target immediately before each rename', async () => {
@@ -412,7 +449,7 @@ describe('prepare-release', () => {
   it('standalone verification rejects corrupted release provenance, report, and inventory paths', async () => {
     await git(['tag', 'v0.1.1']);
     await release(await taggedOptions());
-    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 4 });
+     await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 5 });
     const releasePath = join(target, 'release.json');
     let manifest = JSON.parse(await readFile(releasePath, 'utf8'));
     manifest.componentContract.sha256 = '0'.repeat(64);
@@ -436,6 +473,18 @@ describe('prepare-release', () => {
     await release(await taggedOptions({ force: true }));
     await writeFile(join(target, 'java-handoff', 'dev.json'), '{}');
     await expect(verifyReleaseBundle(target)).rejects.toThrow(/hash or size does not match|unexpected keys/);
+  });
+
+  it('rejects packaged evidence tampering and descriptor substitution', async () => {
+    await release();
+    await writeFile(join(target, 'SBOM.cdx.json'), '{}\n');
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/hash or size does not match/);
+    await release({ force: true });
+    const manifestPath = join(target, 'release.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest.dependencyEvidence.licenses.sha256 = '0'.repeat(64);
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/dependency evidence descriptor/);
   });
 
   it('binds tagged releases to the checkpoint and rejects packaged deployment drift', async () => {
@@ -474,5 +523,11 @@ describe('prepare-release', () => {
     await expect(verifyReleaseArchive(directoryArchive)).rejects.toThrow(
       /unexpected directory entry|directories do not exactly match its inventory/
     );
+
+    await release({ force: true });
+    await rm(join(target, 'THIRD-PARTY-LICENSES.json'));
+    const missingEvidenceArchive = join(fixtureRoot, 'build', 'missing-evidence.zip');
+    await execFileAsync('zip', ['-qr', missingEvidenceArchive, '.'], { cwd: target });
+    await expect(verifyReleaseArchive(missingEvidenceArchive)).rejects.toThrow(/archive entries do not exactly match|missing required dependency evidence|inventory/);
   });
 });

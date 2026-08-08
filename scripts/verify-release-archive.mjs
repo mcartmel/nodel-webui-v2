@@ -63,7 +63,7 @@ async function inspectedEntries(archive) {
       execFileAsync('zipinfo', ['-v', archive], { encoding: 'utf8', env: zipinfoEnvironment() })
     ]);
   } catch (error) {
-    throw new Error(`Cannot safely inspect release archive: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Cannot safely inspect release archive: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
   const lines = names.stdout.split(/\r?\n/);
   if (lines.at(-1) === '') lines.pop();

@@ -11,13 +11,18 @@ import { NodelPage } from '../src/components/nodel-page';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+function required<T>(value: T | undefined | null, description: string): T {
+  if (value === undefined || value === null) throw new Error(`Missing ${description}`);
+  return value;
+}
+
 describe('component contract', () => {
   it('has explicit classifications, consumption, structured controls, and stable styles', () => {
-    const page = componentContracts.find((element) => element.name === 'nodel-page')!;
-    const button = componentContracts.find((element) => element.name === 'nodel-button')!;
-    const pad = componentContracts.find((element) => element.name === 'nodel-pad')!;
-    const link = componentContracts.find((element) => element.name === 'nodel-link')!;
-    const host = componentContracts.find((element) => element.name === 'nodel-toast-host')!;
+    const page = required(componentContracts.find((element) => element.name === 'nodel-page'), 'page contract');
+    const button = required(componentContracts.find((element) => element.name === 'nodel-button'), 'button contract');
+    const pad = required(componentContracts.find((element) => element.name === 'nodel-pad'), 'pad contract');
+    const link = required(componentContracts.find((element) => element.name === 'nodel-link'), 'link contract');
+    const host = required(componentContracts.find((element) => element.name === 'nodel-toast-host'), 'toast host contract');
     expect(page.attributes.find((attribute) => attribute.name === 'title')).toMatchObject({ consumption: 'parent', lifecycle: 'initialization', consumer: 'nodel-app' });
     expect((NodelPage as typeof NodelPage & { observedAttributes?: string[] }).observedAttributes ?? []).toEqual(['action', 'actions', 'arg', 'arg-type']);
     expect(page.actionBindings).toEqual(expect.arrayContaining([{ attribute: 'action', phases: ['activate'], defaultPhase: 'activate' }, { attribute: 'actions', phases: ['activate'], defaultPhase: 'activate' }]));
@@ -51,17 +56,20 @@ describe('component contract', () => {
 
   it('rejects invalid contract data with deterministic addressed errors', () => {
     const document = structuredClone(componentContractDocument('1.2.3'));
-    document.elements[0].name = 'bad name';
-    document.elements[1].name = 'bad name';
-    document.elements[0].attributes[0].values = ['same', 'same'];
-    document.elements[0].attributes[0].valueType = 'string';
-    document.elements[0].attributes[0].numeric = { min: 2, max: 1 };
-    document.elements[0].attributes[0].defaultValue = '0';
-    document.elements[0].attributes[0].consumer = 'nodel-missing';
-    document.elements[0].registration = 'auto-host';
-    document.elements[0].audience = 'custom';
-    document.elements[0].completion = 'recommended';
-    document.elements[0].attributes[0].description = undefined as never;
+    const first = required(document.elements[0], 'first element');
+    const second = required(document.elements[1], 'second element');
+    const firstAttribute = required(first.attributes[0], 'first attribute');
+    first.name = 'bad name';
+    second.name = 'bad name';
+    firstAttribute.values = ['same', 'same'];
+    firstAttribute.valueType = 'string';
+    firstAttribute.numeric = { min: 2, max: 1 };
+    firstAttribute.defaultValue = '0';
+    firstAttribute.consumer = 'nodel-missing';
+    first.registration = 'auto-host';
+    first.audience = 'custom';
+    first.completion = 'recommended';
+    Reflect.defineProperty(firstAttribute, 'description', { value: undefined, enumerable: true, configurable: true, writable: true });
     const errors = validateComponentContract(document);
     expect(errors).toEqual([...errors].sort((a, b) => a.localeCompare(b)));
     expect(errors.join('\n')).toContain('elements[0].name: invalid element name');
@@ -73,15 +81,17 @@ describe('component contract', () => {
 
   it('validates structured bindings, event detail, styles, and plain JSON objects', () => {
     const document = structuredClone(componentContractDocument('1.2.3'));
-    const button = document.elements.find((element) => element.name === 'nodel-button')!;
-    button.actionBindings.push({ ...button.actionBindings[0] });
-    button.actionBindings[0].phases = [];
-    const signals = button.signalBindings.find((binding) => binding.attribute === 'signals')!;
+    const button = required(document.elements.find((element) => element.name === 'nodel-button'), 'button contract');
+    const action = required(button.actionBindings[0], 'button action binding');
+    button.actionBindings.push({ attribute: action.attribute, phases: [...action.phases], ...(action.defaultPhase === undefined ? {} : { defaultPhase: action.defaultPhase }) });
+    action.phases = [];
+    const signals = required(button.signalBindings.find((binding) => binding.attribute === 'signals'), 'signals binding');
     signals.defaultTarget = 'missing';
-    signals.targets[0].aggregations.push('any');
+    required(signals.targets[0], 'active signal target').aggregations.push('any');
     button.events.push({ name: 'nodel-test', description: 'test', bubbles: true, composed: true, detailFields: ['value', 'value'] });
-    document.styles.stateClasses.push({ ...document.styles.semanticClasses[0] });
-    Object.setPrototypeOf(button.attributes[0], null);
+    const semanticStyle = required(document.styles.semanticClasses[0], 'semantic style');
+    document.styles.stateClasses.push({ name: semanticStyle.name, description: semanticStyle.description });
+    Object.setPrototypeOf(required(button.attributes[0], 'button attribute'), null);
     const errors = validateComponentContract(document);
     expect(errors).toEqual([...errors].sort((a, b) => a.localeCompare(b)));
     expect(errors).toEqual(expect.arrayContaining([
@@ -96,9 +106,9 @@ describe('component contract', () => {
 
   it('rejects invalid value-type defaults and empty enum declarations', () => {
     const document = structuredClone(componentContractDocument('1.2.3'));
-    const button = document.elements.find((element) => element.name === 'nodel-button')!;
-    button.attributes.find((attribute) => attribute.name === 'disabled')!.defaultValue = 'maybe';
-    button.attributes.find((attribute) => attribute.name === 'variant')!.values = [];
+    const button = required(document.elements.find((element) => element.name === 'nodel-button'), 'button contract');
+    required(button.attributes.find((attribute) => attribute.name === 'disabled'), 'disabled attribute').defaultValue = 'maybe';
+    required(button.attributes.find((attribute) => attribute.name === 'variant'), 'variant attribute').values = [];
     expect(validateComponentContract(document)).toEqual(expect.arrayContaining([
       'elements[10].attributes[0].values: must not be empty',
       'elements[10].attributes[11].defaultValue: boolean default must be true or false'
@@ -106,7 +116,7 @@ describe('component contract', () => {
   });
 
   it('removes phantom node-list attributes while preserving legacy projections', () => {
-    const nodeList = findNodelElement('nodel-node-list')!;
+    const nodeList = required(findNodelElement('nodel-node-list'), 'node-list element');
     expect(nodeList.attributes.map((attribute) => attribute.name)).not.toEqual(expect.arrayContaining(['show-filter', 'show-total']));
     expect(nodelDocumentElements.map((element) => element.name)).toEqual(componentContracts.map((element) => element.name));
     expect(getEffectiveCatalogueAttributes('nodel-button').filter((attribute) => attribute.name === 'signals')).toHaveLength(1);
@@ -124,9 +134,9 @@ describe('component contract', () => {
     const before = componentContractDocument('1.2.3');
     const after = structuredClone(before);
     after.elements = after.elements.filter((element) => element.name !== 'nodel-clock');
-    const button = after.elements.find((element) => element.name === 'nodel-button')!;
+    const button = required(after.elements.find((element) => element.name === 'nodel-button'), 'button contract');
     button.attributes = button.attributes.filter((attribute) => attribute.name !== 'active');
-    button.attributes.find((attribute) => attribute.name === 'variant')!.values!.push('new-tone');
+    required(required(button.attributes.find((attribute) => attribute.name === 'variant'), 'variant attribute').values, 'variant values').push('new-tone');
     button.registration = 'lazy';
     button.completion = 'advanced';
     after.styles.semanticClasses = after.styles.semanticClasses.filter((style) => style.name !== 'nodel-button');
@@ -141,7 +151,7 @@ describe('component contract', () => {
     const before = componentContractDocument('1.2.3');
     const after = structuredClone(before);
     after.commonAttributes = after.commonAttributes.filter((attribute) => attribute.name !== 'visibility');
-    const repeat = after.elements.find((element) => element.name === 'nodel-template')!.attributes.find((attribute) => attribute.name === 'repeat')!;
+    const repeat = required(required(after.elements.find((element) => element.name === 'nodel-template'), 'template contract').attributes.find((attribute) => attribute.name === 'repeat'), 'repeat attribute');
     repeat.numeric = { ...repeat.numeric, min: 2 };
     repeat.completion = 'hidden';
     repeat.consumption = 'parent';
@@ -155,21 +165,21 @@ describe('component contract', () => {
     ]));
 
     const widened = structuredClone(before);
-    widened.elements.find((element) => element.name === 'nodel-template')!.attributes.find((attribute) => attribute.name === 'repeat')!.numeric = undefined;
+    delete required(required(widened.elements.find((element) => element.name === 'nodel-template'), 'template contract').attributes.find((attribute) => attribute.name === 'repeat'), 'repeat attribute').numeric;
     expect(diffComponentContracts(before, widened).breaking).not.toContain('elements.nodel-template.attributes.repeat.numeric: narrowed');
   });
 
   it('classifies catalogue, derived default, composition, event, and style-category changes', () => {
     const before = componentContractDocument('1.2.3');
     const after = structuredClone(before);
-    const button = after.elements.find((element) => element.name === 'nodel-button')!;
+    const button = required(after.elements.find((element) => element.name === 'nodel-button'), 'button contract');
     button.catalogue = false;
-    button.attributes.find((attribute) => attribute.name === 'variant')!.defaultDescription = 'Different derived behavior.';
-    const space = after.elements.find((element) => element.name === 'nodel-control-space')!;
-    space.composition!.requiredParent = 'nodel-row';
-    const appEvent = after.elements.find((element) => element.name === 'nodel-app')!.events[0];
+    required(button.attributes.find((attribute) => attribute.name === 'variant'), 'variant attribute').defaultDescription = 'Different derived behavior.';
+    const space = required(after.elements.find((element) => element.name === 'nodel-control-space'), 'control-space contract');
+    required(space.composition, 'control-space composition').requiredParent = 'nodel-row';
+    const appEvent = required(required(after.elements.find((element) => element.name === 'nodel-app'), 'app contract').events[0], 'app event');
     appEvent.description = 'Updated prose.';
-    const style = after.styles.semanticClasses.shift()!;
+    const style = required(after.styles.semanticClasses.shift(), 'semantic style');
     after.styles.stateClasses.push(style);
     const diff = diffComponentContracts(before, after);
     expect(diff.breaking).toEqual(expect.arrayContaining([

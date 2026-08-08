@@ -488,7 +488,8 @@ export class NodelActSig extends HTMLElement {
       }
       const end = Math.min(index + materializeChunkSize, forms.length);
       for (; index < end; index += 1) {
-        this.materializeForm(forms[index]);
+        const form = forms[index];
+        if (form) this.materializeForm(form);
       }
 
       if (index < forms.length) {
@@ -815,7 +816,7 @@ export class NodelActSig extends HTMLElement {
         bubbles: true,
         detail: {
           id: copyToastId,
-          message: `${pointLabel[0].toUpperCase()}${pointLabel.slice(1)} name copied`,
+          message: `${pointLabel.charAt(0).toUpperCase()}${pointLabel.slice(1)} name copied`,
           detail: form.name,
           tone: 'success'
         }

@@ -49,7 +49,7 @@ export function validateField(field: SchemaField): SchemaValidationIssue[] {
       return issues;
     }
     try {
-      const parsed = JSON.parse(field.value);
+      const parsed: unknown = JSON.parse(field.value);
       if (validateJsonValueBounds(parsed)) issues.push(issue(field, 'Enter a safe, bounded JSON value.'));
     } catch {
       issues.push(issue(field, 'Enter a valid JSON value.'));

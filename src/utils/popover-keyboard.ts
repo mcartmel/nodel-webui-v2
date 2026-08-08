@@ -34,6 +34,7 @@ export function moveActivePopoverOption(container: ParentNode | null, optionSele
   }
 
   const active = options[nextIndex];
+  if (!active) return null;
   active.classList.add(activeClass);
   active.scrollIntoView?.({ block: 'nearest' });
   return active;

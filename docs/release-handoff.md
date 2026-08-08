@@ -103,7 +103,7 @@ the stable entry pages, `v2/**` support tree, V1 protected ownership and
 collision policy, generated-path cleanliness exception, and the Java branch
 mapping (`dev` prerelease, `master` stable).
 
-`release.json` schema 4 is the exact release identity and artifact inventory.
+`release.json` schema 5 (superseding schema 4) is the exact release identity and artifact inventory.
 It includes `releaseProcess` (CI run URL, environment name, and the canonical
 `dist` inventory SHA-256 digest) and normalized, hash-pinned Java handoff
 evidence. Its `componentContract` entry pins `v2/nodel-components.json`, public
@@ -114,6 +114,15 @@ source commit and version. It must compare the package against
 `deployment-manifest.json`, merge the V2 additions, and preserve all V1 files
 by default. The `index.htm` collision is the exception: changing its default
 `preserve-v1` decision requires recorded approval.
+
+Before release preparation, run `npm run verify:audit`, `npm run generate:sbom`,
+and `npm run generate:licenses` (or the equivalent Node script commands). These
+write source-generated evidence below `build/dependency-evidence/`; release
+preparation fails if either artifact is missing, stale, substituted, or not
+bound to the exact lockfile, license policy, and notices. The release root
+contains `SBOM.cdx.json` and `THIRD-PARTY-LICENSES.json`, and `release.json`
+records their exact descriptors and hashes. Archive verification validates the
+same evidence and bindings.
 
 The future Java flow must preserve all V1 files by default.
 
@@ -137,6 +146,8 @@ toolkit.html
 v2/                         # complete V2 tree, including nodel-components.json and hashed chunks/assets
 release.json                # exact identity and hashed artifact inventory
 deployment-manifest.json    # policy/integration mapping
+SBOM.cdx.json               # deterministic production CycloneDX evidence
+THIRD-PARTY-LICENSES.json   # deterministic production license evidence
 PRODUCTION_HANDOFF.md       # operator handoff copy of this runbook
 RELEASE_NOTES.md
 LICENSE

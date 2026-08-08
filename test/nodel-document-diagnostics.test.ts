@@ -1,4 +1,4 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { diagnoseNodelDocument, NODEL_DIAGNOSTIC_LIMITS } from '../src/editor/nodel-document-diagnostics';
 import { languageExtensionForKind } from '../src/editor/codemirror-editor';
@@ -67,15 +67,18 @@ describe('Nodel document diagnostics', () => {
   });
 
   it('stops at the node bound instead of traversing later invalid content', async () => {
-    const prefix = '<i></i>'.repeat(1_000);
+    const nestedElements = NODEL_DIAGNOSTIC_LIMITS.maxNodes + 100;
+    const prefix = `${'<i>'.repeat(nestedElements)}x${'</i>'.repeat(nestedElements)}`;
     expect(prefix.length).toBeLessThan(NODEL_DIAGNOSTIC_LIMITS.maxDocumentLength);
     const text = `${prefix}<nodel-button variant="not-real" />`;
     const state = EditorState.create({ doc: text, extensions: [await languageExtensionForKind('html')] });
-    ensureSyntaxTree(state, state.doc.length, 10_000);
+    const tree = ensureSyntaxTree(state, state.doc.length, 10_000);
+    expect(tree).not.toBeNull();
+    if (!tree) throw new Error('Expected the complete diagnostic syntax tree');
     let nodeCount = 0;
-    syntaxTree(state).iterate({ enter() { nodeCount += 1; } });
+    tree.iterate({ enter() { nodeCount += 1; } });
     expect(nodeCount).toBeGreaterThan(NODEL_DIAGNOSTIC_LIMITS.maxNodes);
-    const result = diagnoseNodelDocument(state);
+    const result = diagnoseNodelDocument(state, tree);
     expect(result.summary.truncated).toBe(true);
     expect(result.summary.errors).toBe(0);
   });

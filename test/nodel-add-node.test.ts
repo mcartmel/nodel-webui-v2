@@ -26,6 +26,13 @@ vi.mock('jsviews', async (importOriginal) => {
 import '../src/components/nodel-add-node';
 import { refreshAddNodeRecipes } from '../src/features/add-node';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error('Expected test value to be present');
+  }
+  return value;
+}
+
 async function openAddNodePanel(markup = '<nodel-add-node redirect="false"></nodel-add-node>') {
   document.body.innerHTML = markup;
   await customElements.whenDefined('nodel-add-node');
@@ -321,7 +328,7 @@ describe('nodel-add-node', () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      calls.push({ url, init });
+      calls.push(init === undefined ? { url } : { url, init });
 
       if (url === '/REST/recipes/list') {
         return new Response(JSON.stringify([{ path: 'Recipes/Starter' }]), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
@@ -606,7 +613,7 @@ describe('nodel-add-node', () => {
         return new Response(Uint8Array.from([0, 255, 1]), { status: 200 }) as never;
       }
       if (url.includes('/nodes/ConfiguredCopy/REST/files/save?path=')) {
-        saves.push(decodeURIComponent(url.split('path=')[1]));
+        saves.push(decodeURIComponent(required(url.split('path=')[1])));
         expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
         return new Response('{}', { status: 200 }) as never;
       }

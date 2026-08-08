@@ -157,7 +157,7 @@ function nextPageSize(current: number): number {
   if (index === -1 || index === pageSizes.length - 1) {
     return current;
   }
-  return pageSizes[index + 1];
+  return pageSizes[index + 1] ?? current;
 }
 
 export class NodelNodeList extends HTMLElement {

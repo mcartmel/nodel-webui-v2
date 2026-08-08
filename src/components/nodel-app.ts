@@ -17,10 +17,11 @@ import {
   type NodeRestartWatcher
 } from '../data/node-restart-source';
 import { NODEL_TOAST, type NodelToastDetail, type NodelToastHost } from './nodel-toast-host';
-import './nodel-confirm-host';
-import type { NodelConfirmHostElement } from './nodel-confirm-host';
-import './nodel-connectivity-host';
 import { normalizeOfflineMode, type NodelConnectivityHostElement } from './nodel-connectivity-host';
+import './nodel-confirm-host';
+// Keep the type-only import next to the registration side effect.
+
+import type { NodelConfirmHostElement } from './nodel-confirm-host';
 import {
   NODEL_NAVIGATION_CHANGE,
   NODEL_NAV_SELECT,
@@ -574,7 +575,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
           const refresh = element.refreshAfterRestart;
           return Promise.resolve(refresh ? refresh.call(element, context) : undefined);
         } catch (error) {
-          return Promise.reject(error);
+          return Promise.reject(error instanceof Error ? error : new Error(String(error)));
         }
         })()
       }));
@@ -587,11 +588,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     const sourceRefreshTargets = [
       {
         label: 'Console',
-        refresh: Promise.resolve().then(() => refreshNodeConsoleForRestart({ signal, force: true }))
+        refresh: Promise.resolve().then(() => refreshNodeConsoleForRestart({ ...(signal ? { signal } : {}), force: true }))
       },
       {
         label: 'Activity',
-        refresh: Promise.resolve().then(() => refreshNodeActivityForRestart({ signal, force: true }))
+        refresh: Promise.resolve().then(() => refreshNodeActivityForRestart({ ...(signal ? { signal } : {}), force: true }))
       }
     ];
     const sourceResults = await Promise.allSettled(sourceRefreshTargets.map((target) => target.refresh));
@@ -599,8 +600,14 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       return;
     }
 
-    const refreshOutcomes = refreshResults.map((result, index) => normalizeRestartRefreshOutcome(refreshTargets[index].label, result));
-    const sourceOutcomes = sourceResults.map((result, index) => normalizeSourceRefreshOutcome(sourceRefreshTargets[index].label, result));
+    const refreshOutcomes = refreshResults.flatMap((result, index) => {
+      const target = refreshTargets[index];
+      return target ? [normalizeRestartRefreshOutcome(target.label, result)] : [];
+    });
+    const sourceOutcomes = sourceResults.flatMap((result, index) => {
+      const target = sourceRefreshTargets[index];
+      return target ? [normalizeSourceRefreshOutcome(target.label, result)] : [];
+    });
     const viewFailures = refreshOutcomes.filter((outcome) => outcome.result.status === 'failed'
       || outcome.result.status === 'aborted'
       || outcome.result.status === 'superseded');

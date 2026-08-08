@@ -51,7 +51,7 @@ export function createActivityAccumulator<T>(listener: FlushListener<T>, options
       pending.delete(item.key);
       pending.set(item.key, item);
       while (pending.size > maxItems) {
-        const firstKey = pending.keys().next().value as string | undefined;
+        const firstKey = pending.keys().next().value;
         if (firstKey === undefined) {
           break;
         }

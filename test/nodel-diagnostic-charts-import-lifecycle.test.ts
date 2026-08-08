@@ -53,6 +53,6 @@ describe('nodel-diagnostic-charts import lifecycle', () => {
 
     expect(chartImportMock.Chart).toHaveBeenCalledOnce();
     expect(charts.querySelectorAll('canvas[data-diagnostic-chart]')).toHaveLength(1);
-    expect(chartImportMock.instances[0].destroy).not.toHaveBeenCalled();
+     expect(chartImportMock.instances[0]?.destroy).not.toHaveBeenCalled();
   });
 });

@@ -38,7 +38,7 @@ export class NodelToolbar extends HTMLElement {
   private actionsNode: HTMLElement | null = null;
 
   connectedCallback() {
-    this.appNode = this.closest('nodel-app') as NavigationAppElement | null;
+    this.appNode = this.closest('nodel-app');
     this.appSignalTitle = this.appNode?.getSignalTitle?.() ?? null;
     this.render();
     void this.loadDefaultTitle();

@@ -1,5 +1,10 @@
 import { createNodelComponentLoader } from '../src/nodel-component-loader';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test value to be present');
+  return value;
+}
+
 let sequence = 0;
 
 function tagName() {
@@ -90,7 +95,7 @@ describe('nodel component loader', () => {
     await vi.waitFor(() => expect(document.querySelectorAll('.nodel-component-fallback')).toHaveLength(2));
     expect(importer).toHaveBeenCalledTimes(1);
     expect(events).toHaveLength(1);
-    expect(events[0].detail.message).toContain('chunk-context');
+    expect(required(events[0]).detail.message).toContain('chunk-context');
     loader.dispose();
   });
 
@@ -113,7 +118,7 @@ describe('nodel component loader', () => {
     document.body.innerHTML = `<${tag}></${tag}><${tag}></${tag}>`;
     await vi.waitFor(() => expect(document.querySelectorAll('.nodel-component-fallback')).toHaveLength(2));
     const retries = [...document.querySelectorAll<HTMLButtonElement>(`[data-nodel-component-retry="${tag}"]`)];
-    retries[0].click();
+    required(retries[0]).click();
     expect(retries.every((button) => button.disabled)).toBe(true);
     await vi.waitFor(() => expect(importer).toHaveBeenCalledTimes(2));
     resolveRetry?.();
@@ -148,7 +153,7 @@ describe('nodel component loader', () => {
     document.body.append(document.createElement(failedTag), document.createElement(failedTag));
     await vi.waitFor(() => expect(document.querySelectorAll(`[data-nodel-component-retry="${failedTag}"]`)).toHaveLength(2));
     const retries = [...document.querySelectorAll<HTMLButtonElement>(`[data-nodel-component-retry="${failedTag}"]`)];
-    retries[0].click();
+    required(retries[0]).click();
     expect(retries.every((button) => button.disabled)).toBe(true);
     await vi.waitFor(() => expect(retries.every((button) => !button.disabled)).toBe(true));
     expect(document.querySelectorAll('.nodel-component-fallback')).toHaveLength(2);

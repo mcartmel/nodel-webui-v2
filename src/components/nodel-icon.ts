@@ -71,7 +71,7 @@ export class NodelIcon extends HTMLElement {
     }
 
     this.innerHTML = `
-      <span class="nodel-icon-glyph">${renderFontAwesomeIcon(iconForName(name, uiIcons.image)!, 'h-full w-full')}</span>
+      <span class="nodel-icon-glyph">${renderFontAwesomeIcon(iconForName(name, uiIcons.image), 'h-full w-full')}</span>
     `;
   }
 

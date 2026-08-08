@@ -12,6 +12,13 @@ import {
 import { isBinaryFile, isEditableFile, languageKindForPath, validateNodeFilePath } from '../src/editor/file-types';
 import { copyNodeFileReadCapability, MAX_NODE_FILE_PATH_LENGTH, canonicalNodeFilePath, portableNodeFilePathKey } from '../src/utils/node-file-path';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error('Expected test value to be present');
+  }
+  return value;
+}
+
 describe('node file api and utilities', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -268,7 +275,7 @@ describe('node file api and utilities', () => {
 
     const [entry] = await listNodeFiles();
     expect(entry).toMatchObject({ path: legacyPath, compatibility: 'legacy' });
-    await expect(getNodeFileContents(entry)).resolves.toBe('legacy text');
+    await expect(getNodeFileContents(required(entry))).resolves.toBe('legacy text');
     expect(fetchMock).toHaveBeenCalledWith(`REST/files/contents?path=content%2Flegacy%3Aback%5Cline%0Aname.txt`, expect.any(Object));
 
     fetchMock.mockClear();
@@ -296,14 +303,15 @@ describe('node file api and utilities', () => {
     vi.stubGlobal('fetch', fetchMock);
     const [entry] = await listNodeFiles();
 
-    expect(Object.isFrozen(entry)).toBe(true);
-    expect(() => { (entry as { path: string }).path = 'content/retargeted.txt'; }).toThrow();
-    expect(() => copyNodeFileReadCapability(entry, { path: 'content/retargeted.txt', compatibility: 'legacy' })).toThrow('cannot be copied');
-    const copied = copyNodeFileReadCapability(entry, { ...entry });
+    const listedEntry = required(entry);
+    expect(Object.isFrozen(listedEntry)).toBe(true);
+    expect(() => { (listedEntry as { path: string }).path = 'content/retargeted.txt'; }).toThrow();
+    expect(() => copyNodeFileReadCapability(listedEntry, { path: 'content/retargeted.txt', compatibility: 'legacy' })).toThrow('cannot be copied');
+    const copied = copyNodeFileReadCapability(listedEntry, { ...listedEntry });
     expect(Object.isFrozen(copied)).toBe(true);
     await expect(getNodeFileContents(copied)).resolves.toBe('legacy text');
     fetchMock.mockClear();
-    await expect(getNodeFileContents({ ...entry })).rejects.toThrow('exact listed entry');
+    await expect(getNodeFileContents({ ...listedEntry })).rejects.toThrow('exact listed entry');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -319,8 +327,9 @@ describe('node file api and utilities', () => {
 
     const [entry] = await listNodeFiles();
     expect(entry).toMatchObject({ path, compatibility: 'legacy' });
-    expect(customUiEntriesFromFiles([entry])).toEqual([]);
-    await expect(getNodeFileContents(entry)).rejects.toThrow('not portable');
+    const listedEntry = required(entry);
+    expect(customUiEntriesFromFiles([listedEntry])).toEqual([]);
+    await expect(getNodeFileContents(listedEntry)).rejects.toThrow('not portable');
     await expect(saveNodeFile(path, 'changed')).rejects.toThrow('not portable');
     await expect(deleteNodeFile(path)).rejects.toThrow('not portable');
     expect(fetchMock).toHaveBeenCalledTimes(1);

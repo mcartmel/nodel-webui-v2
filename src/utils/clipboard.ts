@@ -35,6 +35,7 @@ export async function copyTextToClipboard(value: string) {
   }
 
   if (!copied) {
-    throw fallbackError ?? modernError ?? new Error('Clipboard access unavailable');
+    const error = fallbackError ?? modernError;
+    throw error instanceof Error ? error : new Error('Clipboard access unavailable', { cause: error });
   }
 }

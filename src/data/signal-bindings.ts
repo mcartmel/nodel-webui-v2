@@ -51,7 +51,7 @@ function formatSignalValue(value: unknown) {
     return String(value);
   }
 
-  return JSON.stringify(value, null, 2) ?? String(value);
+  return JSON.stringify(value, null, 2) ?? '';
 }
 
 function isMatchingSignal(entry: NodelActivityLogEntry, signal: string) {
@@ -166,10 +166,11 @@ function parseTarget(value: string): { target: string; mode: SignalBindingMode }
     return { target: value.trim(), mode: 'last' };
   }
 
-  return {
-    target: modeMatch[1].trim(),
-    mode: asciiToken(modeMatch[2]) as SignalBindingMode
-  };
+  const target = modeMatch[1];
+  const mode = modeMatch[2];
+  return target && mode
+    ? { target: target.trim(), mode: asciiToken(mode) as SignalBindingMode }
+    : { target: value.trim(), mode: 'last' };
 }
 
 function parseSignalBindingList(value: string | null, defaultTarget?: string): SignalBinding[] {

@@ -142,8 +142,9 @@ describe('add-node recipe cache', () => {
     await expect(first).rejects.toMatchObject({ name: 'AbortError' });
     await expect(second).resolves.toEqual([{ path: 'Recipes/Independent' }]);
     expect(signals[0]).not.toBe(signals[1]);
-    expect(signals[0].aborted).toBe(true);
-    expect(signals[1].aborted).toBe(false);
+    const [firstSignal, secondSignal] = signals;
+    expect(firstSignal?.aborted).toBe(true);
+    expect(secondSignal?.aborted).toBe(false);
   });
 
   it('does not let an older abort-insensitive refresh replace newer cached data', async () => {

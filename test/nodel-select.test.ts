@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({ callNodeAction: vi.fn() }));
 const activityMock = vi.hoisted(() => ({ listeners: [] as Array<(state: any) => void>, dispose: vi.fn() }));
 
@@ -48,22 +53,22 @@ describe('nodel-select', () => {
     expect(select.dataset.variant).toBe('primary');
     expect(select.querySelector('.nodel-select-value')?.textContent).toBe('HDMI 2');
     expect(select.querySelector('.nodel-select-panel')?.querySelectorAll('nodel-button')).toHaveLength(2);
-    expect(document.querySelectorAll('nodel-button')[1].hasAttribute('active')).toBe(true);
-    const selectedButton = document.querySelectorAll('nodel-button button')[1];
+    expect(required(document.querySelectorAll('nodel-button')[1]).hasAttribute('active')).toBe(true);
+    const selectedButton = required(document.querySelectorAll('nodel-button button')[1]);
     expect(selectedButton.getAttribute('role')).toBe('option');
     expect(selectedButton.getAttribute('aria-selected')).toBe('true');
     expect(selectedButton.hasAttribute('aria-pressed')).toBe(false);
     const options = Array.from(select.querySelectorAll<HTMLElement>('nodel-button'));
-    expect(options[1].getAttribute('variant')).toBe('primary');
-    expect(options[1].getAttribute('tone')).toBe('soft');
+    expect(required(options[1]).getAttribute('variant')).toBe('primary');
+    expect(required(options[1]).getAttribute('tone')).toBe('soft');
 
     select.setAttribute('value', 'HDMI 1');
-    expect(options[0].hasAttribute('active')).toBe(true);
-    expect(options[0].getAttribute('variant')).toBe('primary');
-    expect(options[0].getAttribute('tone')).toBe('soft');
-    expect(options[1].hasAttribute('active')).toBe(false);
-    expect(options[1].hasAttribute('variant')).toBe(false);
-    expect(options[1].hasAttribute('tone')).toBe(false);
+    expect(required(options[0]).hasAttribute('active')).toBe(true);
+    expect(required(options[0]).getAttribute('variant')).toBe('primary');
+    expect(required(options[0]).getAttribute('tone')).toBe('soft');
+    expect(required(options[1]).hasAttribute('active')).toBe(false);
+    expect(required(options[1]).hasAttribute('variant')).toBe(false);
+    expect(required(options[1]).hasAttribute('tone')).toBe(false);
   });
 
   it('preserves explicitly authored option appearance after selection moves', async () => {
@@ -80,11 +85,11 @@ describe('nodel-select', () => {
     const options = Array.from(select.querySelectorAll<HTMLElement>('nodel-button'));
     select.setAttribute('value', 'B');
 
-    expect(options[0].hasAttribute('active')).toBe(false);
-    expect(options[0].getAttribute('variant')).toBe('danger');
-    expect(options[0].getAttribute('tone')).toBe('outline');
-    expect(options[1].getAttribute('variant')).toBe('primary');
-    expect(options[1].getAttribute('tone')).toBe('soft');
+    expect(required(options[0]).hasAttribute('active')).toBe(false);
+    expect(required(options[0]).getAttribute('variant')).toBe('danger');
+    expect(required(options[0]).getAttribute('tone')).toBe('outline');
+    expect(required(options[1]).getAttribute('variant')).toBe('primary');
+    expect(required(options[1]).getAttribute('tone')).toBe('soft');
   });
 
   it('makes the first native select option tabbable when opened without a selected value', async () => {
@@ -184,7 +189,7 @@ describe('nodel-select', () => {
     const select = document.querySelector('nodel-select') as HTMLElement;
     select.querySelector('.nodel-select-trigger')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(select.hasAttribute('open')).toBe(true);
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await flush();
 
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetSource', { arg: 'HDMI 2' });
@@ -205,7 +210,7 @@ describe('nodel-select', () => {
 
     expect(actionMock.callNodeAction).not.toHaveBeenCalled();
     expect(select.getAttribute('value')).toBeNull();
-    expect(error.mock.calls[0][0].detail.error).toBe('Invalid JSON argument');
+    expect(required(error.mock.calls[0])[0].detail.error).toBe('Invalid JSON argument');
   });
 
   it('ignores stale failed selections after a newer select succeeds', async () => {
@@ -227,8 +232,8 @@ describe('nodel-select', () => {
     const select = document.querySelector('nodel-select') as HTMLElement;
     const error = vi.fn();
     select.addEventListener('nodel-select-error', error);
-    document.querySelectorAll('nodel-button button')[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    document.querySelectorAll('nodel-button button')[1].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(document.querySelectorAll('nodel-button button')[0]).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(document.querySelectorAll('nodel-button button')[1]).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await flush();
 
     expect(select.getAttribute('value')).toBe('B');
@@ -284,7 +289,7 @@ describe('nodel-select', () => {
     expect(select.dataset.optionsState).toBe('ready');
     expect(options.map((option) => `${option.getAttribute('value')}:${option.textContent}`)).toEqual(['hdmi1:HDMI 1', 'hdmi2:HDMI 2']);
 
-    options[1].querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    required(options[1]).querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     await flush();
 
     expect(actionMock.callNodeAction).toHaveBeenCalledWith('SetSource', { arg: 'hdmi2' });

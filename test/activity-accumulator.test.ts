@@ -1,6 +1,21 @@
 import { createActivityAccumulator } from '../src/data/activity-accumulator';
 
 describe('activity-accumulator', () => {
+  type MockFn = ReturnType<typeof vi.fn>;
+
+  function getArrayValue<T>(values: readonly T[], index: number, label: string): T {
+    const value = index >= 0 ? values[index] : values.at(index);
+    if (value === undefined) {
+      throw new Error(`Expected ${label}`);
+    }
+    return value;
+  }
+
+  function getMockCallArg<T>(mockFn: MockFn, callIndex: number, argIndex: number, label: string): T {
+    const call = getArrayValue(mockFn.mock.calls, callIndex, `${label} call`);
+    return getArrayValue(call, argIndex, `${label} call ${callIndex} argument`);
+  }
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -20,7 +35,7 @@ describe('activity-accumulator', () => {
     vi.advanceTimersByTime(100);
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0][0]).toEqual([
+    expect(getMockCallArg<Array<{ key: string; value: { seq: number }; changed: boolean; live: boolean }>>(listener, 0, 0, 'coalescing flush callback')).toEqual([
       { key: 'local_action_power', value: { seq: 2 }, changed: true, live: true },
       { key: 'remote_event_level', value: { seq: 3 }, changed: true, live: true }
     ]);
@@ -37,7 +52,7 @@ describe('activity-accumulator', () => {
     accumulator.enqueue({ key: 'local_event_a', value: { seq: 3 }, changed: true, live: true });
     vi.advanceTimersByTime(100);
 
-    expect(listener.mock.calls[0][0].map((item: { value: { seq: number } }) => item.value.seq)).toEqual([2, 3]);
+    expect(getMockCallArg<Array<{ value: { seq: number } }>>(listener, 0, 0, 'ordering flush callback').map((item) => item.value.seq)).toEqual([2, 3]);
   });
 
   it('caps pending activity and retains the newest queued keys', () => {
@@ -51,6 +66,6 @@ describe('activity-accumulator', () => {
 
     expect(accumulator.size()).toBe(3);
     vi.advanceTimersByTime(100);
-    expect(listener.mock.calls[0][0].map((item: { value: { seq: number } }) => item.value.seq)).toEqual([3, 4, 5]);
+    expect(getMockCallArg<Array<{ value: { seq: number } }>>(listener, 0, 0, 'cap overflow flush callback').map((item) => item.value.seq)).toEqual([3, 4, 5]);
   });
 });

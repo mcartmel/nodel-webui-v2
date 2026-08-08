@@ -2,6 +2,11 @@ import { flush, waitFor } from './helpers';
 import type { NodelFileEntry } from '../src/api/nodel-types';
 import { cancelNodeRestartExpectation, getNodeRestartExpectation } from '../src/data/node-restart-source';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test value to be present');
+  return value;
+}
+
 const editorApiMock = vi.hoisted(() => ({
   files: [
     { path: 'content/index.html' },
@@ -19,11 +24,12 @@ const editorApiMock = vi.hoisted(() => ({
   deleteNodeFile: vi.fn()
 }));
 
-const codeEditorMock = vi.hoisted(() => ({
+  const codeEditorMock = vi.hoisted(() => ({
   currentDoc: '',
   options: null as null | { onChange?: (text: string) => void; onSave?: () => void; onDiagnostics?: (summary: { enabled: boolean; errors: number; warnings: number; truncated: boolean }) => void },
   instance: {
-    setDocument: vi.fn((text: string, _path?: string) => {
+    setDocument: vi.fn((text: string, path?: string) => {
+      void path;
       codeEditorMock.currentDoc = text;
     }),
     getDocument: vi.fn(() => codeEditorMock.currentDoc),
@@ -260,7 +266,7 @@ describe('nodel-editor', () => {
     await waitFor(() => (editor as any).scriptReloadState === 'pending');
 
     expect(confirmations[0]?.title).toBe('Overwrite existing file?');
-    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[0])[0]).toBe('script.py');
     expect(editorApiMock.getNodeRestartStatus).toHaveBeenCalledWith(
       { timestamp: null, timeout: 0 },
       expect.any(Object)
@@ -945,7 +951,7 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => requests.length === 1);
 
-    expect(requests[0].title).toBe('Overwrite existing file?');
+    expect(required(requests[0]).title).toBe('Overwrite existing file?');
     expect(editorApiMock.saveNodeFile).not.toHaveBeenCalled();
     resolveOverwrite(false);
     await flush();
@@ -972,7 +978,7 @@ describe('nodel-editor', () => {
     resolveOverwrite(true);
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
     expect(upload.text).toHaveBeenCalledOnce();
-    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('content/index.html');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[0])[0]).toBe('content/index.html');
   });
 
   it('rejects oversized local files before reading or saving them', async () => {
@@ -1400,7 +1406,7 @@ describe('nodel-editor', () => {
     input.dispatchEvent(new InputEvent('input', { bubbles: true }));
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
-    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[0])[0]).toBe('script.py');
   });
 
   it('uses literal identity when normalization-distinct legacy files coexist', async () => {
@@ -1548,7 +1554,7 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
 
-    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('content/foo.txt');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[0])[0]).toBe('content/foo.txt');
     expect(codeEditorMock.currentDoc).toBe('replacement');
     expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
   });
@@ -1603,7 +1609,7 @@ describe('nodel-editor', () => {
     codeEditorMock.options?.onChange?.(codeEditorMock.currentDoc);
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 2);
-    expect(editorApiMock.saveNodeFile.mock.calls[1][1]).toBe('<nodel-app>second save</nodel-app>');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[1])[1]).toBe('<nodel-app>second save</nodel-app>');
   });
 
   it('revalidates metadata-free binary size after delete confirmation', async () => {
@@ -1641,7 +1647,7 @@ describe('nodel-editor', () => {
     document.querySelector<HTMLButtonElement>('[data-editor-save]')?.click();
     await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
 
-    expect(editorApiMock.saveNodeFile.mock.calls[0][0]).toBe('script.py');
+    expect(required(editorApiMock.saveNodeFile.mock.calls[0])[0]).toBe('script.py');
     expect(codeEditorMock.currentDoc).toBe('print("hello")');
     expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
   });

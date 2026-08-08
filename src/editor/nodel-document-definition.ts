@@ -1,6 +1,5 @@
 import type { AttrSpec, ElementSpec } from '@codemirror/lang-xml';
-import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete';
-import { snippetCompletion } from '@codemirror/autocomplete';
+import { snippetCompletion, type Completion, type CompletionContext, type CompletionResult, type CompletionSource } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
 import {
@@ -65,7 +64,7 @@ function attributesFor(tagName: string) {
 }
 
 function attrSpec(attribute: typeof commonNodelAttributes[number], global = false): AttrSpec {
-  return { name: attribute.name, values: attribute.values ?? undefined, global, completion: { detail: attributeDetail(attribute), type: 'property' } };
+  return { name: attribute.name, ...(attribute.values ? { values: attribute.values } : {}), global, completion: { detail: attributeDetail(attribute), type: 'property' } };
 }
 
 const htmlExtraTags = Object.fromEntries(nodelDocumentElements.filter((element) => element.completion !== 'hidden').map((element) => [element.name, { attrs: Object.fromEntries(attributesFor(element.name).map((attribute) => [attribute.name, attribute.values ?? null])) }]));
@@ -105,12 +104,12 @@ function documentContext(context: CompletionContext): DocumentContext | null {
   const valueNode = ancestor(treeNode, 'AttributeValue');
   const attrNode = ancestor(valueNode ?? treeNode, 'Attribute');
   const attrNameNode = attrNode ? child(attrNode, 'AttributeName') : null;
-  if (!attrNameNode) return { tag, tagNameNode: tagNode ?? undefined, tagName };
-  if (!valueNode) return { tag, tagNameNode: tagNode ?? undefined, tagName, attribute: context.state.sliceDoc(attrNameNode.from, attrNameNode.to), attributeFrom: attrNameNode.from };
+  if (!attrNameNode) return { tag, ...(tagNode ? { tagNameNode: tagNode } : {}), tagName };
+  if (!valueNode) return { tag, ...(tagNode ? { tagNameNode: tagNode } : {}), tagName, attribute: context.state.sliceDoc(attrNameNode.from, attrNameNode.to), attributeFrom: attrNameNode.from };
   const raw = context.state.sliceDoc(valueNode.from, Math.min(context.pos, valueNode.to));
   const startsQuoted = raw[0] === '"' || raw[0] === "'";
   const valueFrom = valueNode.from + (startsQuoted ? 1 : 0);
-  return { tag, tagNameNode: tagNode ?? undefined, tagName, attribute: context.state.sliceDoc(attrNameNode.from, attrNameNode.to), attributeFrom: attrNameNode.from, valueFrom, valueText: context.state.sliceDoc(valueFrom, context.pos).replace(/["']$/, '') };
+  return { tag, ...(tagNode ? { tagNameNode: tagNode } : {}), tagName, attribute: context.state.sliceDoc(attrNameNode.from, attrNameNode.to), attributeFrom: attrNameNode.from, valueFrom, valueText: context.state.sliceDoc(valueFrom, context.pos).replace(/["']$/, '') };
 }
 
 function valueRange(context: CompletionContext, from: number) {
@@ -144,13 +143,13 @@ function signalCompletions(context: CompletionContext, value: string, from: numb
   const openParen = targetText.indexOf('(');
   const options = openParen >= 0
     ? (binding.targets.find((target) => target.name === aggregate)?.aggregations ?? []).map((item) => ({ label: item, type: 'constant', apply: item }))
-    : binding.targets.map((target) => ({ label: target.name, type: 'property', detail: target.aggregations.length ? 'supports any/all aggregation' : undefined, apply: target.name }));
+    : binding.targets.map((target) => ({ label: target.name, type: 'property', ...(target.aggregations.length ? { detail: 'supports any/all aggregation' } : {}), apply: target.name }));
   return { ...valueRange(context, openParen >= 0 ? from + colon + 1 + openParen + 1 : targetStart), options };
 }
 
 function classCompletions(context: CompletionContext, value: string, from: number): CompletionResult {
   let tokenStart = value.length;
-  while (tokenStart > 0 && !/\s/.test(value[tokenStart - 1])) tokenStart -= 1;
+  while (tokenStart > 0 && !/\s/.test(value[tokenStart - 1] ?? '')) tokenStart -= 1;
   const existing = new Set(value.split(/\s+/).filter(Boolean));
   const groups = [
     ['semanticClasses', section.semantic],
@@ -196,8 +195,8 @@ function fragmentCompletions(context: CompletionContext, from: number): Completi
     }
   }});
   const options: Completion[] = [
-    ...Array.from(pageExplicit, ([id, count]) => count === 1 ? { label: id, type: 'constant', detail: 'explicit page navigation id', section: section.fragments, apply: id } as Completion : undefined).filter((option): option is Completion => option !== undefined),
-    ...Array.from(pageTitles, ([id, count]) => count === 1 ? { label: id, type: 'constant', detail: 'unambiguous page title destination', section: section.fragments, apply: id } as Completion : undefined).filter((option): option is Completion => option !== undefined),
+    ...Array.from(pageExplicit, ([id, count]) => count === 1 ? [{ label: id, type: 'constant', detail: 'explicit page navigation id', section: section.fragments, apply: id }] : []).flat(),
+    ...Array.from(pageTitles, ([id, count]) => count === 1 ? [{ label: id, type: 'constant', detail: 'unambiguous page title destination', section: section.fragments, apply: id }] : []).flat(),
     ...Array.from(staticIds, (id) => ({ label: id, type: 'constant', detail: 'static element id', section: section.ids, apply: id }))
   ];
   return { from: from + 1, to: context.pos, options: Array.from(new Map(options.map((option) => [option.label, option])).values()) };
@@ -250,7 +249,8 @@ export function withNodelDocumentCompletions(native: CompletionSource): SyncComp
     if (!extra) return decorated;
     if (extra.from !== decorated.from || (extra.to ?? context.pos) !== (decorated.to ?? context.pos)) return extra;
     const options = [...extra.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index);
-    return { ...decorated, validFor: extra.validFor ?? decorated.validFor, options };
+    const validFor = extra.validFor ?? decorated.validFor;
+    return { ...decorated, ...(validFor ? { validFor } : {}), options };
   };
 }
 

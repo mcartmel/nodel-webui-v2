@@ -37,7 +37,8 @@ describe('Vite stable entry contract', () => {
     }]);
 
     let middleware: ((request: { url?: string; method?: string }, response: { statusCode: number; setHeader: (name: string, value: string | number) => void; end: (content?: string) => void }, next: () => void) => void) | undefined;
-    (contractPlugin.configureServer as Function)({ middlewares: { use: (handler: typeof middleware) => { middleware = handler; } } });
+    const configureServer = contractPlugin.configureServer as (server: { middlewares: { use: (handler: typeof middleware) => void } }) => void;
+    configureServer({ middlewares: { use: (handler) => { middleware = handler; } } });
     const headers = new Map<string, string | number>();
     let body: string | undefined;
     const response: { statusCode: number; setHeader: (name: string, value: string | number) => void; end: (content?: string) => void } = {

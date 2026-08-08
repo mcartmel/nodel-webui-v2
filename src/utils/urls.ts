@@ -26,7 +26,7 @@ export function encodeUrlPathSegment(value: string) {
     if (code >= 0xd800 && code <= 0xdbff) {
       const next = value.charCodeAt(index + 1);
       if (next >= 0xdc00 && next <= 0xdfff) {
-        normalized += value[index] + value[index + 1];
+        normalized += value.charAt(index) + value.charAt(index + 1);
         index += 1;
       } else {
         normalized += '\ufffd';
@@ -34,7 +34,7 @@ export function encodeUrlPathSegment(value: string) {
     } else if (code >= 0xdc00 && code <= 0xdfff) {
       normalized += '\ufffd';
     } else {
-      normalized += value[index];
+        normalized += value.charAt(index);
     }
   }
   // encodeURIComponent deliberately leaves dot-only segments unchanged, which
@@ -90,10 +90,14 @@ function parseUrl(value: string, base: string | URL | undefined, protocols: Read
 function urlParts(value: string) {
   const match = /^(https?:\/\/)([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(value);
   if (!match) return null;
+  const scheme = match[1];
+  const authority = match[2];
+  const pathname = match[3];
+  if (!scheme || !authority || pathname === undefined) return null;
   return {
-    scheme: match[1],
-    authority: match[2],
-    pathname: match[3],
+    scheme,
+    authority,
+    pathname,
     search: match[4] || '',
     hash: match[5] || ''
   };
@@ -119,10 +123,12 @@ function ipv6PortSuffix(authority: string) {
 function splitIpv6Authority(authority: string, javaAuthority = false) {
   if (authority.startsWith('[') || authority.includes('@')) return null;
   const scoped = /^(.*)%([A-Za-z0-9._~-]+)(?::(\d{1,5}))?$/.exec(authority);
-  if (scoped && isIpv6Address(scoped[1])) {
+  const scopedAddress = scoped?.[1];
+  const scopedZone = scoped?.[2];
+  if (scoped && scopedAddress && scopedZone && isIpv6Address(scopedAddress)) {
     const port = scoped[3] ? Number(scoped[3]) : undefined;
     if (port !== undefined && port > 65535) return null;
-    return { address: scoped[1], zone: scoped[2], port: scoped[3] ?? '' };
+    return { address: scopedAddress, zone: scopedZone, port: scoped[3] ?? '' };
   }
 
   // Java writes IPv6 authorities without brackets and always appends a port.
@@ -144,8 +150,10 @@ function canonicalizeIpv6HttpUrl(value: string, javaAuthority = false) {
   const parts = urlParts(value);
   if (!parts) return value;
   const bracketedScope = /^\[([0-9a-f:.]+)%25([A-Za-z0-9._~-]+)\](?::(\d{1,5}))?$/i.exec(parts.authority);
-  if (bracketedScope && isIpv6Address(bracketedScope[1]) && (!bracketedScope[3] || Number(bracketedScope[3]) <= 65535)) {
-    return `${parts.scheme}[${bracketedScope[1]}%25${bracketedScope[2]}]${bracketedScope[3] ? `:${bracketedScope[3]}` : ''}${parts.pathname}${parts.search}${parts.hash}`;
+  const scopedAddress = bracketedScope?.[1];
+  const scopedZone = bracketedScope?.[2];
+  if (bracketedScope && scopedAddress && scopedZone && isIpv6Address(scopedAddress) && (!bracketedScope[3] || Number(bracketedScope[3]) <= 65535)) {
+    return `${parts.scheme}[${scopedAddress}%25${scopedZone}]${bracketedScope[3] ? `:${bracketedScope[3]}` : ''}${parts.pathname}${parts.search}${parts.hash}`;
   }
   const host = splitIpv6Authority(parts.authority, javaAuthority || /^\/nodes\/[^/]+(?:\/|$)/.test(parts.pathname));
   if (!host) return ipv6PortSuffix(parts.authority) ? null : value;
@@ -165,7 +173,8 @@ function scopedIpv6HttpParts(value: string) {
   const parts = urlParts(value);
   if (!parts || !parts.authority.includes('%25') || parts.authority.includes('@')) return null;
   const match = /^\[([0-9a-f:.]+)%25([A-Za-z0-9._~-]+)\](?::(\d{1,5}))?$/i.exec(parts.authority);
-  if (!match || !isIpv6Address(match[1]) || (match[3] && Number(match[3]) > 65535)) return null;
+  const address = match?.[1];
+  if (!match || !address || !isIpv6Address(address) || (match[3] && Number(match[3]) > 65535)) return null;
   return parts;
 }
 
@@ -260,7 +269,9 @@ export function remoteNodeDisplayHost(value: string) {
   const scoped = scopedIpv6HttpParts(canonical);
   if (scoped) {
     const match = /^\[([0-9a-f:.]+)%25([A-Za-z0-9._~-]+)\](?::(\d{1,5}))?$/i.exec(scoped.authority);
-    if (match) return `${match[1]}%${match[2]}${match[3] ? `:${match[3]}` : ''}`;
+    const address = match?.[1];
+    const zone = match?.[2];
+    if (address && zone) return `${address}%${zone}${match[3] ? `:${match[3]}` : ''}`;
   }
   return safeJavaAbsoluteHttpUrl(canonical)?.host ?? '';
 }
@@ -282,10 +293,14 @@ export function hostMatchesRemoteNodeUrl(host: string, nodeUrl: string) {
     if (!scopedNode || !scopedHost) return false;
     const nodeMatch = /^\[([0-9a-f:.]+)%25([A-Za-z0-9._~-]+)\](?::(\d+))?$/i.exec(scopedNode.authority);
     const hostMatch = /^\[([0-9a-f:.]+)%25([A-Za-z0-9._~-]+)\](?::(\d+))?$/i.exec(scopedHost.authority);
-    return Boolean(nodeMatch && hostMatch
-      && nodeMatch[1].toLowerCase() === hostMatch[1].toLowerCase()
-      && nodeMatch[2] === hostMatch[2]
-      && (!hasAuthorityPort(hostParts.authority) || (nodeMatch[3] ?? '') === (hostMatch[3] ?? '')));
+    const nodeAddress = nodeMatch?.[1];
+    const hostAddress = hostMatch?.[1];
+    const nodeZone = nodeMatch?.[2];
+    const hostZone = hostMatch?.[2];
+    return Boolean(nodeAddress && hostAddress && nodeZone && hostZone
+      && nodeAddress.toLowerCase() === hostAddress.toLowerCase()
+      && nodeZone === hostZone
+      && (!hasAuthorityPort(hostParts.authority) || (nodeMatch?.[3] ?? '') === (hostMatch?.[3] ?? '')));
   }
 
   const node = safeJavaAbsoluteHttpUrl(nodeHref);

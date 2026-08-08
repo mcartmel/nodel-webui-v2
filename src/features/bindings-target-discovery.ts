@@ -213,6 +213,6 @@ export class BindingTargetDiscoveryService {
       });
       this.localNodesPromise = promise;
     }
-    return this.localNodesPromise!;
+    return this.localNodesPromise;
   }
 }

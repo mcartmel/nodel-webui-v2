@@ -1271,7 +1271,8 @@ export class NodelEditor extends HTMLElement {
       this.reportError('Drop one file at a time.');
       return;
     }
-    this.prepareUpload(files[0]);
+    const [file] = files;
+    if (file) this.prepareUpload(file);
   };
 
   private handleDragEnd = () => {
@@ -1452,7 +1453,7 @@ export class NodelEditor extends HTMLElement {
           throw error;
         }
         const detail = error instanceof Error ? error.message : 'The node reload baseline could not be read.';
-        throw new Error(`Could not capture the node reload baseline; script.py was not saved. ${detail}`);
+        throw new Error(`Could not capture the node reload baseline; script.py was not saved. ${detail}`, { cause: error });
       }
       if (!this.operationIsCurrent(ticket, scope)) {
         throw new NodeRestartExpectationObsoleteError();
@@ -1558,10 +1559,10 @@ export class NodelEditor extends HTMLElement {
     const ticket = this.beginOperation('save', scope);
     let content = '';
     let revision = 0;
-    let originalContent = '';
+    let originalContent: string;
     let openedModified: string | undefined;
     let openedSize: number | undefined;
-    let metadataBaselineValid = false;
+    let metadataBaselineValid: boolean;
     this.setState({ error: '', notice: false, status: `Checking ${path} for remote changes...` });
     try {
       if (isScriptSave && !await this.confirmCorrectiveScriptSave(

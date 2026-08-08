@@ -79,9 +79,9 @@ async function replaceTarget(target, stage, backup, expectedIdentity, manifestDa
       try {
         await operations.rename(backup, target);
       } catch (restoreError) {
-        throw new Error(`Deployment replacement failed; backup remains at ${backup} and restoration failed: ${error instanceof Error ? error.message : String(error)}; ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`);
+        throw new Error(`Deployment replacement failed; backup remains at ${backup} and restoration failed: ${error instanceof Error ? error.message : String(error)}; ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`, { cause: restoreError });
       }
-      throw new Error(`Deployment replacement failed; the previous target was restored: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Deployment replacement failed; the previous target was restored: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
     throw error;
   }

@@ -1,4 +1,6 @@
 import { flush, waitFor } from './helpers';
+import type * as jsViewsLinkController from '../src/jsviews/jsviews-link-controller';
+import type * as jsViewsRuntime from '../src/jsviews/jsviews-runtime';
 
 const jsViewsLifecycleMock = vi.hoisted(() => {
   let resolveBootstrap!: () => void;
@@ -40,7 +42,7 @@ const actsigLifecycleMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/jsviews/jsviews-runtime', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/jsviews/jsviews-runtime')>();
+  const actual = await importOriginal<typeof jsViewsRuntime>();
   return {
     ...actual,
     bootstrapJsViews: vi.fn(() => jsViewsLifecycleMock.waitForBootstrap().then(() => actual.bootstrapJsViews()))
@@ -48,7 +50,7 @@ vi.mock('../src/jsviews/jsviews-runtime', async (importOriginal) => {
 });
 
 vi.mock('../src/jsviews/jsviews-link-controller', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/jsviews/jsviews-link-controller')>();
+  const actual = await importOriginal<typeof jsViewsLinkController>();
   return {
     ...actual,
     JsViewsLinkController: class DelayedJsViewsLinkController extends actual.JsViewsLinkController {

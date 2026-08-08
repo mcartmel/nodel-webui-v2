@@ -95,7 +95,8 @@ test.describe('editor refinements', () => {
 
     await editor.locator('[data-editor-create-empty]').click();
     await expect.poll(() => fixture.saves.map((save) => save.path)).toContain('content/panel.html');
-    expect(fixture.saves[0].body?.toString()).toBe('<nodel-app></nodel-app>');
+    const firstSave = fixture.saves[0];
+    expect(firstSave?.body?.toString()).toBe('<nodel-app></nodel-app>');
 
     const nativeUpload = { buffer: Buffer.from('native'), mimeType: 'text/plain', name: 'native.txt' };
     await editor.locator('[data-editor-upload]').setInputFiles(nativeUpload);

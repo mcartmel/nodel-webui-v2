@@ -1,6 +1,5 @@
-import { callActionBindings, parseActionBindings } from '../data/action-bindings';
+import { callActionBindings, parseActionBindings, type ActionBindingResult } from '../data/action-bindings';
 import { actionName, buildActionPayload, ControlActionController, formatActionFailures } from '../data/control-actions';
-import type { ActionBindingResult } from '../data/action-bindings';
 import type { ControlArgType } from '../utils/control-values';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 

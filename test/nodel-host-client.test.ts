@@ -17,6 +17,11 @@ import {
   waitForNodeReady
 } from '../src/api/nodel-host-client';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test value to be present');
+  return value;
+}
+
 describe('nodel host client', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
@@ -141,7 +146,7 @@ describe('nodel host client', () => {
     const [root, legacy] = await listRecipes();
     await expect(createNode('Root', root)).resolves.toEqual({ value: 'Root', base: '' });
     await expect(createNode('Legacy', legacy)).resolves.toEqual({ value: 'Legacy', base: 'Recipes/legacy:template' });
-    await expect(createNode('Copied', { ...legacy })).rejects.toThrow('exact decoded recipe entry');
+    await expect(createNode('Copied', { ...required(legacy) })).rejects.toThrow('exact decoded recipe entry');
   });
 
   it('reads node restart status with optional timestamp and timeout params', async () => {
@@ -284,7 +289,7 @@ describe('nodel host client', () => {
         return new Response('{}', { status: 200 }) as never;
       }
       if (url.startsWith(`${source}REST/files/contents?path=`)) {
-        const path = decodeURIComponent(url.split('path=')[1]);
+        const path = decodeURIComponent(required(url.split('path=')[1]));
         return new Response(Uint8Array.from(payloads.get(path) ?? []), { status: 200 }) as never;
       }
       if (url.endsWith('/nodes/BinaryCopy/REST/script/save')) {
@@ -294,7 +299,7 @@ describe('nodel host client', () => {
         return new Response('{}', { status: 200 }) as never;
       }
       if (url.includes('/nodes/BinaryCopy/REST/files/save?path=')) {
-        const path = decodeURIComponent(url.split('path=')[1]);
+        const path = decodeURIComponent(required(url.split('path=')[1]));
         const body = init?.body as ArrayBuffer;
         saveOrder.push(path);
         saved.set(path, Array.from(new Uint8Array(body)));
@@ -342,7 +347,7 @@ describe('nodel host client', () => {
         return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
       }
       if (url.includes('/nodes/ConfiguredCopy/REST/files/save?path=')) {
-        saves.push(decodeURIComponent(url.split('path=')[1]));
+        saves.push(decodeURIComponent(required(url.split('path=')[1])));
         expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
         return new Response('{}', { status: 200 }) as never;
       }
@@ -374,11 +379,11 @@ describe('nodel host client', () => {
         return new Response('{}', { status: 200 }) as never;
       }
       if (url.startsWith(`${source}REST/files/contents?path=`)) {
-        reads.push(decodeURIComponent(url.split('path=')[1]));
+        reads.push(decodeURIComponent(required(url.split('path=')[1])));
         return new Response(Uint8Array.from([1, 2, 3]), { status: 200 }) as never;
       }
       if (url.includes('/nodes/AliasCopy/REST/files/save?path=')) {
-        saves.push(decodeURIComponent(url.split('path=')[1]));
+        saves.push(decodeURIComponent(required(url.split('path=')[1])));
         return new Response('{}', { status: 200 }) as never;
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -417,7 +422,7 @@ describe('nodel host client', () => {
         return new Response('{}', { status: 200 }) as never;
       }
       if (url.includes('/nodes/DedupedCopy/REST/files/save?path=')) {
-        saves.push(decodeURIComponent(url.split('path=')[1]));
+        saves.push(decodeURIComponent(required(url.split('path=')[1])));
         expect(Object.prototype.toString.call(init?.body)).toBe('[object ArrayBuffer]');
         return new Response('{}', { status: 200 }) as never;
       }
@@ -497,7 +502,7 @@ describe('nodel host client', () => {
         return new Response('{}', { status: 200 }) as never;
       }
       if (url.includes('/nodes/PartialCopy/REST/files/save?path=')) {
-        const path = decodeURIComponent(url.split('path=')[1]);
+        const path = decodeURIComponent(required(url.split('path=')[1]));
         saves.push(path);
         if (path === 'save-failure.bin') {
           return new Response(JSON.stringify({ message: 'destination rejected file' }), { status: 500, headers: { 'Content-Type': 'application/json' } }) as never;

@@ -104,7 +104,7 @@ export function nodeNameValidationError(name: string) {
 
 export function getSimpleName(name: string): string {
   const match = /^(.+?)(?:\(| \(|$)/i.exec(name);
-  return match ? match[1] : name;
+  return match?.[1] ?? name;
 }
 
 export function getNodePathName(pathname = window.location.pathname): string | null {

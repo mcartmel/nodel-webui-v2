@@ -382,7 +382,8 @@ export class NodelButton extends HTMLElement {
       return;
     }
 
-    labels[0].textContent = label;
+    const firstLabel = labels[0];
+    if (firstLabel) firstLabel.textContent = label;
     for (const extra of labels.slice(1)) {
       extra.textContent = '';
     }
@@ -544,7 +545,7 @@ export class NodelButton extends HTMLElement {
 
   private handlePointerDown = (event: PointerEvent) => {
     if (event.target === this.buttonNode || this.buttonNode?.contains(event.target as Node)) {
-      this.startMomentary(event);
+      void this.startMomentary(event);
     }
   };
 
@@ -553,7 +554,7 @@ export class NodelButton extends HTMLElement {
 
   private handleKeyDown = (event: KeyboardEvent) => {
     if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-      this.startMomentary(event);
+      void this.startMomentary(event);
     }
   };
 

@@ -24,8 +24,9 @@ export function getEffectiveCatalogueAttributes(elementOrName: NodelElementDefin
   if (!element) return [];
   const attributes = element.attributes.map(projectAttribute);
   const signalsIndex = attributes.findIndex((attribute) => attribute.name === 'signals');
-  if (signalsIndex !== -1 && !attributes[signalsIndex].description.includes('SignalName[.path]:visibility')) {
-    attributes[signalsIndex] = { ...attributes[signalsIndex], description: `${attributes[signalsIndex].description}${visibilitySignalsDescription}`, syntax: `${attributes[signalsIndex].syntax}; SignalName[.path]:visibility(any|all)` };
+  const signals = signalsIndex === -1 ? undefined : attributes[signalsIndex];
+  if (signals && !signals.description.includes('SignalName[.path]:visibility')) {
+    attributes[signalsIndex] = { ...signals, description: `${signals.description}${visibilitySignalsDescription}`, syntax: `${signals.syntax ?? ''}; SignalName[.path]:visibility(any|all)` };
   }
   for (const common of commonNodelAttributes) if (!attributes.some((attribute) => attribute.name === common.name)) attributes.push(projectAttribute(common));
   return attributes;

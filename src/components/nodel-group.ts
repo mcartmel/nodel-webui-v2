@@ -124,7 +124,8 @@ export class NodelGroup extends HTMLElement {
     }
 
     const children = directElementChildren(this.bodyNode);
-    const target = children.length === 1 && labelableChildren.has(children[0].localName) ? children[0] : null;
+    const onlyChild = children[0];
+    const target = children.length === 1 && onlyChild && labelableChildren.has(onlyChild.localName) ? onlyChild : null;
 
     for (const child of children) {
       if (child !== target) {

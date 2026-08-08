@@ -58,7 +58,10 @@ describe('bindings model', () => {
 
     expect(hasBindingSchema(schema)).toBe(true);
     expect(sections.map((section) => section.kind)).toEqual(['actions', 'events']);
-    expect(sections[0].rows[0]).toEqual(expect.objectContaining({
+    const actions = sections[0];
+    const power = actions?.rows[0];
+    expect(power).toBeDefined();
+    expect(power).toEqual(expect.objectContaining({
       alias: 'Power',
       title: 'Power',
       node: 'Display',
@@ -66,7 +69,7 @@ describe('bindings model', () => {
       targetKey: 'action',
       status: 'Unwired'
     }));
-    expect(sections[0].rows[0].statusHref).toContain('Display');
+    expect(power?.statusHref).toContain('Display');
   });
 
   it('serializes dirty rows while preserving untouched backend metadata', () => {
@@ -76,7 +79,9 @@ describe('bindings model', () => {
       }
     };
     const sections = createBindingSections(schema, source);
-    const row = sections[0].rows[0];
+    const row = sections[0]?.rows[0];
+    expect(row).toBeDefined();
+    if (!row) return;
     row.target = 'PowerOff';
     row.dirty = true;
     row.targetDirty = true;
@@ -91,7 +96,9 @@ describe('bindings model', () => {
   it('serializes an absent prototype-like alias as an own property without changing the section prototype', () => {
     const prototypeSchema = JSON.parse('{"type":"object","properties":{"actions":{"type":"object","properties":{"__proto__":{"type":"object","properties":{"node":{"type":"string"},"action":{"type":"string"}}}}}}}');
     const sections = createBindingSections(prototypeSchema, {});
-    const row = sections[0].rows[0];
+    const row = sections[0]?.rows[0];
+    expect(row).toBeDefined();
+    if (!row) return;
     row.node = 'Display';
     row.target = 'PowerOn';
     row.dirty = true;
@@ -108,7 +115,10 @@ describe('bindings model', () => {
     const prototypeSchema = JSON.parse('{"type":"object","properties":{"actions":{"type":"object","properties":{"constructor":{"type":"object","properties":{"node":{"type":"string"},"action":{"type":"string"}}},"prototype":{"type":"object","properties":{"node":{"type":"string"},"action":{"type":"string"}}}}}}}');
     const source = JSON.parse('{"actions":{"constructor":{"node":"Existing","action":"Old"},"prototype":{"node":"Existing","action":"Old"}}}');
     const sections = createBindingSections(prototypeSchema, source);
-    for (const row of sections[0].rows) {
+    const actions = sections[0];
+    expect(actions).toBeDefined();
+    if (!actions) return;
+    for (const row of actions.rows) {
       row.target = 'New';
       row.dirty = true;
       row.targetDirty = true;
@@ -135,11 +145,15 @@ describe('bindings model', () => {
     ];
 
     for (const value of validValues) {
-      const row = createBindingSections(requiredSchema, { actions: { Power: value } })[0].rows[0];
+      const row = createBindingSections(requiredSchema, { actions: { Power: value } })[0]?.rows[0];
+      expect(row).toBeDefined();
+      if (!row) return;
       expect(validateBindingRow(row)).toEqual([]);
     }
 
-    const invalidRow = createBindingSections(requiredSchema, { actions: { Power: { action: 'MissingAction' } } })[0].rows[0];
+    const invalidRow = createBindingSections(requiredSchema, { actions: { Power: { action: 'MissingAction' } } })[0]?.rows[0];
+    expect(invalidRow).toBeDefined();
+    if (!invalidRow) return;
     expect(validateBindingRow(invalidRow)).toEqual([
       expect.objectContaining({ pointer: expect.stringMatching(/\/action$/), message: 'Choose one of the available values.' })
     ]);

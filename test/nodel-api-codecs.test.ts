@@ -28,6 +28,11 @@ import {
 } from '../src/api/codecs/nodel-codecs';
 import { assertSafeNodeFilePath } from '../src/utils/node-file-path';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test value to be present');
+  return value;
+}
+
 let responses: Record<string, unknown>;
 
 function compatibilityFixture() {
@@ -81,8 +86,8 @@ describe('Nodel API response codecs', () => {
     expect(() => decodeActivityLogs([{ seq: Number.NaN, timestamp, source: 'local', type: 'event', alias: 'Status' }], 'activity')).toThrow(NodelApiDecodeError);
     expect(() => decodeActivityLogs([{ seq: 1, timestamp, source: 'unknown', type: 'event', alias: 'Status' }], 'activity')).toThrow('$[0].source');
     expect(decodeActivityLogs([{ seq: 1, source: 'local', type: 'event', alias: 'Status' }], 'activity')[0]).toMatchObject({ seq: 1, source: 'local', type: 'event', alias: 'Status' });
-    expect(decodeActivityLogs([{ seq: 1, timestamp: null, source: 'local', type: 'event', alias: 'Status' }], 'activity')[0].timestamp).toBeUndefined();
-    expect(decodeActivityLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', source: 'local', type: 'event', alias: 'Status' }], 'activity')[0].timestamp).toBe('2026-08-01T00:00:00Z');
+    expect(required(decodeActivityLogs([{ seq: 1, timestamp: null, source: 'local', type: 'event', alias: 'Status' }], 'activity')[0]).timestamp).toBeUndefined();
+    expect(required(decodeActivityLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', source: 'local', type: 'event', alias: 'Status' }], 'activity')[0]).timestamp).toBe('2026-08-01T00:00:00Z');
     expect(() => decodeActivityLogs([{ seq: 1, timestamp: '', source: 'local', type: 'event', alias: 'Status' }], 'activity')).toThrow('non-empty string');
 
     const malformedTimestamps: Array<{ label: string; value: string }> = [];
@@ -160,8 +165,8 @@ describe('Nodel API response codecs', () => {
 
   it('preserves arbitrary display strings while keeping identifiers strict', () => {
     const [empty, text] = compatibilityFixture().displayStrings;
-    expect(decodeHostLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', message: text, error: empty }], 'logs')[0]).toMatchObject({ message: text, error: empty });
-    expect(decodeLocalRest({ nodes: { Node: { name: 'Node', desc: text } } }, 'local').nodes?.Node.desc).toBe(text);
+    expect(required(decodeHostLogs([{ seq: 1, timestamp: '2026-08-01T00:00:00Z', message: text, error: empty }], 'logs')[0])).toMatchObject({ message: text, error: empty });
+    expect(decodeLocalRest({ nodes: { Node: { name: 'Node', desc: text } } }, 'local').nodes?.Node?.desc).toBe(text);
     expect(decodeNodeDetails({ name: 'Node', desc: text }, 'node').desc).toBe(text);
     expect(decodeSchema({ type: 'string', title: text, desc: text, group: text, caution: text, hint: text }, 'schema')).toMatchObject({ title: text, desc: text, group: text, caution: text, hint: text });
     expect(decodeActions({ Action: { name: 'Action', title: text, desc: text, group: text, caution: text } }, 'actions').Action).toMatchObject({ title: text, desc: text, group: text, caution: text });
@@ -182,7 +187,7 @@ describe('Nodel API response codecs', () => {
     for (const [value, key] of [[node, 'desc'], [schema, 'title'], [schema, 'desc'], [socket, 'error'], [recipe, 'readme'], [recipe, 'changelog'], [action, 'title'], [action, 'desc'], [hostLog, 'message']] as const) {
       expect(Object.prototype.hasOwnProperty.call(value, key)).toBe(false);
     }
-    expect(hostLog.error).toBeNull();
+    expect(required(hostLog).error).toBeNull();
   });
 
   it('preserves the Java variant-schema dialect and explicit null type', () => {
@@ -211,7 +216,7 @@ describe('Nodel API response codecs', () => {
       }
     }, 'schema');
 
-    expect(schema.properties?.port.hint).toBe('9999');
+    expect(schema.properties?.port?.hint).toBe('9999');
     expect(() => decodeSchema({ type: 'string', hint: Number.NaN }, 'schema')).toThrow('hint');
   });
 
@@ -222,10 +227,10 @@ describe('Nodel API response codecs', () => {
     ], 'node urls')).toEqual([{ node: 'Display', address: 'https://display.test/nodes/Display/' }]);
     expect(decodeNodeUrls([{ node: 'Display', address: 'https://display.test/nodes/Display/', host: 'DISPLAY.TEST' }], 'node urls')).toHaveLength(1);
     expect(decodeNodeUrls([{ node: '\ufeff', address: 'https://display.test/nodes/%EF%BB%BF/' }], 'node urls')[0]?.node).toBe('\ufeff');
-    expect(decodeLocalRest({ nodes: { '\ufeff': { name: '\ufeff' } } }, 'local').nodes?.['\ufeff'].name).toBe('\ufeff');
-    expect(decodeActions({ '\ufeff': { name: '\ufeff' } }, 'actions')['\ufeff'].name).toBe('\ufeff');
-    expect(decodeSignals({ '\ufeff': { name: '\ufeff' } }, 'events')['\ufeff'].name).toBe('\ufeff');
-    expect(decodeActivityLogs([{ seq: 1, source: 'local', type: 'event', alias: '\ufeff' }], 'activity')[0].alias).toBe('\ufeff');
+    expect(decodeLocalRest({ nodes: { '\ufeff': { name: '\ufeff' } } }, 'local').nodes?.['\ufeff']?.name).toBe('\ufeff');
+    expect(required(decodeActions({ '\ufeff': { name: '\ufeff' } }, 'actions')['\ufeff']).name).toBe('\ufeff');
+    expect(required(decodeSignals({ '\ufeff': { name: '\ufeff' } }, 'events')['\ufeff']).name).toBe('\ufeff');
+    expect(required(decodeActivityLogs([{ seq: 1, source: 'local', type: 'event', alias: '\ufeff' }], 'activity')[0]).alias).toBe('\ufeff');
     expect(() => decodeNodeUrls([{ node: 'Display', address: 'https://display.test/nodes/Display/', host: 'display.test\\admin' }], 'node urls')).toThrow('host from the node address');
     for (const address of [
       'http://[::1:8085/nodes/Display/',

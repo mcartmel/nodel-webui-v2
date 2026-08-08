@@ -12,7 +12,7 @@ import { createSignalBindingController } from '../data/signal-bindings';
 import { accessibleLabelText, syncHostAccessibleLabel } from '../utils/accessibility';
 import { normalizeFromList, normalizeTone, normalizeVariant, syncInheritedAttributes, truthy } from '../utils/control-values';
 import './nodel-button';
-import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColor, type NodelColorFormat } from '../utils/color';
+import { colorsEqual, formatColor, nodelColorFormats, parseColor, type NodelColor } from '../utils/color';
 import { trimPointReference } from '../utils/edge-whitespace';
 
 type PaletteShape = 'square' | 'rounded' | 'circle';
@@ -162,7 +162,7 @@ export class NodelPalette extends HTMLElement {
     if (parsedValue && !this.customDraftActive) {
       this.canonicalColor = parsedValue;
     }
-    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex') as NodelColorFormat;
+    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex');
     const liveInterval = this.liveInterval();
     const customWrap = this.querySelector<HTMLElement>('.nodel-palette-custom');
     const customLabel = this.querySelector<HTMLElement>('[data-custom-label]');
@@ -250,7 +250,7 @@ export class NodelPalette extends HTMLElement {
     const sameValue = currentValue === nextRawValue || colorsEqual(parseColor(currentValue), parsed);
     const nextValue = sameValue && this.hasAttribute('allow-deselect') ? '' : canonicalValue;
     const argType = normalizeFromList(this.getAttribute('arg-type'), argTypes, 'string');
-    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex') as NodelColorFormat;
+    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex');
     const payloadResult = parsed && nextValue
       ? { ok: true as const, payload: { arg: formatColor(parsed, format) }, arg: formatColor(parsed, format) }
       : buildActionPayload(nextValue, argType);
@@ -397,7 +397,7 @@ export class NodelPalette extends HTMLElement {
     this.customInvalid = false;
     this.customDraftActive = true;
     this.canonicalColor = parsed;
-    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex') as NodelColorFormat;
+    const format = normalizeFromList(this.getAttribute('format'), nodelColorFormats, 'hex');
     const canonicalHex = formatColor(parsed, 'hex');
     if (this.customNode) {
       this.customNode.value = canonicalHex.slice(0, 7);

@@ -1,5 +1,10 @@
 import { flush } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const actionMock = vi.hoisted(() => ({
   callNodeAction: vi.fn()
 }));
@@ -232,7 +237,7 @@ describe('nodel-toggle', () => {
     await flush();
 
     expect(error).toHaveBeenCalledTimes(1);
-    expect(toast.mock.calls[0][0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
+    expect(required(toast.mock.calls[0])[0].detail).toMatchObject({ tone: 'danger', detail: 'No route' });
   });
 
   it('does not dispatch change events when action calls fail', async () => {

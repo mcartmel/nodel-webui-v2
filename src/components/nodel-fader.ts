@@ -30,8 +30,6 @@ import { normalizeFromList, normalizeTone, normalizeVariant, truthy, type Contro
 type FaderOrientation = 'vertical' | 'horizontal';
 type FaderReadout = 'show' | 'hide';
 type FaderArgType = Extract<ControlArgType, 'number' | 'string' | 'json'>;
-type FaderVariant = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'ghost';
-type FaderTone = 'solid' | 'soft' | 'outline';
 type FaderCompoundAlign = 'start' | 'center' | 'end';
 
 const argTypes: FaderArgType[] = ['number', 'string', 'json'];
@@ -205,8 +203,8 @@ export class NodelFader extends HTMLElement {
     const value = this.normalizedValue(min, max, step);
     const orientation = normalizeOrientation(this.getAttribute('orientation'));
     const compoundAlign = normalizeCompoundAlign(this.getAttribute('compound-align'));
-    const variant = normalizeVariant(this.getAttribute('variant')) as FaderVariant;
-    const tone = normalizeTone(this.getAttribute('tone')) as FaderTone;
+    const variant = normalizeVariant(this.getAttribute('variant'));
+    const tone = normalizeTone(this.getAttribute('tone'));
     const readout = normalizeReadout(this.getAttribute('readout'));
     const fraction = valueToFraction(value, min, max);
     const disabled = this.hasAttribute('disabled');

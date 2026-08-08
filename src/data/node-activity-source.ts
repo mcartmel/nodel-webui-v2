@@ -95,7 +95,7 @@ function pollDelay() {
 
 function capLatestEntries() {
   while (latestEntries.size > maxRetainedActivityEntries) {
-    const firstKey = latestEntries.keys().next().value as string | undefined;
+    const firstKey = latestEntries.keys().next().value;
     if (firstKey === undefined) {
       break;
     }
@@ -105,7 +105,7 @@ function capLatestEntries() {
 
 function capPendingLiveEntries() {
   while (pendingLiveEntries.size > maxRetainedActivityEntries) {
-    const firstKey = pendingLiveEntries.keys().next().value as string | undefined;
+    const firstKey = pendingLiveEntries.keys().next().value;
     if (firstKey === undefined) {
       break;
     }
@@ -340,7 +340,7 @@ function emit(batch: NodeActivityBatch | null, nextError = error) {
   }
 }
 
-function normalizeEntries(entries: NodelActivityLogEntry[]) {
+export function normalizeEntries(entries: NodelActivityLogEntry[]) {
   const sorted = [...entries].sort((a, b) => a.seq - b.seq);
   const deduped = new Map<string, NodelActivityLogEntry>();
 
@@ -353,7 +353,7 @@ function normalizeEntries(entries: NodelActivityLogEntry[]) {
   return Array.from(deduped.values());
 }
 
-function nextSeqFrom(entries: NodelActivityLogEntry[], fallback: number | null) {
+export function nextSeqFrom(entries: NodelActivityLogEntry[], fallback: number | null) {
   if (entries.length === 0) {
     return fallback ?? 0;
   }
@@ -475,20 +475,17 @@ function runPoll() {
       emit(null);
       settleRefreshWaiters({ status: 'failed', detail: error });
     } finally {
-      if (!shouldRun() || generation !== connectionGeneration || controller.signal.aborted || (activeState !== 'polling' && activeState !== 'backoff')) {
-        return;
+      if (shouldRun() && generation === connectionGeneration && !controller.signal.aborted && (activeState === 'polling' || activeState === 'backoff')) {
+        clearPollTimer();
+        if (Date.now() - lastWsAttemptAt >= reconnectDelayMs) {
+          void openWebSocket();
+        } else {
+          pollTimer = window.setTimeout(() => {
+            pollTimer = null;
+            void runPoll();
+          }, pollDelay());
+        }
       }
-      clearPollTimer();
-
-      if (Date.now() - lastWsAttemptAt >= reconnectDelayMs) {
-        void openWebSocket();
-        return;
-      }
-
-      pollTimer = window.setTimeout(() => {
-        pollTimer = null;
-        void runPoll();
-      }, pollDelay());
     }
   })();
   pollInFlight = request;
@@ -501,8 +498,9 @@ function runPoll() {
   return request;
 }
 
-function handleWebSocketMessage(message: MessageEvent<string>) {
+function handleWebSocketMessage(message: MessageEvent<unknown>) {
   try {
+    if (typeof message.data !== 'string') return;
     const data = decodeActivityWebSocketMessage(JSON.parse(message.data) as unknown, 'WebSocket activity');
     error = '';
     if (data.error) {
@@ -758,9 +756,8 @@ export function refreshNodeActivityForRestart(options: NodelSourceRefreshOptions
     epoch: activityEpoch + 1,
     resolve: resolveRequest,
     timer,
-    signal: options.signal,
+    ...(options.signal ? { signal: options.signal } : {}),
     settled: false,
-    abortListener: undefined
   };
   waiter.abortListener = () => {
     if (waiter.settled) {

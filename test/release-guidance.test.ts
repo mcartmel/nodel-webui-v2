@@ -62,7 +62,13 @@ describe('V1 migration and release guidance', () => {
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
 
     expect(buildWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
-    expect(buildWorkflow).toContain('npm run build');
+    expect(buildWorkflow).toContain('npm run build:preview');
+    expect(buildWorkflow).toContain('npm run lint');
+    expect(buildWorkflow).toContain('npm run typecheck');
+    expect(buildWorkflow).toContain('npm run check:jsviews');
+    expect(buildWorkflow).toContain('npm run test:coverage');
+    expect(buildWorkflow).toContain('npm run verify:dependencies');
+    expect(buildWorkflow).toContain('node scripts/verify-release-gate.mjs');
     expect(buildWorkflow).toContain('npm run verify:dist -- --write --json');
     expect(buildWorkflow).toContain('npm run test:browser:dist');
     expect(buildWorkflow).toContain('node scripts/deploy.mjs --target ./build/deploy-preview');
@@ -72,10 +78,13 @@ describe('V1 migration and release guidance', () => {
     expect(releaseWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
     expect(releaseWorkflow).toContain('npm run test:browser:dist');
     expect(releaseWorkflow).toContain('npm run test:deployment:smoke');
-    expect(releaseWorkflow).toContain('npm run verify:dist -- --write --json');
+    expect(releaseWorkflow).toContain('npm run build:preview');
+    expect(releaseWorkflow).toContain('npm run verify:dependencies');
     expect(releaseWorkflow).toContain('npm run verify:dist -- --check --json');
     const browserToPrepare = releaseWorkflow.slice(releaseWorkflow.indexOf('npm run test:browser:dist'), releaseWorkflow.indexOf('npm run release:prepare --'));
-    expect(browserToPrepare).not.toContain('npm run build');
+    expect(browserToPrepare).not.toContain('npm run build:preview');
+    expect(releaseWorkflow).toContain('Download exact tested dist and inventory');
+    expect(releaseWorkflow).toContain('Download exact dependency evidence');
     expect(releaseWorkflow).toContain('--notes-file RELEASE_NOTES.md');
     expect(releaseWorkflow).not.toContain('--generate-notes');
     expect(releaseWorkflow).toContain('release_args=()');
@@ -86,6 +95,69 @@ describe('V1 migration and release guidance', () => {
     expect(releaseWorkflow).toContain('peeled_object');
     expect(releaseWorkflow).toContain('Remote origin tag ${GITHUB_REF_NAME} is absent or no longer resolves to ${GITHUB_SHA}');
     expect(releaseWorkflow.indexOf('git ls-remote origin')).toBeLessThan(releaseWorkflow.indexOf('gh release create'));
+  });
+
+  it('pins CI actions and separates quality artifacts from slower consumers', async () => {
+    const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
+    const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
+    const pinned = new Map([
+      ['actions/checkout', '11bd71901bbe5b1630ceea73d27597364c9af683'],
+      ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
+      ['actions/upload-artifact', 'ea165f8d65b6e75b540449e92b4886f43607fa02'],
+      ['actions/download-artifact', 'd3f86a106a0bac45b974a628896c90dbdf5c8093'],
+      ['actions/attest-build-provenance', 'e8998f949152b193b063cb0ec769d69d929409be'],
+      ['actions/dependency-review-action', '3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261']
+    ]);
+
+    for (const workflow of [buildWorkflow, releaseWorkflow]) {
+      for (const line of workflow.split('\n').filter((candidate) => candidate.includes('uses:'))) {
+        const match = line.match(/uses:\s+([^\s#]+)/);
+        if (!match) throw new Error(`Malformed uses line: ${line}`);
+        const uses = match[1];
+        if (!uses) throw new Error(`Empty uses value: ${line}`);
+        const [action, sha] = uses.split('@');
+        expect(action).toMatch(/^actions\/[a-z0-9-]+$/);
+        expect(sha).toMatch(/^[0-9a-f]{40}$/);
+        expect(line).toContain('# v');
+        if (action && pinned.has(action)) {
+          expect(sha, `${action} must be immutable`).toBe(pinned.get(action));
+        }
+      }
+      expect(workflow).not.toMatch(/uses:\s+[^\s#]+@(v|main|master|latest)(?:\s|$)/m);
+      expect(workflow).toContain('persist-credentials: false');
+    }
+
+    expect(buildWorkflow).toContain("if: github.event_name == 'pull_request'");
+    expect(buildWorkflow).toContain('pull-requests: read');
+    expect(buildWorkflow).toContain('fail-on-severity: high');
+    expect(buildWorkflow).toContain('needs: [quality, java-handoff]');
+    expect(buildWorkflow).toContain('name: tested-dist');
+    expect(buildWorkflow).toContain('if: always()');
+    expect(buildWorkflow).toContain('if-no-files-found: warn');
+    expect(releaseWorkflow).toContain('needs: [quality, java-handoff]');
+    expect(releaseWorkflow).toContain('name: tested-dist');
+    expect(releaseWorkflow).toContain('name: dependency-evidence');
+    expect(releaseWorkflow).toContain('build/dependency-evidence');
+    expect(releaseWorkflow).toContain('Download exact dependency evidence');
+    const releaseJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  release:'));
+    expect(releaseJob).not.toContain('npm run build:preview');
+    expect(releaseJob).not.toContain('npm run verify:dependencies');
+    expect(releaseJob).not.toContain('npm run verify:dist -- --write');
+  });
+
+  it('defines bounded monthly Dependabot groups', async () => {
+    const dependabot = await readFile(resolve(process.cwd(), '.github/dependabot.yml'), 'utf8');
+    expect(dependabot).toContain('version: 2');
+    expect(dependabot).toContain('package-ecosystem: npm');
+    expect(dependabot).toContain('package-ecosystem: github-actions');
+    expect(dependabot.match(/interval: monthly/g)).toHaveLength(2);
+    expect(dependabot).toContain('npm-production:');
+    expect(dependabot).toContain('npm-development:');
+    expect(dependabot).toContain('dependency-type: production');
+    expect(dependabot).toContain('dependency-type: development');
+    expect(dependabot).toContain('github-actions:');
+    expect(dependabot).toContain('open-pull-requests-limit: 5');
+    expect(dependabot).toContain('open-pull-requests-limit: 3');
   });
 
   it('pins the Stage 11 production handoff boundary and evidence', async () => {
@@ -140,7 +212,7 @@ describe('V1 migration and release guidance', () => {
     expect(packageJson.scripts['test:deployment:smoke']).toBe('node ./scripts/run-deployment-smoke.mjs');
     expect(packageJson.scripts['verify:dist']).toBe('node ./scripts/verify-deployment-inventory.mjs');
     expect(packageJson.scripts['release:prepare']).toBe('node ./scripts/prepare-release.mjs');
-    expect(packageJson.scripts['release:build']).toBe('npm run build && npm run release:prepare');
+    expect(packageJson.scripts['release:build']).toBe('npm run verify:dependencies && npm run build && npm run release:prepare');
 
     for (const workflow of [buildWorkflow, releaseWorkflow]) {
       expect(workflow).toContain('java-handoff');
@@ -153,8 +225,8 @@ describe('V1 migration and release guidance', () => {
       expect(workflow).not.toContain('/opt');
     }
     expect(buildWorkflow).toContain('cache-dependency-path: webui/package-lock.json');
-    expect(buildWorkflow).toContain('needs: java-handoff');
-    expect(releaseWorkflow).toContain('needs: java-handoff');
+    expect(buildWorkflow).toContain('needs: [quality, java-handoff]');
+    expect(releaseWorkflow).toContain('needs: [quality, java-handoff]');
     expect(releaseWorkflow).toContain('environment: production-release');
     expect(releaseWorkflow).toContain('contents: read');
     expect(releaseWorkflow).toContain('contents: write');
@@ -189,14 +261,14 @@ describe('V1 migration and release guidance', () => {
     expect(deploymentSpec).toContain('offline-mode="overlay"');
   });
 
-  it('documents schema 4 package evidence and executable, non-duplicated runbook commands', async () => {
+  it('documents schema 5 dependency evidence and executable, non-duplicated runbook commands', async () => {
     const handoff = await readFile(resolve(process.cwd(), 'docs/release-handoff.md'), 'utf8');
     const architecture = await readFile(resolve(process.cwd(), 'docs/architecture.md'), 'utf8');
     const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');
 
     expect(handoff.indexOf('npm run verify:java-handoff')).toBeLessThan(handoff.indexOf('node scripts/deploy.mjs --java-checkout ../nodel-dev'));
     expect(handoff).not.toContain('npm run deploy:test --');
-    expect(handoff).toContain('schema 4');
+    expect(handoff).toContain('schema 5');
     expect(handoff).toContain('v2/nodel-components.json');
     expect(handoff).toContain('dist-inventory');
     expect(handoff).toContain('canonical\n`dist` inventory SHA-256 digest');
@@ -215,13 +287,13 @@ describe('V1 migration and release guidance', () => {
     expect(handoff).toContain('--dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json');
     expect(handoff).toContain('intentionally nonpublishable');
     expect(handoff).toContain('production-release` environment provenance');
-    expect(architecture).toContain('schema is version 4');
+    expect(architecture).toContain('schema is version 5');
     expect(architecture).toContain('verify:dist');
     expect(architecture).toContain('no `--support-subdir` deployment option');
     expect(architecture).toContain('test:deployment:smoke');
     expect(notes).toContain('best-effort recoverable two-rename');
-    expect(notes).toContain('schema 4');
+    expect(notes).toContain('schema 5');
     expect(notes).toContain('v2/nodel-components.json');
-    expect(await readFile(resolve(process.cwd(), 'README.md'), 'utf8')).toContain('schema 4 `release.json`');
+    expect(await readFile(resolve(process.cwd(), 'README.md'), 'utf8')).toContain('schema 5 `release.json`');
   });
 });

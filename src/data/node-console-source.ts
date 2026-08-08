@@ -48,7 +48,8 @@ const source = registerNodelPollSource<NodeConsoleBatch>({
     }
 
     const chronological = [...entries].reverse();
-    const nextSeq = chronological.length > 0 ? Math.max(state.seq ?? 0, chronological[chronological.length - 1].seq + 1) : (state.seq ?? 0);
+    const lastEntry = chronological.at(-1);
+    const nextSeq = lastEntry ? Math.max(state.seq ?? 0, lastEntry.seq + 1) : (state.seq ?? 0);
     state.seq = nextSeq;
 
     return {

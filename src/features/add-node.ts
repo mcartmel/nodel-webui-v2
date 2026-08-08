@@ -99,8 +99,9 @@ export async function searchAddNodeTemplates(options: TemplateSearchOptions): Pr
     return { error: '', results: [] };
   }
 
-  const recipesPromise = options.allowRecipes ? refreshAddNodeRecipes(false, { signal: options.signal }) : Promise.resolve([] as NodelRecipeEntry[]);
-  const nodesPromise = searchNodeUrls(query, { signal: options.signal });
+  const request = options.signal ? { signal: options.signal } : undefined;
+  const recipesPromise = options.allowRecipes ? refreshAddNodeRecipes(false, request) : Promise.resolve([] as NodelRecipeEntry[]);
+  const nodesPromise = searchNodeUrls(query, request);
   const [recipesResult, nodesResult] = await Promise.allSettled([recipesPromise, nodesPromise]);
   const failures = [recipesResult, nodesResult]
     .filter((result): result is PromiseRejectedResult => result.status === 'rejected' && !isAbortError(result.reason));
@@ -131,7 +132,7 @@ export async function searchAddNodeTemplates(options: TemplateSearchOptions): Pr
     : [];
 
   return {
-    error: failures.length > 0 ? boundedErrorMessage(failures[0].reason, 'Template lookup failed') : '',
+    error: failures[0] ? boundedErrorMessage(failures[0].reason, 'Template lookup failed') : '',
     results: [...recipeResults, ...nodeResults]
   };
 }

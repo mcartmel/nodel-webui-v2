@@ -428,7 +428,9 @@ export class NodelSelect extends HTMLElement {
     const keyOffsets: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
     if (event.key in keyOffsets) {
       event.preventDefault();
-      const nextIndex = (currentIndex + keyOffsets[event.key] + options.length) % options.length;
+      const offset = keyOffsets[event.key];
+      if (offset === undefined || options.length === 0) return;
+      const nextIndex = (currentIndex + offset + options.length) % options.length;
       this.focusOption(options[nextIndex]);
     } else if (event.key === 'Home') {
       event.preventDefault();
@@ -446,11 +448,11 @@ export class NodelSelect extends HTMLElement {
     for (const item of this.options()) {
       item.setAttribute('data-nodel-native-tabindex', item === option ? '0' : '-1');
     }
-    (option.querySelector('button') as HTMLButtonElement | null)?.focus();
+    (option.querySelector('button'))?.focus();
   }
 
   private requestedPlacement() {
-    return normalizeFromList(this.getAttribute('placement'), placements, 'auto') as SelectPlacement;
+    return normalizeFromList(this.getAttribute('placement'), placements, 'auto');
   }
 
   private syncPlacement(open: boolean) {

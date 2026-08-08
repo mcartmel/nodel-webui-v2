@@ -53,7 +53,10 @@ function functionParts(value: string, name: string) {
   if (!match) {
     return null;
   }
-  const [channels, alphaPart, ...extra] = match[1].split(/\s*\/\s*/);
+  const body = match[1];
+  if (body === undefined) return null;
+  const [channels, alphaPart, ...extra] = body.split(/\s*\/\s*/);
+  if (channels === undefined) return null;
   if (extra.length > 0 || (alphaPart !== undefined && channels.includes(','))) {
     return null;
   }
@@ -115,6 +118,7 @@ export function parseColor(value: string): NodelColor | null {
   if (rgb && (rgb.length === 3 || rgb.length === 4)) {
     const [r, g, b] = rgb.slice(0, 3).map(channel);
     const a = alpha(rgb[3]);
+    if (r === undefined || g === undefined || b === undefined) return null;
     return r === null || g === null || b === null || a === null ? null : { r: Math.round(r), g: Math.round(g), b: Math.round(b), a };
   }
 
@@ -123,9 +127,11 @@ export function parseColor(value: string): NodelColor | null {
     if (!parts || (parts.length !== 3 && parts.length !== 4)) {
       continue;
     }
-    const h = hue(parts[0]);
-    const s = percentage(parts[1]);
-    const third = percentage(parts[2]);
+    const [huePart, saturationPart, thirdPart] = parts;
+    if (huePart === undefined || saturationPart === undefined || thirdPart === undefined) return null;
+    const h = hue(huePart);
+    const s = percentage(saturationPart);
+    const third = percentage(thirdPart);
     const a = alpha(parts[3]);
     if (h === null || s === null || third === null || a === null) {
       return null;

@@ -194,7 +194,7 @@ export async function getNodeEventBinding(alias: string, init?: RequestInit): Pr
   return {
     ...value,
     node: typeof value.node === 'string' ? value.node : ''
-  } as NodelRemoteBinding;
+  };
 }
 
 export async function saveNodeRemoteBindings(payload: Record<string, unknown>, init?: RequestInit): Promise<unknown> {
@@ -246,7 +246,7 @@ export function customUiEntriesFromFiles(files: NodelFileEntry[]): NodelCustomUi
       const title = file.path.slice('content/'.length);
       const firstSegment = title.split('/', 1)[0];
       return title.length > 0
-        && !resolverReservedFirstSegments.has(firstSegment.toLowerCase())
+        && (!firstSegment || !resolverReservedFirstSegments.has(firstSegment.toLowerCase()))
         && /\.(xml|html|htm)$/i.test(title);
     })
     .sort((a, b) => a.path.localeCompare(b.path))
@@ -348,7 +348,8 @@ export async function saveNodeFile(path: string, content: BodyInit, init?: Reque
     if (path !== 'script.py') {
       throw new Error('Case-only script.py aliases cannot be saved safely');
     }
-    return postJson('REST/script/save', { script: String(content) }, init, FILE_REQUEST_TIMEOUT_MS);
+    const script = typeof content === 'string' ? content : content instanceof Blob ? await content.text() : new TextDecoder().decode(content as ArrayBufferView | ArrayBuffer);
+    return postJson('REST/script/save', { script }, init, FILE_REQUEST_TIMEOUT_MS);
   }
 
   return fetchOk(`REST/files/save?path=${encodeUrlPathSegment(path)}`, {

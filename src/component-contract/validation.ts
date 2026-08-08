@@ -1,4 +1,4 @@
-import type { ComponentAttributeContract, ComponentContract, ComponentContractDocument } from './types';
+import type { ComponentAttributeContract, ComponentContract, ComponentContractDocument, ComponentStyleDefinition } from './types';
 
 const tagName = /^nodel-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const attributeName = /^(?:[a-z0-9][a-z0-9-]*|data-\*)$/;
@@ -15,11 +15,11 @@ const valueTypes = new Set(['boolean', 'presence-or-text', 'string', 'binding', 
 function isJsonPlain(value: unknown, stack = new Set<object>()): boolean {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
-  if (typeof value !== 'object' || stack.has(value as object) || Object.getOwnPropertySymbols(value).length) return false;
+  if (typeof value !== 'object' || stack.has(value) || Object.getOwnPropertySymbols(value).length) return false;
   if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) return false;
-  stack.add(value as object);
+  stack.add(value);
   const valid = Object.values(value).every((item) => isJsonPlain(item, stack));
-  stack.delete(value as object);
+  stack.delete(value);
   return valid;
 }
 
@@ -134,9 +134,10 @@ export function validateComponentContract(document: ComponentContractDocument): 
   for (const name of duplicates(document.commonAttributes.map((attribute) => attribute.name))) errors.push(`commonAttributes: duplicate attribute ${name}`);
   document.commonAttributes.forEach((attribute, index) => validateAttribute(attribute, `commonAttributes[${index}]`, errors));
   validateKeys(document.styles, ['semanticClasses', 'stateClasses', 'tailwindUtilities'], 'styles', errors);
-  const styleNames = Object.values(document.styles).flat().map((style) => style.name);
+  const styleGroups: ComponentStyleDefinition[][] = [document.styles.semanticClasses, document.styles.stateClasses, document.styles.tailwindUtilities];
+  const styleNames = styleGroups.flat().map((style) => style.name);
   for (const name of duplicates(styleNames)) errors.push(`styles: duplicate style name ${name}`);
-  for (const [category, styles] of Object.entries(document.styles)) {
+  for (const [category, styles] of Object.entries(document.styles) as [string, ComponentStyleDefinition[]][] ) {
     if (!Array.isArray(styles) || styles.length === 0) errors.push(`styles.${category}: must not be empty`);
     else styles.forEach((style, index) => {
       validateKeys(style, ['name', 'description'], `styles.${category}[${index}]`, errors);

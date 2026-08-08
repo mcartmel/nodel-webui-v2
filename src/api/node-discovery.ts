@@ -26,7 +26,7 @@ export async function checkHostReachable(host: string, timeoutMs = 3000, signal?
 
   try {
     const response = await fetchWithDeadline(restUrl, {
-      signal,
+      ...(signal ? { signal } : {}),
       mode: restUrl.origin === window.location.origin ? 'cors' : 'no-cors'
     }, timeoutMs);
     if (signal?.aborted) {

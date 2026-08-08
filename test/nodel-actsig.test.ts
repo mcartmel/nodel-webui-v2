@@ -1,5 +1,12 @@
 import { flush, waitFor } from './helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error('Expected test value to be present');
+  }
+  return value;
+}
+
 const actsigMock = vi.hoisted(() => ({
   activityListeners: [] as Array<(state: any) => void>,
   activitySubscriptions: [] as Array<{ active: boolean; dispose: ReturnType<typeof vi.fn> }>,
@@ -217,7 +224,7 @@ describe('nodel-actsig', () => {
     await setInputValue(editor, '{"__proto__":{"safe":true},"constructor":"value"}');
     submitForm(form);
     await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
-    const payload = actsigMock.callNodeAction.mock.calls[0][1] as { arg: Record<string, unknown> };
+     const payload = required(actsigMock.callNodeAction.mock.calls[0])[1] as { arg: Record<string, unknown> };
     expect(Object.prototype.hasOwnProperty.call(payload.arg, '__proto__')).toBe(true);
     expect(Object.prototype.hasOwnProperty.call(payload.arg, 'constructor')).toBe(true);
     expect(({} as { safe?: boolean }).safe).toBeUndefined();
@@ -669,8 +676,8 @@ describe('nodel-actsig', () => {
     submitForm(signal);
     await waitFor(() => actsigMock.emitNodeSignal.mock.calls.length === 1);
 
-    expect(actsigMock.callNodeAction.mock.calls[0][1]).toEqual({ arg: { known: 'action-edited', extra: { keep: 'action' } } });
-    expect(actsigMock.emitNodeSignal.mock.calls[0][1]).toEqual({ arg: { known: 'signal-edited', extra: { keep: 'signal' } } });
+    expect(required(actsigMock.callNodeAction.mock.calls[0])[1]).toEqual({ arg: { known: 'action-edited', extra: { keep: 'action' } } });
+    expect(required(actsigMock.emitNodeSignal.mock.calls[0])[1]).toEqual({ arg: { known: 'signal-edited', extra: { keep: 'signal' } } });
   });
 
   it('preserves dirty nullable scalar array state and IDs during later action activity', async () => {
@@ -701,7 +708,7 @@ describe('nodel-actsig', () => {
     await setInputValue(firstInput, 'manual');
     let states = Array.from(form.querySelectorAll<HTMLSelectElement>('[data-schema-presence]'));
     expect(states).toHaveLength(2);
-    await setInputValue(states[0], 'null');
+    await setInputValue(required(states[0]), 'null');
 
     const host = document.querySelector('nodel-actsig') as any;
     const model = host.state.sections.flatMap((section: any) => section.rows).find((row: any) => row.action?.name === 'Run').action;
@@ -723,7 +730,7 @@ describe('nodel-actsig', () => {
     const refreshed = host.state.sections.flatMap((section: any) => section.rows).find((row: any) => row.action?.name === 'Run').action;
     const firstEntry = refreshed.schemaForm.fields[0].entries[0];
     states = Array.from(form.querySelectorAll<HTMLSelectElement>('[data-schema-presence]'));
-    expect(states[0].value).toBe('null');
+    expect(required(states[0]).value).toBe('null');
     expect(firstEntry.id).toBe(entryId);
     expect(firstEntry.valueField.value).toBeNull();
     expect(firstEntry.valueField.concreteValue).toBe('manual');
@@ -732,7 +739,7 @@ describe('nodel-actsig', () => {
 
     submitForm(form);
     await waitFor(() => actsigMock.callNodeAction.mock.calls.length === 1);
-    expect(actsigMock.callNodeAction.mock.calls[0][1]).toEqual({ arg: [null, 'updated'] });
+    expect(required(actsigMock.callNodeAction.mock.calls[0])[1]).toEqual({ arg: [null, 'updated'] });
   });
 
   it('renders root object action args as a collapsible group while keeping nested arrays collapsible', async () => {
@@ -790,8 +797,8 @@ describe('nodel-actsig', () => {
 
     await setCheckboxValue(form.querySelector<HTMLInputElement>('input[type="checkbox"]')!, true);
     const numberInputs = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="number"]'));
-    await setInputValue(numberInputs[0], '128');
-    await setInputValue(numberInputs[1], '7');
+    await setInputValue(required(numberInputs[0]), '128');
+    await setInputValue(required(numberInputs[1]), '7');
     await setInputValue(form.querySelector<HTMLInputElement>('input[type="text"]')!, 'party');
 
     submitForm(form);

@@ -246,7 +246,10 @@ function planDuplicateFiles(files: NodelFileEntry[], includeNodeConfig: boolean,
   }
 
   if (nodeConfigAliases.length > 0) {
-    const selected = nodeConfigAliases.find((file) => file.path === 'nodeConfig.json') ?? nodeConfigAliases[0];
+    const selected = nodeConfigAliases.find((file) => file.path === 'nodeConfig.json') ?? nodeConfigAliases.at(0);
+    if (!selected) {
+      throw new Error('Node configuration aliases were unexpectedly empty');
+    }
     for (const file of nodeConfigAliases) {
       if (file !== selected) {
         skipped.push(file.path);
@@ -271,11 +274,11 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
   }
   let files: NodelFileEntry[];
   try {
-    const fileList = await fetchJson(remoteNodeEndpoint(safeSourceUrl.href, 'REST/files'), { signal: options.signal });
+    const fileList = await fetchJson(remoteNodeEndpoint(safeSourceUrl.href, 'REST/files'), options.signal ? { signal: options.signal } : undefined);
     files = decodeFiles(fileList, 'GET source REST/files');
   } catch (error) {
     throwIfAborted(options.signal);
-    throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`);
+    throw new Error(`Failed to read source node file list: ${boundedErrorMessage(error, 'source file list request failed')}`, { cause: error });
   }
   const includeNodeConfig = options.includeNodeConfig === true;
   const maxFileBytes = options.maxFileBytes ?? MAX_NODE_DUPLICATE_FILE_BYTES;
@@ -289,10 +292,10 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
     total: filesToCopy.length
   });
   try {
-    await createNode(newNodeName, undefined, { signal: options.signal });
+    await createNode(newNodeName, undefined, options.signal ? { signal: options.signal } : undefined);
   } catch (error) {
     throwIfAborted(options.signal);
-    throw new Error(`Failed to create destination node "${newNodeName}": ${boundedErrorMessage(error, 'node creation failed')}`);
+    throw new Error(`Failed to create destination node "${newNodeName}": ${boundedErrorMessage(error, 'node creation failed')}`, { cause: error });
   }
 
   const newNodeUrl = localNodeUrl(newNodeName);
@@ -304,7 +307,7 @@ export async function duplicateNode(sourceNodeUrl: string, newNodeName: string, 
   });
 
   try {
-    await waitForNodeReady(newNodeUrl, 30, 1000, { signal: options.signal });
+    await waitForNodeReady(newNodeUrl, 30, 1000, options.signal ? { signal: options.signal } : undefined);
   } catch (error) {
     if (options.signal?.aborted) {
       throw duplicateCanceledError(newNodeName, newNodeUrl);

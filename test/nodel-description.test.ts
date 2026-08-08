@@ -12,6 +12,11 @@ vi.mock('../src/api/nodel-host-client', () => ({
 import '../src/components/nodel-description';
 import { findComponentContract } from '../src/component-contract';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 describe('nodel-description', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -95,10 +100,10 @@ describe('nodel-description', () => {
 
     expect(element.querySelector('script')).toBeNull();
     expect(element.innerHTML).not.toContain('onclick');
-    expect(links[0].hasAttribute('href')).toBe(false);
-    expect(links[1].getAttribute('href')).toBe('index.html');
-    expect(links[1].getAttribute('target')).toBe('_blank');
-    expect(links[1].getAttribute('rel')).toBe('noopener noreferrer');
+    expect(required(links[0]).hasAttribute('href')).toBe(false);
+    expect(required(links[1]).getAttribute('href')).toBe('index.html');
+    expect(required(links[1]).getAttribute('target')).toBe('_blank');
+    expect(required(links[1]).getAttribute('rel')).toBe('noopener noreferrer');
   });
 
   it('shows the toggle only when content overflows and reflects expanded state', async () => {

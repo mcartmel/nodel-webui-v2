@@ -10,6 +10,12 @@ export async function readStyleSource(path = resolve(process.cwd(), 'src/styles.
     return source;
   }
 
-  const imported = await Promise.all(imports.map((match) => readStyleSource(resolve(dirname(path), match[1]))));
+  const imported = await Promise.all(imports.map((match) => {
+    const importPath = match[1];
+    if (importPath === undefined) {
+      throw new Error(`Invalid stylesheet import in ${path}`);
+    }
+    return readStyleSource(resolve(dirname(path), importPath));
+  }));
   return `${source}\n${imported.join('\n')}`;
 }

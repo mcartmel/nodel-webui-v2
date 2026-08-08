@@ -2,6 +2,13 @@ import { flush, waitFor } from './helpers';
 import { deferred } from './lifecycle-helpers';
 import { createSchemaForm } from '../src/schema/schema-model';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error('Expected test value to be present');
+  }
+  return value;
+}
+
 const paramsMock = vi.hoisted(() => ({
   getNodeParams: vi.fn(),
   getNodeParamsSchema: vi.fn(),
@@ -159,7 +166,7 @@ describe('nodel-params', () => {
     await setInputValue(editor, '{"constructor":"value","__proto__":{"safe":true}}');
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    const payload = paramsMock.saveNodeParams.mock.calls[0][0] as Record<string, unknown>;
+    const payload = required(paramsMock.saveNodeParams.mock.calls[0])[0] as Record<string, unknown>;
     expect(Object.prototype.hasOwnProperty.call(payload, 'constructor')).toBe(true);
     expect(Object.prototype.hasOwnProperty.call(payload, '__proto__')).toBe(true);
     expect(({} as { safe?: boolean }).safe).toBeUndefined();
@@ -282,13 +289,13 @@ describe('nodel-params', () => {
     expect(paramsMock.saveNodeParams).not.toHaveBeenCalled();
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('required');
 
-    const required = document.querySelector<HTMLInputElement>('input[type="number"]')!;
-    expect(required.getAttribute('aria-invalid')).toBe('true');
+    const requiredInput = document.querySelector<HTMLInputElement>('input[type="number"]')!;
+    expect(requiredInput.getAttribute('aria-invalid')).toBe('true');
 
-    await setInputValue(required, '4');
+    await setInputValue(requiredInput, '4');
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({
       network: { host: 'localhost', backendOnly: { keep: true } },
       requiredValue: 4,
       rootBackendOnly: false
@@ -310,19 +317,19 @@ describe('nodel-params', () => {
     expect(input.value).toBe('');
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ maybe: '' });
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({ maybe: '' });
 
     paramsMock.saveNodeParams.mockReset().mockResolvedValue({});
     await setInputValue(presence, 'missing');
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({});
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({});
 
     paramsMock.saveNodeParams.mockReset().mockResolvedValue({});
     await setInputValue(presence, 'null');
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ maybe: null });
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({ maybe: null });
   });
 
   it('reveals and focuses a collapsed invalid nested field on submit', async () => {
@@ -427,10 +434,10 @@ describe('nodel-params', () => {
 
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="text"]'));
     expect(inputs.map((input) => input.value)).toEqual(['beta', '']);
-    await setInputValue(inputs[1], 'gamma');
+    await setInputValue(required(inputs[1]), 'gamma');
 
     const moveUpButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-schema-array-move="up"]'));
-    moveUpButtons[1].click();
+    required(moveUpButtons[1]).click();
     await flush();
 
     submitForm();
@@ -478,18 +485,18 @@ describe('nodel-params', () => {
     await openDetails(schemaDetailsByLabel('Rows')!);
     let states = Array.from(document.querySelectorAll<HTMLSelectElement>('[data-schema-array-presence]'));
     expect(states.map((select) => select.value)).toEqual(['null', 'value']);
-    await setInputValue(states[0], 'value');
+    await setInputValue(required(states[0]), 'value');
     await waitFor(() => document.querySelectorAll('[data-schema-array-presence]').length === 2);
     const name = document.querySelector<HTMLInputElement>('[data-schema-array-entry] [data-schema-field-input]')!;
     await setInputValue(name, 'first');
     states = Array.from(document.querySelectorAll<HTMLSelectElement>('[data-schema-array-presence]'));
-    await setInputValue(states[1], 'null');
+    await setInputValue(required(states[1]), 'null');
     const moveDown = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-schema-array-move="down"]'))[0];
-    moveDown.click();
+    required(moveDown).click();
     await flush();
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ rows: [null, { name: 'first' }] });
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({ rows: [null, { name: 'first' }] });
   });
 
   it('does not offer Missing for nullable scalar array items and blocks forged absent items', async () => {
@@ -542,7 +549,7 @@ describe('nodel-params', () => {
 
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ config: { name: 'active' }, values: [''] });
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({ config: { name: 'active' }, values: [''] });
   });
 
   it('activates a missing nullable parent when a nested nullable child is set to null', async () => {
@@ -579,7 +586,7 @@ describe('nodel-params', () => {
 
     submitForm();
     await waitFor(() => paramsMock.saveNodeParams.mock.calls.length === 1);
-    expect(paramsMock.saveNodeParams.mock.calls[0][0]).toEqual({ config: { child: null } });
+    expect(required(paramsMock.saveNodeParams.mock.calls[0])[0]).toEqual({ config: { child: null } });
   });
 
   it('uses shared schema stacks for nested object arrays and array entries', async () => {
@@ -649,7 +656,7 @@ describe('nodel-params', () => {
     expect(directChildrenWithClass(segmentEntry, 'nodel-schema-field')).toHaveLength(0);
     const segmentEntryStacks = directChildrenWithClass(segmentEntry, 'nodel-schema-stack');
     expect(segmentEntryStacks).toHaveLength(1);
-    expect(directChildrenWithClass(segmentEntryStacks[0], 'nodel-schema-field').length).toBeGreaterThan(1);
+    expect(directChildrenWithClass(required(segmentEntryStacks[0]), 'nodel-schema-field').length).toBeGreaterThan(1);
 
     const colours = schemaDetailsByLabel('Colours')!;
     await openDetails(colours);
@@ -659,7 +666,7 @@ describe('nodel-params', () => {
     expect(directChildrenWithClass(colourEntry, 'nodel-schema-field')).toHaveLength(0);
     const colourEntryStacks = directChildrenWithClass(colourEntry, 'nodel-schema-stack');
     expect(colourEntryStacks).toHaveLength(1);
-    expect(directChildrenWithClass(colourEntryStacks[0], 'nodel-schema-field').length).toBeGreaterThan(1);
+    expect(directChildrenWithClass(required(colourEntryStacks[0]), 'nodel-schema-field').length).toBeGreaterThan(1);
   });
 
   it('refreshes schema and values after a node restart', async () => {

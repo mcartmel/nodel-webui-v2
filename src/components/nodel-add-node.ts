@@ -679,7 +679,7 @@ export class NodelAddNode extends HTMLElement {
         this.setState({ status: 'Creating node...' });
         const result = await createAddNodeFromTemplate({
           name,
-          base,
+          ...(base ? { base } : {}),
           signal: ticket.signal,
           onWaiting: () => {
             if (scope.isCurrent() && ticket.isCurrent()) {

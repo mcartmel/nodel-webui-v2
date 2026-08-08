@@ -23,26 +23,28 @@ function requestPath(requestUrl) {
   return safeRelativePath(decoded) ? decoded : null;
 }
 
+async function handleRequest(request, response, root) {
+  const relative = requestPath(request.url ?? '/');
+  if (!relative || !['GET', 'HEAD'].includes(request.method ?? '')) {
+    response.writeHead(relative ? 405 : 400).end();
+    return;
+  }
+  const file = join(root, relative);
+  try {
+    const info = await lstat(file);
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error('not a regular file');
+    response.writeHead(200, { 'content-type': contentTypes[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
+    response.end(request.method === 'HEAD' ? undefined : await readFile(file));
+  } catch {
+    response.writeHead(404).end();
+  }
+}
+
 async function serve(root) {
-  const server = createServer(async (request, response) => {
-    const relative = requestPath(request.url ?? '/');
-    if (!relative || !['GET', 'HEAD'].includes(request.method ?? '')) {
-      response.writeHead(relative ? 405 : 400).end();
-      return;
-    }
-    const file = join(root, relative);
-    try {
-      const info = await lstat(file);
-      if (!info.isFile() || info.isSymbolicLink()) throw new Error('not a regular file');
-      response.writeHead(200, { 'content-type': contentTypes[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
-      response.end(request.method === 'HEAD' ? undefined : await readFile(file));
-    } catch {
-      response.writeHead(404).end();
-    }
-  });
+  const server = createServer((request, response) => { void handleRequest(request, response, root); });
   await new Promise((resolveListen, rejectListen) => {
     server.once('error', rejectListen);
-    server.listen(0, '127.0.0.1', resolveListen);
+    server.listen(0, '127.0.0.1', () => resolveListen());
   });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Deployment smoke server did not bind a TCP port');

@@ -1,6 +1,11 @@
 import { waitFor } from './helpers';
 import { rapidReconnect } from './lifecycle-helpers';
 
+function required<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('Expected test fixture value');
+  return value;
+}
+
 const activityMock = vi.hoisted(() => ({
   disposers: [] as Array<ReturnType<typeof vi.fn>>,
   listeners: [] as Array<(state: unknown) => void>,
@@ -69,20 +74,20 @@ describe('nodel-log', () => {
 
     const rows = Array.from(document.querySelectorAll('.nodel-log-row'));
     expect(rows.length).toBe(2);
-    expect(rows[0].textContent).toContain('Level');
-    expect(rows[0].textContent).toContain('"value": 10');
-    expect(rows[1].textContent).toContain('Power');
+    expect(required(rows[0]).textContent).toContain('Level');
+    expect(required(rows[0]).textContent).toContain('"value": 10');
+    expect(required(rows[1]).textContent).toContain('Power');
     expect(document.body.textContent).not.toContain('Hidden');
     expect(document.body.textContent).not.toContain('empty');
-    expect(rows[0].querySelector('[data-icon="traffic-light"]')).toBeTruthy();
-    expect(rows[0].querySelector('[data-icon="arrow-right"]')).toBeTruthy();
-    expect((rows[0] as HTMLElement).dataset.logSource).toBe('remote');
-    expect((rows[0] as HTMLElement).dataset.logType).toBe('event');
-    expect(rows[1].querySelector('[data-icon="person-running"]')).toBeTruthy();
-    expect((rows[1] as HTMLElement).dataset.logSource).toBe('local');
-    expect((rows[1] as HTMLElement).dataset.logType).toBe('action');
-    expect(rows[0].textContent).not.toContain('remote');
-    expect(rows[0].textContent).not.toContain('event');
+    expect(required(rows[0]).querySelector('[data-icon="traffic-light"]')).toBeTruthy();
+    expect(required(rows[0]).querySelector('[data-icon="arrow-right"]')).toBeTruthy();
+    expect((required(rows[0]) as HTMLElement).dataset.logSource).toBe('remote');
+    expect((required(rows[0]) as HTMLElement).dataset.logType).toBe('event');
+    expect(required(rows[1]).querySelector('[data-icon="person-running"]')).toBeTruthy();
+    expect((required(rows[1]) as HTMLElement).dataset.logSource).toBe('local');
+    expect((required(rows[1]) as HTMLElement).dataset.logType).toBe('action');
+    expect(required(rows[0]).textContent).not.toContain('remote');
+    expect(required(rows[0]).textContent).not.toContain('event');
     expect(document.body.textContent).not.toContain('Live activity stream');
     expect(document.querySelector('[data-log-status]')).toBeNull();
     expect(document.querySelector('nodel-log')?.getAttribute('data-state')).toBe('active');
@@ -381,10 +386,10 @@ describe('nodel-log', () => {
 
     const rows = Array.from(document.querySelectorAll('.nodel-log-row'));
     expect(rows[0]).toBe(initialRows[0]);
-    expect(rows[0].textContent).toContain('Level');
-    expect(rows[1].textContent).toContain('Power');
-    expect(rows[1].textContent).toContain('on');
-    expect(rows[1].classList.contains('is-pulsing')).toBe(true);
+    expect(required(rows[0]).textContent).toContain('Level');
+    expect(required(rows[1]).textContent).toContain('Power');
+    expect(required(rows[1]).textContent).toContain('on');
+    expect(required(rows[1]).classList.contains('is-pulsing')).toBe(true);
     expect((document.querySelector('nodel-log') as HTMLElement).dataset.state).toBe('active');
   });
 

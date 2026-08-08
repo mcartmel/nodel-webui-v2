@@ -449,7 +449,7 @@ export class NodelSegmented extends HTMLElement {
     for (const item of this.options()) {
       item.setAttribute('data-nodel-native-tabindex', item === option ? '0' : '-1');
     }
-    (option.querySelector('button') as HTMLButtonElement | null)?.focus();
+    (option.querySelector('button'))?.focus();
   }
 }
 

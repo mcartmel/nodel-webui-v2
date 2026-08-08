@@ -56,7 +56,8 @@ Pushing a `v`-prefixed version tag that matches `package.json`, such as
 exact `dist/`, deploys and smoke-tests the unchanged files, rechecks the
 checkpoint before and after packaging, then publishes a GitHub Release. Each release includes a
 versioned ZIP containing the deployable pages, complete `v2/` support directory,
-schema 4 `release.json`, normalized Java `dev` and `master` handoff reports, a
+schema 5 `release.json`, deterministic `SBOM.cdx.json` and
+`THIRD-PARTY-LICENSES.json` dependency evidence, normalized Java `dev` and `master` handoff reports, a
 SHA-256 checksum, and build provenance attestation.
 
 Consumers should pin a specific release version and verify its checksum and

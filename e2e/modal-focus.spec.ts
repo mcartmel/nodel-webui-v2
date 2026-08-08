@@ -48,16 +48,22 @@ test.describe('modal focus layers', () => {
         if (!backdrop) {
           return false;
         }
-        return [[1, 1], [window.innerWidth - 2, 1], [1, window.innerHeight - 2], [window.innerWidth - 2, window.innerHeight - 2]]
-          .every(([x, y]) => !backdrop.contains(document.elementFromPoint(x, y)));
+         return [[1, 1], [window.innerWidth - 2, 1], [1, window.innerHeight - 2], [window.innerWidth - 2, window.innerHeight - 2]]
+           .every((point) => {
+             const [x, y] = point;
+             return x !== undefined && y !== undefined && !backdrop.contains(document.elementFromPoint(x, y));
+           });
       })).toBe(true);
       await expect(close).toBeVisible();
       await close.click();
     } else {
       const backdropBox = await backdrop.boundingBox();
       expect(backdropBox).not.toBeNull();
-      const x = backdropBox!.x + 5;
-      const y = backdropBox!.y + 5;
+       if (backdropBox === null) {
+         throw new Error('Missing modal backdrop bounds.');
+       }
+       const x = backdropBox.x + 5;
+       const y = backdropBox.y + 5;
       expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.matches('[data-node-menu-backdrop]'), { x, y })).toBe(true);
       await page.mouse.click(x, y);
     }
