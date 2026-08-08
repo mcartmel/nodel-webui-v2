@@ -572,6 +572,6 @@ describe('prepare-release', () => {
     await rm(join(target, 'THIRD-PARTY-LICENSES.json'));
     const missingEvidenceArchive = join(fixtureRoot, 'build', 'missing-evidence.zip');
     await execFileAsync('zip', ['-qr', missingEvidenceArchive, '.'], { cwd: target });
-    await expect(verifyReleaseArchive(missingEvidenceArchive)).rejects.toThrow(/archive entries do not exactly match|missing required dependency evidence|inventory/);
+    await expect(verifyReleaseArchive(missingEvidenceArchive)).rejects.toThrow(/archive entries do not exactly match|missing required dependency evidence|unexpected or unlisted files|inventory/);
   });
 });
