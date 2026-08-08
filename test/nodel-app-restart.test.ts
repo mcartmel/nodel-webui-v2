@@ -104,6 +104,26 @@ describe('nodel-app restart coordination', () => {
     expect(document.body.textContent).toContain('Node reloaded. View is up to date.');
   });
 
+  it('shows the restart toast and dispatches before synchronously starting child refreshes', async () => {
+    document.body.innerHTML = '<nodel-app><nodel-page title="Activity"><nodel-description></nodel-description></nodel-page></nodel-app>';
+    await customElements.whenDefined('nodel-app');
+    const app = document.querySelector('nodel-app')!;
+    const order: string[] = [];
+    app.addEventListener('nodel-node-restarted', () => order.push('event'));
+    Object.assign(app.querySelector('nodel-description')!, {
+      refreshAfterRestart: () => {
+        expect(document.body.textContent).toContain('Node restarted. Refreshing view...');
+        order.push('child');
+        return { status: 'verified' as const };
+      }
+    });
+
+    restartMock.listener?.({ previousTimestamp: 'start-1', timestamp: 'start-2' });
+
+    expect(order).toEqual(['event', 'child']);
+    await waitFor(() => sourceMock.refreshNodeConsoleForRestart.mock.calls.length === 1);
+  });
+
   it('shows a warning toast when a restart refresh partly fails', async () => {
     document.body.innerHTML = `
       <nodel-app>
