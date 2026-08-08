@@ -1,5 +1,7 @@
 import type { ComponentAttributeContract, ComponentContract, ComponentContractDiff, ComponentContractDocument, ComponentSignalBindingContract } from './types';
 
+const compareCodeUnits = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0;
+
 function compareSet(label: string, before: readonly string[], after: readonly string[], diff: ComponentContractDiff) {
   const oldValues = new Set(before); const newValues = new Set(after);
   for (const value of oldValues) if (!newValues.has(value)) diff.breaking.push(`${label}: removed ${value}`);
@@ -93,6 +95,6 @@ export function diffComponentContracts(before: ComponentContractDocument, after:
     const nextStyles = new Map(after.styles[category].map((style) => [style.name, style]));
     for (const style of before.styles[category]) infoIfChanged(`styles.${category}.${style.name}.description`, style.description, nextStyles.get(style.name)?.description, diff);
   }
-  for (const category of Object.keys(diff) as Array<keyof ComponentContractDiff>) diff[category].sort((a, b) => a.localeCompare(b));
+  for (const category of Object.keys(diff) as Array<keyof ComponentContractDiff>) diff[category].sort(compareCodeUnits);
   return diff;
 }

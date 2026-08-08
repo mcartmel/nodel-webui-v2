@@ -84,6 +84,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Report component contract impact
+        if: always()
+        run: npm run report:component-contract
+
       - name: Lint
         run: npm run lint
 
@@ -92,6 +96,16 @@ jobs:
 
       - name: Check JsViews templates
         run: npm run check:jsviews
+
+      - name: Build preview
+        run: npm run build:preview
+
+      - name: Verify release gate
+        run: node scripts/verify-release-gate.mjs
+
+      - name: Report bundle budget
+        if: always()
+        run: npm run report:bundle-budget
 
       - name: Run full per-file coverage tests
         run: npm run test:coverage -- --coverage.all
@@ -107,11 +121,21 @@ jobs:
           path: build/dependency-evidence/
           if-no-files-found: warn
 
-      - name: Build preview
-        run: npm run build:preview
+      - name: Verify review impact
+        run: npm run verify:review-impact
 
-      - name: Verify release gate
-        run: node scripts/verify-release-gate.mjs
+      - name: Upload review impact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: review-impact
+          path: |
+            build/contract-report/
+            build/bundle-budget.json
+            build/bundle-budget.md
+            build/review-impact/
+            build/bundle-graph.json
+          if-no-files-found: warn
 
       - name: Capture tested dist inventory
         run: npm run verify:dist -- --write --json

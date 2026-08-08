@@ -1,0 +1,8 @@
+export function normalizeOutputPath(value: string): string;
+export function normalizeRollupBundle(bundle: Record<string, unknown>, projectRoot: string): unknown;
+export function finalizeBundleGraph(graph: { outputs: Array<{ path: string }> }, presentPaths: Iterable<string>, expectedPaths?: string[]): unknown;
+export function bundleGraphPlugin(projectRoot: string): {
+  name: string;
+  generateBundle: (_options: unknown, bundle: Record<string, unknown>) => void;
+  writeBundle: () => Promise<void>;
+};

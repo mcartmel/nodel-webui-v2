@@ -11,6 +11,18 @@
   schema, and SHA-256 of `v2/nodel-components.json` alongside the existing
   tested-`dist` inventory and release evidence.
 
+### Performance And Review Impact
+
+- `STAGE5_APPROVED_BUNDLE_BASELINE_2026-08-08` approves the clean Stage 4
+  production build as the Stage 5 uncompressed and independently gzipped-file baseline.
+  Rationale: Stage 5 baseline is the clean Stage 4 production build; each maximum is a reviewed five percent headroom for maintenance without automatic ratcheting.
+  Each budget has reviewed five percent headroom for maintenance; budgets never
+  auto-ratchet and intentional changes require this policy, inventory tests, and
+  release-note evidence to change together.
+- Review output reports component-contract breaking/additive/informational/operational
+  impact together with stable-entry, CSS, CodeMirror, catalogue, and `v2/`
+  bundle impact.
+
 ## 0.1.2
 
 ### Compatibility

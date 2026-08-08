@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import packageMetadata from './package.json';
 import { serializeComponentContract } from './src/component-contract/serialize';
+import { bundleGraphPlugin } from './scripts/bundle-graph.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const componentContractPath = '/v2/nodel-components.json';
@@ -64,7 +65,7 @@ function cssBeforeEntryScriptPlugin(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [componentContractPlugin(), cssBeforeEntryScriptPlugin()],
+  plugins: [componentContractPlugin(), cssBeforeEntryScriptPlugin(), bundleGraphPlugin(projectRoot)],
   server: {
     host: '0.0.0.0'
   },
