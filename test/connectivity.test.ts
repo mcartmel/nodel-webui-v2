@@ -245,6 +245,19 @@ describe('connectivity coordinator', () => {
     expect(states.at(-1)?.offline).toBe(false);
   });
 
+  it('keeps browser-offline failures and responses in the browser state', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const states: NodelConnectivityState[] = [];
+    subscription = subscribeConnectivity((state) => states.push(state));
+    setOnline(false);
+
+    reportConnectivityFailure('/REST/activity', new TypeError('offline'));
+    expect(states.at(-1)).toMatchObject({ offline: true, reason: 'browser' });
+    reportConnectivityResponse('/REST/activity');
+    expect(states.at(-1)).toMatchObject({ offline: true, reason: 'browser' });
+  });
+
   it('does not turn a cross-origin request failure into local host offline state', async () => {
     const fetchMock = vi.fn(async () => {
       throw new TypeError('remote node unavailable');

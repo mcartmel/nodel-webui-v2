@@ -57,6 +57,35 @@ describe('V1 migration and release guidance', () => {
     expect(architecture).toContain('normal explicitly confirmed node-removal workflow');
   });
 
+  it('documents Stage 7 contracts, recovery, coverage, and evidence', async () => {
+    const guidance = await readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8');
+    const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');
+    const architecture = await readFile(resolve(process.cwd(), 'docs/architecture.md'), 'utf8');
+    for (const phrase of [
+      'recommended custom UI first', 'advanced core assistance', 'hidden internal entries', 'Ctrl/Cmd+Space',
+      'arbitrary Tailwind output', 'does not call action or signal endpoints', 'infer or index point names',
+      'Empty, node-only, target-only, and complete binding rows', 'incomplete rows remain inactive and unwired',
+      'invalid typed or enum values still block', 'preserves unknown metadata', 'do not block Save',
+      'schemaVersion', 'element audience', 'ignoring unknown additive fields', 'initialization-time navigation inputs',
+      '/REST/nodeURLs', 'target-node `REST/actions` or `REST/events`'
+    ]) expect(guidance).toContain(phrase);
+    for (const phrase of [
+      'Component Contract Data Flow', 'Editor Authoring Pipeline', 'Lazy Component Failure Path',
+      'Quality And Coverage Policy', 'Decomposition Boundaries', 'SBOM.cdx.json', 'THIRD-PARTY-LICENSES.json',
+      '90% lines', '85% branches', 'fifth hotspot boundary'
+    ]) expect(architecture).toContain(phrase);
+    for (const phrase of [
+      '**Breaking:**', '**Additive:**', '**Informational/operational:**', 'Native HTML/XML completion',
+      'generation-deduplicated app toast', 'CycloneDX `SBOM.cdx.json`', 'schema-5 hash binding',
+      'no automatic ratchet'
+    ]) expect(notes).toContain(phrase);
+    expect(notes).toContain('## Unreleased');
+    expect(notes).toContain('`show-filter` and `show-total`');
+    expect(notes).not.toContain('## 0.1.3');
+    expect(guidance).not.toContain('show-filter');
+    expect(guidance).not.toContain('show-total');
+  });
+
   it('tests the exact built dist before deployment or packaging', async () => {
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');

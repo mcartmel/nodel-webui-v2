@@ -165,7 +165,7 @@ function fragmentCompletions(context: CompletionContext, from: number): Completi
   if (!current?.attribute || current.attribute !== 'href' || current.tagName !== 'nodel-link' || !current.valueText?.startsWith('#')) return null;
   const pageExplicit = new Map<string, number>();
   const pageTitles = new Map<string, number>();
-  const staticIds = new Set<string>();
+  const staticIds = new Map<string, number>();
   syntaxTree(context.state).iterate({ enter(node) {
     if (node.name !== 'Element') return;
     const tag = node.node.getChild('OpenTag') ?? node.node.getChild('SelfClosingTag');
@@ -184,7 +184,7 @@ function fragmentCompletions(context: CompletionContext, from: number): Completi
       const raw = context.state.sliceDoc(value.from, value.to).replace(/^["']|["']$/g, '');
       if (attr === 'title') title = raw;
       if (attr === 'nav-id') explicitId = raw;
-      if (attr === 'id' && raw) staticIds.add(raw);
+       if (attr === 'id' && raw) staticIds.set(raw, (staticIds.get(raw) ?? 0) + 1);
     });
     if (name === 'nodel-page') {
       if (explicitId) pageExplicit.set(explicitId, (pageExplicit.get(explicitId) ?? 0) + 1);
@@ -194,11 +194,17 @@ function fragmentCompletions(context: CompletionContext, from: number): Completi
       }
     }
   }});
-  const options: Completion[] = [
-    ...Array.from(pageExplicit, ([id, count]) => count === 1 ? [{ label: id, type: 'constant', detail: 'explicit page navigation id', section: section.fragments, apply: id }] : []).flat(),
-    ...Array.from(pageTitles, ([id, count]) => count === 1 ? [{ label: id, type: 'constant', detail: 'unambiguous page title destination', section: section.fragments, apply: id }] : []).flat(),
-    ...Array.from(staticIds, (id) => ({ label: id, type: 'constant', detail: 'static element id', section: section.ids, apply: id }))
-  ];
+  const candidates = new Map<string, { count: number; option: Completion }>();
+  const addCandidates = (values: Map<string, number>, option: (id: string) => Completion) => {
+    for (const [id, count] of values) {
+      const existing = candidates.get(id);
+      candidates.set(id, { count: (existing?.count ?? 0) + count, option: existing?.option ?? option(id) });
+    }
+  };
+  addCandidates(pageExplicit, (id) => ({ label: id, type: 'constant', detail: 'explicit page navigation id', section: section.fragments, apply: id }));
+  addCandidates(pageTitles, (id) => ({ label: id, type: 'constant', detail: 'unambiguous page title destination', section: section.fragments, apply: id }));
+  addCandidates(staticIds, (id) => ({ label: id, type: 'constant', detail: 'static element id', section: section.ids, apply: id }));
+  const options: Completion[] = [...candidates.values()].filter(({ count }) => count === 1).map(({ option }) => option);
   return { from: from + 1, to: context.pos, options: Array.from(new Map(options.map((option) => [option.label, option])).values()) };
 }
 

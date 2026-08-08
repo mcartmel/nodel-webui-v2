@@ -1,4 +1,6 @@
 import { ACTSIG_MATERIALIZE_CHUNK_SIZE, createActSigSections, createActSigViewModel, formsInSection, hasConcreteArgument, materializeActSigForm } from '../src/features/actsig-model';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const definition = (name: string, extra: Record<string, unknown> = {}) => ({ name, ...extra });
 
@@ -45,5 +47,14 @@ describe('actsig model', () => {
 
   it('creates a default view without DOM state', () => {
     expect(createActSigViewModel()).toEqual({ loading: true, error: '', overrideSignals: false, hasSignals: false, sections: [], empty: false });
+  });
+
+  it('keeps feature model and controller free of UI adapter and DOM dependencies', () => {
+    for (const path of ['src/features/actsig-model.ts', 'src/features/actsig-controller.ts']) {
+      const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+      expect(source).not.toMatch(/from ['"][^'"]*(?:schema-form|jquery)[^'"]*['"]/);
+      expect(source).not.toMatch(/\bjsviews\b/i);
+      expect(source).not.toMatch(/\b(?:document|window|HTMLElement|HTML\w+Element|Element)\b/);
+    }
   });
 });

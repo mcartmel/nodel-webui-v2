@@ -108,6 +108,35 @@ export interface SchemaNormalization {
   unsupportedReason: string;
 }
 
+/** Traverse the plain schema model without involving any rendering adapter. */
+export function findSchemaField(fields: SchemaField[], id: string): SchemaField | null {
+  for (const field of fields) {
+    if (field.id === id) return field;
+    const child = findSchemaField(field.children, id);
+    if (child) return child;
+    for (const entry of field.entries) {
+      if (entry.valueField?.id === id) return entry.valueField;
+      const entryChild = findSchemaField(entry.fields, id);
+      if (entryChild) return entryChild;
+    }
+    const mapChild = field.mapEntries.find((entry) => entry.field.id === id)?.field;
+    if (mapChild) return mapChild;
+  }
+  return null;
+}
+
+export function allSchemaFields(fields: SchemaField[]): SchemaField[] {
+  return fields.flatMap((field) => [
+    field,
+    ...allSchemaFields(field.children),
+    ...field.entries.flatMap((entry) => [
+      ...allSchemaFields(entry.fields),
+      ...(entry.valueField ? allSchemaFields([entry.valueField]) : [])
+    ]),
+    ...field.mapEntries.flatMap((entry) => allSchemaFields([entry.field]))
+  ]);
+}
+
 const emptySchema: NodelJsonSchema = { type: 'null' };
 const supportedTypes = new Set(['array', 'boolean', 'integer', 'null', 'number', 'object', 'string']);
 const scalarTypes = new Set(['null', 'string', 'number', 'integer', 'boolean']);

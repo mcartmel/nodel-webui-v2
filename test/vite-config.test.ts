@@ -4,6 +4,8 @@ import type { OutputOptions, PreRenderedChunk } from 'rollup';
 import type { Plugin, UserConfig } from 'vite';
 import packageMetadata from '../package.json';
 import { serializeComponentContract } from '../src/component-contract/serialize';
+// @ts-expect-error Release scripts are intentionally plain Node ESM.
+import { validateAuthoredPageScaffold } from '../scripts/verify-release-gate.mjs';
 import config from '../vite.config';
 
 describe('Vite stable entry contract', () => {
@@ -53,5 +55,12 @@ describe('Vite stable entry contract', () => {
     body = 'not empty';
     middleware!({ url: '/v2/nodel-components.json', method: 'HEAD' }, response, () => { throw new Error('component contract middleware did not handle HEAD'); });
     expect(body).toBeUndefined();
+  });
+
+  it('requires authored scaffold ordering and stable dist assets', () => {
+    const scaffold = '<script>theme</script><link rel="stylesheet" href="./v2/nodel-webui.css"><script type="module" src="./v2/nodel-webui.js"></script>';
+    expect(validateAuthoredPageScaffold(scaffold, ['v2/nodel-webui.css', 'v2/nodel-webui.js'])).toBe(true);
+    expect(() => validateAuthoredPageScaffold(scaffold.replace('nodel-webui.css', 'nodel-webui.js'), ['v2/nodel-webui.css', 'v2/nodel-webui.js'])).toThrow(/theme bootstrap/);
+    expect(() => validateAuthoredPageScaffold(scaffold, ['v2/nodel-webui.js'])).toThrow(/missing dist asset/);
   });
 });

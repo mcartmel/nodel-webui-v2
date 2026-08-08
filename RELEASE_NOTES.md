@@ -23,6 +23,26 @@
   impact together with stable-entry, CSS, CodeMirror, catalogue, and `v2/`
   bundle impact.
 
+### Compatibility And Public API
+
+- **Breaking:** None. Supported markup and wire contracts are unchanged.
+- **Additive:** Schema-1 public component-contract metadata and allowlisted lazy-load fallback are additive.
+- **Informational/operational:** Removal of the unreleased, nonfunctional node-list `show-filter` and `show-total` declarations requires no migration.
+
+### Editor Assistance And Recovery
+
+- Native HTML/XML completion remains alongside Nodel completion, page/document scaffolds, curated styles, and static phase, target, class, and navigation hints. Diagnostics are bounded and advisory; the editor does not look up or validate action or signal point names.
+- Lazy component failures preserve child content and offer an adjacent accessible Retry/Reload control plus a generation-deduplicated app toast.
+
+### Quality And Supply Chain
+
+- Strict TypeScript, lint, selected per-file coverage gates, and property tests remain required; dependency advisory policy, pinned actions, and Dependabot provide supply-chain review.
+- Release evidence includes deterministic CycloneDX `SBOM.cdx.json`, `THIRD-PARTY-LICENSES.json`, schema-5 hash binding, and archive verification.
+
+### Maintenance Boundaries
+
+- Stage 6 behavior-preserving decompositions keep editor session/file/restart/upload, bindings controller/model/lookup, app navigation/restart/connectivity, and actsig model/controller concerns separate from their adapters, composition roots, DOM, timers, and events. Component-contract modules are the fifth hotspot boundary.
+
 ## 0.1.2
 
 ### Compatibility
@@ -81,3 +101,4 @@ hashed V2 chunks.
   CI run URL.
 - Archive verification checks the exact ZIP root, path safety, duplicate paths,
   and the per-file SHA-256 inventory before checksum, attestation, or upload.
+- Release and bundle budgets have no automatic ratchet; intentional changes require review evidence.

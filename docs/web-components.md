@@ -33,6 +33,8 @@ Each catalogue component also has a collapsed reference generated from the canon
 
 Every development server and production package exposes `v2/nodel-components.json`. The deterministic JSON document identifies its schema and package versions, then describes element audience, registration, completion visibility, attributes, consumption modes, dynamic or initialization lifecycle, action phases, signal targets and aggregations, composition, public events, and stable authoring styles. Internal auto-created hosts remain present for tooling and review but are marked `internal`, `auto-host`, and `hidden`; they are not ordinary author-instantiated components.
 
+Completion shows recommended custom UI first; advanced core assistance remains available, while hidden internal entries are omitted from ordinary completion. Invoke assistance with `Ctrl/Cmd+Space`; standard HTML/XML completion remains available alongside it. Only curated contract style classes and tokens are suggested: arbitrary Tailwind output and internal selectors are not completion results.
+
 The JSON contract describes supported syntax and behavior. It does not query a running node, discover action or signal names, validate authored point names, or replace this human guidance. Action and signal names continue to come from the authored XML/HTML and the target node at runtime. Consumers must reject unsupported `schemaVersion` values rather than inferring fields from a different schema, while ignoring unknown additive fields within a supported schema version.
 
 ### Custom UI Components
@@ -1349,6 +1351,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Uses `/REST/nodeURLs` for node lookup and target-node `REST/actions` or `REST/events` for action/event lookup.
 - Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
 - Posts raw remote binding payloads to relative `REST/remote/save`, matching the v1 backend shape.
+- Empty, node-only, target-only, and complete binding rows are valid to save; incomplete rows remain inactive and unwired. Supplied invalid typed or enum values still block saving, and complete replacement preserves unknown metadata.
 
 `nodel-editor` behavior:
 
@@ -1370,6 +1373,7 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Uses the canonical component contract for HTML/XML element, attribute, enum, action-phase, signal-target, aggregation, class-token, and static page-fragment assistance. Native CodeMirror HTML/XML completion remains responsible for ordinary markup, closing tags, quote handling, and replacement ranges.
 - Offers explicit page and complete authored-document scaffolds through `Ctrl/Cmd+Space`; the complete scaffold includes the safe theme bootstrap, stable CSS before module JavaScript, and the standard app/toolbar/page/row/column structure.
 - Shows bounded advisory HTML/XML diagnostics for invalid contract literals, binding grammar, link destinations, composition, legacy APIs, and advanced/internal authoring. Diagnostics never look up action or signal names, do not modify the document, and do not block Save.
+- Editor assistance does not call action or signal endpoints, infer or index point names, existence-validate names, or report unknown-name diagnostics. Point names remain free-form authored content.
 - Keeps completion help and diagnostic counts separate from file-operation, conflict, and restart status.
 
 Language support is loaded only when a matching file is selected. HTML and XML keep their contract adapters and parsers in separate asynchronous chunks. Java and SQL use maintained CodeMirror 6 language packages; Groovy and shell use the legacy-mode package because maintained CodeMirror 6 language packages are not available for those modes.

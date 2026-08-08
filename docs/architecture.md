@@ -21,6 +21,26 @@ Both consumers use the same stable `v2/nodel-webui.js` and `v2/nodel-webui.css` 
 
 The complete `v2/` directory is one indivisible release asset. The stable JavaScript entry may reference hashed chunks, so copying only the stable entry files is unsupported.
 
+### Component Contract Data Flow
+
+Focused modules under `src/component-contract/` provide the typed source of truth. An aggregate feeds the catalogue, editor assistance, reports, and the public deterministic JSON artifact; development middleware and production builds generate the same artifact without a runtime dependency. Schema 1 consumers must remain compatible with additive fields. Golden diffs classify breaking, additive, informational, and operational changes, and the release manifest binds the artifact hash.
+
+### Editor Authoring Pipeline
+
+HTML/XML native CodeMirror context and standard completion coexist with Nodel completion. Recommended custom UI appears first, advanced core assistance remains available, and hidden internal entries are omitted from ordinary completion. Static phase, target, class, and navigation hints are supplied from the contract. The editor does not discover REST action or signal points or diagnose point names. Debounced, bounded diagnostics are advisory, nonblocking, and separate from save status.
+
+### Lazy Component Failure Path
+
+The allowlisted loader maintains a single-flight load state. A failure preserves child content and places a bounded adjacent `role="alert"` fallback with Retry and Reload actions beside the unresolved element; it never follows arbitrary URLs or exposes raw errors. A generation-deduplicated app toast reports the failure. After the component definition succeeds and the element upgrades, the loader removes the inline fallback.
+
+### Quality And Coverage Policy
+
+Typed lint, TypeScript, and JsViews checks are required. V8 reports broad production TypeScript coverage, including components and DOM adapters, without a global floor; per-file gates apply only to selected boundary/domain modules at 90% lines, statements, and functions and 85% branches. Property tests cover bounded and grammar-heavy policies. Dependency advisories, deterministic SBOM and license evidence, and pinned CI actions are release gates. Bundle and contract review reports do not auto-ratchet budgets.
+
+### Decomposition Boundaries
+
+The Stage 6 behavior-preserving boundaries are explicit: editor session, file, restart, and upload logic versus the editor component; bindings controller, model, and lookup logic versus its JsViews adapter; app navigation, restart, and connectivity versus the composition root, theme, and hosts; and actsig model/controller versus timers, DOM, clipboard, and events. Component-contract modules form the fifth hotspot boundary, separating contract data from catalogue, editor, reports, and serialization consumers.
+
 ## Input Boundaries
 
 Treat all REST, WebSocket, discovery, build metadata, authored attributes, and signal values as untrusted at the browser boundary.
@@ -191,7 +211,7 @@ This lets the custom content root override the built-in default document and vis
 
 ## Release Bundle
 
-Version tags matching `package.json` publish a versioned release ZIP through GitHub Releases. Its handoff layout contains the five built entry pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `RELEASE_NOTES.md`, and `release.json`; the Java handoff additionally carries `deployment-manifest.json`, `PRODUCTION_HANDOFF.md`, and normalized `java-handoff/dev.json` and `java-handoff/master.json` reports. `deployment-manifest.json` maps integration policy, while `release.json` identifies the exact release and hashed artifact inventory, including the exact `v2/nodel-components.json` path, schema, and SHA-256.
+Version tags matching `package.json` publish a versioned release ZIP through GitHub Releases. Its handoff layout contains the five built entry pages, the complete `v2/` support directory, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `RELEASE_NOTES.md`, `SBOM.cdx.json`, `THIRD-PARTY-LICENSES.json`, `deployment-manifest.json`, `PRODUCTION_HANDOFF.md`, and `release.json`; tagged handoffs also carry normalized `java-handoff/dev.json` and `java-handoff/master.json` reports. `deployment-manifest.json` maps integration policy, while `release.json` identifies the exact release and hashed artifact inventory, including the exact `v2/nodel-components.json` path, schema, and SHA-256.
 
 Archive construction fixes entry ordering and source timestamps, while archive
 verification enforces the exact root, path safety, duplicate rejection, and

@@ -1,7 +1,6 @@
 import { ActSigController, type ActSigMutationAdapter } from '../src/features/actsig-controller';
 import { createActSigSections, formsInSection } from '../src/features/actsig-model';
-import { bootstrapJsViews } from '../src/jsviews/jsviews-runtime';
-import { hydrateSchemaForm } from '../src/schema/schema-form';
+import { hydrateSchemaFormModel } from '../src/schema/schema-values';
 
 function lifecycle() {
   const controller = new AbortController();
@@ -53,7 +52,6 @@ describe('actsig controller', () => {
   });
 
   it('caches every own argument value, including false, zero, empty, and null', async () => {
-    await bootstrapJsViews();
     const { controller } = setup();
     loadDefinitions(controller);
     const section = controller.state.sections[0]!;
@@ -110,7 +108,6 @@ describe('actsig controller', () => {
   });
 
   it('preserves dirty action values but replaces dirty signal values, and defers closed hydration', async () => {
-    await bootstrapJsViews();
     const { controller } = setup();
     controller.replaceSections(createActSigSections({ run: { name: 'Run', schema: { type: 'string' } } }, { ready: { name: 'Ready', schema: { type: 'string' } } }));
     const section = controller.state.sections[0]!;
@@ -119,8 +116,8 @@ describe('actsig controller', () => {
     const signal = forms.find((form) => form.pointType === 'event')!;
     controller.materializeForm(action);
     controller.materializeForm(signal);
-    hydrateSchemaForm(action.schemaForm!, { arg: 'edited' });
-    hydrateSchemaForm(signal.schemaForm!, { arg: 'edited' });
+    hydrateSchemaFormModel(action.schemaForm!, { arg: 'edited' });
+    hydrateSchemaFormModel(signal.schemaForm!, { arg: 'edited' });
     action.schemaForm!.fields[0]!.dirty = true;
     signal.schemaForm!.fields[0]!.dirty = true;
     section.open = false;
@@ -138,7 +135,6 @@ describe('actsig controller', () => {
   });
 
   it('returns invalid, submitted, error, and stale outcomes with exact endpoint payloads', async () => {
-    await bootstrapJsViews();
     const { api, controller } = setup();
     loadDefinitions(controller);
     const action = formsInSection(controller.state.sections[0]!).find((form) => form.pointType === 'action')!;
@@ -157,7 +153,6 @@ describe('actsig controller', () => {
   });
 
   it('blocks strict invalid, readonly, and busy submissions without API calls', async () => {
-    await bootstrapJsViews();
     const { api, controller, state } = setup();
     controller.replaceSections(createActSigSections({ strict: { name: 'Strict', schema: { type: 'integer' } } }, { ready: { name: 'Ready', schema: { type: 'string' } } }));
     const forms = formsInSection(state.sections[0]!);
@@ -167,6 +162,7 @@ describe('actsig controller', () => {
     controller.materializeForm(signal);
     strict.schemaForm!.fields[0]!.value = 'not a number';
     expect((await controller.submit(strict, lifecycle())).type).toBe('invalid');
+    expect(strict.schemaForm!.fields[0]!.errors).toEqual(['Enter a whole number.']);
     expect(api.callAction).not.toHaveBeenCalled();
     expect((await controller.submit(signal, lifecycle())).type).toBe('invalid');
     expect(api.emitSignal).not.toHaveBeenCalled();
@@ -176,7 +172,6 @@ describe('actsig controller', () => {
   });
 
   it('emits enabled signals exactly and clears current busy state on action failure', async () => {
-    await bootstrapJsViews();
     const { api, controller, state } = setup();
     controller.replaceSections(createActSigSections({ run: { name: 'Run', schema: { type: 'string' } } }, { ready: { name: 'Ready', schema: { type: 'string' } } }));
     const forms = formsInSection(state.sections[0]!);
@@ -184,7 +179,7 @@ describe('actsig controller', () => {
     const signal = forms.find((form) => form.pointType === 'event')!;
     controller.materializeForm(action);
     controller.materializeForm(signal);
-    hydrateSchemaForm(signal.schemaForm!, { arg: 'hello' });
+    hydrateSchemaFormModel(signal.schemaForm!, { arg: 'hello' });
     state.overrideSignals = true;
     api.emitSignal.mockResolvedValueOnce(undefined);
     const signalContext = lifecycle();
@@ -199,12 +194,11 @@ describe('actsig controller', () => {
   });
 
   it('returns stale for in-flight success and failure without stale reset or error updates', async () => {
-    await bootstrapJsViews();
     const { api, controller, state } = setup();
     controller.replaceSections(createActSigSections({ run: { name: 'Run', schema: { type: 'string' } } }, {}));
     const action = formsInSection(state.sections[0]!)[0]!;
     controller.materializeForm(action);
-    hydrateSchemaForm(action.schemaForm!, { arg: 'value' });
+    hydrateSchemaFormModel(action.schemaForm!, { arg: 'value' });
     action.schemaForm!.dirty = true;
     let resolveSuccess!: () => void;
     api.callAction.mockReturnValueOnce(new Promise<void>((resolve) => { resolveSuccess = resolve; }));

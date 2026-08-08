@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
+import { parser as commonMarkParser } from '@lezer/markdown';
 import {
   assertProjectBuildTarget,
   componentContractPath,
@@ -47,6 +48,23 @@ function isCommit(value) { return typeof value === 'string' && /^[0-9a-f]{40}$/.
 function validEpoch(value) { return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0; }
 function validHash(value) { return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value); }
 function safePath(value) { return safeRelativePath(value); }
+
+export function validateTaggedReleaseNotes(markdown, version) {
+  if (typeof markdown !== 'string' || !isVersion(version)) throw new Error('Tagged release notes validation requires Markdown and a valid package version');
+  const headings = [];
+  commonMarkParser.parse(markdown).iterate({ enter(node) {
+    if (node.name !== 'ATXHeading2' || node.node.parent?.name !== 'Document') return;
+    headings.push(markdown.slice(node.from, node.to)
+      .replace(/^ {0,3}##[ \t]+/u, '')
+      .replace(/[ \t]+#+[ \t]*$/u, '')
+      .trim());
+  }});
+  if (!headings.includes(version)) {
+    const available = headings.length ? ` Found level-2 headings: ${headings.map((heading) => `## ${heading}`).join(', ')}.` : ' No level-2 headings were found.';
+    throw new Error(`Tagged release notes must contain the exact ## ${version} heading; convert ## Unreleased to ## ${version} before tagged release preparation.${available}`);
+  }
+  return true;
+}
 
 async function git(projectRoot, args) {
   try {
@@ -256,6 +274,7 @@ export async function resolveReleaseOptions(options, { projectRoot, gitRunner = 
   if (typeof branch !== 'string' || !branch || (initial.branch && branch !== initial.branch)) throw new Error(`Release branch must match the current git branch: ${initial.branch}`);
   const tag = options.tag ?? null;
   if (tag !== null && tag !== `v${version}`) throw new Error(`Release tag must exactly match package version: v${version}`);
+  if (tag !== null) validateTaggedReleaseNotes(await readFile(join(root, 'RELEASE_NOTES.md'), 'utf8'), version);
   const derivedEpoch = await gitRunner(root, ['show', '-s', '--format=%ct', commit]);
   const sourceDateEpoch = options.sourceDateEpoch === undefined ? Number(derivedEpoch) : Number(options.sourceDateEpoch);
   if (!validEpoch(sourceDateEpoch) || !/^(0|[1-9]\d*)$/.test(String(options.sourceDateEpoch ?? derivedEpoch))) throw new Error('source-date-epoch must be a non-negative deterministic integer');

@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
 import { parsePrepareReleaseArgs } from '../scripts/prepare-release.mjs';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
-import { prepareRelease, resolveReleaseOptions, validateReleaseBundle, verifyReleaseBundle } from '../scripts/release-contract.mjs';
+import { prepareRelease, resolveReleaseOptions, validateReleaseBundle, validateTaggedReleaseNotes, verifyReleaseBundle } from '../scripts/release-contract.mjs';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
 import { verifyReleaseArchive } from '../scripts/verify-release-archive.mjs';
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
@@ -61,7 +61,7 @@ async function writeFixtureProject() {
     }
   }, null, 2) + '\n');
   await writeFile(join(fixtureRoot, 'security', 'license-policy.json'), '{\n  "schemaVersion": 1,\n  "allowedLicenses": ["MIT"],\n  "noticeRequired": true\n}\n');
-  await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), 'notes\n');
+  await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), '# Release Notes\n\n## 0.1.1\n\nFixture notes.\n');
   await writeFile(join(fixtureRoot, 'docs', 'release-handoff.md'), 'handoff\n');
   await writeFile(join(fixtureRoot, 'deployment-manifest.json'), await readFile(join(projectRoot, 'deployment-manifest.json'), 'utf8'));
   await writeSource();
@@ -154,6 +154,40 @@ describe('prepare-release', () => {
     expect(() => parsePrepareReleaseArgs(['--json', '--quiet'])).toThrow(/cannot be used together/);
   });
 
+  it('validates tagged release-note headings without requiring Unreleased', () => {
+    expect(() => validateTaggedReleaseNotes('## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased to ## 0\.1\.1/);
+    expect(() => validateTaggedReleaseNotes('## 0.1.0\n', '0.1.1')).toThrow(/exact ## 0\.1\.1 heading/);
+    expect(() => validateTaggedReleaseNotes('# Notes\n', '0.1.1')).toThrow(/No level-2 headings/);
+    expect(validateTaggedReleaseNotes('## 0.1.1 ##\n', '0.1.1')).toBe(true);
+    expect(validateTaggedReleaseNotes('## Unreleased\n\n## 0.1.1\n', '0.1.1')).toBe(true);
+    expect(validateTaggedReleaseNotes('## Unreleased\r\n\r\n## 0.1.1\r\n', '0.1.1')).toBe(true);
+    expect(() => validateTaggedReleaseNotes('```markdown\n## 0.1.1\n```\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('~~~ markdown\n## 0.1.1\n~~~~\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('```` markdown\n## 0.1.1\n```\n## Unreleased\n', '0.1.1')).toThrow(/No level-2 headings/);
+    expect(() => validateTaggedReleaseNotes('```markdown\n## 0.1.1\n~~~\n## Unreleased\n', '0.1.1')).toThrow(/No level-2 headings/);
+    expect(() => validateTaggedReleaseNotes('    ```markdown\n    ## 0.1.1\n    ```\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<!--\n## 0.1.1\n-->\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<!--\n```\n## 0.1.1\n-->\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<!-- hidden -->\n## 0.1.1\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('<div>\n## 0.1.1\n</div>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<script>\n## 0.1.1\n</script>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<span>\n## 0.1.1\n</span>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<custom-note>\n## 0.1.1\n</custom-note>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<br>\n\n## 0.1.1\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('<custom-note />\n\n## 0.1.1\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('```bad`info\n## 0.1.1\n```\n## Unreleased\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('```markdown\n## 0.1.1\n~~~\n## Unreleased\n', '0.1.1')).toThrow(/No level-2 headings/);
+    expect(() => validateTaggedReleaseNotes('<div>content</div>\n\n## 0.1.1\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('<?release\n## 0.1.1\n?>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<!RELEASE\n## 0.1.1\n>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<![CDATA[\n## 0.1.1\n]]>\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<div>\n<div>\n</div>\n## 0.1.1\n</div>\n## Unreleased\n', '0.1.1')).toThrow(/No level-2 headings/);
+    expect(() => validateTaggedReleaseNotes('<div title="</div>">\n## 0.1.1\n\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('<div>\nraw content\n\n## 0.1.1\n', '0.1.1')).not.toThrow();
+    expect(() => validateTaggedReleaseNotes('> ## 0.1.1\n\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+    expect(() => validateTaggedReleaseNotes('0.1.1\n-----\n\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
+  });
+
   it('creates a schema 5 bundle with dependency evidence and exact hashes', async () => {
     const derived = await resolveReleaseOptions(await options(), { projectRoot: fixtureRoot });
     expect(derived.sourceDateEpoch).toBe(Number((await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim()));
@@ -224,6 +258,16 @@ describe('prepare-release', () => {
     await git(['update-ref', 'refs/remotes/origin/main', commit]);
   });
 
+  it('rejects a clean correctly tagged checkout with only Unreleased notes', async () => {
+    await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), '# Release Notes\n\n## Unreleased\n');
+    await git(['add', 'RELEASE_NOTES.md']);
+    await git(['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'unreleased notes']);
+    const commit = (await git(['rev-parse', 'HEAD'])).stdout.trim();
+    await git(['tag', 'v0.1.1']);
+    await git(['update-ref', 'refs/remotes/origin/main', commit]);
+    await expect(resolveReleaseOptions(await taggedOptions({ commit }), { projectRoot: fixtureRoot })).rejects.toThrow(/convert ## Unreleased to ## 0\.1\.1/);
+  });
+
   it('accepts an explicit main provenance branch from a detached tagged CI checkout', async () => {
     const commit = (await git(['rev-parse', 'HEAD'])).stdout.trim();
     await git(['tag', 'v0.1.1']);
@@ -233,7 +277,7 @@ describe('prepare-release', () => {
   });
 
   it('records dirty local rehearsals as non-publishable and rejects dirty tagged releases', async () => {
-    await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), 'changed\n');
+    await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), '# Release Notes\n\n## 0.1.1\n\nchanged\n');
     await expect(release()).resolves.toMatchObject({ dirty: true, publishable: false });
     await rm(target, { recursive: true });
     await git(['tag', 'v0.1.1']);

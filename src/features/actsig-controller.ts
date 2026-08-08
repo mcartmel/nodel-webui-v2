@@ -1,5 +1,7 @@
 import type { NodelActionDefinition, NodelActivityLogEntry, NodelSignalDefinition } from '../api/nodel-types';
-import { findSchemaField, hydrateSchemaForm, resetSchemaFormDirty, serializeSchemaForm, validateAndUpdateSchemaForm, type SchemaField } from '../schema/schema-form';
+import { findSchemaField, type SchemaField } from '../schema/schema-model';
+import { hydrateSchemaFormModel, resetSchemaFormDirty, serializeSchemaFormModel } from '../schema/schema-values';
+import { updateSchemaFormValidation } from '../schema/schema-validation';
 import { apiErrorMessage, isAbortError } from '../utils/errors';
 import { hasOwn } from '../utils/records';
 import { createActSigSections, createActSigViewModel, findActSigFormById, findActSigSectionById, findActSigSectionForForm, formsInSection, materializeActSigForm, syncActSigSignalControls, type ActSigFormModel, type ActSigSectionModel, type ActSigViewModel } from './actsig-model';
@@ -103,7 +105,7 @@ export class ActSigController {
     return true;
   }
   finishMaterialization(section: ActSigSectionModel) { this.mutation.setSection(section, { materializing: false }); }
-  syncSignalFormReadOnlyState() { syncActSigSignalControls(this.state.sections, this.state.overrideSignals); }
+  syncSignalFormReadOnlyState() { return syncActSigSignalControls(this.state.sections, this.state.overrideSignals); }
 
   applyActivityEntries(entries: NodelActivityLogEntry[], context: ActSigHydrationContext) {
     const hydrated: ActSigFormModel[] = [];
@@ -137,7 +139,7 @@ export class ActSigController {
     const section = findActSigSectionForForm(this.state.sections, form.id);
     const key = `${form.pointType}:${form.name}`;
     if (!form.schemaForm || !section || !context.canHydrate(section) || !this.latestArgs.has(key)) return;
-    hydrateSchemaForm(form.schemaForm, { arg: this.latestArgs.get(key) }, { preserveDirty: form.pointType === 'action' });
+    hydrateSchemaFormModel(form.schemaForm, { arg: this.latestArgs.get(key) }, { preserveDirty: form.pointType === 'action' });
     hydrated.push(form);
   }
 
@@ -155,8 +157,8 @@ export class ActSigController {
 
   async submit(form: ActSigFormModel, context: ActSigLifecycle): Promise<ActSigSubmitResult> {
     if (!form.requestEligible || !form.schemaForm || form.busy || (form.pointType === 'event' && !this.state.overrideSignals)) return { type: 'invalid' };
-    if (validateAndUpdateSchemaForm(form.schemaForm).length) return { type: 'invalid' };
-    const payload = serializeSchemaForm(form.schemaForm);
+    if (updateSchemaFormValidation(form.schemaForm).length) return { type: 'invalid' };
+    const payload = serializeSchemaFormModel(form.schemaForm);
     this.mutation.setForm(form, { busy: true, error: '' });
     try {
       if (form.pointType === 'action') await this.api.callAction(form.name, payload, { signal: context.signal });

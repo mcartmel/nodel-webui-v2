@@ -1,6 +1,5 @@
 import type { NodelActionDefinition, NodelJsonSchema, NodelSignalDefinition } from '../api/nodel-types';
-import { logIcons, renderFontAwesomeIcon } from '../icons/fontawesome';
-import { createSchemaForm, setSchemaFormControlsDisabled, type SchemaFormModel } from '../schema/schema-form';
+import { createSchemaForm, type SchemaFormModel } from '../schema/schema-model';
 import { reversibleUrlPathSegment } from '../utils/urls';
 
 export type ActSigPointType = 'action' | 'event';
@@ -19,7 +18,6 @@ export interface ActSigFormModel {
   busy: boolean;
   error: string;
   pulse: boolean;
-  iconMarkup: string;
   copyLabel: string;
   copyTitle: string;
 }
@@ -92,7 +90,7 @@ function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition 
     caution: typeof definition.caution === 'string' ? definition.caution : '',
     schema: wrappedSchema(definition.schema), schemaForm: null, materialized: false,
     requestEligible, busy: false, error: requestEligible ? '' : `This ${action ? 'action' : 'signal'} name cannot be represented safely in a request URL.`,
-    pulse: false, iconMarkup: renderFontAwesomeIcon(action ? logIcons.action : logIcons.event, 'h-4 w-4'),
+    pulse: false,
     copyLabel: `Copy ${action ? 'action' : 'signal'} name ${name}`, copyTitle: `Copy ${action ? 'action' : 'signal'} name`
   };
 }
@@ -140,9 +138,15 @@ export function materializeActSigForm(form: ActSigFormModel, overrideSignals: bo
 }
 
 export function syncActSigSignalControls(sections: ActSigSectionModel[], overrideSignals: boolean) {
+  const updates: Array<{ form: SchemaFormModel; controlsDisabled: boolean }> = [];
   for (const section of sections) for (const form of formsInSection(section)) {
-    if (form.schemaForm) setSchemaFormControlsDisabled(form.schemaForm, form.pointType === 'event' && !overrideSignals);
+    if (!form.schemaForm) continue;
+    updates.push({
+      form: form.schemaForm,
+      controlsDisabled: form.schemaForm.unsupported || (form.pointType === 'event' && !overrideSignals)
+    });
   }
+  return updates;
 }
 
 export function findActSigFormById(sections: ActSigSectionModel[], id: string) {

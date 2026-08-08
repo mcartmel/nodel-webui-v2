@@ -3,7 +3,9 @@ import { getJQuery } from '../jsviews/jsviews-runtime';
 import { safeText } from '../utils/html';
 import {
   attachSchemaFormContext,
+  allSchemaFields,
   buildArrayEntry,
+  findSchemaField,
   type SchemaArrayEntry,
   type SchemaField,
   type SchemaFormModel,
@@ -21,10 +23,11 @@ import {
   serializeSchemaFormModel,
   type SchemaHydrateOptions
 } from './schema-values';
-import { validateSchemaForm } from './schema-validation';
+import { updateSchemaFormValidation } from './schema-validation';
 
 export type { SchemaArrayEntry, SchemaEnumOption, SchemaField, SchemaFieldKind, SchemaFormModel, SchemaMapEntry } from './schema-model';
 export { createSchemaForm } from './schema-model';
+export { findSchemaField } from './schema-model';
 export { hydrateSchemaFormModel, serializeSchemaFormModel } from './schema-values';
 export { activateSchemaField, markSchemaFieldDirty, resetSchemaFormDirty, setSchemaFieldPresence } from './schema-values';
 export { validateSchemaForm } from './schema-validation';
@@ -207,8 +210,13 @@ export function registerSchemaFormTemplates() {
 
 export function hydrateSchemaForm(form: SchemaFormModel, value: unknown, options: SchemaHydrateOptions = {}) {
   hydrateSchemaFormModel(form, value, options);
+  synchronizeSchemaForm(form);
+}
+
+/** Synchronize a pure schema model to JsViews after a non-UI caller changed it. */
+export function synchronizeSchemaForm(form: SchemaFormModel) {
   attachSchemaFormContext(form);
-  for (const field of allFields(form.fields)) {
+  for (const field of allSchemaFields(form.fields)) {
     getJQuery().observable(field).setProperty({
       value: field.value,
       concreteValue: field.concreteValue,
@@ -249,7 +257,7 @@ export function syncSchemaFormControls(form: SchemaFormModel, root: HTMLElement)
     }
   }
 
-  for (const field of allFields(form.fields)) {
+  for (const field of allSchemaFields(form.fields)) {
     const elements = fieldElements.get(field.id);
     if (!elements) continue;
     if (elements.presence) elements.presence.value = field.presenceState;
@@ -262,7 +270,7 @@ export function syncSchemaFormControls(form: SchemaFormModel, root: HTMLElement)
     else control.removeAttribute('aria-describedby');
   }
 
-  for (const field of allFields(form.fields)) {
+  for (const field of allSchemaFields(form.fields)) {
     if (field.kind !== 'array') continue;
     for (const entry of field.entries) {
       const presence = entryElements.get(entry.id);
@@ -276,20 +284,10 @@ export function validateAndUpdateSchemaForm(form: SchemaFormModel) {
 }
 
 export function applySchemaFormValidation(form: SchemaFormModel): SchemaValidationIssue[] {
-  const issues = validateSchemaForm(form);
-  const byField = new Map<string, string[]>();
-  for (const item of issues) byField.set(item.fieldId, [...(byField.get(item.fieldId) ?? []), item.message]);
-  for (const field of allFields(form.fields)) {
-    const errors = [
-      ...(byField.get(field.id) ?? []),
-      ...issues
-        .filter((item) => item.fieldId !== field.id && isDescendantPointer(item.pointer, field.pointer))
-        .map((item) => item.message)
-    ].filter((message, index, values) => values.indexOf(message) === index);
-    getJQuery().observable(field).setProperty('errors', errors);
-  }
+  const issues = updateSchemaFormValidation(form);
+  for (const field of allSchemaFields(form.fields)) getJQuery().observable(field).setProperty('errors', [...field.errors]);
   getJQuery().observable(form).setProperty({
-    validationIssues: issues,
+    validationIssues: [...issues],
     invalid: issues.length > 0
   });
   return issues;
@@ -460,26 +458,6 @@ export function moveArrayEntry(field: SchemaField, entryId: string, direction: '
   applyFieldFormValidation(field);
 }
 
-export function findSchemaField(fields: SchemaField[], id: string): SchemaField | null {
-  for (const field of fields) {
-    if (field.id === id) return field;
-    const child = findSchemaField(field.children, id);
-    if (child) return child;
-    for (const entry of field.entries) {
-      if (entry.valueField?.id === id) return entry.valueField;
-      const entryChild = findSchemaField(entry.fields, id);
-      if (entryChild) return entryChild;
-    }
-    const mapChild = field.mapEntries.find((entry) => entry.field.id === id)?.field;
-    if (mapChild) return mapChild;
-  }
-  return null;
-}
-
-function allFields(fields: SchemaField[]): SchemaField[] {
-  return fields.flatMap((field) => [field, ...allFields(field.children), ...field.entries.flatMap((entry) => [...entry.fields.flatMap((child) => allFields([child])), ...(entry.valueField ? allFields([entry.valueField]) : [])]), ...field.mapEntries.flatMap((entry) => allFields([entry.field]))]);
-}
-
 function applyFieldFormValidation(field: SchemaField) {
   const form = (field as SchemaField & { form?: SchemaFormModel }).form;
   if (form) applySchemaFormValidation(form);
@@ -532,11 +510,6 @@ function syncArrayEntryIndexes(field: SchemaField, entries: SchemaArrayEntry[]) 
     canMoveUp: index > 0,
     canMoveDown: index < entries.length - 1
   }));
-}
-
-function isDescendantPointer(pointer: string, parent: string) {
-  if (!parent) return pointer !== '';
-  return pointer.startsWith(`${parent}/`);
 }
 
 function arrayFieldFor(element: Element, findField: SchemaFieldFinder) {

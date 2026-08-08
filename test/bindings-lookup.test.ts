@@ -27,6 +27,12 @@ describe('binding lookup service', () => {
     lookupApiMock.searchNodeUrls.mockReset().mockResolvedValue([]);
   });
 
+  it('does not query discovered nodes for blank input', async () => {
+    const service = new BindingLookupService();
+    await expect(service.searchNodeOptions('   ', new AbortController().signal)).resolves.toEqual([]);
+    expect(lookupApiMock.searchNodeUrls).not.toHaveBeenCalled();
+  });
+
   it('maps safe node URLs and caps results at twenty', async () => {
     lookupApiMock.searchNodeUrls.mockResolvedValue([
       ...Array.from({ length: 21 }, (_, index) => ({
@@ -57,6 +63,18 @@ describe('binding lookup service', () => {
       address: 'http://[::1]:8085/nodes/IPv6/',
       detail: '[::1]:8085'
     }]);
+  });
+
+  it('uses advertised names and hosts when node labels are absent', async () => {
+    lookupApiMock.searchNodeUrls.mockResolvedValue([
+      { node: '', name: 'Named node', host: 'Friendly host', address: 'https://named.example/nodes/Named/' },
+      { node: '', name: '', address: 'https://address.example/nodes/Address/' }
+    ]);
+
+    await expect(new BindingLookupService().searchNodeOptions('node', new AbortController().signal)).resolves.toEqual([
+      { label: 'Named node', value: 'Named node', address: 'https://named.example/nodes/Named/', detail: 'Friendly host' },
+      { label: 'https://address.example/nodes/Address/', value: 'https://address.example/nodes/Address/', address: 'https://address.example/nodes/Address/', detail: 'address.example' }
+    ]);
   });
 
   it('filters scoped matches before applying the lookup cap', async () => {

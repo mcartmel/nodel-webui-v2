@@ -1,5 +1,6 @@
 import type { NodelJsonSchema } from '../api/nodel-types';
 import {
+  allSchemaFields,
   enumRawKey,
   normalizeSchema,
   type SchemaField,
@@ -18,6 +19,24 @@ export function validateSchemaForm(form: SchemaFormModel): SchemaValidationIssue
     ? [{ fieldId: form.id, pointer: '', message: 'The loaded value does not match this object schema.' }]
     : [];
   return [...rootIssues, ...form.fields.flatMap((field) => validateField(field))];
+}
+
+/** Apply validation to the plain model; UI adapters synchronize it to their observables. */
+export function updateSchemaFormValidation(form: SchemaFormModel): SchemaValidationIssue[] {
+  const issues = validateSchemaForm(form);
+  const byField = new Map<string, string[]>();
+  for (const issue of issues) byField.set(issue.fieldId, [...(byField.get(issue.fieldId) ?? []), issue.message]);
+  for (const field of allSchemaFields(form.fields)) {
+    field.errors = [
+      ...(byField.get(field.id) ?? []),
+      ...issues
+        .filter((issue) => issue.fieldId !== field.id && isDescendantPointer(issue.pointer, field.pointer))
+        .map((issue) => issue.message)
+    ].filter((message, index, values) => values.indexOf(message) === index);
+  }
+  form.validationIssues = issues;
+  form.invalid = issues.length > 0;
+  return issues;
 }
 
 export function validateField(field: SchemaField): SchemaValidationIssue[] {
@@ -233,4 +252,9 @@ function isAligned(value: number, base: number, step: number) {
 
 function escapePointer(value: string) {
   return value.replace(/~/g, '~0').replace(/\//g, '~1');
+}
+
+function isDescendantPointer(pointer: string, parent: string) {
+  if (!parent) return pointer !== '';
+  return pointer.startsWith(`${parent}/`);
 }

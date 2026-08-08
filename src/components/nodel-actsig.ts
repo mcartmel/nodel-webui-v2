@@ -6,7 +6,7 @@ import {
 } from '../api/nodel-host-client';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import type { NodeRestartRefreshResult } from '../data/node-restart-source';
-import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
+import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
@@ -20,7 +20,9 @@ import {
   handleSchemaFormToggle,
   revealSchemaValidationIssues,
   registerSchemaFormTemplates,
+  setSchemaFormControlsDisabled,
   syncSchemaFormControls,
+  synchronizeSchemaForm,
   type SchemaField,
 } from '../schema/schema-form';
 import { ActSigController } from '../features/actsig-controller';
@@ -29,6 +31,8 @@ import { ACTSIG_MATERIALIZE_CHUNK_SIZE, type ActSigFormModel, type ActSigSection
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-spin');
 const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
+const actionIconMarkup = renderFontAwesomeIcon(logIcons.action, 'h-4 w-4');
+const eventIconMarkup = renderFontAwesomeIcon(logIcons.event, 'h-4 w-4');
 const copyToastId = 'nodel-actsig-copy-name';
 let registered = false;
 
@@ -41,7 +45,7 @@ const actSigFormTemplate = `
         {^{if caution}}<p class="mt-1 text-xs leading-5 text-nodel-warning">{^{>caution}}</p>{{/if}}
       </div>
       <div class="flex shrink-0 items-center gap-2">
-        <span class="nodel-actsig-form-icon" data-link="data-actsig-point-type{:pointType}" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else}}{^{:iconMarkup}}{{/if}}</span>
+        <span class="nodel-actsig-form-icon" data-link="data-actsig-point-type{:pointType}" aria-hidden="true">{^{if busy}}${busyIconMarkup}{{else pointType === 'action'}}${actionIconMarkup}{{else}}${eventIconMarkup}{{/if}}</span>
         <button type="button" class="nodel-button nodel-actsig-copy nodel-button-compact" data-link="data-actsig-copy-id{:id} title{:copyTitle} aria-label{:copyLabel}">${copyIconMarkup}</button>
         <button type="submit" class="nodel-button nodel-button-compact" data-link="disabled{:busy || !requestEligible || !materialized || !schemaForm || (pointType === 'event' && !~root.overrideSignals)} aria-busy{:busy} title{:name}">
           {^{>pointType === 'action' ? 'Call' : 'Emit'}}
@@ -270,7 +274,9 @@ export class NodelActSig extends HTMLElement {
   }
 
   private syncSignalFormReadOnlyState() {
-    this.controller.syncSignalFormReadOnlyState();
+    for (const update of this.controller.syncSignalFormReadOnlyState()) {
+      setSchemaFormControlsDisabled(update.form, update.controlsDisabled);
+    }
   }
 
   private subscribeActivity(scope: ConnectionScope) {
@@ -307,6 +313,7 @@ export class NodelActSig extends HTMLElement {
   private syncSchemaFormControls(forms: ActSigFormModel[]) {
     for (const form of forms) {
       if (!form.schemaForm) continue;
+      synchronizeSchemaForm(form.schemaForm);
       const root = Array.from(this.querySelectorAll<HTMLFormElement>('[data-actsig-form-id]')).find((element) => element.dataset.actsigFormId === form.id);
       syncSchemaFormControls(form.schemaForm, root ?? this);
     }
@@ -435,6 +442,7 @@ export class NodelActSig extends HTMLElement {
     }
     const result = await this.controller.submit(form, { signal: scope.signal, isCurrent: () => scope.isCurrent() });
     if (result.type === 'invalid' && form.schemaForm) {
+      synchronizeSchemaForm(form.schemaForm);
       revealSchemaValidationIssues(form.schemaForm, target);
     } else if (result.type === 'submitted') {
       this.dispatchEvent(new CustomEvent('nodel-actsig-submitted', { bubbles: true, detail: result.detail }));

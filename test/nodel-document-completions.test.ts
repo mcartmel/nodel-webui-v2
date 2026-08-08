@@ -106,6 +106,12 @@ describe('native Nodel document completions', () => {
     expect(result('<nodel-button actions="First:click;Second', nodelHtmlCompletionSource).options).toEqual([]);
     const ambiguous = result('<nodel-page nav-id="same"></nodel-page><nodel-page nav-id="same"></nodel-page><nodel-link href="#', nodelHtmlCompletionSource);
     expect(ambiguous.options.map((option) => option.label)).not.toContain('same');
+    const explicitDerived = result('<nodel-page nav-id="same"></nodel-page><nodel-page title="same"></nodel-page><nodel-link href="#', nodelHtmlCompletionSource);
+    expect(explicitDerived.options.map((option) => option.label)).not.toContain('same');
+    const pageStatic = result('<nodel-page title="Static"></nodel-page><div id="Static"></div><nodel-link href="#', nodelHtmlCompletionSource);
+    expect(pageStatic.options.map((option) => option.label)).not.toContain('Static');
+    const duplicateStatic = result('<div id="duplicate"></div><span id="duplicate"></span><nodel-link href="#', nodelHtmlCompletionSource);
+    expect(duplicateStatic.options.map((option) => option.label)).not.toContain('duplicate');
   });
 
   it('applies snippets and keeps the shared authored-page document structurally valid', () => {
