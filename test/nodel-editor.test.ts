@@ -391,6 +391,42 @@ describe('nodel-editor', () => {
     expect(confirmations[0]).toMatchObject({ title: 'Overwrite existing file?' });
   });
 
+  it('reports exact selected overwrite status and installs the uploaded text baseline', async () => {
+    const editor = await mountEditor();
+    handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    selectPickerPath(picker, 'content/index.html');
+    await waitFor(() => codeEditorMock.currentDoc === '<nodel-app></nodel-app>');
+    codeEditorMock.currentDoc = 'replacement';
+    codeEditorMock.options?.onChange?.('replacement');
+    dispatchFileDrag(editor, 'drop', [textFile('replacement', 'index.html')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/index.html'; input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => document.body.textContent?.includes('Overwrote content/index.html.') ?? false);
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(true);
+    expect((editor as any).documentSession.state.cleanContent).toBe('replacement');
+  });
+
+  it('keeps newer selected text dirty after an overwrite resolves', async () => {
+    const pending = deferred<unknown>(); editorApiMock.saveNodeFile.mockImplementationOnce(() => pending.promise);
+    const editor = await mountEditor(); handleConfirmations(editor, [true]);
+    const picker = document.querySelector<HTMLSelectElement>('[data-editor-file-picker]')!;
+    selectPickerPath(picker, 'content/index.html');
+    await waitFor(() => codeEditorMock.currentDoc === '<nodel-app></nodel-app>');
+    codeEditorMock.currentDoc = 'replacement'; codeEditorMock.options?.onChange?.('replacement');
+    dispatchFileDrag(editor, 'drop', [textFile('replacement', 'index.html')]);
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    const input = document.querySelector<HTMLInputElement>('[data-editor-add-path]')!;
+    input.value = 'content/index.html'; input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-editor-create-empty]')?.click();
+    await waitFor(() => editorApiMock.saveNodeFile.mock.calls.length === 1);
+    codeEditorMock.currentDoc = 'newer'; codeEditorMock.options?.onChange?.('newer'); pending.resolve('');
+    await waitFor(() => document.body.textContent?.includes('Overwrote content/index.html; current local edits remain unsaved.') ?? false);
+    expect(document.querySelector<HTMLButtonElement>('[data-editor-save]')?.disabled).toBe(false);
+  });
+
   it('rejects multiple dropped files without navigating or selecting one', async () => {
     const element = await mountEditor();
     const errored = vi.fn();

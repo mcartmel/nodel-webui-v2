@@ -2,35 +2,26 @@ import type { NodelFileEntry } from '../api/nodel-types';
 import { deleteNodeFile, getNodeFileContents, listNodeFiles, saveNodeFile } from '../api/nodel-host-client';
 import { requestConfirm } from '../data/confirm';
 import {
-  cancelNodeRestartExpectation,
-  activateNodeRestartExpectation,
-  commitNodeRestartExpectation,
-  getNodeRestartExpectation,
-  getNodeRestartScriptWriteState,
-  isNodeRestartExpectationPreparedForWrite,
-  NodeRestartScriptWriteBlockedError,
-  prepareNodeRestartExpectation,
-  subscribeNodeRestart,
   type NodeRestartEvent,
-  type NodeRestartExpectation,
-  type NodeRestartExpectationState,
   type NodeRestartRefreshContext,
-  type NodeRestartRefreshResult,
-  NodeRestartExpectationObsoleteError,
-  type PreparedNodeRestartExpectation
+  type NodeRestartRefreshResult
 } from '../data/node-restart-source';
 import type { NodelCodeEditor, NodelDiagnosticsSummary } from '../editor/codemirror-editor';
-import { isBinaryFile, isEditableFile, validateNodeFilePath } from '../editor/file-types';
+import { isBinaryFile, isEditableFile } from '../editor/file-types';
 import { getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { loadCodeEditorModule } from '../utils/dynamic-imports';
 import { renderComponentError } from '../utils/render-component-error';
 import { resetFileInput } from '../utils/file-input';
-import { formatFileSize, MAX_NODE_FILE_UPLOAD_BYTES, MAX_NODE_TEXT_EDIT_BYTES, NodeFileTooLargeError } from '../utils/node-file-limits';
-import { isPortableNodeFilePath, nodeFileAliasKey, portableNodeFilePathKey } from '../utils/node-file-path';
+import { formatFileSize } from '../utils/node-file-limits';
+import { isPortableNodeFilePath, portableNodeFilePathKey } from '../utils/node-file-path';
 import { isAbortError } from '../utils/errors';
 import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
+import { EditorDocumentSession } from '../editor/editor-document-session';
+import { defaultEditorFile, EditorFileOperations, sortedEditorFiles } from '../editor/editor-file-operations';
+import { EditorRestartBridge } from '../editor/editor-restart-bridge';
+import { EditorUploadStaging } from '../editor/editor-upload-staging';
 
 type EditorOperationKind = 'list' | 'open' | 'save' | 'create' | 'delete';
 type EditorOperationTicket = LatestOperationTicket<EditorOperationKind>;
@@ -72,8 +63,15 @@ interface EditorViewModel {
   uploadFileName: string;
 }
 
-const binaryPlaceholder = 'Binary file - preview not available.';
 const EDITOR_TRANSIENT_NOTICE_MS = 3500;
+
+// Keep host transport at the boundary; workflows receive this injected port.
+const editorFileApi = {
+  list: (signal?: AbortSignal) => listNodeFiles(signal ? { signal } : undefined),
+  read: (path: string | NodelFileEntry, signal?: AbortSignal, maxBytes?: number) => getNodeFileContents(path, signal ? { signal } : undefined, maxBytes),
+  save: (path: string, content: BodyInit, signal?: AbortSignal) => saveNodeFile(path, content, signal ? { signal } : undefined),
+  delete: (path: string, signal?: AbortSignal) => deleteNodeFile(path, signal ? { signal } : undefined)
+};
 
 const template = `
   <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor space-y-3 is-error' : 'nodel-editor space-y-3'}">
@@ -141,7 +139,7 @@ const template = `
 `;
 
 function sortFiles(files: NodelFileEntry[]) {
-  return [...files].sort((a, b) => a.path.localeCompare(b.path));
+  return sortedEditorFiles(files);
 }
 
 function escapedLegacyPath(path: string) {
@@ -197,20 +195,20 @@ export class NodelEditor extends HTMLElement {
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
   private linked = false;
-  private originalContent = '';
-  private openedModified: string | undefined;
-  private openedSize: number | undefined;
-  private metadataBaselineValid = false;
-  private documentRevision = 0;
+  private documentSession = new EditorDocumentSession();
+  private fileOperations = new EditorFileOperations(editorFileApi, editorListsFile);
+  private restartBridge = new EditorRestartBridge();
+  private uploadStaging = new EditorUploadStaging();
+  // Kept as a read-only test/debug view; the session owns the value.
+  get openedModified() {
+    return this.documentSession.state.metadata.modified;
+  }
   private suppressEditorChange = false;
   private unloadGuardActive = false;
-  private selectedUpload: File | null = null;
-  private scriptExpectationGeneration: number | null = null;
-  private scriptExpectationId: number | null = null;
-  private preparationExpectationId: number | null = null;
-  private scriptExpectationOwned = false;
-  private ownedPreparedExpectation: PreparedNodeRestartExpectation | null = null;
-  private scriptReloadState: NodeRestartExpectationState = 'idle';
+  // Compatibility projections for existing cross-layer tests. The bridge owns these values.
+  get scriptExpectationGeneration() { return this.restartBridge.state.generation; }
+  get scriptExpectationId() { return this.restartBridge.state.id; }
+  get scriptReloadState() { return this.restartBridge.state.state; }
   private uploadFocusFrame: number | null = null;
   private transientNoticeTimer: number | null = null;
   private dragCancellationListenersActive = false;
@@ -240,9 +238,11 @@ export class NodelEditor extends HTMLElement {
   };
 
   connectedCallback() {
+    // A disconnected element may be reattached; each connection owns fresh staged files.
+    this.uploadStaging = new EditorUploadStaging();
     const scope = this.lifecycle.connect();
     if (scope) {
-      scope.own(subscribeNodeRestart(this.handleRestartEvent));
+      scope.own(this.restartBridge.subscribe(this.handleRestartEvent));
       void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
     }
   }
@@ -250,46 +250,30 @@ export class NodelEditor extends HTMLElement {
   disconnectedCallback() {
     if (this.linked) {
       getJQuery().observable(this.state.files).refresh([]);
-      this.originalContent = '';
-      this.openedModified = undefined;
-      this.openedSize = undefined;
-      this.metadataBaselineValid = false;
-      this.setState({
+      this.documentSession.clear();
+      this.projectDocumentState({
         addFilePath: '',
         adding: false,
-        binary: false,
         canDelete: false,
         canSave: false,
         deleting: false,
-        dirty: false,
         editorAssistEnabled: false,
         editorDiagnosticStatus: '',
         editorImportError: false,
-        legacy: false,
         loading: false,
         notice: false,
-        pickerPath: '',
         reloadStatus: '',
         saving: false,
-        selectedPath: '',
         status: '',
         uploadFileName: ''
       });
     }
     this.operations.invalidateAll();
-    const expectation = this.ownedPreparedExpectation;
-    if (expectation && expectation.id === this.preparationExpectationId && this.scriptExpectationOwned) {
-      cancelNodeRestartExpectation(expectation);
-    }
-    this.scriptExpectationOwned = false;
-    this.ownedPreparedExpectation = null;
-    this.scriptExpectationGeneration = null;
-    this.scriptExpectationId = null;
-    this.preparationExpectationId = null;
-    this.scriptReloadState = 'idle';
+    this.restartBridge.dispose();
     this.lifecycle.disconnect();
     this.syncBusyState();
     this.clearSelectedUpload();
+    this.uploadStaging.dispose();
     if (this.uploadFocusFrame !== null) {
       window.cancelAnimationFrame(this.uploadFocusFrame);
       this.uploadFocusFrame = null;
@@ -318,14 +302,7 @@ export class NodelEditor extends HTMLElement {
     if (!context) {
       return true;
     }
-    if (this.scriptExpectationId !== context.expectation.id
-      || this.scriptExpectationGeneration !== context.expectation.generation) {
-      return false;
-    }
-    const current = getNodeRestartExpectation();
-    return current === null
-      || (current.id === context.expectation.id
-        && current.generation === context.expectation.generation);
+    return this.restartBridge.isCurrent(context.expectation);
   }
 
   attributeChangedCallback() {
@@ -343,7 +320,7 @@ export class NodelEditor extends HTMLElement {
       return;
     }
     this.linked = true;
-    this.syncCurrentRestartExpectation();
+    this.restartBridge.sync();
     this.bindEventListeners();
     scope.own(() => this.removeEventListeners());
     await this.initializeCodeEditor(scope);
@@ -426,6 +403,19 @@ export class NodelEditor extends HTMLElement {
     this.syncUnloadGuard();
   }
 
+  // JsViews is a projection only; document identity and capabilities live in the session.
+  private projectDocumentState(values: Partial<EditorViewModel> = {}) {
+    const document = this.documentSession.state;
+    this.setState({
+      binary: document.capabilities.binary,
+      dirty: document.dirty,
+      legacy: document.capabilities.legacy,
+      pickerPath: document.path,
+      selectedPath: document.path,
+      ...values
+    });
+  }
+
   private clearTransientNoticeTimer() {
     if (this.transientNoticeTimer !== null) {
       window.clearTimeout(this.transientNoticeTimer);
@@ -464,97 +454,10 @@ export class NodelEditor extends HTMLElement {
   }
 
   private handleRestartEvent = (event: NodeRestartEvent) => {
-    if (event.type === 'expected-preparing') {
-      this.preparationExpectationId = event.expectation.id;
-      this.scriptExpectationOwned = false;
-      this.scriptReloadState = 'pending';
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-    if (event.type === 'expected-pending' && this.acceptRestartExpectation(event.expectation.id)) {
-      this.scriptExpectationId = event.expectation.id;
-      this.scriptExpectationGeneration = event.expectation.generation;
-      this.preparationExpectationId = null;
-      this.scriptReloadState = event.expectation.state;
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-
-    if (event.type === 'expected-timeout' && this.acceptRestartExpectation(event.expectation.id)) {
-      this.scriptExpectationId = event.expectation.id;
-      this.scriptExpectationGeneration = event.expectation.generation;
-      this.scriptReloadState = event.expectation.state;
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-
-    if (event.type === 'expected-confirmed' && this.acceptRestartExpectation(event.expectation.id)) {
-      this.scriptExpectationId = event.expectation.id;
-      this.scriptExpectationGeneration = event.expectation.generation;
-      this.scriptReloadState = event.expectation.state;
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-
-    if (event.type === 'expected-verified' && this.acceptRestartExpectation(event.expectation.id)) {
-      this.scriptExpectationId = event.expectation.id;
-      this.scriptExpectationGeneration = event.expectation.generation;
-      this.scriptExpectationOwned = false;
-      this.scriptReloadState = event.expectation.state;
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-
-    if (event.type === 'expected-verification-failed' && this.acceptRestartExpectation(event.expectation.id)) {
-      this.scriptExpectationId = event.expectation.id;
-      this.scriptExpectationGeneration = event.expectation.generation;
-      this.scriptReloadState = event.expectation.state;
-      this.setState({ reloadStatus: '' });
-      this.updateAvailability();
-      return;
-    }
-
-    if (event.type === 'expected-superseded' && event.expectation.id === this.scriptExpectationId) {
-      this.scriptExpectationGeneration = null;
-      this.scriptExpectationId = null;
-      this.scriptReloadState = 'idle';
-      this.setState({ reloadStatus: '' });
-      this.syncCurrentRestartExpectation();
-      this.updateAvailability();
-    }
-    if (event.type === 'expected-superseded' && event.expectation.id === this.preparationExpectationId) {
-      this.scriptExpectationOwned = false;
-      this.ownedPreparedExpectation = null;
-      this.preparationExpectationId = null;
-      this.scriptReloadState = 'idle';
-      this.setState({ reloadStatus: '' });
-      this.syncCurrentRestartExpectation();
-      this.updateAvailability();
-    }
-  };
-
-  private acceptRestartExpectation(expectationId: number) {
-    return this.scriptExpectationId === null || this.scriptExpectationId === expectationId;
-  }
-
-  private syncCurrentRestartExpectation() {
-    const expectation = getNodeRestartExpectation();
-    if (!expectation || expectation.state === 'idle') {
-      return;
-    }
-
-    this.scriptExpectationOwned = false;
-    this.scriptExpectationGeneration = expectation.generation;
-    this.scriptExpectationId = expectation.id;
-    this.scriptReloadState = expectation.state;
+    this.restartBridge.event(event);
     this.setState({ reloadStatus: '' });
     this.updateAvailability();
-  }
+  };
 
   private refreshFileViews(files: NodelFileEntry[] = this.state.files) {
     const next = sortFiles(files).map((file) => toFileView(file, this.state.selectedPath, this.state.dirty ? this.state.selectedPath : ''));
@@ -563,15 +466,10 @@ export class NodelEditor extends HTMLElement {
 
   private updateAvailability() {
     const busy = this.state.loading || this.state.saving || this.state.deleting;
-    const restartWriteState = getNodeRestartScriptWriteState();
     const scriptReloadPending = this.state.selectedPath === 'script.py'
-      && (restartWriteState === 'preparing'
-        || restartWriteState === 'pending'
-        || restartWriteState === 'refreshing'
-        || this.scriptReloadState === 'pending'
-        || this.scriptReloadState === 'refreshing');
+      && this.restartBridge.writeBlocked;
     const correctiveScriptSave = this.state.selectedPath === 'script.py'
-      && (restartWriteState === 'unconfirmed' || this.scriptReloadState === 'unconfirmed');
+      && this.restartBridge.correctiveWrite;
     this.setState({
       canDelete: Boolean(this.state.selectedPath
         && !this.state.legacy
@@ -619,7 +517,7 @@ export class NodelEditor extends HTMLElement {
   };
 
   private syncUnloadGuard() {
-    const shouldGuard = this.isConnected && (this.state.dirty || this.state.adding || this.selectedUpload !== null);
+    const shouldGuard = this.isConnected && (this.state.dirty || this.state.adding || this.uploadStaging.hasStage);
     if (shouldGuard === this.unloadGuardActive) {
       return;
     }
@@ -638,7 +536,7 @@ export class NodelEditor extends HTMLElement {
     } finally {
       this.suppressEditorChange = false;
     }
-    this.documentRevision += 1;
+    this.documentSession.projectContent(this.editor?.getDocument() ?? '');
   }
 
   private fileForPath(path: string) {
@@ -667,8 +565,8 @@ export class NodelEditor extends HTMLElement {
     this.setState({ error: '', notice: false, status: 'Loading files...' });
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
-      if (!this.operationIsCurrent(ticket, scope)) {
+      const files = await this.fileOperations.list({ signal: ticket.signal, isCurrent: () => this.operationIsCurrent(ticket, scope) });
+      if (!files) {
         return;
       }
       this.refreshFileViews(files);
@@ -678,7 +576,7 @@ export class NodelEditor extends HTMLElement {
       } else {
         this.setEditorDocument('', '');
         this.editor?.setReadOnly(true);
-        this.setSelectedState('', '', false, false, files.length ? 'Files loaded.' : 'No editable node files found.');
+        this.setSelectedState('', '', false, files.length ? 'Files loaded.' : 'No editable node files found.');
       }
     } catch (error) {
       if (!this.operationIsCurrent(ticket, scope)) {
@@ -700,8 +598,8 @@ export class NodelEditor extends HTMLElement {
     }
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
-      if (!this.operationIsCurrent(ticket, scope)) {
+      const files = await this.fileOperations.list({ signal: ticket.signal, isCurrent: () => this.operationIsCurrent(ticket, scope) });
+      if (!files) {
         return false;
       }
       this.refreshFileViews(files);
@@ -709,13 +607,12 @@ export class NodelEditor extends HTMLElement {
         && !files.some((file) => file.path === this.state.selectedPath);
       if (selectedMissing) {
         this.operations.invalidate('open');
-        this.documentRevision += 1;
+        this.documentSession.selectMissing(this.state.selectedPath);
         this.syncBusyState();
         const orphan = toFileView({ path: this.state.selectedPath }, this.state.selectedPath, this.state.selectedPath);
         orphan.missing = true;
         getJQuery().observable(this.state.files).refresh([...this.state.files, orphan]);
-        this.setState({
-          dirty: true,
+        this.projectDocumentState({
           notice: true,
           pickerPath: this.state.selectedPath,
           status: `${this.state.selectedPath} no longer exists on the node; the local buffer remains unsaved.`
@@ -745,23 +642,12 @@ export class NodelEditor extends HTMLElement {
 
   private async refreshFilesAfterRestart(scope: ConnectionScope, context?: NodeRestartRefreshContext): Promise<NodeRestartRefreshResult> {
     const selectedPath = this.state.selectedPath;
-    const revision = this.documentRevision;
-    const originalContent = this.originalContent;
+    const revision = this.documentSession.state.revision;
+    const originalContent = this.documentSession.state.cleanContent;
     const contentAtStart = this.editor?.getDocument() ?? '';
-    const dirtyAtStart = this.state.dirty;
+    const dirtyAtStart = this.documentSession.state.dirty;
     const ticket = this.beginOperation('list', scope);
-    const currentExpectation = context ? getNodeRestartExpectation() : null;
-    if (context && currentExpectation
-      && (currentExpectation.id !== context.expectation.id
-        || currentExpectation.generation !== context.expectation.generation)) {
-      this.finishOperation(ticket);
-      return { status: 'superseded', detail: 'The node reload refresh is no longer current.' };
-    }
-    if (context && this.scriptExpectationId === null) {
-      this.scriptExpectationId = context.expectation.id;
-      this.scriptExpectationGeneration = context.expectation.generation;
-      this.scriptReloadState = context.expectation.state;
-    }
+    if (context) this.restartBridge.track(context.expectation);
     if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
       this.finishOperation(ticket);
       return { status: 'superseded', detail: 'The node reload refresh is no longer current.' };
@@ -769,8 +655,8 @@ export class NodelEditor extends HTMLElement {
     this.setState({ error: '', status: context ? 'Refreshing view after node reload...' : 'Refreshing files...' });
 
     try {
-      const files = sortFiles((await listNodeFiles({ signal: ticket.signal })).filter(editorListsFile));
-      if (!this.restartRefreshIsCurrent(scope, ticket, context)) {
+      const files = await this.fileOperations.list({ signal: ticket.signal, isCurrent: () => this.restartRefreshIsCurrent(scope, ticket, context) });
+      if (!files) {
         return { status: 'superseded', detail: 'The node reload refresh was superseded.' };
       }
 
@@ -786,16 +672,12 @@ export class NodelEditor extends HTMLElement {
         && !files.some((file) => file.path === selectedPath);
       if (selectedMissing) {
         this.operations.invalidate('open');
-        this.documentRevision += 1;
-        this.openedModified = undefined;
-        this.openedSize = undefined;
-        this.metadataBaselineValid = false;
+        this.documentSession.selectMissing(selectedPath);
         this.syncBusyState();
         const orphan = toFileView({ path: selectedPath }, selectedPath, selectedPath);
         orphan.missing = true;
         getJQuery().observable(this.state.files).refresh([...this.state.files, orphan]);
-        this.setState({
-          dirty: true,
+        this.projectDocumentState({
           notice: true,
           pickerPath: selectedPath,
           status: `${selectedPath} no longer exists on the node; the local buffer remains unsaved.`
@@ -819,33 +701,25 @@ export class NodelEditor extends HTMLElement {
 
       const contentTicket = this.beginOperation('open', scope);
       try {
-        const remoteContent = await getNodeFileContents(selectedPath, { signal: contentTicket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-        if (!this.restartRefreshIsCurrent(scope, ticket, context, contentTicket)) {
+        const remoteContent = await this.fileOperations.read(selectedPath, { signal: contentTicket.signal, isCurrent: () => this.restartRefreshIsCurrent(scope, ticket, context, contentTicket) });
+        if (remoteContent === null) {
           return { status: 'superseded', detail: 'The script refresh was superseded.' };
         }
 
-        const unchangedClean = selectedPath === this.state.selectedPath
-          && revision === this.documentRevision
-          && !dirtyAtStart
-          && !this.state.dirty
-          && contentAtStart === originalContent
-          && (this.editor?.getDocument() ?? '') === contentAtStart;
-        if (unchangedClean) {
+        const reconciliation = this.documentSession.reconcileRestart({
+          path: selectedPath, revision, cleanContent: originalContent, contentAtStart, dirtyAtStart,
+          remoteContent, remoteMetadata: { modified: remoteFile.modified, size: remoteFile.size }
+        });
+        if (reconciliation === 'verified') {
           this.setEditorDocument(remoteContent, selectedPath);
           this.editor?.setReadOnly(false);
-          this.setSelectedState(selectedPath, remoteContent, false, false, '', remoteFile.modified, remoteFile.size);
-          this.setState({ notice: false, status: '' });
+          this.projectDocumentState({ error: '', notice: false, status: '' });
+          this.refreshFileViews();
+          this.updateAvailability();
           return { status: 'verified' };
         }
-
-        const localContent = this.editor?.getDocument() ?? '';
-        if (remoteContent === originalContent) {
-          this.openedModified = remoteFile.modified;
-          this.openedSize = remoteFile.size;
-          this.metadataBaselineValid = true;
-          const dirty = localContent !== this.originalContent || this.state.dirty;
-          this.setState({
-            dirty,
+        if (reconciliation === 'dirty-preserved') {
+          this.projectDocumentState({
             notice: true,
             status: 'View refreshed; newer local edits remain unsaved.'
           });
@@ -854,11 +728,7 @@ export class NodelEditor extends HTMLElement {
           return { status: 'dirty-preserved', detail: 'Local editor changes were preserved.' };
         }
 
-        this.metadataBaselineValid = false;
-        this.openedModified = undefined;
-        this.openedSize = undefined;
-        this.setState({
-          dirty: true,
+        this.projectDocumentState({
           notice: true,
           status: 'Node reloaded, but remote script.py changed; local edits remain preserved for explicit resolution.'
         });
@@ -894,7 +764,7 @@ export class NodelEditor extends HTMLElement {
   }
 
   private localRefreshResult(content: string): NodeRestartRefreshResult {
-    const dirty = this.state.dirty || content !== this.originalContent;
+    const dirty = this.documentSession.state.dirty || content !== this.documentSession.state.cleanContent;
     return dirty
       ? { status: 'dirty-preserved', detail: 'Local editor changes were preserved.' }
       : { status: 'verified' };
@@ -902,11 +772,7 @@ export class NodelEditor extends HTMLElement {
 
   private defaultFilePath(files: NodelFileEntry[]) {
     const configured = this.getAttribute('default-file') || 'script.py';
-    return files.find((file) => file.path === configured)?.path
-      ?? files.find((file) => file.path === 'script.py')?.path
-      ?? files.find((file) => isEditableFile(file.path))?.path
-      ?? files[0]?.path
-      ?? '';
+    return defaultEditorFile(files, configured);
   }
 
   private scriptFilePath() {
@@ -915,19 +781,16 @@ export class NodelEditor extends HTMLElement {
       ?? 'script.py';
   }
 
-  private setSelectedState(path: string, content: string, binary: boolean, dirty: boolean, status: string, modified?: string, size?: number) {
-    this.originalContent = content;
-    this.openedModified = modified;
-    this.openedSize = size;
-    this.metadataBaselineValid = Boolean(path);
-    this.setState({
+  private setSelectedState(path: string, content: string, binary: boolean, status: string, modified?: string, size?: number) {
+    this.documentSession.open(path, content, { modified, size }, {
       binary,
-      dirty,
-      error: '',
       legacy: Boolean(path && this.fileForPath(path)?.legacy),
+      missing: false,
+      canWrite: Boolean(path) && !binary && !(path && this.fileForPath(path)?.legacy)
+    });
+    this.projectDocumentState({
+      error: '',
       notice: false,
-      selectedPath: path,
-      pickerPath: path,
       status
     });
     this.refreshFileViews();
@@ -945,8 +808,8 @@ export class NodelEditor extends HTMLElement {
     }
     const ticket = this.beginOperation('open', scope);
     const sourcePath = options.expectedSourcePath ?? this.state.selectedPath;
-    const sourceRevision = options.expectedSourceRevision ?? this.documentRevision;
-    if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentRevision) {
+    const sourceRevision = options.expectedSourceRevision ?? this.documentSession.state.revision;
+    if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentSession.state.revision) {
       this.finishOperation(ticket);
       return;
     }
@@ -958,83 +821,39 @@ export class NodelEditor extends HTMLElement {
     }
     if (!this.operationIsCurrent(ticket, scope)
       || sourcePath !== this.state.selectedPath
-      || sourceRevision !== this.documentRevision) {
+      || sourceRevision !== this.documentSession.state.revision) {
       this.finishOperation(ticket);
       return;
     }
 
-    const file = this.fileForPath(path);
-    const resolvedPath = file?.path ?? path;
-    const legacy = file?.legacy === true;
-    const applyReadOnlyDocument = (message: string, placeholder: string) => {
-      if (!this.operationIsCurrent(ticket, scope)
-        || sourcePath !== this.state.selectedPath
-        || sourceRevision !== this.documentRevision) {
-        return;
-      }
-      this.setEditorDocument(placeholder, resolvedPath);
-      this.editor?.setReadOnly(true);
-      this.setSelectedState(resolvedPath, '', true, false, message, file?.modified, file?.size);
-      this.setState({ notice: true, status: message });
-    };
-
-    if (!file && !isPortableNodeFilePath(resolvedPath)) {
-      this.setState({ error: 'Legacy file paths can only be opened from the current file list.', pickerPath: this.state.selectedPath });
-      this.finishOperation(ticket);
-      return;
-    }
-
-    if (isPortableNodeFilePath(resolvedPath) && portableNodeFilePathKey(resolvedPath) === 'script.py' && resolvedPath !== 'script.py') {
-      applyReadOnlyDocument(
-        `${resolvedPath} is a case-only script.py alias and cannot be edited safely across supported hosts.`,
-        'Case-only script.py aliases are read-only in the browser editor.'
-      );
-      this.finishOperation(ticket);
-      return;
-    }
-
-    if (isBinaryFile(resolvedPath)) {
-      applyReadOnlyDocument(legacy ? 'Legacy binary file paths are read-only; preview is not available.' : 'Binary file preview is not available.', binaryPlaceholder);
-      this.finishOperation(ticket);
-      return;
-    }
-
-    if (typeof file?.size === 'number' && file.size > MAX_NODE_TEXT_EDIT_BYTES) {
-      applyReadOnlyDocument(
-        `${resolvedPath} is too large to edit (limit ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)}); download or manage it externally.`,
-        'File is too large to edit in the browser.'
-      );
-      this.finishOperation(ticket);
-      return;
-    }
-
-    this.setState({ error: '', notice: false, status: `Loading ${resolvedPath}...` });
+    this.setState({ error: '', notice: false, status: `Loading ${path}...` });
 
     try {
-      const content = await getNodeFileContents(file?.legacy ? file.readEntry : resolvedPath, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-      if (!this.operationIsCurrent(ticket, scope)) {
+      const result = await this.fileOperations.open(path, this.state.files, { signal: ticket.signal, isCurrent: () => this.operationIsCurrent(ticket, scope) });
+      if (result.kind === 'stale') {
         return;
       }
-      if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentRevision) {
+      if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentSession.state.revision) {
         this.setState({
           notice: true,
           pickerPath: this.state.selectedPath,
-          status: `${resolvedPath} loaded, but newer local edits remain. Choose the file again to discard them.`
+            status: `${result.path} loaded, but newer local edits remain. Choose the file again to discard them.`
         });
         return;
       }
-      this.setEditorDocument(content, resolvedPath);
-      this.editor?.setReadOnly(legacy);
+      this.setEditorDocument(result.content, result.path);
+      this.editor?.setReadOnly(result.kind === 'readonly' || result.file?.compatibility === 'legacy');
       this.setSelectedState(
-        resolvedPath,
-        content,
-        false,
-        false,
-        legacy ? 'Legacy file path opened read-only; mutation is disabled.' : '',
-        file?.modified,
-        file?.size
+        result.path,
+        result.kind === 'readonly' ? '' : result.content,
+        result.kind === 'readonly' ? result.binary : false,
+        result.kind === 'readonly' ? result.message : result.file?.compatibility === 'legacy' ? 'Legacy file path opened read-only; mutation is disabled.' : '',
+        result.file?.modified,
+        result.file?.size
       );
-      if (!legacy) {
+      if (result.kind === 'readonly') {
+        this.setState({ notice: true, status: result.message });
+      } else if (result.file?.compatibility !== 'legacy') {
         this.editor?.focus();
       }
     } catch (error) {
@@ -1044,15 +863,8 @@ export class NodelEditor extends HTMLElement {
       if (isAbortError(error)) {
         return;
       }
-      if (error instanceof NodeFileTooLargeError) {
-        applyReadOnlyDocument(
-          `${resolvedPath} is too large to edit (limit ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)}); download or manage it externally.`,
-          'File is too large to edit in the browser.'
-        );
-        return;
-      }
       this.setState({
-        error: error instanceof Error ? error.message : `Failed to load ${resolvedPath}`,
+        error: error instanceof Error ? error.message : `Failed to load ${path}`,
         pickerPath: this.state.selectedPath
       });
     } finally {
@@ -1081,15 +893,15 @@ export class NodelEditor extends HTMLElement {
       return;
     }
     const path = this.state.selectedPath;
-    const revision = this.documentRevision;
+    const revision = this.documentSession.state.revision;
     if (!await this.confirmDiscardChanges(trigger, scope.signal)
       || !scope.isCurrent()
       || path !== this.state.selectedPath
-      || revision !== this.documentRevision) {
+      || revision !== this.documentSession.state.revision) {
       return;
     }
     await this.refreshFilesPreservingEditor(scope);
-    if (!scope.isCurrent() || path !== this.state.selectedPath || revision !== this.documentRevision) {
+    if (!scope.isCurrent() || path !== this.state.selectedPath || revision !== this.documentSession.state.revision) {
       if (scope.isCurrent()) {
         this.setState({ notice: true, status: 'Files refreshed; newer local edits remain unchanged.' });
       }
@@ -1109,10 +921,10 @@ export class NodelEditor extends HTMLElement {
     if (this.suppressEditorChange || this.state.binary || this.state.legacy) {
       return;
     }
-    this.documentRevision += 1;
-    const dirty = content !== this.originalContent;
+    this.documentSession.edit(content);
+    const dirty = this.documentSession.state.dirty;
     if (dirty !== this.state.dirty || this.state.notice) {
-      this.setState({ dirty, notice: false, status: dirty ? 'Unsaved changes.' : 'No unsaved changes.' });
+      this.projectDocumentState({ notice: false, status: dirty ? 'Unsaved changes.' : 'No unsaved changes.' });
       this.refreshFileViews();
       this.updateAvailability();
     }
@@ -1264,15 +1076,14 @@ export class NodelEditor extends HTMLElement {
     event.stopPropagation();
     this.clearDragState();
     const fileItemCount = event.dataTransfer ? Array.from(event.dataTransfer.items).filter((item) => item.kind === 'file').length : 0;
-    const files = this.filesFromTransfer(event.dataTransfer);
-    if (files.length !== 1 || fileItemCount > 1) {
+    const result = this.uploadStaging.classify(this.uploadStaging.extract(event.dataTransfer), fileItemCount);
+    if (result.kind === 'rejected') {
       this.clearSelectedUpload();
       this.setState({ addFilePath: '', adding: false, uploadFileName: '' });
-      this.reportError('Drop one file at a time.');
+      this.reportError(result.message);
       return;
     }
-    const [file] = files;
-    if (file) this.prepareUpload(file);
+    if (result.kind === 'accepted') this.prepareUpload(result.file);
   };
 
   private handleDragEnd = () => {
@@ -1297,34 +1108,15 @@ export class NodelEditor extends HTMLElement {
     return (itemCount || fileCount) === 1;
   }
 
-  private filesFromTransfer(dataTransfer: DataTransfer | null) {
-    if (!dataTransfer) {
-      return [];
-    }
-    const files = Array.from(dataTransfer.files);
-    if (files.length > 0) {
-      return files;
-    }
-    return Array.from(dataTransfer.items)
-      .filter((item) => item.kind === 'file')
-      .map((item) => item.getAsFile())
-      .filter((file): file is File => file !== null);
-  }
-
   private prepareUpload(file: File) {
-    if (this.state.loading || this.state.saving || this.state.deleting) {
-      this.reportError('Wait for the current editor operation to finish before uploading.');
-      return;
-    }
-    const maxBytes = isEditableFile(file.name) ? MAX_NODE_TEXT_EDIT_BYTES : MAX_NODE_FILE_UPLOAD_BYTES;
-    if (file.size > maxBytes) {
+    const staged = this.uploadStaging.stage(file, this.state.loading || this.state.saving || this.state.deleting);
+    if (!staged.accepted) {
       this.clearSelectedUpload();
-      this.reportError(`${file.name} exceeds the ${formatFileSize(maxBytes)} upload limit.`);
+      this.reportError(staged.message);
       return;
     }
-    this.clearSelectedUpload();
-    this.selectedUpload = file;
-    this.setState({ addFilePath: file.name, adding: true, error: '', uploadFileName: file.name });
+    const stage = staged.stage!;
+    this.setState({ addFilePath: stage.path, adding: true, error: '', uploadFileName: stage.file.name });
     if (this.uploadFocusFrame !== null) {
       window.cancelAnimationFrame(this.uploadFocusFrame);
     }
@@ -1391,7 +1183,7 @@ export class NodelEditor extends HTMLElement {
   }
 
   private clearSelectedUpload() {
-    this.selectedUpload = null;
+    this.uploadStaging.clear();
     this.resetUploadInput();
     this.syncUnloadGuard();
   }
@@ -1401,17 +1193,12 @@ export class NodelEditor extends HTMLElement {
     this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message } }));
   }
 
-  private currentScriptWriteState() {
-    return getNodeRestartScriptWriteState();
-  }
-
   private async confirmCorrectiveScriptSave(
     trigger: Element | null,
     signal: AbortSignal,
     isCurrent: () => boolean
   ) {
-    const writeState = this.currentScriptWriteState();
-    if (writeState !== 'unconfirmed' && this.scriptReloadState !== 'unconfirmed') {
+    if (!this.restartBridge.correctiveWrite) {
       return true;
     }
 
@@ -1428,117 +1215,29 @@ export class NodelEditor extends HTMLElement {
     return confirmed && isCurrent();
   }
 
-  private async saveScriptFile(
-    content: BodyInit,
-    ticket: EditorOperationTicket,
-    scope: ConnectionScope,
-    beforeActivate: () => void
-  ) {
-    if (this.currentScriptWriteState() === 'pending'
-      || this.currentScriptWriteState() === 'refreshing'
-      || this.currentScriptWriteState() === 'preparing'
-      || this.scriptReloadState === 'pending'
-      || this.scriptReloadState === 'refreshing') {
-      throw new NodeRestartScriptWriteBlockedError();
-    }
-
-    let prepared: PreparedNodeRestartExpectation | null = null;
-    let committedExpectation: NodeRestartExpectation | null = null;
-    let committed = false;
-    try {
-      try {
-        prepared = await prepareNodeRestartExpectation({ signal: ticket.signal });
-      } catch (error) {
-        if (error instanceof NodeRestartScriptWriteBlockedError) {
-          throw error;
-        }
-        const detail = error instanceof Error ? error.message : 'The node reload baseline could not be read.';
-        throw new Error(`Could not capture the node reload baseline; script.py was not saved. ${detail}`, { cause: error });
-      }
-      if (!this.operationIsCurrent(ticket, scope)) {
-        throw new NodeRestartExpectationObsoleteError();
-      }
-
-      this.preparationExpectationId = prepared.id;
-      this.scriptExpectationOwned = true;
-      this.ownedPreparedExpectation = prepared;
-      this.scriptReloadState = 'pending';
-      this.updateAvailability();
-      if (!isNodeRestartExpectationPreparedForWrite(prepared)) {
-        throw new NodeRestartExpectationObsoleteError();
-      }
-      await saveNodeFile('script.py', content, { signal: ticket.signal });
-      if (!this.operationIsCurrent(ticket, scope)) {
-        throw new NodeRestartExpectationObsoleteError();
-      }
-
-      committedExpectation = commitNodeRestartExpectation(prepared, false);
-      if (!committedExpectation) {
-        throw new NodeRestartExpectationObsoleteError();
-      }
-      beforeActivate();
-      if (!activateNodeRestartExpectation(committedExpectation.id, committedExpectation.generation)) {
-        throw new NodeRestartExpectationObsoleteError();
-      }
-      committed = true;
-      this.scriptExpectationOwned = false;
-      this.ownedPreparedExpectation = null;
-      return committedExpectation;
-    } catch (error) {
-      if (committedExpectation && !committed) {
-        cancelNodeRestartExpectation(committedExpectation);
-      } else if (prepared && !committed) {
-        cancelNodeRestartExpectation(prepared);
-        this.restoreRestartStateAfterPreparation(prepared);
-      }
-      throw error;
-    }
-  }
-
-  private restoreRestartStateAfterPreparation(prepared: PreparedNodeRestartExpectation) {
-    if (this.preparationExpectationId !== prepared.id) {
-      return;
-    }
-    this.scriptExpectationOwned = false;
-    this.ownedPreparedExpectation = null;
-    this.preparationExpectationId = null;
-    this.scriptReloadState = 'idle';
-    this.setState({ reloadStatus: '' });
-    this.syncCurrentRestartExpectation();
-    this.updateAvailability();
-  }
-
   private installSavedScriptRevision(path: string, content: BodyInit, revision: number) {
     if (path !== 'script.py' || typeof content !== 'string' || this.state.selectedPath !== path) {
       return;
     }
-    this.originalContent = content;
-    const newerEditsRemain = this.documentRevision !== revision || (this.editor?.getDocument() ?? '') !== content;
-    this.setState({
-      dirty: newerEditsRemain,
+    const newerEditsRemain = this.documentSession.state.revision !== revision || (this.editor?.getDocument() ?? '') !== content;
+    this.documentSession.completeSave({ path, content, revision, currentContent: this.editor?.getDocument() ?? content });
+    this.projectDocumentState({
       notice: newerEditsRemain,
       status: newerEditsRemain
         ? `Saved previous revision of ${path}; newer edits remain unsaved.`
         : `Saved ${path}.`
     });
-    this.openedModified = undefined;
-    this.openedSize = undefined;
-    this.metadataBaselineValid = false;
+    this.documentSession.invalidateMetadata();
     this.refreshFileViews();
   }
 
   async saveSelectedFile() {
     const scope = this.lifecycle.current;
     const selectedPath = this.state.selectedPath;
-    const isScriptPath = selectedPath === 'script.py';
-    const globalWriteState = this.currentScriptWriteState();
-    const correctiveScriptSave = isScriptPath
-      && (globalWriteState === 'unconfirmed' || this.scriptReloadState === 'unconfirmed');
     if (!scope
       || !selectedPath
-      || this.state.binary
-      || this.state.legacy
-      || (!this.state.dirty && !correctiveScriptSave)
+      || !this.documentSession.state.capabilities.canWrite
+      || (!this.documentSession.state.dirty && !(selectedPath === 'script.py' && this.restartBridge.correctiveWrite))
       || this.state.deleting
       || this.operations.isActive('list')
       || this.operations.isActive('open')
@@ -1547,107 +1246,40 @@ export class NodelEditor extends HTMLElement {
       return;
     }
 
-    const path = selectedPath;
-    const isScriptSave = path === 'script.py';
-    if (isScriptSave && (this.currentScriptWriteState() === 'pending'
-      || this.currentScriptWriteState() === 'refreshing'
-      || this.currentScriptWriteState() === 'preparing'
-      || this.scriptReloadState === 'pending'
-      || this.scriptReloadState === 'refreshing')) {
+    if (selectedPath === 'script.py' && this.restartBridge.writeBlocked) {
       return;
     }
     const ticket = this.beginOperation('save', scope);
-    let content = '';
-    let revision = 0;
-    let originalContent: string;
-    let openedModified: string | undefined;
-    let openedSize: number | undefined;
-    let metadataBaselineValid: boolean;
+    const path = selectedPath;
+    const content = this.editor?.getDocument() ?? '';
+    const revision = this.documentSession.state.revision;
+    const session = this.documentSession.snapshot();
+    const isCurrent = () => this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path;
     this.setState({ error: '', notice: false, status: `Checking ${path} for remote changes...` });
     try {
-      if (isScriptSave && !await this.confirmCorrectiveScriptSave(
+      if (path === 'script.py' && !await this.confirmCorrectiveScriptSave(
         this.querySelector('[data-editor-save]'),
-        ticket.signal,
-        () => this.operationIsCurrent(ticket, scope)
+        ticket.signal, isCurrent
       )) {
         return;
       }
-
-      content = this.editor?.getDocument() ?? '';
-      if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
-        throw new Error(`${path} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit.`);
-      }
-      revision = this.documentRevision;
-      originalContent = this.originalContent;
-      openedModified = this.openedModified;
-      openedSize = this.openedSize;
-      metadataBaselineValid = this.metadataBaselineValid;
-
-      const files = await listNodeFiles({ signal: ticket.signal });
-      if (!this.operationIsCurrent(ticket, scope)) {
-        return;
-      }
-      let remoteFile = files.find((file) => file.path === path);
-      if (!remoteFile) {
-        const recreate = await requestConfirm(this, {
-          title: 'Recreate missing file?',
-          text: `${path} no longer exists on the node. Recreate it from this local buffer?`,
-          confirmLabel: 'Recreate',
-          cancelLabel: 'Cancel',
-          tone: 'warning'
-        }, null, ticket.signal);
-        if (!recreate
-          || !this.operationIsCurrent(ticket, scope)
-          || this.state.selectedPath !== path
-          || this.documentRevision !== revision) {
-          return;
-        }
-        const refreshedFiles = await listNodeFiles({ signal: ticket.signal });
-        if (!this.operationIsCurrent(ticket, scope)) {
-          return;
-        }
-        remoteFile = refreshedFiles.find((file) => file.path === path);
-        if (remoteFile) {
-          throw new Error(`${path} was recreated on the node while confirmation was pending. Refresh before saving.`);
-        }
-        const aliasKey = nodeFileAliasKey(path);
-        const alias = aliasKey ? refreshedFiles.find((file) => nodeFileAliasKey(file.path) === aliasKey) : undefined;
-        if (alias) {
-          throw new Error(`${path} now has a case- or NFC-equivalent alias (${alias.path}). Refresh before saving.`);
-        }
-      }
-      if (remoteFile && metadataBaselineValid && openedModified !== remoteFile.modified) {
-        throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
-      }
-      if (remoteFile && metadataBaselineValid && openedSize !== remoteFile.size) {
-        throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
-      }
-      if (remoteFile) {
-        const remoteContent = await getNodeFileContents(path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-        if (!this.operationIsCurrent(ticket, scope)) {
-          return;
-        }
-        if (remoteContent !== originalContent) {
-          throw new Error(`${path} changed on the node after it was opened. Refresh before saving.`);
-        }
-      }
-
       this.setState({ status: `Saving ${path}...` });
-      if (isScriptSave) {
-        await this.saveScriptFile(content, ticket, scope, () => {
-          this.installSavedScriptRevision(path, content, revision);
-        });
-      } else {
-        await saveNodeFile(path, content, { signal: ticket.signal });
-      }
-      if (!this.operationIsCurrent(ticket, scope)) {
+      const result = await this.fileOperations.checkAndSave(session, content, { signal: ticket.signal, isCurrent }, {
+        confirm: (request) => requestConfirm(this, request, null, ticket.signal),
+        scriptWrite: async (payload, signal) => {
+          await this.restartBridge.saveScript(payload, {
+            ...(signal ? { signal } : {}), isCurrent, save: (body, saveSignal) => editorFileApi.save('script.py', body, saveSignal),
+            install: () => this.installSavedScriptRevision(path, payload, revision)
+          });
+        }
+      });
+      if (result.kind !== 'saved') {
         return;
       }
       if (this.state.selectedPath === path) {
-        this.originalContent = content;
-        const newerEditsRemain = this.documentRevision !== revision || (this.editor?.getDocument() ?? '') !== content;
-        this.setState({
-          dirty: newerEditsRemain,
+        const newerEditsRemain = this.documentSession.state.revision !== revision || (this.editor?.getDocument() ?? '') !== content;
+        this.documentSession.completeSave({ path, content, revision, currentContent: this.editor?.getDocument() ?? content });
+        this.projectDocumentState({
           notice: newerEditsRemain,
           status: newerEditsRemain
             ? `Saved previous revision of ${path}; newer edits remain unsaved.`
@@ -1656,23 +1288,19 @@ export class NodelEditor extends HTMLElement {
         this.refreshFileViews();
       }
       this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path } }));
-      if (isScriptSave) {
+      if (path === 'script.py') {
         // The pre-save metadata is no longer a valid baseline. The confirmed
         // reload refresh obtains post-write metadata alongside its content
         // decision, while the pending state blocks another script save.
-        this.openedModified = undefined;
-        this.openedSize = undefined;
-        this.metadataBaselineValid = false;
+        this.documentSession.invalidateMetadata();
       } else {
         const refreshed = await this.refreshFilesPreservingEditor(scope, true);
         if (this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path) {
           if (refreshed) {
             const refreshedFile = this.fileForPath(path);
-            this.openedModified = refreshedFile?.modified;
-            this.openedSize = refreshedFile?.size;
-            this.metadataBaselineValid = true;
+            this.documentSession.updateMetadata({ modified: refreshedFile?.modified, size: refreshedFile?.size });
           } else {
-            this.metadataBaselineValid = false;
+            this.documentSession.invalidateMetadata();
           }
         }
       }
@@ -1693,141 +1321,35 @@ export class NodelEditor extends HTMLElement {
       return;
     }
     const path = this.state.addFilePath;
-    const validation = validateNodeFilePath(path);
-    if (validation) {
-      this.setState({ error: validation });
-      return;
-    }
-
-    if (isBinaryFile(path) && !this.selectedUpload) {
+    if (isBinaryFile(path) && !this.uploadStaging.current) {
       this.setState({ error: 'Binary files must be uploaded from a local file.' });
       return;
     }
-    const upload = this.selectedUpload;
-    if (upload) {
-      const maxBytes = isEditableFile(path) ? MAX_NODE_TEXT_EDIT_BYTES : MAX_NODE_FILE_UPLOAD_BYTES;
-      if (upload.size > maxBytes) {
-        this.setState({ error: `${upload.name} exceeds the ${formatFileSize(maxBytes)} upload limit.` });
-        return;
-      }
-    }
-
     const ticket = this.beginOperation('create', scope);
-    const requestedPortableKey = portableNodeFilePathKey(path);
+    const stage = this.uploadStaging.current;
     const requestIsCurrent = () => this.operationIsCurrent(ticket, scope)
       && this.state.addFilePath === path
-      && this.selectedUpload === upload;
-    let restoreFocusAfterConfirmation = false;
+      && this.uploadStaging.current === stage;
     this.setState({ error: '', notice: false, status: `Checking ${path}...` });
     try {
-      const files = await listNodeFiles({ signal: ticket.signal });
-      if (!requestIsCurrent()) {
-        return;
-      }
-      const exactExisting = files.find((file) => file.path === path);
-      const aliasMatches = files.filter((file) => nodeFileAliasKey(file.path) === requestedPortableKey);
-      if (!exactExisting && aliasMatches.length > 1) {
-        throw new Error(`${path} is ambiguous because multiple case variants already exist on the node.`);
-      }
-      const existing = exactExisting ?? aliasMatches[0];
-      const targetPath = existing?.path ?? path;
-      if (existing?.compatibility === 'legacy') {
-        throw new Error(`${existing.path} is a legacy file path and cannot be overwritten.`);
-      }
-      if (portableNodeFilePathKey(targetPath) === 'script.py' && targetPath !== 'script.py') {
-        throw new Error(`${targetPath} is a case-only script.py alias and cannot be overwritten safely.`);
-      }
-      let existingContent: string | undefined;
-      if (existing) {
-        if (isBinaryFile(existing.path) && existing.modified === undefined && existing.size === undefined) {
-          throw new Error(`${existing.path} has no metadata for safe overwrite verification; manage it externally.`);
+      const revision = this.documentSession.state.revision;
+      const result = await this.fileOperations.createOrUpload(path, () => this.uploadStaging.contentFor(path), { signal: ticket.signal, isCurrent: requestIsCurrent }, {
+        confirm: (request) => requestConfirm(this, request, trigger, ticket.signal),
+        scriptWrite: async (content, signal) => {
+          if (!await this.confirmCorrectiveScriptSave(trigger, ticket.signal, requestIsCurrent)) throw new Error('Corrective save canceled.');
+          await this.restartBridge.saveScript(content, { ...(signal ? { signal } : {}), isCurrent: requestIsCurrent, save: (body, saveSignal) => editorFileApi.save('script.py', body, saveSignal), install: () => this.installSavedScriptRevision('script.py', content, revision) });
         }
-        if (isEditableFile(existing.path)) {
-          if (typeof existing.size === 'number' && existing.size > MAX_NODE_TEXT_EDIT_BYTES) {
-            throw new Error(`${existing.path} is too large to verify safely before overwrite.`);
-          }
-          existingContent = await getNodeFileContents(existing.path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-          if (!requestIsCurrent()) {
-            return;
-          }
-        }
-        const overwrite = await requestConfirm(this, {
-          title: 'Overwrite existing file?',
-          text: `${existing.path} already exists. Replace it?`,
-          confirmLabel: 'Overwrite',
-          cancelLabel: 'Cancel',
-          tone: 'danger'
-        }, trigger, ticket.signal);
-        if (!overwrite) {
-          this.restoreTriggerFocus(trigger);
-          return;
-        }
-        if (!requestIsCurrent()) {
-          return;
-        }
-        restoreFocusAfterConfirmation = true;
-      }
-
-      const refreshedFiles = await listNodeFiles({ signal: ticket.signal });
-      if (!requestIsCurrent()) {
-        return;
-      }
-      const refreshedExact = refreshedFiles.find((file) => file.path === targetPath);
-      const refreshedAliases = refreshedFiles.filter((file) => nodeFileAliasKey(file.path) === requestedPortableKey);
-      if (!existing && refreshedAliases.length > 0) {
-        throw new Error(`${path} was created on the node while this operation was pending. Review it before overwriting.`);
-      }
-      if (existing) {
-        if (!refreshedExact) {
-          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review the file list and try again.`);
-        }
-        if (existing.modified !== refreshedExact.modified) {
-          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
-        }
-        if (existing.size !== refreshedExact.size) {
-          throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
-        }
-        if (existingContent !== undefined) {
-          const refreshedContent = await getNodeFileContents(existing.path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-          if (!requestIsCurrent()) {
-            return;
-          }
-          if (existingContent !== refreshedContent) {
-            throw new Error(`${existing.path} changed while overwrite confirmation was pending. Review it before overwriting.`);
-          }
-        }
-      }
-
-      const content = await this.uploadContentForPath(targetPath, upload);
-      if (!requestIsCurrent()) {
-        return;
-      }
-      const isScriptSave = targetPath === 'script.py';
-      if (isScriptSave && !await this.confirmCorrectiveScriptSave(trigger, ticket.signal, requestIsCurrent)) {
-        return;
-      }
-      this.setState({ status: `${existing ? 'Overwriting' : 'Creating'} ${targetPath}...` });
-      if (isScriptSave) {
-        const revision = this.documentRevision;
-        await this.saveScriptFile(content, ticket, scope, () => {
-          this.installSavedScriptRevision(targetPath, content, revision);
-        });
-      } else {
-        await saveNodeFile(targetPath, content, { signal: ticket.signal });
-      }
-      if (!requestIsCurrent()) {
-        return;
-      }
+      });
+      if (result.kind !== 'created' && result.kind !== 'overwritten') return;
+      const overwritten = result.kind === 'overwritten';
       let overwriteNotice = '';
-      if (this.state.selectedPath === targetPath && typeof content === 'string') {
-        this.originalContent = content;
-        const dirty = (this.editor?.getDocument() ?? '') !== content;
-        overwriteNotice = dirty ? `Overwrote ${targetPath}; current local edits remain unsaved.` : '';
-        this.setState({
-          dirty,
-          notice: dirty,
-          status: overwriteNotice || `Overwrote ${targetPath}.`
+      if (overwritten && this.documentSession.state.path === result.path && typeof result.content === 'string') {
+        const completion = this.documentSession.completeSave({
+          path: result.path, content: result.content, revision,
+          currentContent: this.editor?.getDocument() ?? result.content
         });
+        overwriteNotice = completion.newerEdits ? `Overwrote ${result.path}; current local edits remain unsaved.` : '';
+        this.projectDocumentState({ notice: completion.newerEdits, status: overwriteNotice || `Overwrote ${result.path}.` });
         this.refreshFileViews();
       }
       this.clearSelectedUpload();
@@ -1836,26 +1358,22 @@ export class NodelEditor extends HTMLElement {
         adding: false,
         notice: true,
         uploadFileName: '',
-        status: overwriteNotice || (existing ? `Overwrote ${targetPath}.` : `Created ${targetPath}.`)
+        status: overwriteNotice || `${overwritten ? 'Overwrote' : 'Created'} ${result.path}.`
       });
-      this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path: targetPath } }));
-      if (isScriptSave) {
-        this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path: targetPath } }));
-        this.openedModified = undefined;
-        this.openedSize = undefined;
-        this.metadataBaselineValid = false;
+      this.dispatchEvent(new CustomEvent('nodel-editor-file-created', { bubbles: true, detail: { path: result.path } }));
+      if (result.path === 'script.py') {
+        this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path: result.path } }));
+        this.documentSession.invalidateMetadata();
       } else {
         const refreshed = await this.refreshFilesPreservingEditor(scope, true);
         if (this.operationIsCurrent(ticket, scope)
           && this.state.selectedPath
-          && this.state.selectedPath === targetPath) {
+          && this.state.selectedPath === result.path) {
           if (refreshed) {
             const refreshedFile = this.fileForPath(this.state.selectedPath);
-            this.openedModified = refreshedFile?.modified;
-            this.openedSize = refreshedFile?.size;
-            this.metadataBaselineValid = true;
+            this.documentSession.updateMetadata({ modified: refreshedFile?.modified, size: refreshedFile?.size });
           } else {
-            this.metadataBaselineValid = false;
+            this.documentSession.invalidateMetadata();
           }
         }
       }
@@ -1867,26 +1385,8 @@ export class NodelEditor extends HTMLElement {
       this.dispatchEvent(new CustomEvent('nodel-editor-error', { bubbles: true, detail: { message: this.state.error } }));
     } finally {
       this.finishOperation(ticket);
-      if (restoreFocusAfterConfirmation) {
-        this.restoreTriggerFocus(trigger);
-      }
+      this.restoreTriggerFocus(trigger);
     }
-  }
-
-  private async uploadContentForPath(path: string, upload: File | null): Promise<BodyInit> {
-    if (!upload) {
-      return '';
-    }
-
-    if (path === 'script.py' || isEditableFile(path)) {
-      const content = await upload.text();
-      if (new TextEncoder().encode(content).byteLength > MAX_NODE_TEXT_EDIT_BYTES) {
-        throw new Error(`${upload.name} exceeds the ${formatFileSize(MAX_NODE_TEXT_EDIT_BYTES)} text-upload limit after decoding.`);
-      }
-      return content;
-    }
-
-    return upload;
   }
 
   private async deleteSelectedFile(trigger: Element | null) {
@@ -1903,15 +1403,14 @@ export class NodelEditor extends HTMLElement {
       || (isPortableNodeFilePath(path) && portableNodeFilePathKey(path) === 'script.py')) {
       return;
     }
-    if (this.state.binary && this.openedModified === undefined && this.openedSize === undefined) {
-      this.reportError(`${path} has no metadata for safe delete verification; manage it externally.`);
+    try {
+      this.fileOperations.assertDeletable(this.documentSession.snapshot());
+    } catch (error) {
+      this.reportError(error instanceof Error ? error.message : `Failed to delete ${path}`);
       return;
     }
-    const revision = this.documentRevision;
-    const openedModified = this.openedModified;
-    const openedSize = this.openedSize;
-    const metadataBaselineValid = this.metadataBaselineValid;
-    const originalContent = this.originalContent;
+    const revision = this.documentSession.state.revision;
+    const session = this.documentSession.snapshot();
     const ticket = this.beginOperation('delete', scope);
     const confirmed = await requestConfirm(this, {
       title: 'Delete file?',
@@ -1924,7 +1423,7 @@ export class NodelEditor extends HTMLElement {
     }, trigger, ticket.signal);
     if (!confirmed || !this.operationIsCurrent(ticket, scope)
       || this.state.selectedPath !== path
-      || this.documentRevision !== revision) {
+      || this.documentSession.state.revision !== revision) {
       this.finishOperation(ticket);
       if (!confirmed) {
         this.restoreTriggerFocus(trigger);
@@ -1934,40 +1433,21 @@ export class NodelEditor extends HTMLElement {
 
     this.setState({ error: '', notice: false, status: `Deleting ${path}...` });
     try {
-      const files = await listNodeFiles({ signal: ticket.signal });
-      if (!this.operationIsCurrent(ticket, scope)) {
+      const result = await this.fileOperations.checkAndDelete(session, {
+        signal: ticket.signal,
+        isCurrent: () => this.operationIsCurrent(ticket, scope) && this.state.selectedPath === path
+      });
+      if (result.kind !== 'deleted') {
         return;
       }
-      const remoteFile = files.find((file) => file.path === path);
-      if (!remoteFile) {
-        throw new Error(`${path} no longer exists on the node. Refresh before deleting.`);
-      }
-      if (metadataBaselineValid && openedModified !== remoteFile.modified) {
-        throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
-      }
-      if (metadataBaselineValid && openedSize !== remoteFile.size) {
-        throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
-      }
-      if (isEditableFile(path)) {
-        const remoteContent = await getNodeFileContents(path, { signal: ticket.signal }, MAX_NODE_TEXT_EDIT_BYTES);
-        if (!this.operationIsCurrent(ticket, scope)) {
-          return;
-        }
-        if (remoteContent !== originalContent) {
-          throw new Error(`${path} changed on the node after it was opened. Refresh before deleting.`);
-        }
-      }
-      await deleteNodeFile(path, { signal: ticket.signal });
-      if (!this.operationIsCurrent(ticket, scope)) {
-        return;
-      }
-      if (this.state.selectedPath === path && this.documentRevision === revision) {
+      if (this.state.selectedPath === path && this.documentSession.state.revision === revision) {
         this.setEditorDocument('', '');
         this.editor?.setReadOnly(true);
-        this.setSelectedState('', '', false, false, `Deleted ${path}.`);
+        this.setSelectedState('', '', false, `Deleted ${path}.`);
         this.setState({ notice: true, status: `Deleted ${path}.` });
       } else {
-        this.setState({ dirty: true, notice: true, status: `Deleted ${path}; newer local document state remains open and unsaved.` });
+        this.documentSession.selectMissing(path);
+        this.projectDocumentState({ notice: true, status: `Deleted ${path}; newer local document state remains open and unsaved.` });
       }
       this.dispatchEvent(new CustomEvent('nodel-editor-file-deleted', { bubbles: true, detail: { path } }));
       await this.refreshFilesPreservingEditor(scope, true);
