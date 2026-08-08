@@ -2,6 +2,8 @@ import { flush, waitFor } from './helpers';
 import type * as jsViewsLinkController from '../src/jsviews/jsviews-link-controller';
 import type * as jsViewsRuntime from '../src/jsviews/jsviews-runtime';
 
+type PulseActivityState = { batch: { items: Array<{ entry: { seq: number; source: 'local'; type: 'action'; alias: string } }> } };
+
 const jsViewsLifecycleMock = vi.hoisted(() => {
   let resolveBootstrap!: () => void;
   let bootstrapReady: Promise<void>;
@@ -35,7 +37,7 @@ const actsigLifecycleMock = vi.hoisted(() => ({
   subscriptions: [] as Array<{
     active: boolean;
     dispose: ReturnType<typeof vi.fn>;
-    listener: (state: unknown) => void;
+    listener: (state: PulseActivityState) => void;
   }>,
   getNodeActions: vi.fn(),
   getNodeSignals: vi.fn()
@@ -75,7 +77,7 @@ vi.mock('../src/api/nodel-host-client', () => ({
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
-  subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: unknown) => void) => {
+  subscribeNodeActivity: vi.fn((_element: HTMLElement, listener: (state: PulseActivityState) => void) => {
     const subscription = {
       active: true,
       dispose: vi.fn(() => {
@@ -134,5 +136,32 @@ describe('nodel-actsig JsViews lifecycle', () => {
     expect(actsigLifecycleMock.getNodeSignals).toHaveBeenCalledOnce();
     expect(actsigLifecycleMock.subscriptions.filter((subscription) => subscription.active)).toHaveLength(1);
     expect(actsigLifecycleMock.subscriptions[0]!.dispose).not.toHaveBeenCalled();
+  });
+
+  it('tracks only the current pulse timer across repeated activity and restart/disconnect cleanup', async () => {
+    actsigLifecycleMock.getNodeActions.mockResolvedValue({ Pulse: { name: 'Pulse' } });
+    const actsig = document.createElement('nodel-actsig');
+    document.body.append(actsig);
+    await flush();
+    jsViewsLifecycleMock.releaseBootstrap();
+    await waitFor(() => jsViewsLifecycleMock.links.length === 1);
+    jsViewsLifecycleMock.links[0]!.resolve();
+    await waitFor(() => actsigLifecycleMock.getNodeActions.mock.calls.length === 1);
+    await waitFor(() => actsigLifecycleMock.subscriptions.length === 1);
+    const pulseTimers = (actsig as unknown as { pulseTimers: Map<string, number> }).pulseTimers;
+    const entry = { seq: 1, source: 'local' as const, type: 'action' as const, alias: 'Pulse' };
+    const listener = actsigLifecycleMock.subscriptions[0]!.listener;
+    listener({ batch: { items: [{ entry }] } });
+    listener({ batch: { items: [{ entry: { ...entry, seq: 2 } }] } });
+    expect(pulseTimers.size).toBe(1);
+
+    await (actsig as unknown as { refreshAfterRestart(): Promise<unknown> }).refreshAfterRestart();
+    expect(pulseTimers.size).toBe(0);
+    await waitFor(() => actsigLifecycleMock.getNodeActions.mock.calls.length === 2);
+    const activeSubscription = actsigLifecycleMock.subscriptions.find((subscription) => subscription.active)!;
+    activeSubscription.listener({ batch: { items: [{ entry: { ...entry, seq: 3 } }] } });
+    expect(pulseTimers.size).toBe(1);
+    actsig.remove();
+    expect(pulseTimers.size).toBe(0);
   });
 });

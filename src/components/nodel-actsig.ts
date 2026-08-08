@@ -4,93 +4,33 @@ import {
   getNodeActions,
   getNodeSignals
 } from '../api/nodel-host-client';
-import type { NodelActionDefinition, NodelActivityLogEntry, NodelJsonSchema, NodelSignalDefinition } from '../api/nodel-types';
 import { subscribeNodeActivity } from '../data/node-activity-source';
 import type { NodeRestartRefreshResult } from '../data/node-restart-source';
-import { logIcons, renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
+import { renderFontAwesomeIcon, uiIcons } from '../icons/fontawesome';
 import { bootstrapJsViews, getJQuery } from '../jsviews/jsviews-runtime';
 import { JsViewsLinkController } from '../jsviews/jsviews-link-controller';
 import { ComponentLifecycle, type ConnectionScope } from '../utils/component-lifecycle';
 import { renderComponentError } from '../utils/render-component-error';
 import { copyTextToClipboard } from '../utils/clipboard';
-import { apiErrorMessage, isAbortError } from '../utils/errors';
-import { hasOwn } from '../utils/records';
-import { reversibleUrlPathSegment } from '../utils/urls';
+import { apiErrorMessage } from '../utils/errors';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
 import {
-  createSchemaForm,
-  findSchemaField,
   handleSchemaFormClick,
   handleSchemaFormInput,
   handleSchemaFormToggle,
-  hydrateSchemaForm,
-  resetSchemaFormDirty,
   revealSchemaValidationIssues,
   registerSchemaFormTemplates,
-  serializeSchemaForm,
-  setSchemaFormControlsDisabled,
   syncSchemaFormControls,
   type SchemaField,
-  type SchemaFormModel,
-  validateAndUpdateSchemaForm
 } from '../schema/schema-form';
+import { ActSigController } from '../features/actsig-controller';
+import { ACTSIG_MATERIALIZE_CHUNK_SIZE, type ActSigFormModel, type ActSigSectionModel, type ActSigViewModel } from '../features/actsig-model';
 
-type ActSigPointType = 'action' | 'event';
-
-interface ActSigFormModel {
-  id: string;
-  pointType: ActSigPointType;
-  name: string;
-  title: string;
-  description: string;
-  caution: string;
-  schema: NodelJsonSchema;
-  schemaForm: SchemaFormModel | null;
-  materialized: boolean;
-  requestEligible: boolean;
-  busy: boolean;
-  error: string;
-  pulse: boolean;
-  iconMarkup: string;
-  copyLabel: string;
-  copyTitle: string;
-}
-
-interface ActSigRowModel {
-  id: string;
-  title: string;
-  order: number;
-  index: number;
-  action: ActSigFormModel | null;
-  event: ActSigFormModel | null;
-}
-
-interface ActSigSectionModel {
-  id: string;
-  title: string;
-  grouped: boolean;
-  open: boolean;
-  materializing: boolean;
-  rows: ActSigRowModel[];
-}
-
-interface ActSigViewModel {
-  loading: boolean;
-  error: string;
-  overrideSignals: boolean;
-  hasSignals: boolean;
-  sections: ActSigSectionModel[];
-  empty: boolean;
-}
-
-const ungroupedSectionTitle = '';
-const materializeChunkSize = 8;
 const collapseIconMarkup = renderFontAwesomeIcon(uiIcons.chevronDown, 'h-3 w-3');
 const busyIconMarkup = renderFontAwesomeIcon(uiIcons.spinner, 'h-4 w-4 animate-spin');
 const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
 const copyToastId = 'nodel-actsig-copy-name';
 let registered = false;
-let nextActSigOrdinal = 0;
 
 const actSigFormTemplate = `
   <form class="nodel-actsig-form nodel-card p-2.5" data-link="data-actsig-form-id{:id} class{:pulse ? 'nodel-actsig-form nodel-card p-2.5 is-pulsing' : 'nodel-actsig-form nodel-card p-2.5'}" autocomplete="off">
@@ -193,88 +133,24 @@ function registerActSigTemplates() {
   registered = true;
 }
 
-function nextActSigId() {
-  nextActSigOrdinal += 1;
-  return `nodel-actsig-${nextActSigOrdinal}`;
-}
-
-function actionSignalSchema(schema: NodelJsonSchema | null | undefined): NodelJsonSchema {
-  return {
-    type: 'object',
-    properties: {
-      arg: schema ?? { type: 'null' }
-    }
-  };
-}
-
-function hasConcreteArgument(schema: NodelJsonSchema) {
-  const argument = schema.properties?.arg;
-  const type = argument?.type;
-  if (typeof type === 'string') return type !== 'null';
-  if (Array.isArray(type)) return type.some((variant) => variant.type !== 'null');
-  return Boolean(argument && type !== null);
-}
-
-function titleFor(definition: { name?: string; title?: string }, fallback: string) {
-  return definition.title || definition.name || fallback;
-}
-
-function orderFor(definition: { order?: number } | undefined) {
-  return typeof definition?.order === 'number' ? definition.order : 0;
-}
-
-function formKey(pointType: ActSigPointType, name: string) {
-  return `${pointType}:${name}`;
-}
-
-function iconFor(pointType: ActSigPointType) {
-  return renderFontAwesomeIcon(pointType === 'action' ? logIcons.action : logIcons.event, 'h-4 w-4');
-}
-
-function normalizeDefinitionName<T extends { name?: string }>(key: string, definition: T): T & { name: string } {
-  return { ...definition, name: definition.name || key };
-}
-
-function makeForm(pointType: ActSigPointType, definition: NodelActionDefinition | NodelSignalDefinition, fallbackName: string): ActSigFormModel {
-  const name = definition.name || fallbackName;
-  const requestEligible = reversibleUrlPathSegment(name) !== null;
-  return {
-    id: nextActSigId(),
-    pointType,
-    name,
-    title: titleFor(definition, name),
-    description: typeof definition.desc === 'string' ? definition.desc : '',
-    caution: typeof definition.caution === 'string' ? definition.caution : '',
-    schema: actionSignalSchema(definition.schema),
-    schemaForm: null,
-    materialized: false,
-    requestEligible,
-    busy: false,
-    error: requestEligible ? '' : `This ${pointType === 'action' ? 'action' : 'signal'} name cannot be represented safely in a request URL.`,
-    pulse: false,
-    iconMarkup: iconFor(pointType),
-    copyLabel: `Copy ${pointType === 'action' ? 'action' : 'signal'} name ${name}`,
-    copyTitle: `Copy ${pointType === 'action' ? 'action' : 'signal'} name`
-  };
-}
-
 export class NodelActSig extends HTMLElement {
-  private abortController: AbortController | null = null;
   private linked = false;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
   private materializeTimers = new Map<string, number>();
   private pulseTimers = new Map<string, number>();
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
-  private latestArgs = new Map<string, unknown>();
-  private state: ActSigViewModel = {
-    loading: true,
-    error: '',
-    overrideSignals: false,
-    hasSignals: false,
-    sections: [],
-    empty: false
-  };
+  private controller = new ActSigController({
+    getActions: (init) => getNodeActions(init),
+    getSignals: (init) => getNodeSignals(init),
+    callAction: (name, payload, init) => callNodeAction(name, payload, init),
+    emitSignal: (name, payload, init) => emitNodeSignal(name, payload, init)
+  }, {
+    setState: (values) => getJQuery().observable(this.state).setProperty(values),
+    setForm: (form, values) => getJQuery().observable(form).setProperty(values),
+    setSection: (section, values) => getJQuery().observable(section).setProperty(values)
+  });
+  private state: ActSigViewModel = this.controller.state;
 
   connectedCallback() {
     const scope = this.lifecycle.connect();
@@ -285,8 +161,7 @@ export class NodelActSig extends HTMLElement {
 
   disconnectedCallback() {
     this.lifecycle.disconnect();
-    this.abortController?.abort();
-    this.abortController = null;
+    this.controller.abort();
     for (const timer of this.materializeTimers.values()) {
       window.clearTimeout(timer);
     }
@@ -299,7 +174,7 @@ export class NodelActSig extends HTMLElement {
   }
 
   refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
-    this.latestArgs.clear();
+    this.controller.clearFeedback();
     for (const timer of this.materializeTimers.values()) {
       window.clearTimeout(timer);
     }
@@ -338,129 +213,11 @@ export class NodelActSig extends HTMLElement {
   }
 
   private async loadDefinitions(scope: ConnectionScope): Promise<NodeRestartRefreshResult> {
-    this.abortController?.abort();
-    const controller = new AbortController();
-    this.abortController = controller;
-    const abort = () => controller.abort();
-    scope.signal.addEventListener('abort', abort, { once: true });
-    this.setState({ loading: true, error: '', empty: false });
-
-    try {
-      const [actions, signals] = await Promise.all([
-        getNodeActions({ signal: controller.signal }),
-        getNodeSignals({ signal: controller.signal })
-      ]);
-      if (!scope.isCurrent() || controller !== this.abortController) {
-        return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
-      }
-      const sections = this.buildSections(actions, signals);
-      this.setState({
-        loading: false,
-        error: '',
-        sections,
-        hasSignals: sections.some((section) => section.rows.some((row) => row.event)),
-        empty: sections.length === 0
-      });
-      for (const section of sections) {
-        if (!section.grouped || section.open) {
-          this.materializeSection(section);
-        }
-      }
-      return { status: 'verified' };
-    } catch (error) {
-      if (!scope.isCurrent() || controller !== this.abortController) {
-        return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
-      }
-      if (isAbortError(error)) {
-        return { status: 'aborted', detail: 'Actions and signals refresh was canceled.' };
-      }
-      const detail = apiErrorMessage(error, 'Failed to load actions and signals');
-      this.setState({
-        loading: false,
-        error: detail,
-        sections: [],
-        hasSignals: false,
-        empty: false
-      });
-      return { status: 'failed', detail };
-    } finally {
-      scope.signal.removeEventListener('abort', abort);
-      if (this.abortController === controller) {
-        this.abortController = null;
-      }
+    const result = await this.controller.load({ signal: scope.signal, isCurrent: () => scope.isCurrent() });
+    if (result.status === 'verified') {
+      for (const section of this.state.sections) if (!section.grouped || section.open) this.materializeSection(section);
     }
-  }
-
-  private buildSections(actionsInput: Record<string, NodelActionDefinition>, signalsInput: Record<string, NodelSignalDefinition>): ActSigSectionModel[] {
-    const remainingSignals = new Map(Object.entries(signalsInput).map(([key, signal]) => [key, normalizeDefinitionName(key, signal)]));
-    const ungroupedRows: ActSigRowModel[] = [];
-    const groups = new Map<string, ActSigRowModel[]>();
-    let rowIndex = 0;
-
-    const pushRow = (group: string | undefined, row: ActSigRowModel) => {
-      if (group) {
-        const rows = groups.get(group) ?? [];
-        rows.push(row);
-        groups.set(group, rows);
-      } else {
-        ungroupedRows.push(row);
-      }
-    };
-
-    for (const [key, rawAction] of Object.entries(actionsInput)) {
-      const action = normalizeDefinitionName(key, rawAction);
-      const signal = remainingSignals.get(key) ?? null;
-      if (signal) {
-        remainingSignals.delete(key);
-      }
-      const order = orderFor(action);
-      rowIndex += 1;
-      pushRow(action.group, {
-        id: nextActSigId(),
-        title: titleFor(action, action.name),
-        order,
-        index: rowIndex,
-        action: makeForm('action', action, key),
-        event: signal ? makeForm('event', signal, key) : null
-      });
-    }
-
-    for (const [key, signal] of remainingSignals) {
-      rowIndex += 1;
-      pushRow(signal.group, {
-        id: nextActSigId(),
-        title: titleFor(signal, signal.name),
-        order: orderFor(signal),
-        index: rowIndex,
-        action: null,
-        event: makeForm('event', signal, key)
-      });
-    }
-
-    const sections: ActSigSectionModel[] = [];
-    if (ungroupedRows.length > 0) {
-      sections.push({
-        id: nextActSigId(),
-        title: ungroupedSectionTitle,
-        grouped: false,
-        open: true,
-        materializing: false,
-        rows: sortRows(ungroupedRows)
-      });
-    }
-
-    for (const [title, rows] of groups) {
-      sections.push({
-        id: nextActSigId(),
-        title,
-        grouped: true,
-        open: false,
-        materializing: false,
-        rows: sortRows(rows)
-      });
-    }
-
-    return sections;
+    return result;
   }
 
   private materializeSection(section: ActSigSectionModel) {
@@ -472,13 +229,13 @@ export class NodelActSig extends HTMLElement {
       return;
     }
 
-    const forms = section.rows.flatMap((row) => [row.action, row.event]).filter((form): form is ActSigFormModel => Boolean(form && !form.materialized));
+    const forms = this.controller.formsNeedingMaterialization(section);
     if (forms.length === 0) {
       this.applyCachedArgsToSection(section);
       return;
     }
 
-    getJQuery().observable(section).setProperty('materializing', true);
+    this.controller.startMaterialization(section);
     let index = 0;
 
     const step = () => {
@@ -486,10 +243,14 @@ export class NodelActSig extends HTMLElement {
         this.materializeTimers.delete(section.id);
         return;
       }
-      const end = Math.min(index + materializeChunkSize, forms.length);
+      const end = Math.min(index + ACTSIG_MATERIALIZE_CHUNK_SIZE, forms.length);
       for (; index < end; index += 1) {
         const form = forms[index];
-        if (form) this.materializeForm(form);
+        if (form) {
+          this.controller.materializeForm(form);
+          this.applyCachedArgToForm(form);
+          this.lifecycle.current?.setTimeout(() => this.applyCachedArgToForm(form), 0);
+        }
       }
 
       if (index < forms.length) {
@@ -501,46 +262,15 @@ export class NodelActSig extends HTMLElement {
       }
 
       this.materializeTimers.delete(section.id);
-      getJQuery().observable(section).setProperty('materializing', false);
+      this.controller.finishMaterialization(section);
       this.applyCachedArgsToSection(section);
     };
 
     step();
   }
 
-  private materializeForm(form: ActSigFormModel) {
-    if (form.materialized) {
-      return;
-    }
-
-    const schemaForm = createSchemaForm(form.schema, {
-      idPrefix: form.id,
-      hideRootKeyLabels: true,
-      controlsDisabled: this.isReadOnlySignalForm(form),
-      initialPresent: hasConcreteArgument(form.schema)
-    });
-    getJQuery().observable(form).setProperty({
-      schemaForm,
-      materialized: true
-    });
-    this.applyCachedArgToForm(form);
-    this.lifecycle.current?.setTimeout(() => this.applyCachedArgToForm(form), 0);
-  }
-
-  private syncSignalFormReadOnlyState(overrideSignals = this.state.overrideSignals) {
-    for (const section of this.state.sections) {
-      for (const row of section.rows) {
-        for (const form of [row.action, row.event]) {
-          if (form?.schemaForm) {
-            setSchemaFormControlsDisabled(form.schemaForm, this.isReadOnlySignalForm(form, overrideSignals));
-          }
-        }
-      }
-    }
-  }
-
-  private isReadOnlySignalForm(form: ActSigFormModel, overrideSignals = this.state.overrideSignals) {
-    return form.pointType === 'event' && !overrideSignals;
+  private syncSignalFormReadOnlyState() {
+    this.controller.syncSignalFormReadOnlyState();
   }
 
   private subscribeActivity(scope: ConnectionScope) {
@@ -550,7 +280,9 @@ export class NodelActSig extends HTMLElement {
 
     const source = subscribeNodeActivity(this, scope.guard((state) => {
       if (state.batch) {
-        this.applyActivityEntries(state.batch.items.map((item) => item.entry));
+        const result = this.controller.applyActivityEntries(state.batch.items.map((item) => item.entry), this.hydrationContext());
+        this.syncSchemaFormControls(result.hydrated);
+        for (const pulse of result.pulses) this.pulseForm(pulse.form, pulse.token, pulse.durationMs);
       }
     }));
     this.source = source;
@@ -562,53 +294,34 @@ export class NodelActSig extends HTMLElement {
     });
   }
 
-  private applyActivityEntries(entries: NodelActivityLogEntry[]) {
-    for (const entry of entries) {
-      if (entry.source !== 'local' || (entry.type !== 'action' && entry.type !== 'event')) {
-        continue;
-      }
-
-      if (hasOwn(entry, 'arg')) {
-        this.latestArgs.set(formKey(entry.type, String(entry.alias ?? '')), entry.arg);
-      }
-      const form = this.findForm(entry.type, String(entry.alias ?? ''));
-      if (form) {
-        this.applyCachedArgToForm(form);
-        this.pulseForm(form);
-      }
-    }
-  }
-
   private applyCachedArgsToSection(section: ActSigSectionModel) {
-    if (!this.canHydrateSection(section)) {
-      return;
-    }
-
-    for (const row of section.rows) {
-      if (row.action) {
-        this.applyCachedArgToForm(row.action);
-      }
-      if (row.event) {
-        this.applyCachedArgToForm(row.event);
-      }
-    }
+    const forms = this.controller.hydrateCachedForms(this.hydrationContextForSection(section));
+    this.syncSchemaFormControls(forms);
   }
 
   private applyCachedArgToForm(form: ActSigFormModel) {
-    const section = this.findSectionForForm(form.id);
-    if (!form.materialized || !form.schemaForm || !section || !this.canHydrateSection(section)) {
-      return;
-    }
+    const forms = this.controller.hydrateCachedForms(this.hydrationContextForForm(form));
+    this.syncSchemaFormControls(forms);
+  }
 
-    const key = formKey(form.pointType, form.name);
-    if (!this.latestArgs.has(key)) {
-      return;
+  private syncSchemaFormControls(forms: ActSigFormModel[]) {
+    for (const form of forms) {
+      if (!form.schemaForm) continue;
+      const root = Array.from(this.querySelectorAll<HTMLFormElement>('[data-actsig-form-id]')).find((element) => element.dataset.actsigFormId === form.id);
+      syncSchemaFormControls(form.schemaForm, root ?? this);
     }
+  }
 
-    hydrateSchemaForm(form.schemaForm, { arg: this.latestArgs.get(key) }, { preserveDirty: form.pointType === 'action' });
-    const formRoot = Array.from(this.querySelectorAll<HTMLFormElement>('[data-actsig-form-id]'))
-      .find((element) => element.dataset.actsigFormId === form.id);
-    syncSchemaFormControls(form.schemaForm, formRoot ?? this);
+  private hydrationContext() {
+    return { canHydrate: (section: ActSigSectionModel) => this.canHydrateSection(section) };
+  }
+
+  private hydrationContextForSection(section: ActSigSectionModel) {
+    return { canHydrate: (candidate: ActSigSectionModel) => candidate === section && this.canHydrateSection(candidate) };
+  }
+
+  private hydrationContextForForm(form: ActSigFormModel) {
+    return { canHydrate: (section: ActSigSectionModel) => section.rows.some((row) => row.action === form || row.event === form) && this.canHydrateSection(section) };
   }
 
   private canHydrateSection(section: ActSigSectionModel) {
@@ -620,58 +333,16 @@ export class NodelActSig extends HTMLElement {
     return page instanceof HTMLElement && page.hidden;
   }
 
-  private findForm(pointType: ActSigPointType, name: string) {
-    for (const section of this.state.sections) {
-      for (const row of section.rows) {
-        const form = pointType === 'action' ? row.action : row.event;
-        if (form?.name === name) {
-          return form;
-        }
-      }
-    }
-
-    return null;
-  }
-
   private findFormById(id: string) {
-    for (const section of this.state.sections) {
-      for (const row of section.rows) {
-        if (row.action?.id === id) {
-          return row.action;
-        }
-        if (row.event?.id === id) {
-          return row.event;
-        }
-      }
-    }
-
-    return null;
+    return this.controller.findFormById(id);
   }
 
   private findSectionById(id: string) {
-    return this.state.sections.find((section) => section.id === id) ?? null;
-  }
-
-  private findSectionForForm(formId: string) {
-    return this.state.sections.find((section) => section.rows.some((row) => row.action?.id === formId || row.event?.id === formId)) ?? null;
+    return this.controller.findSectionById(id);
   }
 
   private findField(fieldId: string): SchemaField | null {
-    for (const section of this.state.sections) {
-      for (const row of section.rows) {
-        for (const form of [row.action, row.event]) {
-          if (!form?.schemaForm) {
-            continue;
-          }
-          const field = findSchemaField(form.schemaForm.fields, fieldId);
-          if (field) {
-            return field;
-          }
-        }
-      }
-    }
-
-    return null;
+    return this.controller.findField(fieldId);
   }
 
   private handleSubmit = (event: Event) => {
@@ -687,16 +358,11 @@ export class NodelActSig extends HTMLElement {
 
     event.preventDefault();
     const form = this.findFormById(formId);
-    if (!form || !form.requestEligible || !form.schemaForm || form.busy || (form.pointType === 'event' && !this.state.overrideSignals)) {
+    if (!form) {
       return;
     }
 
-    if (validateAndUpdateSchemaForm(form.schemaForm).length > 0) {
-      revealSchemaValidationIssues(form.schemaForm, target);
-      return;
-    }
-
-    void this.submitForm(form);
+    void this.submitForm(form, target);
   };
 
   private handleChange = (event: Event) => {
@@ -762,42 +428,18 @@ export class NodelActSig extends HTMLElement {
     }
   };
 
-  private async submitForm(form: ActSigFormModel) {
+  private async submitForm(form: ActSigFormModel, target: HTMLFormElement) {
     const scope = this.lifecycle.current;
     if (!scope) {
       return;
     }
-    getJQuery().observable(form).setProperty({ busy: true, error: '' });
-    const payload = serializeSchemaForm(form.schemaForm!);
-
-    try {
-      if (form.pointType === 'action') {
-        await callNodeAction(form.name, payload, { signal: scope.signal });
-      } else {
-        await emitNodeSignal(form.name, payload, { signal: scope.signal });
-      }
-      if (!scope.isCurrent()) {
-        return;
-      }
-      resetSchemaFormDirty(form.schemaForm!);
-      this.dispatchEvent(new CustomEvent('nodel-actsig-submitted', {
-        bubbles: true,
-        detail: { type: form.pointType, name: form.name, payload }
-      }));
-    } catch (error) {
-      if (!scope.isCurrent()) {
-        return;
-      }
-      const message = apiErrorMessage(error, `Failed to ${form.pointType === 'action' ? 'call action' : 'emit signal'}`);
-      getJQuery().observable(form).setProperty('error', message);
-      this.dispatchEvent(new CustomEvent('nodel-actsig-error', {
-        bubbles: true,
-        detail: { type: form.pointType, name: form.name, error: message }
-      }));
-    } finally {
-      if (scope.isCurrent()) {
-        getJQuery().observable(form).setProperty('busy', false);
-      }
+    const result = await this.controller.submit(form, { signal: scope.signal, isCurrent: () => scope.isCurrent() });
+    if (result.type === 'invalid' && form.schemaForm) {
+      revealSchemaValidationIssues(form.schemaForm, target);
+    } else if (result.type === 'submitted') {
+      this.dispatchEvent(new CustomEvent('nodel-actsig-submitted', { bubbles: true, detail: result.detail }));
+    } else if (result.type === 'error') {
+      this.dispatchEvent(new CustomEvent('nodel-actsig-error', { bubbles: true, detail: result.detail }));
     }
   }
 
@@ -838,21 +480,24 @@ export class NodelActSig extends HTMLElement {
     }
   }
 
-  private pulseForm(form: ActSigFormModel) {
+  private pulseForm(form: ActSigFormModel, token: number, durationMs: number) {
     const scope = this.lifecycle.current;
     if (!scope) {
       return;
     }
-    const $ = getJQuery();
-    $.observable(form).setProperty('pulse', true);
     const existing = this.pulseTimers.get(form.id);
     if (existing !== undefined) {
       window.clearTimeout(existing);
     }
     const timer = scope.setTimeout(() => {
-      $.observable(form).setProperty('pulse', false);
-      this.pulseTimers.delete(form.id);
-    }, 700);
+      if (this.pulseTimers.get(form.id) !== timer) {
+        return;
+      }
+      this.controller.completePulse(form, token);
+      if (this.pulseTimers.get(form.id) === timer) {
+        this.pulseTimers.delete(form.id);
+      }
+    }, durationMs);
     if (timer !== null) {
       this.pulseTimers.set(form.id, timer);
     }
@@ -871,10 +516,6 @@ export class NodelActSig extends HTMLElement {
   private setState(values: Partial<ActSigViewModel>) {
     getJQuery().observable(this.state).setProperty(values);
   }
-}
-
-function sortRows(rows: ActSigRowModel[]) {
-  return [...rows].sort((left, right) => left.order - right.order || left.index - right.index);
 }
 
 if (!customElements.get('nodel-actsig')) {
