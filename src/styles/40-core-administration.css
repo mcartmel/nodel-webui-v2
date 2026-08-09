@@ -137,7 +137,7 @@
   }
 
   .nodel-node-menu {
-    @apply inline-flex;
+    @apply inline-flex items-center gap-2;
   }
 
   .nodel-node-menu-trigger {

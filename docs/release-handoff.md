@@ -184,6 +184,23 @@ Before merge, check for every V1 path that would be overwritten, duplicate
 paths with case-sensitive comparison, missing V1 assets, and unexpected files
 outside the declared V2 inventory. A collision report is release evidence.
 
+### Optional V1 version control hook
+
+The V2 support tree includes `v2/v1-bridge.js`, a standalone script that adds
+the matching `V1 / V2` control to XML pages rendered through V1's shared
+`index.xsl`. It does not load the V2 application bundle or stylesheet. A Java
+integration may opt in by adding this script after the existing V1 scripts:
+
+```html
+<script src="v2/v1-bridge.js"></script>
+```
+
+This hook remains V1-owned integration work. The V2 package must not replace
+`v1/index.xsl` or another V1 asset to install it. Removing the script element
+is the complete rollback. XML pages map to the sibling node `nodel.html`,
+while Locals, Network, Diagnostics, and Toolkit map to their corresponding V2
+routes. Standalone custom HTML pages must opt in separately.
+
 ## Isolated Test Deployment
 
 1. Create an isolated, disposable host working directory and use a target such

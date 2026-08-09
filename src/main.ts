@@ -38,8 +38,10 @@ import './components/nodel-connectivity-host';
 
 import { bootstrapSignalVisibilityBindings } from './data/signal-bindings';
 import { bootstrapNodelComponentLoader, loadNodelComponent } from './nodel-component-loader';
+import { bootstrapLegacyUiLinks } from './navigation/ui-version-links';
 
 export { loadNodelComponent };
 
 bootstrapSignalVisibilityBindings();
 bootstrapNodelComponentLoader();
+bootstrapLegacyUiLinks();

@@ -41,6 +41,14 @@ const linkAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-
 const scrollLockClass = 'nodel-node-menu-scroll-lock';
 
 const template = `
+  <nav class="nodel-ui-version-toggle" aria-label="User interface version">
+    {^{if loading}}
+      <span class="nodel-ui-version-option is-disabled" aria-disabled="true" title="Loading V1 UI">V1</span>
+    {{else}}
+      <a class="nodel-ui-version-option" data-link="href{:legacyHref}" title="Open V1 UI">V1</a>
+    {{/if}}
+    <span class="nodel-ui-version-option" aria-current="page" title="Current UI">V2</span>
+  </nav>
   <button type="button" class="nodel-button nodel-button-ghost nodel-node-menu-trigger" data-node-menu-open aria-haspopup="dialog" aria-label="Open node menu" data-link="aria-expanded{:open ? 'true' : 'false'}">
     ${menuIconMarkup}
   </button>
@@ -94,12 +102,6 @@ const template = `
               <div class="nodel-alert nodel-alert-sm">No custom UIs.</div>
             {{/if}}
             <ul class="nodel-list">
-              <li>
-                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" data-link="href{:legacyHref}">
-                  <span class="min-w-0 flex-1 truncate">Open legacy UI</span>
-                  ${linkAffordanceMarkup}
-                </a>
-              </li>
               {^{if !loading && !uiError && customUis.length}}
                 {^{for customUis}}
                   <li>
