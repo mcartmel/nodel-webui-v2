@@ -69,6 +69,7 @@ not automatically install Java production content.
 For a local release rehearsal, build before preparing the bundle:
 
 ```sh
+npm run verify:dependencies
 npm run build
 npm run verify:dist -- --write
 npm run release:prepare -- --dist-inventory build/dist-inventory.json
