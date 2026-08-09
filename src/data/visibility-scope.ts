@@ -2,25 +2,63 @@ import { subscribeConnectivity } from './connectivity';
 
 type VisibilityChangeHandler = (visible: boolean) => void;
 
+export interface NodelVisibilityObserverOptions {
+  suspendOnDocumentHidden?: boolean;
+  suspendOnConnectivity?: boolean;
+}
+
 interface VisibilityObserverEntry {
   element: HTMLElement;
   handler: VisibilityChangeHandler;
+  options: Required<NodelVisibilityObserverOptions>;
   visible: boolean;
 }
 
 const entries = new Set<VisibilityObserverEntry>();
+const activePageOwners = new WeakMap<HTMLElement, HTMLElement>();
 let observerStarted = false;
 let mutationObserver: MutationObserver | null = null;
 let connectivityOffline = false;
 let connectivitySubscription: { dispose(): void } | null = null;
 
-function isVisibleInTree(element: HTMLElement) {
-  if (!element.isConnected || document.hidden || navigator.onLine === false || connectivityOffline) {
+export function claimNodelPageActive(page: HTMLElement, app: HTMLElement) {
+  activePageOwners.set(page, app);
+}
+
+export function clearNodelPageActive(page: HTMLElement, app: HTMLElement) {
+  if (activePageOwners.get(page) === app) {
+    activePageOwners.delete(page);
+  }
+}
+
+export function releaseNodelPageActive(page: HTMLElement) {
+  activePageOwners.delete(page);
+}
+
+function ownsActivePage(page: HTMLElement, app: HTMLElement) {
+  return activePageOwners.get(page) === app;
+}
+
+function isVisibleInTree(element: HTMLElement, options: Required<NodelVisibilityObserverOptions>) {
+  if (!element.isConnected) {
+    return false;
+  }
+
+  if (options.suspendOnDocumentHidden && document.hidden) {
+    return false;
+  }
+
+  if (options.suspendOnConnectivity && (navigator.onLine === false || connectivityOffline)) {
     return false;
   }
 
   for (let current: HTMLElement | null = element.parentElement; current; current = current.parentElement) {
-    if (current.localName === 'nodel-page' && current.hasAttribute('hidden')) {
+    if (
+      current.localName === 'nodel-page' &&
+      (current.hasAttribute('hidden') ||
+        (current.closest('nodel-app') &&
+          (!current.hasAttribute('active') || !ownsActivePage(current, current.closest('nodel-app') as HTMLElement))))
+    ) {
       return false;
     }
   }
@@ -30,7 +68,7 @@ function isVisibleInTree(element: HTMLElement) {
 
 function syncEntries() {
   for (const entry of entries) {
-    const nextVisible = isVisibleInTree(entry.element);
+    const nextVisible = isVisibleInTree(entry.element, entry.options);
     if (nextVisible !== entry.visible) {
       entry.visible = nextVisible;
       notify(entry, nextVisible);
@@ -55,19 +93,30 @@ function ensureObservers() {
 
   mutationObserver = new MutationObserver(syncEntries);
   mutationObserver.observe(document.body ?? document.documentElement, {
+    childList: true,
     attributes: true,
     attributeFilter: ['hidden', 'active'],
     subtree: true
   });
 }
 
-export function observeNodelVisibility(element: HTMLElement, handler: VisibilityChangeHandler) {
+export function observeNodelVisibility(
+  element: HTMLElement,
+  handler: VisibilityChangeHandler,
+  options: NodelVisibilityObserverOptions = {}
+) {
   ensureObservers();
+
+  const observerOptions: Required<NodelVisibilityObserverOptions> = {
+    suspendOnDocumentHidden: options.suspendOnDocumentHidden ?? true,
+    suspendOnConnectivity: options.suspendOnConnectivity ?? true
+  };
 
   const entry: VisibilityObserverEntry = {
     element,
     handler,
-    visible: isVisibleInTree(element)
+    options: observerOptions,
+    visible: isVisibleInTree(element, observerOptions)
   };
 
   entries.add(entry);

@@ -124,6 +124,8 @@ Node duplication deliberately does not delete an incomplete destination automati
 
 `nodel-app` also owns page navigation. It discovers declared `nodel-page` elements, creates the toolbar navigation model, tracks the active page, and hides inactive pages with the `hidden` attribute. Nested `nodel-page` elements create toolbar submenu groups. This preserves the v1 behavior concept without using Bootstrap dropdowns or jQuery page switching.
 
+When an app connects or reconnects, `nodel-app` applies a synchronous suspended page state first and only then runs the queued navigation transition. Route-aware components that use the shared visibility scope therefore begin in the suspended state and can render without creating active resources until the active route is known.
+
 ## Styling Layer
 
 Tailwind is the primary styling layer. Use utilities directly for local layout, spacing, sizing, typography, responsive behavior, and simple color styling. Use the Nodel token utilities from `tailwind.config.ts`, such as `text-nodel-muted`, `text-nodel-fg`, `bg-nodel-surface`, `border-nodel-border`, `ring-nodel-accent`, `rounded-control`, `rounded-card`, and `rounded-panel`, instead of repeated arbitrary CSS-variable utilities.

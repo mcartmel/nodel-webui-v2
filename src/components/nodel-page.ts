@@ -2,6 +2,7 @@ import { callActionBindings, parseActionBindings, type ActionBindingResult } fro
 import { actionName, buildActionPayload, ControlActionController, formatActionFailures } from '../data/control-actions';
 import type { ControlArgType } from '../utils/control-values';
 import { NODEL_TOAST, type NodelToastDetail } from './nodel-toast-host';
+import { releaseNodelPageActive } from '../data/visibility-scope';
 
 const actionArgTypes: ControlArgType[] = ['string', 'number', 'boolean', 'json'];
 
@@ -24,6 +25,7 @@ export class NodelPage extends HTMLElement {
 
   disconnectedCallback() {
     this.actionController.disconnect();
+    releaseNodelPageActive(this);
   }
 
   attributeChangedCallback() {

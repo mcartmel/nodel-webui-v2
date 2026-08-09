@@ -101,6 +101,9 @@ export class AppNavigationController<T> {
     if (!pageId || !this.model.pageById.has(pageId)) {
       return null;
     }
+    if (hash === this.lastHandledHash && pageId === this.activePageId) {
+      return null;
+    }
     this.lastHandledHash = hash;
     return this.transition(pageId, true, null);
   }

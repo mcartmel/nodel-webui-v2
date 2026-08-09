@@ -965,6 +965,10 @@ For several signals, bind the `visibility` target explicitly. `visibility(any)` 
 
 `size="auto"` is the default. Standalone images use the available tile space naturally; explicit sizes constrain the media. Inline button images default compact and use the same explicit size values when set. Use `nodel-group` for visible captions, card/panel surfaces, and padding around standalone images.
 
+Inside an active `nodel-app` route, `nodel-image` renders native media only while its containing page is active. While a page is inactive, the host keeps current `src`, `alt`, `label`, `data-fit`, `data-shape`, `data-size`, and `data-source-state` while replacing native media with the placeholder shell. Signal updates remain subscribed and retained in attributes, and reactivation renders from the latest safe source.
+
+Images outside `nodel-page`, and images in visible standalone pages outside `nodel-app`, continue to render immediately. An explicitly hidden standalone page suppresses native media until it is shown. This contract documents native media attachment only; it does not promise reduced authored DOM payload size or immediate release of browser cache or decoded image memory.
+
 `nodel-icon` supports:
 
 - `name`
