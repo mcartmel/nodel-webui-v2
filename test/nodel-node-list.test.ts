@@ -25,7 +25,7 @@ describe('nodel-node-list', () => {
       if (url === '/REST') {
         return new Response(JSON.stringify({
           nodes: {
-            alpha: { name: 'Alpha Node (Test)' },
+            alpha: { name: 'Alpha Node (Test)', address: 'http://legacy.test/nodes/AlphaNode/' },
             beta: { name: 'Beta Node' }
           }
         }), { status: 200, headers: { 'Content-Type': 'application/json' } }) as never;
@@ -50,7 +50,7 @@ describe('nodel-node-list', () => {
     expect(Array.from(collection?.children ?? []).every((child) => child.tagName === 'LI')).toBe(true);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(2);
     expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(2);
-    expect(required(links[0]).getAttribute('href')).toBe('/nodes/AlphaNode/');
+    expect(required(links[0]).getAttribute('href')).toBe('/nodes/AlphaNode/nodel.html');
     expect(required(links[0]).textContent).toContain('localhost');
     expect(required(links[0]).querySelector('nodel-host-icon img')?.getAttribute('src')).toBe(
       generateHostIconDataUri(window.location.host)

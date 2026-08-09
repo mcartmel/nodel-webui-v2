@@ -50,6 +50,7 @@ describe('nodel-node-menu', () => {
     nodeMenuMock.getNodeDetails.mockReset().mockResolvedValue({ name: 'Old Node' });
     nodeMenuMock.listCustomUiEntries.mockReset().mockResolvedValue([
       { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
+      { href: 'index.xml', path: 'content/index.xml', title: 'index.xml' },
       { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' }
     ]);
     nodeMenuMock.removeCurrentNode.mockReset().mockResolvedValue('');
@@ -156,20 +157,22 @@ describe('nodel-node-menu', () => {
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nodel-node-menu-link-list a'));
     const collection = document.querySelector('.nodel-node-menu-link-list ul.nodel-list');
     expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Open legacy UI',
       'custom.html',
       'panel.xml',
       'Toolkit',
       'Diagnostics'
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      'index.xml',
       'custom.html',
       'panel.xml',
       '/toolkit.html',
       '/nodes.html#Diagnostics'
     ]);
-    expect(collection?.children).toHaveLength(4);
-    expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(4);
-    expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(4);
+    expect(collection?.children).toHaveLength(5);
+    expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(5);
+    expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(5);
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
   });
 
@@ -198,7 +201,8 @@ describe('nodel-node-menu', () => {
     const empty = Array.from(document.querySelectorAll('.nodel-alert')).find((element) => element.textContent?.includes('No custom UIs.'));
     expect(empty).not.toBeUndefined();
     expect(empty?.closest('.nodel-list')).toBeNull();
-    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list > li')).toHaveLength(2);
+    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list > li')).toHaveLength(3);
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-node-menu-link-list a')?.getAttribute('href')).toBe('nodel.xml');
   });
 
   it('renames the node, shows a toast, waits for readiness, and redirects', async () => {

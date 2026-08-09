@@ -26,6 +26,7 @@ interface NodeMenuState {
   busy: boolean;
   error: string;
   loading: boolean;
+  legacyHref: string;
   nodeName: string;
   open: boolean;
   renaming: boolean;
@@ -93,6 +94,12 @@ const template = `
               <div class="nodel-alert nodel-alert-sm">No custom UIs.</div>
             {{/if}}
             <ul class="nodel-list">
+              <li>
+                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" data-link="href{:legacyHref}">
+                  <span class="min-w-0 flex-1 truncate">Open legacy UI</span>
+                  ${linkAffordanceMarkup}
+                </a>
+              </li>
               {^{if !loading && !uiError && customUis.length}}
                 {^{for customUis}}
                   <li>
@@ -136,6 +143,7 @@ export class NodelNodeMenu extends HTMLElement {
     busy: false,
     error: '',
     loading: true,
+    legacyHref: 'nodel.xml',
     nodeName: '',
     open: false,
     renaming: false,
@@ -200,9 +208,13 @@ export class NodelNodeMenu extends HTMLElement {
       return;
     }
 
+    const customUis = uiResult.status === 'fulfilled' ? uiResult.value : [];
+    const legacyIndex = customUis.find((entry) => entry.path === 'content/index.xml');
+
     this.setState({
-      customUis: uiResult.status === 'fulfilled' ? uiResult.value : [],
+      customUis: customUis.filter((entry) => entry !== legacyIndex),
       error: detailsResult.status === 'rejected' ? apiErrorMessage(detailsResult.reason, 'Failed to load node details') : '',
+      legacyHref: legacyIndex?.href ?? 'nodel.xml',
       loading: false,
       nodeName: detailsResult.status === 'fulfilled' && typeof detailsResult.value.name === 'string' ? detailsResult.value.name : '',
       uiError: uiResult.status === 'rejected' ? apiErrorMessage(uiResult.reason, 'Failed to load custom UIs') : ''
