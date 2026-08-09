@@ -135,13 +135,13 @@ Update `.github/dependabot.yml` and its tests in an independent PR.
 2. Mark npm groups as applying to version updates and include only minor/patch changes.
 3. Keep production and development dependencies separate.
 4. Exclude `jquery`, `jsviews`, and exact-pinned `@lezer/markdown` from broad groups so any update is independently reviewable.
-5. Temporarily ignore these major lines until their migration issue is executed:
+5. Temporarily defer these major lines with a wildcard `allow.update-types` rule until their migration issue is executed; do not use `ignore`, because `ignore` also suppresses security updates:
    - `jquery` and `@types/jquery` major updates;
    - Vite, Vitest, `@vitest/coverage-v8`, Tailwind CSS, ESLint, `@eslint/js`, TypeScript, jsdom, and `@types/node` major updates.
 6. Keep GitHub Actions grouped because the trust manifest intentionally requires maintainer approval after every generated action update.
 7. Ensure security updates remain immediate and independently reviewable rather than being hidden in monthly version groups.
-8. Strengthen `test/release-guidance.test.ts` to assert group scope, update types, exclusions, ignores, cadence, and limits.
-9. Create linked follow-up issues before adding ignores:
+8. Strengthen `test/release-guidance.test.ts` to assert group scope, update types, exclusions, the security-safe allow policy, cadence, and limits.
+9. Create linked follow-up issues before adding the migration control:
    - jQuery 4 and JsViews compatibility/dual-instance migration;
    - Vite 8 plus Vitest/coverage migration;
    - Tailwind CSS 4 migration;
@@ -151,9 +151,9 @@ Update `.github/dependabot.yml` and its tests in an independent PR.
 Validation:
 
 - Dependabot accepts the YAML after merge.
-- A forced npm update job creates no grouped major migration PR.
+- A forced npm update job creates no grouped major migration PR under the allow policy.
 - Routine generated groups contain only minor/patch changes and exclude the named sensitive packages.
-- Security updates remain enabled and no current alert is suppressed by an ignore rule.
+- Security updates remain enabled and no current alert is suppressed by an `ignore` rule; the allow rule applies only to version updates.
 
 ## Stage 5: Retire Stale PRs and Regenerate Safe Updates
 
@@ -193,5 +193,5 @@ Perform remote PR mutations only after Stages 2-4 are merged.
 - If Node 24 changes output or tooling behavior unexpectedly, do not weaken gates; revert the Node/toolchain PR as one unit and retain a follow-up issue with captured failures.
 - If an action major fails, revert its workflow and trust-manifest entry together. Never retain a workflow/manifest mismatch.
 - If repository rules block normal recovery, use the documented admin bypass, repair the rule, and record the bypass reason; never disable force-push/delete protection as a routine workaround.
-- If regenerated dependency groups still contain migrations, close them and narrow Dependabot policy before merging anything.
+- If regenerated dependency groups still contain migrations, close them and narrow the Dependabot allow policy before merging anything; do not add `ignore`, which would suppress security updates.
 - Do not resolve dependency failures by widening audit exceptions, license policy, coverage thresholds, contract baselines, or bundle budgets without a separate reviewed decision.
