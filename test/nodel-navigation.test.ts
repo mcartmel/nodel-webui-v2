@@ -5,6 +5,7 @@ import '../src/components/nodel-page';
 import '../src/components/nodel-row';
 import '../src/components/nodel-column';
 import '../src/components/nodel-text';
+import '../src/components/nodel-image';
 import { findComponentContract } from '../src/component-contract';
 
 async function waitForNavigation() {
@@ -66,6 +67,90 @@ describe('nodel page navigation', () => {
     expect(upstairsPage.hidden).toBe(true);
   });
 
+  it('suspends every page synchronously before the initial navigation sync', () => {
+    renderNavigationFixture();
+
+    for (const page of document.querySelectorAll<HTMLElement>('nodel-page')) {
+      expect(page.hidden).toBe(true);
+      expect(page.hasAttribute('active')).toBe(false);
+      expect(page.dataset.activePage).toBe('false');
+    }
+  });
+
+  it('synchronously removes old media and suspends every route across reconnect hash navigation', async () => {
+    renderNavigationFixture();
+    const app = document.querySelector('nodel-app') as HTMLElement;
+    const overview = document.querySelector('nodel-page[title="Overview"]') as HTMLElement;
+    const upstairs = document.querySelector('nodel-page[title="Upstairs"]') as HTMLElement;
+    overview.insertAdjacentHTML('beforeend', '<nodel-image src="old.png"></nodel-image>');
+    upstairs.insertAdjacentHTML('beforeend', '<nodel-image src="latest.png"></nodel-image>');
+    await waitForNavigation();
+
+    expect(overview.querySelector('.nodel-image-media')).not.toBeNull();
+    app.remove();
+    expect(overview.querySelector('.nodel-image-media')).toBeNull();
+
+    window.history.replaceState(undefined, '', '/#Upstairs');
+    document.body.append(app);
+    for (const page of app.querySelectorAll<HTMLElement>('nodel-page')) {
+      expect(page.hidden).toBe(true);
+      expect(page.hasAttribute('active')).toBe(false);
+      expect(page.querySelector('.nodel-image-media')).toBeNull();
+    }
+
+    await waitForNavigation();
+    expect(upstairs.querySelector('.nodel-image-media')?.getAttribute('src')).toBe('latest.png');
+    expect(app.querySelectorAll('.nodel-image-media')).toHaveLength(1);
+  });
+
+  it('releases nested active-page claims during rapid remove and reinsert', async () => {
+    window.history.replaceState(undefined, '', '/#Upstairs');
+    renderNavigationFixture();
+    const app = document.querySelector('nodel-app') as HTMLElement;
+    const group = document.querySelector('nodel-page[title="Areas"]') as HTMLElement;
+    const leaf = document.querySelector('nodel-page[title="Upstairs"]') as HTMLElement;
+    leaf.insertAdjacentHTML('beforeend', '<nodel-image src="nested-latest.png"></nodel-image>');
+    await waitForNavigation();
+    await flush();
+
+    expect(group.hasAttribute('active')).toBe(true);
+    expect(leaf.querySelector('.nodel-image-media')).not.toBeNull();
+
+    group.remove();
+    expect(leaf.querySelector('.nodel-image-media')).toBeNull();
+    app.append(group);
+    expect(group.hasAttribute('active')).toBe(true);
+    expect(leaf.hasAttribute('active')).toBe(true);
+    expect(leaf.querySelector('.nodel-image-media')).toBeNull();
+
+    await waitForNavigation();
+    expect(group.hasAttribute('active')).toBe(true);
+    expect(leaf.hasAttribute('active')).toBe(true);
+    expect(leaf.querySelector('.nodel-image-media')?.getAttribute('src')).toBe('nested-latest.png');
+  });
+
+  it('releases an active nested leaf claim during rapid leaf remove and reinsert', async () => {
+    window.history.replaceState(undefined, '', '/#Upstairs');
+    renderNavigationFixture();
+    const app = document.querySelector('nodel-app') as HTMLElement;
+    const group = document.querySelector('nodel-page[title="Areas"]') as HTMLElement;
+    const leaf = document.querySelector('nodel-page[title="Upstairs"]') as HTMLElement;
+    leaf.insertAdjacentHTML('beforeend', '<nodel-image src="leaf-latest.png"></nodel-image>');
+    await waitForNavigation();
+    await flush();
+
+    expect(leaf.querySelector('.nodel-image-media')).not.toBeNull();
+    leaf.remove();
+    expect(leaf.querySelector('.nodel-image-media')).toBeNull();
+    group.append(leaf);
+    expect(leaf.hasAttribute('active')).toBe(true);
+    expect(leaf.querySelector('.nodel-image-media')).toBeNull();
+
+    await waitForNavigation();
+    expect(leaf.querySelector('.nodel-image-media')?.getAttribute('src')).toBe('leaf-latest.png');
+    expect(app.querySelectorAll('.nodel-image-media')).toHaveLength(1);
+  });
+
   it('treats page navigation attributes as initialization-time parent inputs', async () => {
     renderNavigationFixture();
     await waitForNavigation();
@@ -98,6 +183,25 @@ describe('nodel page navigation', () => {
     expect(overviewPage.hidden).toBe(true);
     expect(areasPage.hidden).toBe(false);
     expect(downstairsPage.hidden).toBe(false);
+  });
+
+  it('activates the nested startup hash group and leaf only', async () => {
+    window.history.replaceState(undefined, '', '/#Upstairs');
+    renderNavigationFixture();
+    await waitForNavigation();
+
+    const overviewPage = document.querySelector('nodel-page[title="Overview"]') as HTMLElement;
+    const areasPage = document.querySelector('nodel-page[title="Areas"]') as HTMLElement;
+    const upstairsPage = document.querySelector('nodel-page[title="Upstairs"]') as HTMLElement;
+    const downstairsPage = document.querySelector('nodel-page[title="Downstairs"]') as HTMLElement;
+
+    expect(overviewPage.hasAttribute('active')).toBe(false);
+    expect(areasPage.hasAttribute('active')).toBe(true);
+    expect(upstairsPage.hasAttribute('active')).toBe(true);
+    expect(downstairsPage.hasAttribute('active')).toBe(false);
+    expect(areasPage.hidden).toBe(false);
+    expect(upstairsPage.hidden).toBe(false);
+    expect(downstairsPage.hidden).toBe(true);
   });
 
   it('selects submenu pages without Bootstrap or jQuery', async () => {

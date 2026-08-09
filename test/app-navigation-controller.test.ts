@@ -47,6 +47,17 @@ describe('AppNavigationController', () => {
     expect(controller.select('other value')?.pageToActivate).toBe(second.page);
   });
 
+  it('ignores the hash event after sync already handled the same active hash', () => {
+    const controller = new AppNavigationController<Page>();
+    const first = page('first', { title: 'First' });
+    const pages = [first, page('second', { title: 'Second' })];
+
+    controller.sync(pages, '#Second');
+
+    expect(controller.handleHash('#Second')).toBeNull();
+    expect(controller.handleHash('#First')?.pageToActivate).toBe(first.page);
+  });
+
   it('does not reactivate retained pages during rediscovery and exposes group-parent visibility', () => {
     const controller = new AppNavigationController<Page>();
     const group = page('group', { title: 'Group', children: [page('leaf', { title: 'Leaf' })] });

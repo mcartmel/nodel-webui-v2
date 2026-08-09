@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inactive page media</title>
+    <link rel="stylesheet" href="./v2/nodel-webui.css" />
+    <script type="module" src="./v2/nodel-webui.js"></script>
+  </head>
+  <body>
+    <nodel-app title="Inactive page media">
+      <nodel-toolbar></nodel-toolbar>
+      <nodel-page nav-id="Overview" title="Overview">
+        <nodel-title level="1">Overview</nodel-title>
+        <nodel-image id="overview-image" src="/v2/test-images/overview.png" alt="Overview"></nodel-image>
+      </nodel-page>
+      <nodel-page nav-id="Detail" title="Detail">
+        <nodel-title level="1">Detail</nodel-title>
+        <nodel-image id="detail-image" src="/v2/test-images/detail.png" alt="Detail"></nodel-image>
+        <nodel-image id="detail-data-image" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" alt="Data image"></nodel-image>
+      </nodel-page>
+      <nodel-page nav-id="Nested" title="Nested">
+        <nodel-page nav-id="NestedLeaf" title="Nested leaf">
+          <nodel-image id="nested-leaf-image" src="/v2/test-images/nested-leaf.png" alt="Nested leaf"></nodel-image>
+        </nodel-page>
+        <nodel-page nav-id="NestedSibling" title="Nested sibling">
+          <nodel-image id="nested-sibling-image" src="/v2/test-images/nested-sibling.png" alt="Nested sibling"></nodel-image>
+        </nodel-page>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>

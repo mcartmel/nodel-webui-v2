@@ -66,6 +66,24 @@ describe('nodel-page activation actions', () => {
     expect(callAction.mock.calls.at(-1)?.slice(0, 2)).toEqual(['OpenOverview', {}]);
   });
 
+  it('activates a nested startup hash exactly once for the selected leaf', async () => {
+    window.history.replaceState(undefined, '', '/#Details');
+    document.body.innerHTML = `
+      <nodel-app>
+        <nodel-toolbar></nodel-toolbar>
+        <nodel-page title="Overview" action="OpenOverview"></nodel-page>
+        <nodel-page title="Area">
+          <nodel-page title="Details" action="OpenDetails"></nodel-page>
+          <nodel-page title="Other" action="OpenOther"></nodel-page>
+        </nodel-page>
+      </nodel-app>
+    `;
+
+    await waitFor(() => callAction.mock.calls.length === 1);
+
+    expect(callAction.mock.calls.map((call) => call.slice(0, 2))).toEqual([['OpenDetails', {}]]);
+  });
+
   it('invokes on explicit selection and explicit reselection', async () => {
     renderFixture();
     await waitFor(() => callAction.mock.calls.length === 1);
@@ -114,6 +132,40 @@ describe('nodel-page activation actions', () => {
 
     expect(callAction.mock.calls.at(-1)?.slice(0, 2)).toEqual(['OpenDetails', {}]);
     expect(app.getAttribute('data-active-page')).toBe('Details');
+  });
+
+  it('does not duplicate location.hash navigation handled during reconnect', async () => {
+    renderFixture();
+    await waitFor(() => callAction.mock.calls.length === 1);
+    const app = required(document.querySelector('nodel-app'));
+
+    app.remove();
+    window.location.hash = '#Details';
+    document.body.append(app);
+    await waitFor(() => callAction.mock.calls.length === 2);
+    await flush();
+
+    expect(callAction.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+      ['OpenOverview', {}],
+      ['OpenDetails', {}]
+    ]);
+  });
+
+  it('reconnects to a changed hash without repeating the old or new action', async () => {
+    renderFixture();
+    await waitFor(() => callAction.mock.calls.length === 1);
+    const app = required(document.querySelector('nodel-app'));
+
+    app.remove();
+    window.history.replaceState(undefined, '', '/#Details');
+    document.body.append(app);
+    await waitFor(() => callAction.mock.calls.length === 2);
+    await flush();
+
+    expect(callAction.mock.calls.map((call) => call.slice(0, 2))).toEqual([
+      ['OpenOverview', {}],
+      ['OpenDetails', {}]
+    ]);
   });
 
   it('does not report stale action failures after disconnect', async () => {

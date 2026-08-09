@@ -31,6 +31,7 @@ import {
   type NodelNavSelectDetail
 } from '../navigation/navigation';
 import { AppNavigationController, type AppNavigationPage, type AppNavigationTransition } from '../navigation/app-navigation-controller';
+import { claimNodelPageActive, clearNodelPageActive } from '../data/visibility-scope';
 import { getNodePathName, getSimpleName } from '../utils/node-name';
 import { createSignalBindingController } from '../data/signal-bindings';
 import { NODEL_APP_TITLE_CHANGE, type NodelAppTitleChangeDetail } from '../data/app-title';
@@ -92,6 +93,32 @@ function eventDetailValue(event: Event, key: string) {
   return typeof value === 'string' ? value : '';
 }
 
+function containsNodelPage(nodes: NodeList) {
+  return Array.from(nodes).some((node) => {
+    if (!(node instanceof Element)) {
+      return false;
+    }
+    return node.localName === 'nodel-page' || node.querySelector('nodel-page') !== null;
+  });
+}
+
+function classifyAppMutations(records: MutationRecord[], app: HTMLElement) {
+  let directChildMutation = false;
+  let pageStructureMutation = false;
+  for (const record of records) {
+    if (record.type !== 'childList') {
+      continue;
+    }
+    if (record.target === app) {
+      directChildMutation = true;
+    }
+    if (containsNodelPage(record.addedNodes) || containsNodelPage(record.removedNodes)) {
+      pageStructureMutation = true;
+    }
+  }
+  return { directChildMutation, pageStructureMutation };
+}
+
 export class NodelApp extends HTMLElement implements NodelNavigationHost {
   static observedAttributes = ['theme', 'title', 'offline-mode', 'signal', 'signals'];
 
@@ -111,6 +138,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
   private componentLoadGenerations = new Map<string, number>();
 
   connectedCallback() {
+    this.resetPageVisibility();
     this.setAttribute('data-nodel-app', 'true');
     this.ensureConnectivityHost();
     this.ensureConfirmHost();
@@ -133,11 +161,16 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.addEventListener('nodel-editor-error', this.handleEditorError);
     window.addEventListener('hashchange', this.handleHashChange);
     window.addEventListener(NODEL_COMPONENT_LOAD_ERROR, this.handleComponentLoadError as EventListener);
-    this.mutationObserver = new MutationObserver(() => {
-      this.queueNavigationSync();
-      this.syncConnectivityPresentation();
+    this.mutationObserver = new MutationObserver((records) => {
+      const { directChildMutation, pageStructureMutation } = classifyAppMutations(records, this);
+      if (directChildMutation || pageStructureMutation) {
+        this.queueNavigationSync();
+      }
+      if (directChildMutation) {
+        this.syncConnectivityPresentation();
+      }
     });
-    this.mutationObserver.observe(this, { childList: true });
+    this.mutationObserver.observe(this, { childList: true, subtree: true });
     this.queueNavigationSync();
     if (isNodePage()) {
       this.restartPageOwner = acquireNodeRestartPageOwner();
@@ -178,6 +211,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.connectivityPresentation.reset();
     this.stopThemeSynchronization();
     this.signalBindings.dispose();
+    this.clearPageClaims();
   }
 
   attributeChangedCallback(name: string) {
@@ -529,19 +563,27 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     }));
   }
 
-  private applyNavigationTransition(transition: AppNavigationTransition<HTMLElement>) {
-    this.dataset.activePage = transition.detail.activePageId;
+  private resetPageVisibility() {
     for (const page of this.querySelectorAll<HTMLElement>('nodel-page')) {
+      clearNodelPageActive(page, this);
       page.hidden = true;
       page.toggleAttribute('active', false);
       page.dataset.activePage = 'false';
     }
+  }
+
+  private applyNavigationTransition(transition: AppNavigationTransition<HTMLElement>) {
+    this.dataset.activePage = transition.detail.activePageId;
+    this.resetPageVisibility();
     for (const state of transition.visibility) {
       state.page.dataset.pageId = state.id;
       state.page.dataset.navGroupPage = String(state.group);
       state.page.hidden = !state.active;
       state.page.toggleAttribute('active', state.active);
       state.page.dataset.activePage = String(state.active);
+      if (state.active) {
+        claimNodelPageActive(state.page, this);
+      }
     }
     if (transition.hashWrite) {
       history.replaceState(undefined, '', transition.hashWrite);
@@ -553,6 +595,12 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     );
     if (transition.pageToActivate) {
       void (transition.pageToActivate as ActivatablePage).activate?.();
+    }
+  }
+
+  private clearPageClaims() {
+    for (const page of this.querySelectorAll<HTMLElement>('nodel-page')) {
+      clearNodelPageActive(page, this);
     }
   }
 

@@ -1,4 +1,5 @@
 import { flush } from './helpers';
+import { claimNodelPageActive } from '../src/data/visibility-scope';
 
 const activityMock = vi.hoisted(() => ({
   listeners: [] as Array<(state: any) => void>,
@@ -13,6 +14,7 @@ vi.mock('../src/data/node-activity-source', () => ({
 }));
 
 import '../src/components/nodel-image';
+import '../src/components/nodel-app';
 import '../src/components/nodel-icon';
 import '../src/components/nodel-status-indicator';
 
@@ -82,6 +84,148 @@ describe('control media components', () => {
     expect(image.querySelector('.nodel-image-placeholder')).not.toBeNull();
     expect(image.getAttribute('role')).toBe('img');
     expect(image.getAttribute('aria-label')).toBe('Unsafe unavailable');
+  });
+
+  it('defers inactive app-page media while retaining state and accessibility', async () => {
+    document.body.innerHTML = '<nodel-app><nodel-page title="Overview"></nodel-page><nodel-page hidden><nodel-image src="one.png" alt="One" label="Picture" signals="ImageSrc:src"></nodel-image></nodel-page></nodel-app>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    expect(image.dataset.sourceState).toBe('ready');
+    expect(image.getAttribute('role')).toBe('img');
+    expect(image.getAttribute('aria-label')).toBe('Picture');
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+
+    emitSignal('ImageSrc', 'two.png');
+    expect(image.getAttribute('src')).toBe('two.png');
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+
+    const page = image.closest('nodel-page') as HTMLElement;
+    page.removeAttribute('hidden');
+    page.setAttribute('active', '');
+    claimNodelPageActive(page, page.closest('nodel-app') as HTMLElement);
+    await flush();
+    expect(image.querySelector('.nodel-image-media')?.getAttribute('src')).toBe('two.png');
+  });
+
+  it('moves an alt-only name between the inactive host and active nested media', async () => {
+    document.body.innerHTML = '<nodel-page hidden><nodel-image src="one.png" alt="One"></nodel-image></nodel-page>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    const page = image.closest('nodel-page') as HTMLElement;
+    expect(image.getAttribute('role')).toBe('img');
+    expect(image.getAttribute('aria-label')).toBe('One');
+    expect(image.dataset.nodelAutoAriaLabel).toBe('true');
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.getAttribute('role')).toBeNull();
+    expect(image.getAttribute('aria-label')).toBeNull();
+    expect(image.dataset.nodelAutoAriaLabel).toBeUndefined();
+    expect(image.querySelector('.nodel-image-media')?.getAttribute('alt')).toBe('One');
+
+    page.setAttribute('hidden', '');
+    await flush();
+    expect(image.getAttribute('role')).toBe('img');
+    expect(image.getAttribute('aria-label')).toBe('One');
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+  });
+
+  it('preserves an explicit aria-label authored while inactive', async () => {
+    document.body.innerHTML = '<nodel-page hidden><nodel-image src="one.png" alt="One"></nodel-image></nodel-page>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    const page = image.closest('nodel-page') as HTMLElement;
+    expect(image.dataset.nodelAutoAriaLabel).toBe('true');
+
+    image.setAttribute('aria-label', 'Custom image');
+    expect(image.getAttribute('aria-label')).toBe('Custom image');
+    expect(image.dataset.nodelAutoAriaLabel).toBeUndefined();
+
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.getAttribute('aria-label')).toBe('Custom image');
+    expect(image.querySelector('.nodel-image-media')?.getAttribute('alt')).toBe('');
+  });
+
+  it('keeps aria-labelledby on the host while inactive and restores nested alt behavior', async () => {
+    document.body.innerHTML = '<span id="image-name">Named image</span><nodel-page hidden><nodel-image src="one.png" alt="One" aria-labelledby="image-name"></nodel-image></nodel-page>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    const page = image.closest('nodel-page') as HTMLElement;
+    expect(image.getAttribute('role')).toBe('img');
+    expect(image.getAttribute('aria-labelledby')).toBe('image-name');
+    expect(image.getAttribute('aria-label')).toBeNull();
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.querySelector('.nodel-image-media')?.getAttribute('alt')).toBe('');
+    expect(image.getAttribute('aria-labelledby')).toBe('image-name');
+  });
+
+  it('preserves the empty-source accessibility behavior while inactive', async () => {
+    document.body.innerHTML = '<nodel-page hidden><nodel-image alt="Not yet available"></nodel-image></nodel-page>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    expect(image.dataset.sourceState).toBe('empty');
+    expect(image.getAttribute('role')).toBeNull();
+    expect(image.getAttribute('aria-label')).toBeNull();
+    expect(image.querySelector('.nodel-image-placeholder')).not.toBeNull();
+  });
+
+  it('detaches and restores media across repeated page transitions without duplicate subscriptions', async () => {
+    document.body.innerHTML = '<nodel-page><nodel-image src="one.png" signals="ImageSrc:src"></nodel-image></nodel-page>';
+    await flush();
+
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    const page = image.closest('nodel-page') as HTMLElement;
+    expect(image.querySelector('.nodel-image-media')).not.toBeNull();
+    expect(activityMock.listeners).toHaveLength(1);
+
+    page.setAttribute('hidden', '');
+    await flush();
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.querySelector('.nodel-image-media')).not.toBeNull();
+    page.setAttribute('hidden', '');
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.querySelectorAll('.nodel-image-media')).toHaveLength(1);
+    expect(activityMock.listeners).toHaveLength(1);
+  });
+
+  it('starts suspended after reconnect until its page is active', async () => {
+    document.body.innerHTML = '<nodel-page hidden><nodel-image src="one.png"></nodel-image></nodel-page>';
+    await flush();
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    const page = image.closest('nodel-page') as HTMLElement;
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+
+    image.remove();
+    page.append(image);
+    expect(image.querySelector('.nodel-image-media')).toBeNull();
+    page.removeAttribute('hidden');
+    await flush();
+    expect(image.querySelector('.nodel-image-media')).not.toBeNull();
+  });
+
+  it('keeps active-page media through offline and document-hidden states', async () => {
+    document.body.innerHTML = '<nodel-page><nodel-image src="one.png"></nodel-image></nodel-page>';
+    await flush();
+    const image = document.querySelector('nodel-image') as HTMLElement;
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    window.dispatchEvent(new Event('offline'));
+    await flush();
+    expect(image.querySelector('.nodel-image-media')).not.toBeNull();
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    window.dispatchEvent(new Event('online'));
   });
 
   it('renders nodel-icon and signal updates', async () => {

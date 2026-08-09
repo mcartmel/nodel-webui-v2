@@ -1,4 +1,5 @@
 import { createSignalBindingController } from '../data/signal-bindings';
+import { observeNodelVisibility } from '../data/visibility-scope';
 import { escapeHtml } from '../utils/html';
 import { safeImageSrc } from '../utils/urls';
 
@@ -22,24 +23,56 @@ export class NodelImage extends HTMLElement {
   static observedAttributes = ['src', 'alt', 'label', 'aria-label', 'aria-labelledby', 'fit', 'shape', 'size', 'signal', 'signals'];
 
   private signalBindings = createSignalBindingController(this);
+  private disposeVisibility = () => {};
+  private pageActive = false;
+  private rendering = false;
+  private renderPending = false;
 
   connectedCallback() {
-    this.render();
+    this.disposeVisibility = observeNodelVisibility(this, (visible) => {
+      this.pageActive = visible;
+      this.render();
+    }, { suspendOnDocumentHidden: false, suspendOnConnectivity: false });
     this.syncSignalSubscription();
   }
 
   disconnectedCallback() {
     this.signalBindings.dispose();
+    this.disposeVisibility();
+    this.disposeVisibility = () => {};
+    this.pageActive = false;
+    this.querySelector('.nodel-image-media')?.remove();
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(name: string) {
     if (this.isConnected) {
+      if (name === 'aria-label' && !this.rendering && this.getAttribute('data-nodel-auto-aria-label') === 'true') {
+        this.removeAttribute('data-nodel-auto-aria-label');
+      }
       this.render();
       this.syncSignalSubscription();
     }
   }
 
   private render() {
+    if (this.rendering) {
+      this.renderPending = true;
+      return;
+    }
+
+    this.rendering = true;
+    try {
+      this.renderContent();
+    } finally {
+      this.rendering = false;
+      if (this.renderPending) {
+        this.renderPending = false;
+        this.render();
+      }
+    }
+  }
+
+  private renderContent() {
     const authoredSrc = this.getAttribute('src') ?? '';
     const src = authoredSrc ? safeImageSrc(authoredSrc) ?? '' : '';
     const alt = this.getAttribute('alt') ?? '';
@@ -50,7 +83,7 @@ export class NodelImage extends HTMLElement {
     const autoAria = this.getAttribute('data-nodel-auto-aria-label') === 'true';
     const explicitAria = autoAria ? null : this.getAttribute('aria-label');
     const sourceUnavailable = Boolean(authoredSrc && !src);
-    const hostLabel = (explicitAria ?? label) || (sourceUnavailable ? (alt ? `${alt} unavailable` : 'Image unavailable') : '');
+    const hostLabel = (explicitAria ?? label) || (sourceUnavailable ? (alt ? `${alt} unavailable` : 'Image unavailable') : (!this.pageActive && src ? alt : ''));
     const hostLabelled = Boolean(hostLabel || this.getAttribute('aria-labelledby'));
 
     this.dataset.fit = fit;
@@ -82,7 +115,7 @@ export class NodelImage extends HTMLElement {
 
     this.innerHTML = `
       <span class="nodel-image-frame">
-        ${src ? `<img class="nodel-image-media" src="${escapeHtml(src)}" alt="${hostLabelled ? '' : escapeHtml(alt)}" />` : '<span class="nodel-image-placeholder" aria-hidden="true"></span>'}
+        ${this.pageActive && src ? `<img class="nodel-image-media" src="${escapeHtml(src)}" alt="${hostLabelled ? '' : escapeHtml(alt)}" />` : '<span class="nodel-image-placeholder" aria-hidden="true"></span>'}
       </span>
     `;
   }
