@@ -40,7 +40,7 @@
 
 ### Quality And Supply Chain
 
-- Strict TypeScript, lint, selected per-file coverage gates, and property tests remain required; dependency advisory policy, pinned actions, and Dependabot provide supply-chain review.
+- Strict TypeScript, lint, selected per-file coverage gates, and property tests remain required; dependency advisory policy, pinned actions, and Dependabot provide supply-chain review. Repository policy permits only GitHub-owned actions at full commit SHAs, while `security/ci-actions.json` records the independently verified release tags and approved SHAs that must change atomically with workflows.
 - Release evidence includes deterministic CycloneDX `SBOM.cdx.json`, `THIRD-PARTY-LICENSES.json`, schema-5 hash binding, and archive verification.
 
 ### Maintenance Boundaries
