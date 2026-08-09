@@ -37,6 +37,8 @@
     if (doc.getElementById(controlId)) return;
     var target = doc.querySelector('.navbar-right');
     if (!target) return;
+    var mobileTarget = doc.querySelector('#nodel-navbar');
+    var mobileQuery = win.matchMedia('(max-width: 767px)');
 
     addStyles();
     var control = doc.createElement('nav');
@@ -56,7 +58,15 @@
 
     control.appendChild(current);
     control.appendChild(alternate);
-    target.insertBefore(control, target.querySelector('#clock'));
+
+    function place() {
+      if (mobileQuery.matches && mobileTarget) mobileTarget.insertBefore(control, mobileTarget.firstChild);
+      else target.insertBefore(control, target.querySelector('#clock'));
+    }
+
+    place();
+    if (mobileQuery.addEventListener) mobileQuery.addEventListener('change', place);
+    else mobileQuery.addListener(place);
   }
 
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', mount, { once: true });

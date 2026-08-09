@@ -9,7 +9,11 @@ async function openV1Bridge(page: Page, path: string) {
       <head></head>
       <body>
         <nav class="navbar navbar-inverse">
-          <div class="navbar-right"><p id="clock"></p></div>
+          <div class="navbar-header"></div>
+          <div id="nodel-navbar" class="navbar-collapse">
+            <ul class="navbar-nav"><li>Existing page</li></ul>
+            <div class="navbar-right"><p id="clock"></p></div>
+          </div>
         </nav>
       </body>
     </html>
@@ -45,6 +49,13 @@ test.describe('V1 bridge', () => {
     expect(box).not.toBeNull();
     expect(box!.width).toBeGreaterThanOrEqual(40);
     expect(box!.height).toBeGreaterThanOrEqual(40);
+  });
+
+  test('places the control before legacy page links on narrow screens', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const control = await openV1Bridge(page, '/locals.xml');
+    expect(await control.evaluate((element) => element.parentElement?.id)).toBe('nodel-navbar');
+    await expect(page.locator('#nodel-navbar > :first-child')).toHaveAttribute('id', 'nodel-ui-version-toggle-v1');
   });
 });
 
