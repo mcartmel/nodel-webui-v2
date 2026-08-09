@@ -319,17 +319,101 @@ describe('V1 migration and release guidance', () => {
 
   it('defines bounded monthly Dependabot groups', async () => {
     const dependabot = await readFile(resolve(process.cwd(), '.github/dependabot.yml'), 'utf8');
-    expect(dependabot).toContain('version: 2');
-    expect(dependabot).toContain('package-ecosystem: npm');
-    expect(dependabot).toContain('package-ecosystem: github-actions');
-    expect(dependabot.match(/interval: monthly/g)).toHaveLength(2);
-    expect(dependabot).toContain('npm-production:');
-    expect(dependabot).toContain('npm-development:');
-    expect(dependabot).toContain('dependency-type: production');
-    expect(dependabot).toContain('dependency-type: development');
-    expect(dependabot).toContain('github-actions:');
-    expect(dependabot).toContain('open-pull-requests-limit: 5');
-    expect(dependabot).toContain('open-pull-requests-limit: 3');
+    const policy = dependabot.split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n');
+    const block = (source: string, start: RegExp, end: RegExp) => {
+      const startIndex = source.search(start);
+      if (startIndex < 0) throw new Error('Dependabot block start is missing');
+      const endIndex = source.slice(startIndex + 1).search(end);
+      if (endIndex < 0) throw new Error('Dependabot block end is missing');
+      return source.slice(startIndex, startIndex + 1 + endIndex);
+    };
+    const npm = block(policy, /^\s{2}- package-ecosystem: npm/m, /^\s{2}- package-ecosystem: /m);
+    const actionsStart = policy.search(/^\s{2}- package-ecosystem: github-actions/m);
+    if (actionsStart < 0) throw new Error('GitHub Actions Dependabot block is missing');
+    const actions = policy.slice(actionsStart).trimEnd();
+    const allow = block(npm, /^\s{4}allow:/m, /^\s{4}groups:/m);
+    const production = block(npm, /^\s{6}npm-production:/m, /^\s{6}npm-development:/m);
+    const developmentStart = npm.search(/^\s{6}npm-development:/m);
+    if (developmentStart < 0) throw new Error('npm development group is missing');
+    const development = npm.slice(developmentStart).trimEnd();
+
+    expect(policy.match(/^version: 2$/gm)).toHaveLength(1);
+    expect(policy.match(/^\s{2}- package-ecosystem:/gm)).toHaveLength(2);
+    expect(policy.match(/^\s{6}interval: monthly$/gm)).toHaveLength(2);
+    expect(npm.trimEnd()).toBe([
+      '  - package-ecosystem: npm',
+      '    directory: /',
+      '    schedule:',
+      '      interval: monthly',
+      '    open-pull-requests-limit: 5',
+      '    allow:',
+      "      - dependency-name: '*'",
+      '        update-types:',
+      '          - version-update:semver-minor',
+      '          - version-update:semver-patch',
+      '    groups:',
+      '      npm-production:',
+      '        applies-to: version-updates',
+      '        dependency-type: production',
+      '        update-types:',
+      '          - minor',
+      '          - patch',
+      '        exclude-patterns:',
+      '          - jquery',
+      '          - jsviews',
+      '      npm-development:',
+      '        applies-to: version-updates',
+      '        dependency-type: development',
+      '        update-types:',
+      '          - minor',
+      '          - patch',
+      '        exclude-patterns:',
+      "          - '@lezer/markdown'"
+    ].join('\n'));
+    expect(allow.trim()).toBe([
+      'allow:',
+      "      - dependency-name: '*'",
+      '        update-types:',
+      '          - version-update:semver-minor',
+      '          - version-update:semver-patch'
+    ].join('\n'));
+    expect(production.trim()).toBe([
+      'npm-production:',
+      '        applies-to: version-updates',
+      '        dependency-type: production',
+      '        update-types:',
+      '          - minor',
+      '          - patch',
+      '        exclude-patterns:',
+      '          - jquery',
+      '          - jsviews'
+    ].join('\n'));
+    expect(development.trim()).toBe([
+      'npm-development:',
+      '        applies-to: version-updates',
+      '        dependency-type: development',
+      '        update-types:',
+      '          - minor',
+      '          - patch',
+      '        exclude-patterns:',
+      "          - '@lezer/markdown'"
+    ].join('\n'));
+    expect(actions).toBe([
+      '  - package-ecosystem: github-actions',
+      '    directory: /',
+      '    schedule:',
+      '      interval: monthly',
+      '    open-pull-requests-limit: 3',
+      '    groups:',
+      '      github-actions:',
+      '        applies-to: version-updates',
+      '        patterns:',
+      "          - '*'"
+    ].join('\n'));
+    expect(npm).toContain('open-pull-requests-limit: 5');
+    expect(npm).not.toContain('semver-major');
+    for (const issue of ['#7', '#8', '#9', '#10', '#11']) expect(dependabot).toContain(issue);
+    expect(policy).not.toMatch(/^\s*ignore:/m);
   });
 
   it('pins the Stage 11 production handoff boundary and evidence', async () => {

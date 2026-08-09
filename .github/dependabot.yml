@@ -5,11 +5,31 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    # Major migrations are tracked in #7, #8, #9, #10, and #11 and deferred through allow.update-types.
+    # Security updates are not suppressed because ignore is intentionally absent.
+    allow:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
     groups:
       npm-production:
+        applies-to: version-updates
         dependency-type: production
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - jquery
+          - jsviews
       npm-development:
+        applies-to: version-updates
         dependency-type: development
+        update-types:
+          - minor
+          - patch
+        exclude-patterns:
+          - '@lezer/markdown'
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -17,5 +37,6 @@ updates:
     open-pull-requests-limit: 3
     groups:
       github-actions:
+        applies-to: version-updates
         patterns:
           - '*'

@@ -6,6 +6,10 @@
 
 - Project tooling now requires Node.js `24.15.0` and npm `11.12.1`.
 
+### Dependency Operations
+
+- Dependabot uses monthly minor/patch version groups; sensitive updates remain individual, major migrations are tracked in issues #7-#11, and security updates remain unrestricted and immediate.
+
 ### Component Contract
 
 - `v2/nodel-components.json` publishes the deterministic schema 1 component
