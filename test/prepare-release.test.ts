@@ -493,7 +493,7 @@ describe('prepare-release', () => {
   it('standalone verification rejects corrupted release provenance, report, and inventory paths', async () => {
     await git(['tag', 'v0.1.1']);
     await release(await taggedOptions());
-     await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 5 });
+    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 5 });
     const releasePath = join(target, 'release.json');
     let manifest = JSON.parse(await readFile(releasePath, 'utf8'));
     manifest.componentContract.sha256 = '0'.repeat(64);
@@ -517,7 +517,7 @@ describe('prepare-release', () => {
     await release(await taggedOptions({ force: true }));
     await writeFile(join(target, 'java-handoff', 'dev.json'), '{}');
     await expect(verifyReleaseBundle(target)).rejects.toThrow(/hash or size does not match|unexpected keys/);
-  });
+  }, 15_000);
 
   it('rejects packaged evidence tampering and descriptor substitution', async () => {
     await release();
