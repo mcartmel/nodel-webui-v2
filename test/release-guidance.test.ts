@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 interface CiActionManifestEntry {
   name: string;
@@ -10,6 +11,24 @@ interface CiActionManifestEntry {
 interface CiActionManifest {
   schemaVersion: number;
   actions: CiActionManifestEntry[];
+}
+
+async function readWorkflowContents(root: string) {
+  const workflowDirectory = resolve(root, '.github/workflows');
+  const entries = await readdir(workflowDirectory, { withFileTypes: true });
+  const workflowNames = entries
+    .filter((entry) => entry.isFile() && /\.(?:yml|yaml)$/.test(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+  if (workflowNames.length === 0) throw new Error('No workflow files found');
+  return Promise.all(workflowNames.map((name) => readFile(resolve(workflowDirectory, name), 'utf8')));
+}
+
+function sectionBetween(source: string, heading: string, nextHeading: string) {
+  const start = source.indexOf(heading);
+  const end = source.indexOf(nextHeading, start + heading.length);
+  if (start < 0 || end < 0) throw new Error(`Missing section: ${heading}`);
+  return source.slice(start, end);
 }
 
 function validateCiActionsManifest(value: unknown, workflows: string[]) {
@@ -185,11 +204,13 @@ describe('V1 migration and release guidance', () => {
   });
 
   it('pins CI actions and separates quality artifacts from slower consumers', async () => {
+    const root = resolve(process.cwd());
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
+    const workflows = await readWorkflowContents(root);
     const manifest = JSON.parse(await readFile(resolve(process.cwd(), 'security/ci-actions.json'), 'utf8')) as unknown;
 
-    expect(validateCiActionsManifest(manifest, [buildWorkflow, releaseWorkflow]).actions).toHaveLength(6);
+    expect(validateCiActionsManifest(manifest, workflows).actions).toHaveLength(6);
     for (const workflow of [buildWorkflow, releaseWorkflow]) expect(workflow).toContain('persist-credentials: false');
 
     expect(buildWorkflow).toContain("if: github.event_name == 'pull_request'");
@@ -211,37 +232,62 @@ describe('V1 migration and release guidance', () => {
   });
 
   it('rejects malformed, duplicate, missing, stale, mutable, and unapproved CI action trust data', async () => {
+    const root = resolve(process.cwd());
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
+    const workflows = await readWorkflowContents(root);
     const manifest = JSON.parse(await readFile(resolve(process.cwd(), 'security/ci-actions.json'), 'utf8')) as CiActionManifest;
     const clone = () => structuredClone(manifest);
+    expect(workflows).toContain(releaseWorkflow);
 
-    expect(() => validateCiActionsManifest({ ...manifest, schemaVersion: 2 }, [buildWorkflow, releaseWorkflow])).toThrow(/schema/);
-    expect(() => validateCiActionsManifest({ ...manifest, unexpected: true }, [buildWorkflow, releaseWorkflow])).toThrow(/unexpected fields/);
-    expect(() => validateCiActionsManifest({ ...manifest, actions: [...manifest.actions, manifest.actions[0]] }, [buildWorkflow, releaseWorkflow])).toThrow(/Duplicate/);
-    expect(() => validateCiActionsManifest({ ...manifest, actions: manifest.actions.slice(1) }, [buildWorkflow, releaseWorkflow])).toThrow(/Missing CI action approval/);
+    expect(() => validateCiActionsManifest({ ...manifest, schemaVersion: 2 }, workflows)).toThrow(/schema/);
+    expect(() => validateCiActionsManifest({ ...manifest, unexpected: true }, workflows)).toThrow(/unexpected fields/);
+    expect(() => validateCiActionsManifest({ ...manifest, actions: [...manifest.actions, manifest.actions[0]] }, workflows)).toThrow(/Duplicate/);
+    expect(() => validateCiActionsManifest({ ...manifest, actions: manifest.actions.slice(1) }, workflows)).toThrow(/Missing CI action approval/);
     const malformedEntry = clone();
     malformedEntry.actions[0] = { ...malformedEntry.actions[0], unexpected: true } as CiActionManifestEntry;
-    expect(() => validateCiActionsManifest(malformedEntry, [buildWorkflow, releaseWorkflow])).toThrow(/entry has unexpected fields/);
+    expect(() => validateCiActionsManifest(malformedEntry, workflows)).toThrow(/entry has unexpected fields/);
     const invalidVersion = clone();
     invalidVersion.actions[0]!.version = '4.1.1';
-    expect(() => validateCiActionsManifest(invalidVersion, [buildWorkflow, releaseWorkflow])).toThrow(/version is invalid/);
+    expect(() => validateCiActionsManifest(invalidVersion, workflows)).toThrow(/version is invalid/);
     const invalidSha = clone();
     invalidSha.actions[0]!.sha = 'not-a-sha';
-    expect(() => validateCiActionsManifest(invalidSha, [buildWorkflow, releaseWorkflow])).toThrow(/SHA is invalid/);
+    expect(() => validateCiActionsManifest(invalidSha, workflows)).toThrow(/SHA is invalid/);
     const duplicateSha = clone();
     duplicateSha.actions.splice(1, 0, { name: 'actions/cache', version: 'v1.0.0', sha: duplicateSha.actions[0]!.sha });
-    expect(() => validateCiActionsManifest(duplicateSha, [buildWorkflow, releaseWorkflow])).toThrow(/Duplicate CI action SHA/);
+    expect(() => validateCiActionsManifest(duplicateSha, workflows)).toThrow(/Duplicate CI action SHA/);
     const stale = clone();
     stale.actions.splice(1, 0, { name: 'actions/cache', version: 'v1.0.0', sha: '1'.repeat(40) });
-    expect(() => validateCiActionsManifest(stale, [buildWorkflow, releaseWorkflow])).toThrow(/Unused CI action approval/);
+    expect(() => validateCiActionsManifest(stale, workflows)).toThrow(/Unused CI action approval/);
 
     const mutable = buildWorkflow.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@main');
-    expect(() => validateCiActionsManifest(clone(), [mutable, releaseWorkflow])).toThrow(/Mutable or malformed/);
+    expect(() => validateCiActionsManifest(clone(), workflows.map((workflow) => workflow === buildWorkflow ? mutable : workflow))).toThrow(/Mutable or malformed/);
     const unapproved = buildWorkflow.replace(/actions\/checkout@[0-9a-f]{40}/, `third-party/checkout@${'2'.repeat(40)}`);
-    expect(() => validateCiActionsManifest(clone(), [unapproved, releaseWorkflow])).toThrow(/Unapproved action owner/);
+    expect(() => validateCiActionsManifest(clone(), workflows.map((workflow) => workflow === buildWorkflow ? unapproved : workflow))).toThrow(/Unapproved action owner/);
     const wrongVersion = buildWorkflow.replace(/actions\/checkout@([0-9a-f]{40}) # v\d+\.\d+\.\d+/, 'actions/checkout@$1 # v0.0.0');
-    expect(() => validateCiActionsManifest(clone(), [wrongVersion, releaseWorkflow])).toThrow(/approval mismatch/);
+    expect(() => validateCiActionsManifest(clone(), workflows.map((workflow) => workflow === buildWorkflow ? wrongVersion : workflow))).toThrow(/approval mismatch/);
+
+    const temporaryRoot = await mkdtemp(join(tmpdir(), 'nodel-ci-workflows-'));
+    try {
+      const workflowDirectory = resolve(temporaryRoot, '.github/workflows');
+      const futureWorkflowPath = resolve(workflowDirectory, 'future.yaml');
+      await mkdir(workflowDirectory, { recursive: true });
+      await writeFile(resolve(workflowDirectory, 'build.yml'), buildWorkflow);
+      await writeFile(resolve(workflowDirectory, 'release.yml'), releaseWorkflow);
+      const expectDiscoveredWorkflowFailure = async (content: string, message: RegExp) => {
+        await writeFile(futureWorkflowPath, content);
+        const discoveredWorkflows = await readWorkflowContents(temporaryRoot);
+        expect(discoveredWorkflows).toHaveLength(3);
+        expect(() => validateCiActionsManifest(clone(), discoveredWorkflows)).toThrow(message);
+      };
+      await expectDiscoveredWorkflowFailure('  uses: actions/checkout@main # v7.0.1', /Mutable or malformed/);
+      await expectDiscoveredWorkflowFailure('  uses: third-party/future@2222222222222222222222222222222222222222 # v1.0.0', /Unapproved action owner/);
+      const checkout = manifest.actions.find((entry) => entry.name === 'actions/checkout');
+      if (!checkout) throw new Error('Checkout approval is missing');
+      await expectDiscoveredWorkflowFailure(`  uses: actions/checkout@${checkout.sha} # v0.0.0`, /approval mismatch/);
+    } finally {
+      await rm(temporaryRoot, { recursive: true, force: true });
+    }
   });
 
   it('keeps the Node.js/npm toolchain contract aligned across metadata, CI, and current guidance', async () => {
@@ -421,6 +467,8 @@ describe('V1 migration and release guidance', () => {
     const readme = await readFile(resolve(process.cwd(), 'README.md'), 'utf8');
     const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');
     const architecture = await readFile(resolve(process.cwd(), 'docs/architecture.md'), 'utf8');
+    const readmeRehearsal = sectionBetween(readme, 'For a local release rehearsal', '## License');
+    const handoffRehearsal = sectionBetween(handoff, '## Local Nonpublishable Rehearsal', '## Commands and Interfaces');
 
     expect(handoff).toContain('There is no production installer in this repository');
     expect(readme).not.toContain('Production deployment defaults');
@@ -442,6 +490,13 @@ describe('V1 migration and release guidance', () => {
     expect(notes).toContain('production handoff runbook');
     expect(architecture).toContain('no production installer');
     expect(architecture).toContain('preserve V1 by default');
+    expect(readmeRehearsal).toContain('npm run verify:dependencies');
+    expect(readmeRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(readmeRehearsal.indexOf('npm run build'));
+    expect(readmeRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(readmeRehearsal.indexOf('npm run release:prepare'));
+    expect(handoffRehearsal).toContain('npm run verify:dependencies');
+    expect(handoffRehearsal.indexOf('npm ci')).toBeLessThan(handoffRehearsal.indexOf('npm run verify:dependencies'));
+    expect(handoffRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(handoffRehearsal.indexOf('npm run build'));
+    expect(handoffRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(handoffRehearsal.indexOf('npm run release:prepare'));
   });
 
   it('pins Stage 11 package commands, evidence, smoke, and release security gates', async () => {

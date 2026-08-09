@@ -42,6 +42,7 @@ do not reuse a mutable checkout for both targets.
 
 ```sh
 npm ci
+npm run verify:dependencies
 npm run build
 npm run verify:java-handoff -- --java-checkout ../nodel-dev --expected-branch dev --output build/java-handoff/dev.json
 npm run verify:java-handoff -- --java-checkout ../nodel-master --expected-branch master --output build/java-handoff/master.json
@@ -115,9 +116,9 @@ source commit and version. It must compare the package against
 by default. The `index.htm` collision is the exception: changing its default
 `preserve-v1` decision requires recorded approval.
 
-Before release preparation, run `npm run verify:audit`, `npm run generate:sbom`,
-and `npm run generate:licenses` (or the equivalent Node script commands). These
-write source-generated evidence below `build/dependency-evidence/`; release
+Before release preparation, run the canonical `npm run verify:dependencies`
+command. It performs the audit, SBOM, and license generation and verification,
+writing source-generated evidence below `build/dependency-evidence/`; release
 preparation fails if either artifact is missing, stale, substituted, or not
 bound to the exact lockfile, license policy, and notices. The release root
 contains `SBOM.cdx.json` and `THIRD-PARTY-LICENSES.json`, and `release.json`
