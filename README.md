@@ -6,8 +6,8 @@ The project is under active development. It remains Nodel-specific: host pages c
 
 ## Requirements
 
-- Node.js 20.12 or later in the Node 20 release line
-- npm
+- Node.js `24.15.0`
+- npm `11.12.1`
 - A Nodel host for testing host and node API behavior
 
 ## Development

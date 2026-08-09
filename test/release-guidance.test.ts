@@ -174,6 +174,79 @@ describe('V1 migration and release guidance', () => {
     expect(releaseJob).not.toContain('npm run verify:dist -- --write');
   });
 
+  it('keeps the Node.js/npm toolchain contract aligned across metadata, CI, and current guidance', async () => {
+    const root = resolve(process.cwd());
+    const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
+      engines: { node: string; npm: string };
+      packageManager: string;
+      devEngines: {
+        runtime: { name: string; version: string; onFail: string };
+        packageManager: { name: string; version: string; onFail: string };
+      };
+      devDependencies: Record<string, string>;
+    };
+    const packageLock = JSON.parse(await readFile(resolve(root, 'package-lock.json'), 'utf8')) as {
+      packages: {
+        '': { engines: { node: string; npm: string }; devDependencies: Record<string, string> };
+        'node_modules/@types/node': { version: string };
+      };
+    };
+    const nodeVersion = (await readFile(resolve(root, '.nvmrc'), 'utf8')).trim();
+    const npmrc = (await readFile(resolve(root, '.npmrc'), 'utf8')).trim();
+    const [buildWorkflow, releaseWorkflow, readme, handoff, notes] = await Promise.all([
+      readFile(resolve(root, '.github/workflows/build.yml'), 'utf8'),
+      readFile(resolve(root, '.github/workflows/release.yml'), 'utf8'),
+      readFile(resolve(root, 'README.md'), 'utf8'),
+      readFile(resolve(root, 'docs/release-handoff.md'), 'utf8'),
+      readFile(resolve(root, 'RELEASE_NOTES.md'), 'utf8')
+    ]);
+
+    expect(nodeVersion).toBe('24.15.0');
+    expect(packageJson.engines).toEqual({ node: '>=24.15 <25', npm: '>=11.12 <12' });
+    expect(packageJson.packageManager).toBe('npm@11.12.1');
+    expect(packageJson.devEngines).toEqual({
+      runtime: { name: 'node', version: '24.15.0', onFail: 'error' },
+      packageManager: { name: 'npm', version: '11.12.1', onFail: 'error' }
+    });
+    expect(packageJson.devDependencies['@types/node']).toBe('^24.13.3');
+    expect(packageLock.packages[''].engines).toEqual(packageJson.engines);
+    expect(packageLock.packages[''].devDependencies['@types/node']).toBe('^24.13.3');
+    expect(packageLock.packages['node_modules/@types/node'].version).toBe('24.13.3');
+    expect(npmrc).toBe('engine-strict=true');
+
+    for (const workflow of [buildWorkflow, releaseWorkflow]) {
+      expect(workflow).not.toContain('node-version: 20.12.0');
+      expect(workflow.match(/node-version-file: \.nvmrc/g)?.length ?? 0).toBeGreaterThan(0);
+      const npmCiSteps = workflow.match(/- name: Pin and verify Node\.js\/npm, then install dependencies[\s\S]*?\n {10}npm ci/g) ?? [];
+      expect(npmCiSteps).toHaveLength(2);
+      for (const step of npmCiSteps) {
+        expect(step).toContain('working-directory: ${{ runner.temp }}');
+        expect(step).toContain('npm install --global --prefix "$npm_prefix" "npm@${npm_version}"');
+        expect(step).toContain('export PATH="${npm_prefix}/bin:${PATH}"');
+        expect(step).toContain('"${npm_prefix}/bin" >> "$GITHUB_PATH"');
+        expect(step).toContain("require('${GITHUB_WORKSPACE}/package.json').packageManager");
+        expect(step).toContain('node --version');
+        expect(step).toContain('npm --version');
+        expect(step).toContain('test "$actual_node" = "v${expected_node}"');
+        expect(step).toContain('test "$actual_npm" = "$npm_version"');
+        expect(step.indexOf('export PATH=')).toBeLessThan(step.indexOf('actual_npm="$(npm --version)"'));
+        expect(step.indexOf('actual_npm="$(npm --version)"')).toBeLessThan(step.indexOf('npm ci'));
+      }
+      expect(workflow.match(/npm ci/g)).toHaveLength(2);
+      expect(workflow.match(/npm install --global --prefix/g)).toHaveLength(2);
+    }
+    expect(buildWorkflow).toContain('node-version-file: webui/.nvmrc');
+    expect(releaseWorkflow).toContain('node-version-file: webui/.nvmrc');
+    expect(buildWorkflow).toContain('cache-dependency-path: webui/package-lock.json');
+    expect(releaseWorkflow).toContain('cache-dependency-path: webui/package-lock.json');
+    expect(readme).toContain('Node.js `24.15.0`');
+    expect(readme).toContain('npm `11.12.1`');
+    expect(handoff).toContain('Node.js `24.15.0` and npm `11.12.1`');
+    expect(notes).toContain('Node.js `24.15.0` and npm `11.12.1`');
+    expect(notes).toContain('## 0.1.2');
+    expect(notes.slice(notes.indexOf('## 0.1.2'))).toContain('Node.js `>=20.12` in the Node 20 release line');
+  });
+
   it('defines bounded monthly Dependabot groups', async () => {
     const dependabot = await readFile(resolve(process.cwd(), '.github/dependabot.yml'), 'utf8');
     expect(dependabot).toContain('version: 2');

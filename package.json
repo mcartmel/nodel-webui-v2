@@ -7,7 +7,21 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20.12"
+    "node": ">=24.15 <25",
+    "npm": ">=11.12 <12"
+  },
+  "packageManager": "npm@11.12.1",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.15.0",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "11.12.1",
+      "onFail": "error"
+    }
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -77,7 +91,7 @@
     "@lezer/markdown": "1.6.3",
     "@playwright/test": "^1.62.1",
     "@types/jquery": "^3.5.33",
-    "@types/node": "^22.15.17",
+    "@types/node": "^24.13.3",
     "@types/pngjs": "^6.0.5",
     "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^3.2.7",

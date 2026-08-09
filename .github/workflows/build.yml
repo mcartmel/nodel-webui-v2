@@ -35,11 +35,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20.12.0
+          node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Pin and verify Node.js/npm, then install dependencies
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          package_manager="$(node --print "require('${GITHUB_WORKSPACE}/package.json').packageManager")"
+          npm_version="${package_manager#npm@}"
+          npm_prefix="${RUNNER_TEMP}/npm-toolchain"
+          npm install --global --prefix "$npm_prefix" "npm@${npm_version}"
+          export PATH="${npm_prefix}/bin:${PATH}"
+          printf '%s\n' "${npm_prefix}/bin" >> "$GITHUB_PATH"
+          cd "$GITHUB_WORKSPACE"
+          expected_node="$(tr -d '[:space:]' < .nvmrc)"
+          actual_node="$(node --version)"
+          actual_npm="$(npm --version)"
+          printf 'Node.js: %s (expected v%s)\nnpm: %s (expected %s)\n' "$actual_node" "$expected_node" "$actual_npm" "$npm_version"
+          test "$actual_node" = "v${expected_node}"
+          test "$actual_npm" = "$npm_version"
+          npm ci
 
       - name: Report component contract impact
         if: always()
@@ -120,11 +137,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20.12.0
+          node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Pin and verify Node.js/npm, then install dependencies
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          package_manager="$(node --print "require('${GITHUB_WORKSPACE}/package.json').packageManager")"
+          npm_version="${package_manager#npm@}"
+          npm_prefix="${RUNNER_TEMP}/npm-toolchain"
+          npm install --global --prefix "$npm_prefix" "npm@${npm_version}"
+          export PATH="${npm_prefix}/bin:${PATH}"
+          printf '%s\n' "${npm_prefix}/bin" >> "$GITHUB_PATH"
+          cd "$GITHUB_WORKSPACE"
+          expected_node="$(tr -d '[:space:]' < .nvmrc)"
+          actual_node="$(node --version)"
+          actual_npm="$(npm --version)"
+          printf 'Node.js: %s (expected v%s)\nnpm: %s (expected %s)\n' "$actual_node" "$expected_node" "$actual_npm" "$npm_version"
+          test "$actual_node" = "v${expected_node}"
+          test "$actual_npm" = "$npm_version"
+          npm ci
 
       - name: Download exact tested dist and inventory
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -196,7 +230,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20.12.0
+          node-version-file: webui/.nvmrc
           cache: npm
           cache-dependency-path: webui/package-lock.json
 

@@ -21,8 +21,8 @@ here installs production Java host files or mutates a production Nodel service.
 
 ## Prerequisites
 
-- Node.js `>=20.12` in the Node 20 release line and the repository's pinned npm
-  lockfile installed with `npm ci`.
+- Node.js `24.15.0` and npm `11.12.1`, with the repository's pinned lockfile
+  installed using `npm ci`.
 - A clean, pinned web UI commit or release tag. Record repository, branch/tag,
   full commit, package version, and working-tree status.
 - An explicit sibling Java checkout, normally `../nodel`. Do not infer it from
