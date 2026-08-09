@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Toolchain
+
+- Project tooling now requires Node.js `24.15.0` and npm `11.12.1`.
+
 ### Component Contract
 
 - `v2/nodel-components.json` publishes the deterministic schema 1 component
