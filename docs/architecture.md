@@ -35,7 +35,7 @@ The allowlisted loader maintains a single-flight load state. A failure preserves
 
 ### Quality And Coverage Policy
 
-Typed lint, TypeScript, and JsViews checks are required. V8 reports broad production TypeScript coverage, including components and DOM adapters, without a global floor; per-file gates apply only to selected boundary/domain modules at 90% lines, statements, and functions and 85% branches. Property tests cover bounded and grammar-heavy policies. Dependency advisories, deterministic SBOM and license evidence, and pinned CI actions are release gates. Bundle and contract review reports do not auto-ratchet budgets.
+Typed lint, TypeScript, and JsViews checks are required. V8 reports broad production TypeScript coverage, including components and DOM adapters, without a global floor; per-file gates apply only to selected boundary/domain modules at 90% lines, statements, and functions and 85% branches. Property tests cover bounded and grammar-heavy policies. Dependency advisories, deterministic SBOM and license evidence, and pinned CI actions are release gates. Repository policy permits only GitHub-owned actions at full commit SHAs; `security/ci-actions.json` is the canonical maintainer approval record, and action updates remain unmergeable until official tags are independently resolved and the workflows plus manifest change together. Bundle and contract review reports do not auto-ratchet budgets.
 
 ### Decomposition Boundaries
 

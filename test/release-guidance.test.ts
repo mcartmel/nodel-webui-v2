@@ -1,6 +1,64 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+interface CiActionManifestEntry {
+  name: string;
+  version: string;
+  sha: string;
+}
+
+interface CiActionManifest {
+  schemaVersion: number;
+  actions: CiActionManifestEntry[];
+}
+
+function validateCiActionsManifest(value: unknown, workflows: string[]) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('CI action manifest must be an object');
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).sort().join('\0') !== 'actions\0schemaVersion') throw new Error('CI action manifest has unexpected fields');
+  if (record.schemaVersion !== 1 || !Array.isArray(record.actions)) throw new Error('CI action manifest schema is invalid');
+
+  const actions = record.actions as unknown[];
+  const approved = new Map<string, CiActionManifestEntry>();
+  const shas = new Set<string>();
+  for (const value of actions) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('CI action entry must be an object');
+    const entry = value as Record<string, unknown>;
+    if (Object.keys(entry).sort().join('\0') !== 'name\0sha\0version') throw new Error('CI action entry has unexpected fields');
+    if (typeof entry.name !== 'string' || !/^actions\/[a-z0-9-]+$/.test(entry.name)) throw new Error('CI action name is invalid');
+    if (typeof entry.version !== 'string' || !/^v\d+\.\d+\.\d+$/.test(entry.version)) throw new Error('CI action version is invalid');
+    if (typeof entry.sha !== 'string' || !/^[0-9a-f]{40}$/.test(entry.sha)) throw new Error('CI action SHA is invalid');
+    if (approved.has(entry.name)) throw new Error(`Duplicate CI action name: ${entry.name}`);
+    if (shas.has(entry.sha)) throw new Error(`Duplicate CI action SHA: ${entry.sha}`);
+    const approvedEntry = entry as unknown as CiActionManifestEntry;
+    approved.set(approvedEntry.name, approvedEntry);
+    shas.add(approvedEntry.sha);
+  }
+  if ([...approved.keys()].join('\0') !== [...approved.keys()].sort().join('\0')) throw new Error('CI action entries must be sorted by name');
+
+  const used = new Set<string>();
+  for (const workflow of workflows) {
+    for (const line of workflow.split('\n').filter((candidate) => candidate.includes('uses:'))) {
+      const match = line.match(/^\s*uses:\s+([^\s#]+)\s+#\s*(v\d+\.\d+\.\d+)\s*$/);
+      if (!match) throw new Error(`Malformed uses line: ${line}`);
+      const specifier = match[1];
+      const version = match[2];
+      if (!specifier || !version) throw new Error(`Incomplete uses line: ${line}`);
+      const parts = specifier.split('@');
+      if (parts.length !== 2) throw new Error(`Malformed action specifier: ${specifier}`);
+      const [name, sha] = parts;
+      if (!name || !sha || !/^actions\/[a-z0-9-]+$/.test(name)) throw new Error(`Unapproved action owner: ${specifier}`);
+      if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`Mutable or malformed action reference: ${specifier}`);
+      const entry = approved.get(name);
+      if (!entry) throw new Error(`Missing CI action approval: ${name}`);
+      if (entry.sha !== sha || entry.version !== version) throw new Error(`CI action approval mismatch: ${name}`);
+      used.add(name);
+    }
+  }
+  for (const name of approved.keys()) if (!used.has(name)) throw new Error(`Unused CI action approval: ${name}`);
+  return value as CiActionManifest;
+}
+
 describe('V1 migration and release guidance', () => {
   it('documents every Stage 9 migration mapping', async () => {
     const guidance = await readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8');
@@ -129,32 +187,10 @@ describe('V1 migration and release guidance', () => {
   it('pins CI actions and separates quality artifacts from slower consumers', async () => {
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
-    const pinned = new Map([
-      ['actions/checkout', '11bd71901bbe5b1630ceea73d27597364c9af683'],
-      ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
-      ['actions/upload-artifact', 'ea165f8d65b6e75b540449e92b4886f43607fa02'],
-      ['actions/download-artifact', 'd3f86a106a0bac45b974a628896c90dbdf5c8093'],
-      ['actions/attest-build-provenance', 'e8998f949152b193b063cb0ec769d69d929409be'],
-      ['actions/dependency-review-action', '3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261']
-    ]);
+    const manifest = JSON.parse(await readFile(resolve(process.cwd(), 'security/ci-actions.json'), 'utf8')) as unknown;
 
-    for (const workflow of [buildWorkflow, releaseWorkflow]) {
-      for (const line of workflow.split('\n').filter((candidate) => candidate.includes('uses:'))) {
-        const match = line.match(/uses:\s+([^\s#]+)/);
-        if (!match) throw new Error(`Malformed uses line: ${line}`);
-        const uses = match[1];
-        if (!uses) throw new Error(`Empty uses value: ${line}`);
-        const [action, sha] = uses.split('@');
-        expect(action).toMatch(/^actions\/[a-z0-9-]+$/);
-        expect(sha).toMatch(/^[0-9a-f]{40}$/);
-        expect(line).toContain('# v');
-        if (action && pinned.has(action)) {
-          expect(sha, `${action} must be immutable`).toBe(pinned.get(action));
-        }
-      }
-      expect(workflow).not.toMatch(/uses:\s+[^\s#]+@(v|main|master|latest)(?:\s|$)/m);
-      expect(workflow).toContain('persist-credentials: false');
-    }
+    expect(validateCiActionsManifest(manifest, [buildWorkflow, releaseWorkflow]).actions).toHaveLength(6);
+    for (const workflow of [buildWorkflow, releaseWorkflow]) expect(workflow).toContain('persist-credentials: false');
 
     expect(buildWorkflow).toContain("if: github.event_name == 'pull_request'");
     expect(buildWorkflow).toContain('pull-requests: read');
@@ -172,6 +208,40 @@ describe('V1 migration and release guidance', () => {
     expect(releaseJob).not.toContain('npm run build:preview');
     expect(releaseJob).not.toContain('npm run verify:dependencies');
     expect(releaseJob).not.toContain('npm run verify:dist -- --write');
+  });
+
+  it('rejects malformed, duplicate, missing, stale, mutable, and unapproved CI action trust data', async () => {
+    const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
+    const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
+    const manifest = JSON.parse(await readFile(resolve(process.cwd(), 'security/ci-actions.json'), 'utf8')) as CiActionManifest;
+    const clone = () => structuredClone(manifest);
+
+    expect(() => validateCiActionsManifest({ ...manifest, schemaVersion: 2 }, [buildWorkflow, releaseWorkflow])).toThrow(/schema/);
+    expect(() => validateCiActionsManifest({ ...manifest, unexpected: true }, [buildWorkflow, releaseWorkflow])).toThrow(/unexpected fields/);
+    expect(() => validateCiActionsManifest({ ...manifest, actions: [...manifest.actions, manifest.actions[0]] }, [buildWorkflow, releaseWorkflow])).toThrow(/Duplicate/);
+    expect(() => validateCiActionsManifest({ ...manifest, actions: manifest.actions.slice(1) }, [buildWorkflow, releaseWorkflow])).toThrow(/Missing CI action approval/);
+    const malformedEntry = clone();
+    malformedEntry.actions[0] = { ...malformedEntry.actions[0], unexpected: true } as CiActionManifestEntry;
+    expect(() => validateCiActionsManifest(malformedEntry, [buildWorkflow, releaseWorkflow])).toThrow(/entry has unexpected fields/);
+    const invalidVersion = clone();
+    invalidVersion.actions[0]!.version = '4.1.1';
+    expect(() => validateCiActionsManifest(invalidVersion, [buildWorkflow, releaseWorkflow])).toThrow(/version is invalid/);
+    const invalidSha = clone();
+    invalidSha.actions[0]!.sha = 'not-a-sha';
+    expect(() => validateCiActionsManifest(invalidSha, [buildWorkflow, releaseWorkflow])).toThrow(/SHA is invalid/);
+    const duplicateSha = clone();
+    duplicateSha.actions.splice(1, 0, { name: 'actions/cache', version: 'v1.0.0', sha: duplicateSha.actions[0]!.sha });
+    expect(() => validateCiActionsManifest(duplicateSha, [buildWorkflow, releaseWorkflow])).toThrow(/Duplicate CI action SHA/);
+    const stale = clone();
+    stale.actions.splice(1, 0, { name: 'actions/cache', version: 'v1.0.0', sha: '1'.repeat(40) });
+    expect(() => validateCiActionsManifest(stale, [buildWorkflow, releaseWorkflow])).toThrow(/Unused CI action approval/);
+
+    const mutable = buildWorkflow.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@main');
+    expect(() => validateCiActionsManifest(clone(), [mutable, releaseWorkflow])).toThrow(/Mutable or malformed/);
+    const unapproved = buildWorkflow.replace(/actions\/checkout@[0-9a-f]{40}/, `third-party/checkout@${'2'.repeat(40)}`);
+    expect(() => validateCiActionsManifest(clone(), [unapproved, releaseWorkflow])).toThrow(/Unapproved action owner/);
+    const wrongVersion = buildWorkflow.replace(/actions\/checkout@([0-9a-f]{40}) # v\d+\.\d+\.\d+/, 'actions/checkout@$1 # v0.0.0');
+    expect(() => validateCiActionsManifest(clone(), [wrongVersion, releaseWorkflow])).toThrow(/approval mismatch/);
   });
 
   it('keeps the Node.js/npm toolchain contract aligned across metadata, CI, and current guidance', async () => {
