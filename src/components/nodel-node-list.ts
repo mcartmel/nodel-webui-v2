@@ -540,8 +540,7 @@ export class NodelNodeList extends HTMLElement {
   private toLocalRow(entry: NodelLocalNodeEntry, host: string, iconHost: string): NodeListStateItem {
     const name = entry.name || entry.node || '';
     const nodeName = getSimpleName(name);
-    const address = safeNavigationHref(entry.address ?? '')
-      ?? (isUsableNodeName(name) ? safeNavigationHref(localNodePath(name)) : null);
+    const address = isUsableNodeName(name) ? safeNavigationHref(`${localNodePath(name)}nodel.html`) : null;
 
     return {
       name,

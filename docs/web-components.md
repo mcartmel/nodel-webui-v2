@@ -295,7 +295,9 @@ When the document has no authored `link[rel~="icon"]`, `nodel-app` creates a gen
 
 The toolbar remains in normal document flow. Below `640px`, its branding/actions occupy the first row and page navigation moves to a horizontally scrollable second row. Nested page menus remain keyboard accessible and use a viewport-clamped overlay on small screens so they are not clipped by the navigation strip.
 
-`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, custom UI links, and host reference links.
+The stable V2 host and node pages place a compact `V1 / V2` control in the toolbar. The current interface is marked rather than linked. On node pages, the V1 target is `index.xml` when that custom UI exists and the built-in `nodel.xml` page otherwise. On host pages, Locals, Network, Diagnostics, and Toolkit map to their V1 equivalents.
+
+`nodel-node-menu` can be placed in the toolbar action slot on node pages. It renders the version control beside a hamburger button that opens a right-side drawer with theme selection, node rename, restart, delete, other custom UI links, and host reference links.
 
 ## Page Navigation
 
@@ -1239,6 +1241,7 @@ Behavior:
 
 - Local scope reads `/REST` and uses `info.nodes`.
 - Network scope reads `/REST/nodeURLs`.
+- Local rows open the V2 `nodel.html` page directly; network rows retain their discovered addresses because remote hosts may not have V2 installed.
 - Filters are live and case-insensitive.
 - Query-prefilled filters are URL-decoded once; later manual edits are not overwritten by polling or unrelated attribute changes.
 - Node icons use the familiar Nodel host identicon generated from `identicon.js` and `xxhashjs`.

@@ -50,6 +50,7 @@ describe('nodel-node-menu', () => {
     nodeMenuMock.getNodeDetails.mockReset().mockResolvedValue({ name: 'Old Node' });
     nodeMenuMock.listCustomUiEntries.mockReset().mockResolvedValue([
       { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
+      { href: 'index.xml', path: 'content/index.xml', title: 'index.xml' },
       { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' }
     ]);
     nodeMenuMock.removeCurrentNode.mockReset().mockResolvedValue('');
@@ -84,6 +85,8 @@ describe('nodel-node-menu', () => {
     expect(document.documentElement.classList.contains('nodel-node-menu-scroll-lock')).toBe(true);
     expect(document.querySelector('[data-node-menu-open]')?.getAttribute('aria-expanded')).toBe('true');
     expect(document.querySelector('[data-node-menu-open] [data-icon="bars"]')).not.toBeNull();
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-ui-version-toggle a')?.getAttribute('href')).toBe('index.xml');
+    expect(document.querySelector('.nodel-ui-version-toggle [aria-current="page"]')?.textContent).toBe('V2');
     expect(document.querySelector('.nodel-node-menu-drawer')?.getAttribute('aria-label')).toBe('Node menu');
     expect(document.querySelector('.nodel-node-menu-header')?.textContent?.trim()).toBe('');
     expect(document.querySelector('[data-node-menu-close] [data-icon="xmark"]')).not.toBeNull();
@@ -199,6 +202,7 @@ describe('nodel-node-menu', () => {
     expect(empty).not.toBeUndefined();
     expect(empty?.closest('.nodel-list')).toBeNull();
     expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list > li')).toHaveLength(2);
+    expect(document.querySelector<HTMLAnchorElement>('.nodel-ui-version-toggle a')?.getAttribute('href')).toBe('nodel.xml');
   });
 
   it('renames the node, shows a toast, waits for readiness, and redirects', async () => {

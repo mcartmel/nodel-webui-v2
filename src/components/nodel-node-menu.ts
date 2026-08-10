@@ -26,6 +26,7 @@ interface NodeMenuState {
   busy: boolean;
   error: string;
   loading: boolean;
+  legacyHref: string;
   nodeName: string;
   open: boolean;
   renaming: boolean;
@@ -40,6 +41,14 @@ const linkAffordanceMarkup = renderFontAwesomeIcon(uiIcons.chevronRight, 'nodel-
 const scrollLockClass = 'nodel-node-menu-scroll-lock';
 
 const template = `
+  <nav class="nodel-ui-version-toggle" aria-label="User interface version">
+    {^{if loading}}
+      <span class="nodel-ui-version-option is-disabled" aria-disabled="true" title="Loading V1 UI">V1</span>
+    {{else}}
+      <a class="nodel-ui-version-option" data-link="href{:legacyHref}" title="Open V1 UI">V1</a>
+    {{/if}}
+    <span class="nodel-ui-version-option" aria-current="page" title="Current UI">V2</span>
+  </nav>
   <button type="button" class="nodel-button nodel-button-ghost nodel-node-menu-trigger" data-node-menu-open aria-haspopup="dialog" aria-label="Open node menu" data-link="aria-expanded{:open ? 'true' : 'false'}">
     ${menuIconMarkup}
   </button>
@@ -136,6 +145,7 @@ export class NodelNodeMenu extends HTMLElement {
     busy: false,
     error: '',
     loading: true,
+    legacyHref: 'nodel.xml',
     nodeName: '',
     open: false,
     renaming: false,
@@ -200,9 +210,13 @@ export class NodelNodeMenu extends HTMLElement {
       return;
     }
 
+    const customUis = uiResult.status === 'fulfilled' ? uiResult.value : [];
+    const legacyIndex = customUis.find((entry) => entry.path === 'content/index.xml');
+
     this.setState({
-      customUis: uiResult.status === 'fulfilled' ? uiResult.value : [],
+      customUis: customUis.filter((entry) => entry !== legacyIndex),
       error: detailsResult.status === 'rejected' ? apiErrorMessage(detailsResult.reason, 'Failed to load node details') : '',
+      legacyHref: legacyIndex?.href ?? 'nodel.xml',
       loading: false,
       nodeName: detailsResult.status === 'fulfilled' && typeof detailsResult.value.name === 'string' ? detailsResult.value.name : '',
       uiError: uiResult.status === 'rejected' ? apiErrorMessage(uiResult.reason, 'Failed to load custom UIs') : ''

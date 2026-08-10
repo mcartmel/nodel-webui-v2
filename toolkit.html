@@ -30,6 +30,10 @@
   <body>
     <nodel-app title="Toolkit" offline-mode="overlay">
       <nodel-toolbar title="Toolkit" icon-src="./v2/img/logo.png">
+        <nav class="nodel-ui-version-toggle" aria-label="User interface version">
+          <a class="nodel-ui-version-option" data-nodel-v1-link="toolkit" title="Open V1 UI">V1</a>
+          <span class="nodel-ui-version-option" aria-current="page" title="Current UI">V2</span>
+        </nav>
         <nodel-theme-toggle></nodel-theme-toggle>
       </nodel-toolbar>
       <main class="nodel-shell space-y-6 pb-6 pt-6">
