@@ -212,7 +212,7 @@
   }
 
   .nodel-button {
-    @apply relative inline-flex items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
+    @apply relative inline-flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-nodel-border bg-nodel-surface px-3 py-2 text-sm font-medium leading-5 text-nodel-fg no-underline;
     --nodel-button-tone-rgb: var(--nodel-fg);
     background: var(--nodel-control-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-control-border, rgb(var(--nodel-border)));
@@ -254,7 +254,7 @@
   }
 
   .nodel-button-compact {
-    @apply px-2 py-1 text-xs leading-5;
+    @apply min-h-9 px-2 py-1 text-xs leading-5;
   }
 
   .nodel-button-touch {

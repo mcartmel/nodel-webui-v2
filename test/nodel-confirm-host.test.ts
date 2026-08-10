@@ -97,10 +97,12 @@ describe('nodel-confirm-host', () => {
     expect(trigger.hasAttribute('inert')).toBe(true);
     const confirm = host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')!;
     const cancel = host.querySelector<HTMLButtonElement>('button[data-confirm-action="cancel"]')!;
-    expect(document.activeElement).toBe(confirm);
+    expect(document.activeElement).toBe(cancel);
 
+    confirm.focus();
     host.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(cancel);
+    cancel.focus();
     host.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(confirm);
     confirm.click();
@@ -158,6 +160,39 @@ describe('nodel-confirm-host', () => {
     expect(document.activeElement).toBe(host.querySelector('button[data-confirm-action="cancel"]'));
   });
 
+  it('matches standard tone focus and Confirm classes', async () => {
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+    const expected = {
+      info: { focus: 'confirm', className: 'nodel-button-info' },
+      success: { focus: 'confirm', className: 'nodel-button-success' },
+      warning: { focus: 'cancel', className: 'nodel-button-warning' },
+      danger: { focus: 'cancel', className: 'nodel-button-danger' }
+    } as const;
+
+    for (const [tone, result] of Object.entries(expected)) {
+      host.confirm({ tone: tone as keyof typeof expected, resolve: vi.fn() });
+      await flush();
+      expect(document.activeElement).toBe(host.querySelector(`button[data-confirm-action="${result.focus}"]`));
+      const confirmButton = host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]');
+      expect(confirmButton?.classList.contains('nodel-button')).toBe(true);
+      expect(confirmButton?.classList.contains(result.className)).toBe(true);
+      host.querySelector<HTMLButtonElement>('[data-confirm-action="cancel"]')?.click();
+    }
+  });
+
+  it('keeps ready code mode keypad-first for every tone', async () => {
+    const runtime = createRuntime(connectedState([signalEntry('ConfirmCode', '1234')]));
+    restoreRuntime = installControlRuntime(runtime.runtime);
+    const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
+
+    for (const tone of ['info', 'success', 'warning', 'danger'] as const) {
+      host.confirm({ mode: 'code', tone, resolve: vi.fn() });
+      await flush();
+      expect(document.activeElement).toBe(host.querySelector('[data-confirm-code-digit="1"]'));
+      host.querySelector<HTMLButtonElement>('button[data-confirm-action="cancel"]')?.click();
+    }
+  });
+
   it('closes and cancels a confirmation when its operation aborts', async () => {
     const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
     const controller = new AbortController();
@@ -189,14 +224,18 @@ describe('nodel-confirm-host', () => {
     restoreRuntime = installControlRuntime(runtime.runtime);
     const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
     host.confirm({ mode: 'code', codeSignal: 'OperatorPin', resolve: vi.fn() });
+    await flush();
 
     expect(host.querySelector('.nodel-confirm-dialog-code')).not.toBeNull();
     expect(host.textContent).toContain('Loading operator code...');
     expect(host.querySelector<HTMLButtonElement>('[data-confirm-action="confirm"]')?.disabled).toBe(true);
+    expect(document.activeElement).toBe(host.querySelector('button[data-confirm-action="cancel"]'));
     expect(runtime.subscribeSignals).toHaveBeenCalledTimes(1);
 
     runtime.emit(connectedState());
+    await flush();
     expect(host.textContent).toContain('Operator code unavailable.');
+    expect(document.activeElement).toBe(host.querySelector('button[data-confirm-action="cancel"]'));
     runtime.emit(connectedState([signalEntry('OperatorPin', { code: 1234 })]));
     expect(host.textContent).toContain('Operator code unavailable.');
     runtime.emit(connectedState([signalEntry('OperatorPin', ['1', '2'])]));
@@ -220,6 +259,8 @@ describe('nodel-confirm-host', () => {
     const host = document.querySelector('nodel-confirm-host') as NodelConfirmHostElement;
     const resolved = vi.fn();
     host.confirm({ mode: 'code', resolve: resolved });
+
+    expect(document.activeElement).toBe(host.querySelector('[data-confirm-code-digit="1"]'));
 
     for (const key of ['0', '4', '2', '1']) {
       host.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));

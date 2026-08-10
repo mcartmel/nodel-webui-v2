@@ -146,7 +146,7 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-button-outline` for semantic buttons with a thicker border and low-alpha background.
 - `.nodel-button-ghost` for low-emphasis actions such as “more” or inactive navigation.
 - `.nodel-button-link` for link-styled button actions.
-- `.nodel-button-compact` for smaller buttons inside dense toolbars.
+- `.nodel-button-compact` for 36px smaller buttons inside dense toolbars.
 - `.nodel-field` for text inputs, search inputs, and selects.
 - `.nodel-field-compact` for smaller select/input controls inside dense toolbars.
 - `.nodel-link` for theme-aware ordinary links outside rendered markdown.
@@ -165,6 +165,8 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-toast-host` and `.nodel-toast` for app-level notifications.
 
 Prefer semantic state classes over raw visual utility classes when state or public component API drives appearance. For example, use `.is-disabled`, `.is-unreachable`, or `.nodel-menu-item-active` when state drives appearance.
+
+Semantic button sizing is touch-first: native `.nodel-button` controls use a 44px standard minimum height, and `.nodel-button-compact` is the intentional 36px dense-context exception. The `nodel-button` custom element defaults to a 56px touch minimum and exposes the same ladder explicitly with `size="sm"` at 36px, `size="md"` at 44px, and `size="lg"` at 56px. Use compact sizing only when the surrounding dense layout requires it, not as the default for touch controls.
 
 The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. For dense navigation, combine a visible trailing affordance with the grouped list structure so the collection has one raised boundary and each row retains a clear touch target. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
 
@@ -856,7 +858,7 @@ Supported `nodel-button` attributes:
 
 `variant` chooses the semantic colour or special treatment, while `tone` chooses the visual weight. `tone="solid"` is the default filled treatment. Use `tone="soft"` for lower-emphasis semantic actions and `tone="outline"` when a button needs a stronger border without a filled background.
 
-`size="auto"` is the default and uses the surrounding context. Direct control-grid buttons keep the normal touch size. Buttons inside a `nodel-fader` compound rail default to a compact height matching the fader nudge buttons. Use `size="sm"`, `size="md"`, or `size="lg"` to override this.
+`size="auto"` is the default and uses the surrounding context. Standalone and direct control-grid buttons keep the 56px touch size. Buttons inside a `nodel-fader` compound rail default to a compact 36px height matching the fader nudge buttons. Use `size="sm"`, `size="md"`, or `size="lg"` to explicitly select the consistent 36/44/56px ladder.
 
 ```html
 <nodel-control-grid columns="2" md="4">
