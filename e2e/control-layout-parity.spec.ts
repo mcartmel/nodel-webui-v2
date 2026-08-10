@@ -128,4 +128,49 @@ test.describe('retained control and layout parity', () => {
     expect(orders).toEqual(mobile ? ['2', '1'] : ['0', '0']);
     await expect(page.locator('[data-catalogue-example="layout-responsive"] nodel-row').first()).toHaveScreenshot('responsive-column-order.png', screenshotOptions);
   });
+
+  test('keeps semantic button tiers and node-menu icon controls geometrically safe', async ({ page }) => {
+    await page.goto('/nodel.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('nodel-app')).toBeVisible();
+
+    await page.evaluate(() => {
+      const fixture = document.createElement('div');
+      fixture.dataset.geometryContract = 'semantic-buttons';
+      fixture.style.cssText = 'position:fixed;left:0;top:0;display:flex;gap:4px;z-index:100';
+      fixture.innerHTML = `
+        <button class="nodel-button" type="button">Standard</button>
+        <button class="nodel-button nodel-button-compact" type="button">Compact</button>
+        <button class="nodel-button nodel-button-touch" type="button">Touch</button>
+      `;
+      document.body.append(fixture);
+    });
+
+    const tierGeometry = await page.locator('[data-geometry-contract="semantic-buttons"] button').evaluateAll((buttons) => (
+      buttons.map((button) => ({
+        height: button.getBoundingClientRect().height,
+        minHeight: getComputedStyle(button).minHeight
+      }))
+    ));
+    expect(tierGeometry.map(({ minHeight }) => minHeight)).toEqual(['44px', '36px', '56px']);
+    expect(tierGeometry[0]?.height).toBeGreaterThanOrEqual(44);
+    expect(tierGeometry[1]?.height).toBeGreaterThanOrEqual(36);
+    expect(tierGeometry[2]?.height).toBeGreaterThanOrEqual(56);
+
+    const trigger = page.locator('[data-node-menu-open]');
+    await expect(trigger).toBeVisible();
+    const triggerBox = await trigger.boundingBox();
+    expect(triggerBox).not.toBeNull();
+    expect(triggerBox?.width).toBeGreaterThanOrEqual(44);
+    expect(triggerBox?.height).toBeGreaterThanOrEqual(44);
+    expect(triggerBox?.width).toBeCloseTo(triggerBox?.height ?? 0, 0);
+
+    await trigger.click();
+    const close = page.locator('[data-node-menu-close]');
+    await expect(close).toBeVisible();
+    const closeBox = await close.boundingBox();
+    expect(closeBox).not.toBeNull();
+    expect(closeBox?.width).toBeGreaterThanOrEqual(44);
+    expect(closeBox?.height).toBeGreaterThanOrEqual(44);
+    expect(closeBox?.width).toBeCloseTo(closeBox?.height ?? 0, 0);
+  });
 });

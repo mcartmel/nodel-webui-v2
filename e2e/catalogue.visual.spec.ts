@@ -70,12 +70,15 @@ test.describe('catalogue visual regressions', () => {
     expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
     expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(320);
 
-    const confirm = dialog.locator('[data-confirm-action="confirm"]');
-    await confirm.scrollIntoViewIfNeeded();
-    const confirmBox = await confirm.boundingBox();
-    expect(confirmBox).not.toBeNull();
-    expect(confirmBox!.y).toBeGreaterThanOrEqual(dialogBox!.y);
-    expect(confirmBox!.y + confirmBox!.height).toBeLessThanOrEqual(dialogBox!.y + dialogBox!.height);
+    for (const action of ['cancel', 'confirm']) {
+      const button = dialog.locator(`[data-confirm-action="${action}"]`);
+      await button.scrollIntoViewIfNeeded();
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+      expect(buttonBox!.y).toBeGreaterThanOrEqual(dialogBox!.y);
+      expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(dialogBox!.y + dialogBox!.height);
+    }
   });
 
   test('captures representative control variants', async ({ page }, testInfo) => {
@@ -193,7 +196,7 @@ test.describe('catalogue visual regressions', () => {
     });
     const confirm = page.getByRole('dialog');
     await expect(confirm).toBeVisible();
-    await expect(confirm.getByRole('button', { name: 'Confirm' })).toBeFocused();
+    await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
     await expect(page).toHaveScreenshot('confirm-dialog.png');
     await confirm.getByRole('button', { name: 'Cancel' }).click();
 

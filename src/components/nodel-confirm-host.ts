@@ -30,6 +30,13 @@ const toneIconMarkup: Record<NodelToastTone, string> = {
   warning: renderFontAwesomeIcon(toastIcons.warning, 'h-5 w-5')
 };
 
+const toneButtonClass: Record<NodelToastTone, string> = {
+  danger: 'nodel-button-danger',
+  info: 'nodel-button-info',
+  success: 'nodel-button-success',
+  warning: 'nodel-button-warning'
+};
+
 export class NodelConfirmHost extends HTMLElement {
   private state: ConfirmState | null = null;
   private codeSignalSubscription: { dispose(): void } | null = null;
@@ -307,9 +314,10 @@ export class NodelConfirmHost extends HTMLElement {
   }
 
   private focusInitialControl() {
-    const selector = this.state?.mode === 'code'
+    const state = this.state;
+    const selector = state?.mode === 'code'
       ? '[data-confirm-code-digit="1"]:not(:disabled), button[data-confirm-action="cancel"]'
-      : this.state?.tone === 'danger'
+      : state?.tone === 'warning' || state?.tone === 'danger'
         ? 'button[data-confirm-action="cancel"]'
         : '[data-confirm-action="confirm"]';
     this.querySelector<HTMLButtonElement>(selector)?.focus();
@@ -340,7 +348,7 @@ export class NodelConfirmHost extends HTMLElement {
       return;
     }
 
-    const confirmClass = state.tone === 'danger' ? 'nodel-button nodel-button-danger' : 'nodel-button nodel-button-primary';
+    const confirmClass = `nodel-button ${toneButtonClass[state.tone]}`;
     const codeReady = state.mode === 'code' && state.codeStatus === 'ready';
     const codeStatus = state.codeStatus === 'loading' ? 'Loading operator code...' : state.codeStatus === 'ready' ? 'Operator code ready.' : 'Operator code unavailable.';
     const codeStatusClass = `nodel-confirm-code-status${state.codeStatus === 'ready' ? ' sr-only' : ''}`;

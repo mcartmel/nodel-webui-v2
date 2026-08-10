@@ -1,6 +1,31 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('modal focus layers', () => {
+  test('focuses Cancel and resolves standard warning and danger dialogs safely', async ({ page }) => {
+    await page.goto('/nodel.html', { waitUntil: 'domcontentloaded' });
+    const host = page.locator('nodel-confirm-host');
+
+    for (const tone of ['warning', 'danger'] as const) {
+      const resolved = page.evaluate((dialogTone) => new Promise<boolean>((resolve) => {
+        const confirmHost = document.querySelector<HTMLElement & {
+          confirm?: (detail: { text: string; tone: 'warning' | 'danger'; resolve: (confirmed: boolean) => void }) => void;
+        }>('nodel-confirm-host');
+        confirmHost?.confirm?.({ text: `Confirm ${dialogTone}?`, tone: dialogTone, resolve });
+      }), tone);
+      const dialog = host.locator('.nodel-confirm-dialog');
+      const cancel = host.locator('button[data-confirm-action="cancel"]');
+      const confirm = host.locator('[data-confirm-action="confirm"]');
+
+      await expect(dialog).toBeVisible();
+      await expect(cancel).toBeFocused();
+      expect((await cancel.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect((await confirm.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      await page.keyboard.press('Enter');
+      expect(await resolved).toBe(false);
+      await expect(host).toBeHidden();
+    }
+  });
+
   test('keeps only the top interaction path available on the real node page', async ({ page }, testInfo) => {
     await page.goto('/nodel.html', { waitUntil: 'domcontentloaded' });
     const app = page.locator('nodel-app');

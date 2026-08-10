@@ -141,7 +141,7 @@
   }
 
   .nodel-node-menu-trigger {
-    @apply h-9 w-9 p-0;
+    @apply h-11 min-h-11 w-11 p-0;
   }
 
   .nodel-node-menu-layer {
@@ -162,7 +162,7 @@
   }
 
   .nodel-node-menu-close {
-    @apply h-8 w-8 p-0 text-nodel-muted;
+    @apply h-11 min-h-11 w-11 p-0 text-nodel-muted;
   }
 
   .nodel-node-menu-content {
