@@ -178,6 +178,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
+      - name: Generate Free icon assets for Vite preview
+        run: npm run generate:icons:free
+
       - name: Run browser visual and accessibility tests
         run: npm run test:browser:dist
 

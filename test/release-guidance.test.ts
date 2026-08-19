@@ -191,6 +191,9 @@ describe('V1 migration and release guidance', () => {
     expect(buildWorkflow).toContain('node scripts/deploy.mjs --target ./build/stage11-host/custom/content');
     expect(buildWorkflow).toContain('npm run test:deployment:smoke');
     expect(buildWorkflow).toContain('npm run verify:dist -- --check --json');
+    const buildBrowserJob = buildWorkflow.slice(buildWorkflow.indexOf('Download exact tested dist and inventory'));
+    expect(buildBrowserJob).toContain('npm run generate:icons:free');
+    expect(buildBrowserJob.indexOf('npm run generate:icons:free')).toBeLessThan(buildBrowserJob.indexOf('npm run test:browser:dist'));
     expect(releaseWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
     expect(releaseWorkflow).toContain('node scripts/verify-release-gate.mjs --icon-profile free');
     expect(releaseWorkflow).toContain('npm run test:browser:dist');
@@ -198,6 +201,9 @@ describe('V1 migration and release guidance', () => {
     expect(releaseWorkflow).toContain('npm run build:preview');
     expect(releaseWorkflow).toContain('npm run verify:dependencies');
     expect(releaseWorkflow).toContain('npm run verify:dist -- --check --json');
+    const releaseBrowserJob = releaseWorkflow.slice(releaseWorkflow.indexOf('Download exact tested dist and inventory'));
+    expect(releaseBrowserJob).toContain('npm run generate:icons:free');
+    expect(releaseBrowserJob.indexOf('npm run generate:icons:free')).toBeLessThan(releaseBrowserJob.indexOf('npm run test:browser:dist'));
     const browserToPrepare = releaseWorkflow.slice(releaseWorkflow.indexOf('npm run test:browser:dist'), releaseWorkflow.indexOf('npm run release:prepare --'));
     expect(browserToPrepare).not.toContain('npm run build:preview');
     expect(releaseWorkflow).toContain('Download exact tested dist and inventory');

@@ -267,6 +267,9 @@ jobs:
       - name: Verify downloaded dist inventory
         run: npm run verify:dist -- --check --json --icon-profile free
 
+      - name: Generate Free icon assets for Vite preview
+        run: npm run generate:icons:free
+
       - name: Run browser visual and accessibility tests against exact dist
         run: npm run test:browser:dist
 
