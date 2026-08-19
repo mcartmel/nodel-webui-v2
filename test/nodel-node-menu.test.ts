@@ -153,23 +153,32 @@ describe('nodel-node-menu', () => {
     await mountMenu();
     openMenu();
 
-    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nodel-node-menu-link-list a'));
-    const collection = document.querySelector('.nodel-node-menu-link-list ul.nodel-list');
-    expect(links.map((link) => link.textContent?.trim())).toEqual([
+    const customUiLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-node-menu-custom-ui-list] a'));
+    const referenceLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-node-menu-reference-list] a'));
+    expect(customUiLinks.map((link) => link.textContent?.trim())).toEqual([
       'custom.html',
-      'panel.xml',
+      'panel.xml'
+    ]);
+    expect(customUiLinks.map((link) => link.getAttribute('href'))).toEqual([
+      'custom.html',
+      'panel.xml'
+    ]);
+    expect(referenceLinks.map((link) => link.textContent?.trim())).toEqual([
       'Toolkit',
+      'Components',
       'Diagnostics'
     ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      'custom.html',
-      'panel.xml',
+    expect(referenceLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/toolkit.html',
+      '/components.html',
       '/nodes.html#Diagnostics'
     ]);
-    expect(collection?.children).toHaveLength(4);
-    expect(collection?.querySelectorAll('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(4);
-    expect(collection?.querySelectorAll('.nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(4);
+    expect(document.querySelector('[data-node-menu-custom-ui-list]')?.children).toHaveLength(2);
+    expect(document.querySelector('[data-node-menu-reference-list]')?.children).toHaveLength(3);
+    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveLength(5);
+    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list-item-affordance[aria-hidden="true"]')).toHaveLength(5);
+    expect(document.querySelector('.nodel-node-menu-link-list')?.textContent).toContain('Custom UIs');
+    expect(document.querySelector('.nodel-node-menu-link-list')?.textContent).toContain('References');
     expect(document.querySelector('.nodel-node-menu-section-open')).not.toBeNull();
   });
 
@@ -198,7 +207,8 @@ describe('nodel-node-menu', () => {
     const empty = Array.from(document.querySelectorAll('.nodel-alert')).find((element) => element.textContent?.includes('No custom UIs.'));
     expect(empty).not.toBeUndefined();
     expect(empty?.closest('.nodel-list')).toBeNull();
-    expect(document.querySelectorAll('.nodel-node-menu-link-list .nodel-list > li')).toHaveLength(2);
+    expect(document.querySelector('[data-node-menu-custom-ui-list]')).toBeNull();
+    expect(document.querySelectorAll('[data-node-menu-reference-list] > li')).toHaveLength(3);
   });
 
   it('renames the node, shows a toast, waits for readiness, and redirects', async () => {

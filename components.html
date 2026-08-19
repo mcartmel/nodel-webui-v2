@@ -35,6 +35,53 @@
         <nodel-theme-toggle></nodel-theme-toggle>
       </nodel-toolbar>
 
+      <nodel-page title="Quickstart" data-catalogue-quickstart>
+        <header class="nodel-catalogue-header">
+          <h1 class="nodel-catalogue-title">Quickstart</h1>
+          <p class="nodel-catalogue-description">
+            Use this node custom UI. Save it as <code>content/index.html</code> for the primary UI and open it automatically. Additional UIs such as <code>content/control.html</code> appear in the node drawer.
+          </p>
+        </header>
+
+        <section class="nodel-catalogue-section">
+          <pre class="nodel-catalogue-code" data-catalogue-quickstart-code><code>&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+  &lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot; /&gt;
+    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;./v2/nodel-webui.css&quot; /&gt;
+    &lt;script type=&quot;module&quot; src=&quot;./v2/nodel-webui.js&quot;&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;nodel-app title=&quot;YOUR BROWSER TAB TITLE&quot; theme=&quot;dark&quot;&gt;
+      &lt;nodel-toolbar title=&quot;YOUR TOOLBAR TITLE&quot;&gt;&lt;/nodel-toolbar&gt;
+      &lt;nodel-page title=&quot;YOUR NAVIGATION TAB TITLE&quot;&gt;
+        &lt;nodel-title level=&quot;1&quot;&gt;YOUR PAGE HEADING&lt;/nodel-title&gt;
+        &lt;nodel-row&gt;
+          &lt;nodel-column&gt;
+            &lt;nodel-text&gt;Your content goes here.&lt;/nodel-text&gt;
+          &lt;/nodel-column&gt;
+        &lt;/nodel-row&gt;
+      &lt;/nodel-page&gt;
+    &lt;/nodel-app&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+        </section>
+
+        <section class="nodel-catalogue-section">
+          <header class="nodel-catalogue-header">
+            <h2 class="nodel-catalogue-subtitle">Next steps</h2>
+          </header>
+          <ol class="nodel-catalogue-description list-decimal space-y-2 pl-5">
+            <li><code>YOUR BROWSER TAB TITLE</code>: browser tab; <code>YOUR TOOLBAR TITLE</code>: top-left label; <code>YOUR NAVIGATION TAB TITLE</code>: navigation; <code>YOUR PAGE HEADING</code>: visible heading. Replace the starter text.</li>
+            <li>Manage files in the node editor and name additional UIs descriptively.</li>
+            <li>Compose more <code>nodel-page</code>, <code>nodel-row</code>, and <code>nodel-column</code> elements.</li>
+            <li>Copy <a class="nodel-link" href="#Buttons">catalogue</a> controls and bind current-node <code>action</code> and <code>signal</code> names.</li>
+            <li>Keep stable <code>./v2/</code> paths and omit the memory runtime marker. Set <code>nodel-app theme</code> to <code>light</code> when needed.</li>
+          </ol>
+        </section>
+      </nodel-page>
+
       <nodel-page title="Layout">
         <nodel-page title="App Shell">
           <header class="nodel-catalogue-header">

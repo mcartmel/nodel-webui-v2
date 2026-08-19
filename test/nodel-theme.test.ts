@@ -176,4 +176,12 @@ describe('theme synchronization', () => {
 
     expect(new Set(bootstraps).size).toBe(1);
   });
+
+  it('styles explicit app themes before custom-element upgrade', async () => {
+    const source = await readFile(resolve(process.cwd(), 'src/styles/00-tokens-base.css'), 'utf8');
+
+    expect(source).toContain(":root[data-theme='dark']:not(:has(nodel-app[theme='light']))");
+    expect(source).toContain(":root:has(nodel-app[theme='dark'])");
+    expect(source).not.toContain(":root[data-theme='dark'] {");
+  });
 });

@@ -85,37 +85,51 @@ const template = `
         <section class="nodel-node-menu-section nodel-node-menu-section-open">
           <h3 class="nodel-section-heading">Open</h3>
           <div class="nodel-node-menu-link-list">
-            {^{if loading}}
-              <div class="nodel-alert nodel-alert-sm">Loading custom UIs...</div>
-            {{else uiError}}
-              <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>uiError}}</div>
-            {{else customUis.length === 0}}
-              <div class="nodel-alert nodel-alert-sm">No custom UIs.</div>
-            {{/if}}
-            <ul class="nodel-list">
-              {^{if !loading && !uiError && customUis.length}}
-                {^{for customUis}}
-                  <li>
-                    <a class="nodel-list-item gap-3 px-3 py-2 text-sm" data-link="href{:href} title{:path}">
-                      <span class="min-w-0 flex-1 truncate">{^{>title}}</span>
-                      ${linkAffordanceMarkup}
-                    </a>
-                  </li>
-                {{/for}}
+            <div class="space-y-1.5">
+              <h4 class="m-0 text-xs font-medium text-nodel-muted">Custom UIs</h4>
+              {^{if loading}}
+                <div class="nodel-alert nodel-alert-sm">Loading custom UIs...</div>
+              {{else uiError}}
+                <div class="nodel-alert nodel-alert-danger nodel-alert-sm">{^{>uiError}}</div>
+              {{else customUis.length === 0}}
+                <div class="nodel-alert nodel-alert-sm">No custom UIs.</div>
               {{/if}}
-              <li>
-                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/toolkit.html">
-                  <span class="min-w-0 flex-1 truncate">Toolkit</span>
-                  ${linkAffordanceMarkup}
-                </a>
-              </li>
-              <li>
-                <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/nodes.html#Diagnostics">
-                  <span class="min-w-0 flex-1 truncate">Diagnostics</span>
-                  ${linkAffordanceMarkup}
-                </a>
-              </li>
-            </ul>
+              {^{if !loading && !uiError && customUis.length}}
+                <ul class="nodel-list" data-node-menu-custom-ui-list>
+                  {^{for customUis}}
+                    <li>
+                      <a class="nodel-list-item gap-3 px-3 py-2 text-sm" data-link="href{:href} title{:path}">
+                        <span class="min-w-0 flex-1 truncate">{^{>title}}</span>
+                        ${linkAffordanceMarkup}
+                      </a>
+                    </li>
+                  {{/for}}
+                </ul>
+              {{/if}}
+            </div>
+            <div class="space-y-1.5">
+              <h4 class="m-0 text-xs font-medium text-nodel-muted">References</h4>
+              <ul class="nodel-list" data-node-menu-reference-list>
+                <li>
+                  <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/toolkit.html">
+                    <span class="min-w-0 flex-1 truncate">Toolkit</span>
+                    ${linkAffordanceMarkup}
+                  </a>
+                </li>
+                <li>
+                  <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/components.html">
+                    <span class="min-w-0 flex-1 truncate">Components</span>
+                    ${linkAffordanceMarkup}
+                  </a>
+                </li>
+                <li>
+                  <a class="nodel-list-item gap-3 px-3 py-2 text-sm" href="/nodes.html#Diagnostics">
+                    <span class="min-w-0 flex-1 truncate">Diagnostics</span>
+                    ${linkAffordanceMarkup}
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </section>
       </div>

@@ -167,6 +167,7 @@ describe('node file api and utilities', () => {
     expect(customUiEntriesFromFiles([
       { path: 'content/panel.xml' },
       { path: 'content/custom.html' },
+      { path: 'content/index.html' },
       { path: 'content/index.htm' },
       { path: 'content/nodes.xml' },
       { path: 'content/index-sample.xml' },
@@ -179,6 +180,7 @@ describe('node file api and utilities', () => {
     ])).toEqual([
       { href: 'custom.html', path: 'content/custom.html', title: 'custom.html' },
       { href: 'deep/panel.html', path: 'content/deep/panel.html', title: 'deep/panel.html' },
+      { href: 'index.html', path: 'content/index.html', title: 'index.html' },
       { href: 'my-ui.html', path: 'content/my-ui.html', title: 'my-ui.html' },
       { href: 'panel.xml', path: 'content/panel.xml', title: 'panel.xml' },
       { href: 'room%20controls.html', path: 'content/room controls.html', title: 'room controls.html' },

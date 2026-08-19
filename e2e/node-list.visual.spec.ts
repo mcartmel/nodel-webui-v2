@@ -89,7 +89,8 @@ async function openNodeDrawer(page: Page) {
   await page.locator('[data-node-menu-open]').click();
   const drawer = page.locator('.nodel-node-menu-drawer');
   await expect(drawer).toBeVisible();
-  await expect(drawer.locator('.nodel-node-menu-link-list .nodel-list > li')).toHaveCount(4);
+  await expect(drawer.locator('[data-node-menu-custom-ui-list] > li')).toHaveCount(2);
+  await expect(drawer.locator('[data-node-menu-reference-list] > li')).toHaveCount(3);
   await page.evaluate(async () => {
     await document.fonts?.ready;
   });
@@ -252,9 +253,11 @@ test.describe('grouped node list', () => {
   test('renders grouped links in the node drawer across responsive themes', async ({ page }, testInfo) => {
     test.skip(isForcedColoursProject(testInfo), 'Forced colours uses focused assertions rather than screenshots.');
     const drawer = await openNodeDrawer(page);
-    const list = drawer.locator('.nodel-node-menu-link-list .nodel-list');
-    await expect(list).toBeVisible();
-    await expect(list.locator('.nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveCount(4);
+    const customUiList = drawer.locator('[data-node-menu-custom-ui-list]');
+    const referenceList = drawer.locator('[data-node-menu-reference-list]');
+    await expect(customUiList).toBeVisible();
+    await expect(referenceList).toBeVisible();
+    await expect(drawer.locator('.nodel-node-menu-link-list .nodel-list-item-affordance[data-icon="chevron-right"]')).toHaveCount(5);
     await expect(drawer).toHaveScreenshot('node-drawer-grouped-list.png');
   });
 

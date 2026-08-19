@@ -85,7 +85,8 @@
     --nodel-editor-height: 28rem;
   }
 
-  :root[data-theme='dark'] {
+  :root[data-theme='dark']:not(:has(nodel-app[theme='light'])),
+  :root:has(nodel-app[theme='dark']) {
     color-scheme: dark;
     --nodel-bg: 2 6 23;
     --nodel-fg: 226 232 240;
