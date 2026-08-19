@@ -804,26 +804,26 @@ export class NodelEditor extends HTMLElement {
     expectedSourceRevision?: number;
   } = {}, scope = this.lifecycle.current) {
     if (!scope) {
-      return;
+      return false;
     }
     const ticket = this.beginOperation('open', scope);
     const sourcePath = options.expectedSourcePath ?? this.state.selectedPath;
     const sourceRevision = options.expectedSourceRevision ?? this.documentSession.state.revision;
     if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentSession.state.revision) {
       this.finishOperation(ticket);
-      return;
+      return false;
     }
     if (!options.skipDirtyPrompt && !await this.confirmDiscardChanges(options.trigger ?? null, ticket.signal)) {
       this.setState({ pickerPath: this.state.selectedPath });
       this.finishOperation(ticket);
       this.restoreTriggerFocus(options.trigger ?? null);
-      return;
+      return false;
     }
     if (!this.operationIsCurrent(ticket, scope)
       || sourcePath !== this.state.selectedPath
       || sourceRevision !== this.documentSession.state.revision) {
       this.finishOperation(ticket);
-      return;
+      return false;
     }
 
     this.setState({ error: '', notice: false, status: `Loading ${path}...` });
@@ -831,7 +831,7 @@ export class NodelEditor extends HTMLElement {
     try {
       const result = await this.fileOperations.open(path, this.state.files, { signal: ticket.signal, isCurrent: () => this.operationIsCurrent(ticket, scope) });
       if (result.kind === 'stale') {
-        return;
+        return false;
       }
       if (sourcePath !== this.state.selectedPath || sourceRevision !== this.documentSession.state.revision) {
         this.setState({
@@ -839,7 +839,7 @@ export class NodelEditor extends HTMLElement {
           pickerPath: this.state.selectedPath,
             status: `${result.path} loaded, but newer local edits remain. Choose the file again to discard them.`
         });
-        return;
+        return false;
       }
       this.setEditorDocument(result.content, result.path);
       this.editor?.setReadOnly(result.kind === 'readonly' || result.file?.compatibility === 'legacy');
@@ -856,17 +856,19 @@ export class NodelEditor extends HTMLElement {
       } else if (result.file?.compatibility !== 'legacy') {
         this.editor?.focus();
       }
+      return true;
     } catch (error) {
       if (!this.operationIsCurrent(ticket, scope)) {
-        return;
+        return false;
       }
       if (isAbortError(error)) {
-        return;
+        return false;
       }
       this.setState({
         error: error instanceof Error ? error.message : `Failed to load ${path}`,
         pickerPath: this.state.selectedPath
       });
+      return false;
     } finally {
       this.finishOperation(ticket);
     }
@@ -1330,9 +1332,10 @@ export class NodelEditor extends HTMLElement {
     const requestIsCurrent = () => this.operationIsCurrent(ticket, scope)
       && this.state.addFilePath === path
       && this.uploadStaging.current === stage;
+    const source = this.documentSession.snapshot();
     this.setState({ error: '', notice: false, status: `Checking ${path}...` });
     try {
-      const revision = this.documentSession.state.revision;
+      const revision = source.revision;
       const result = await this.fileOperations.createOrUpload(path, () => this.uploadStaging.contentFor(path), { signal: ticket.signal, isCurrent: requestIsCurrent }, {
         confirm: (request) => requestConfirm(this, request, trigger, ticket.signal),
         scriptWrite: async (content, signal) => {
@@ -1364,15 +1367,39 @@ export class NodelEditor extends HTMLElement {
       if (result.path === 'script.py') {
         this.dispatchEvent(new CustomEvent('nodel-editor-file-saved', { bubbles: true, detail: { path: result.path } }));
         this.documentSession.invalidateMetadata();
-      } else {
-        const refreshed = await this.refreshFilesPreservingEditor(scope, true);
-        if (this.operationIsCurrent(ticket, scope)
-          && this.state.selectedPath
-          && this.state.selectedPath === result.path) {
-          if (refreshed) {
-            const refreshedFile = this.fileForPath(this.state.selectedPath);
-            this.documentSession.updateMetadata({ modified: refreshedFile?.modified, size: refreshedFile?.size });
-          } else {
+      }
+      const refreshed = await this.refreshFilesPreservingEditor(scope, true);
+      if (this.operationIsCurrent(ticket, scope)
+        && this.state.selectedPath
+        && this.state.selectedPath === result.path
+        && result.path !== 'script.py') {
+        if (refreshed) {
+          const refreshedFile = this.fileForPath(this.state.selectedPath);
+          this.documentSession.updateMetadata({ modified: refreshedFile?.modified, size: refreshedFile?.size });
+        } else {
+          this.documentSession.invalidateMetadata();
+        }
+      }
+
+      // Only navigate from the clean source snapshot. The expected identity
+      // checks in openFile remain authoritative while the destination loads.
+      if (refreshed
+        && isEditableFile(result.path)
+        && !source.dirty
+        && this.state.selectedPath === source.path
+        && this.documentSession.state.revision === source.revision
+        && this.fileForPath(result.path)) {
+        const opened = await this.openFile(result.path, {
+          skipDirtyPrompt: true,
+          expectedSourcePath: source.path,
+          expectedSourceRevision: source.revision
+        }, scope);
+        if (opened && this.state.selectedPath === result.path && this.documentSession.state.path === result.path) {
+          this.projectDocumentState({
+            notice: true,
+            status: overwriteNotice || `${overwritten ? 'Overwrote' : 'Created'} ${result.path}.`
+          });
+          if (result.path === 'script.py') {
             this.documentSession.invalidateMetadata();
           }
         }

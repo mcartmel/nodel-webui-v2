@@ -97,6 +97,8 @@ test.describe('editor refinements', () => {
     await expect.poll(() => fixture.saves.map((save) => save.path)).toContain('content/panel.html');
     const firstSave = fixture.saves[0];
     expect(firstSave?.body?.toString()).toBe('<nodel-app></nodel-app>');
+    await expect(editor.locator('[data-editor-file-picker] option:checked')).toHaveText('content/panel.html');
+    await expect(editor.locator('.cm-content')).toContainText('<nodel-app></nodel-app>');
 
     const nativeUpload = { buffer: Buffer.from('native'), mimeType: 'text/plain', name: 'native.txt' };
     await editor.locator('[data-editor-upload]').setInputFiles(nativeUpload);
