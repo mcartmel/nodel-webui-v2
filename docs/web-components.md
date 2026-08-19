@@ -1370,7 +1370,8 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Opens text files from relative `REST/files/contents`.
 - Saves `script.py` through relative `REST/script/save`, preserving v1 script behavior.
 - Saves other files through relative `REST/files/save`.
-- Creates empty text files or uploads local files through the accessible file input or single-file drag and drop without replacing the currently open dirty buffer.
+- Creates empty text files or uploads local files through the accessible file input or single-file drag and drop. Successfully created or overwritten editable text files automatically open only when the previous document remained clean and unchanged; dirty or newer local buffers remain active.
+- Adds binary uploads to the file picker without making them active.
 - Stages a selected or dropped file in the add-file form, using its filename as the initial editable path; the file is not saved until the operator activates Upload, and staged work participates in the page-unload guard.
 - Rejects multiple dropped files, non-portable new paths, text reads/uploads above 1 MiB, and binary uploads above 8 MiB. Known file sizes are shown in the picker.
 - Lists existing non-portable Java/Unix file names with escaped labels and opens bounded text reads read-only. Legacy paths, binary legacy files, and large legacy files remain visible, but browser save, delete, overwrite, and duplication mutations are disabled; no browser download behavior is added.
