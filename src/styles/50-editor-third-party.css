@@ -64,6 +64,12 @@
     border-left-color: rgb(var(--nodel-warning));
   }
 
+  .nodel-editor-host .cm-tooltip-lint {
+    color: rgb(var(--nodel-fg));
+    background: var(--nodel-popover-background, rgb(var(--nodel-surface-raised)));
+    border-color: rgb(var(--nodel-border));
+  }
+
   .nodel-editor-completion.cm-tooltip {
     color: rgb(var(--nodel-fg));
     background: rgb(var(--nodel-surface));
