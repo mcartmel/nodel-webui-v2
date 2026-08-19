@@ -275,14 +275,17 @@ While offline, V2 retries with bounded backoff and clears the global state after
 
 `nodel-toolbar` accepts:
 
+- `show-host-icon` to opt in to the generated host identicon and host link.
 - `icon-src` for the image path.
 - `icon-alt` for alternative text.
 
-Use the stable v2 asset path when authoring pages:
+Custom toolbars hide the generated host icon by default. Add the presence-only `show-host-icon` attribute when a custom page should expose it. Core pages combine that opt-in with the stable v2 logo asset:
 
 ```html
-<nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>
+<nodel-toolbar show-host-icon icon-src="./v2/img/logo.png"></nodel-toolbar>
 ```
+
+The toolbar logo (`icon-src`), generated host icon (`show-host-icon`), and browser favicon are independent. `icon-src` does not enable the host icon or change the favicon, and an authored favicon is never replaced. Existing custom pages that relied on the previously implicit toolbar host icon must add `show-host-icon` during migration.
 
 The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. A `nodel-app` `signal` or `signals` binding targets `title` by default and updates both `document.title` and the default toolbar title. An explicit `nodel-toolbar title="..."` remains the visible toolbar override; the starter intentionally supplies one so custom UI authors can replace it. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
 
@@ -295,7 +298,7 @@ The visible title is omitted by default on host pages. On node pages, the toolba
 
 Signal aliases named `Title` are not globally special; dynamic titles require this explicit binding.
 
-When the document has no authored `link[rel~="icon"]`, `nodel-app` creates a generated host favicon. An authored favicon is never replaced, and toolbar `icon-src` does not affect the favicon.
+When the document has no authored `link[rel~="icon"]`, `nodel-app` creates a generated host favicon.
 
 The toolbar remains in normal document flow. Below `640px`, its branding/actions occupy the first row and page navigation moves to a horizontally scrollable second row. Nested page menus remain keyboard accessible and use a viewport-clamped overlay on small screens so they are not clipped by the navigation strip.
 

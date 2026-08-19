@@ -33,7 +33,7 @@ describe('nodel app base layer', () => {
     window.history.replaceState(undefined, '', '/');
     document.body.innerHTML = `
       <nodel-app theme="default" title="Nodel">
-        <nodel-toolbar icon-src="./v2/img/logo.png">
+        <nodel-toolbar show-host-icon icon-src="./v2/img/logo.png">
           <nodel-theme-toggle></nodel-theme-toggle>
         </nodel-toolbar>
         <nodel-page title="Base UI">

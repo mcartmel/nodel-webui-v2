@@ -284,6 +284,8 @@ describe('nodel document definition', () => {
     expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'confirm-tone')?.defaultDescription).toContain('Derived');
     expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'confirm-title')?.defaultValue).toBe('Confirm toggle');
     expect(byName('nodel-toolbar').attributes.find((attribute) => attribute.name === 'icon-alt')?.defaultDescription).toContain('title');
+    expect(byName('nodel-toolbar').attributes.find((attribute) => attribute.name === 'show-host-icon')?.valueType).toBe('boolean');
+    expect(byName('nodel-toolbar').attributes.find((attribute) => attribute.name === 'show-host-icon')?.defaultValue).toBe('false');
     expect(byName('nodel-column').attributes.find((attribute) => attribute.name === 'md')?.defaultDescription).toContain('inherits');
     expect(byName('nodel-column').attributes.find((attribute) => attribute.name === 'md-order')?.defaultDescription).toContain('inherits');
     expect(byName('nodel-pad').attributes.find((attribute) => attribute.name === 'up-label')?.defaultDescription).toContain('pad accessible label');
@@ -306,6 +308,18 @@ describe('nodel document definition', () => {
     expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'nav-id')?.defaultDescription).toContain('slugged');
     expect(byName('nodel-page').attributes.find((attribute) => attribute.name === 'arg-type')?.defaultValue).toBe('string');
     expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-stepper repeat="'))?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['hold', 'off']));
+  });
+
+  it('opts shipped visual page toolbars into host branding', async () => {
+    for (const page of ['components.html', 'nodes.html', 'nodel.html', 'toolkit.html']) {
+      const source = await readFile(resolve(process.cwd(), page), 'utf8');
+      const template = document.createElement('template');
+      template.innerHTML = source;
+      const toolbars = template.content.querySelectorAll('nodel-toolbar');
+
+      expect(toolbars, page).toHaveLength(1);
+      expect(toolbars[0]?.hasAttribute('show-host-icon'), page).toBe(true);
+    }
   });
 
   it('documents every public attribute observed by catalogue components', async () => {
