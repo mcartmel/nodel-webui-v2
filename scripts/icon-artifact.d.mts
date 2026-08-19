@@ -1,0 +1,10 @@
+export function generateIconArtifacts(input: unknown): { index: Record<string, unknown>; catalogue: string; files: Map<string, Buffer>; report: Record<string, unknown> };
+export function normalizeIconRecord(value: unknown): Record<string, unknown>;
+export function validateIconArtifact(value: unknown, options?: { expectedProfile?: string }): true;
+export function validateIconShard(value: unknown, options?: { profile?: string; family?: string; style?: string; bucket?: number }): true;
+export function validateIconCatalogue(value: unknown, options?: { expectedProfile?: string; index?: Record<string, unknown> }): true;
+export function validateIconArtifactFiles(indexBytes: Buffer, files: Map<string, Buffer>, options?: { expectedProfile?: string; expectedPackageVersion?: string }): { index: Record<string, unknown>; paths: Set<string> };
+export function fnv1a32(value: string): number;
+export function isExactSemVer(value: unknown): boolean;
+export function semVerMajor(value: unknown): string | null;
+export const maxIconIndexBytes: number;

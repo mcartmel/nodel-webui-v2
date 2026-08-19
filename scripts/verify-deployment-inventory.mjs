@@ -42,9 +42,9 @@ async function assertReportPath(path, { projectRoot, source }) {
   return output;
 }
 
-export async function createDeploymentInventoryReport({ source, manifestData, manifestPath, projectRoot }) {
+export async function createDeploymentInventoryReport({ source, manifestData, manifestPath, projectRoot, expectedIconProfile }) {
   const packageMetadata = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'));
-  const inventory = await createDeploymentInventory(source, manifestData.manifest, { packageVersion: packageMetadata.version });
+  const inventory = await createDeploymentInventory(source, manifestData.manifest, { packageVersion: packageMetadata.version, expectedIconProfile });
   return Object.freeze({
     schemaVersion: deploymentInventorySchemaVersion,
     deploymentManifest: { path: canonicalManifestPath(manifestPath, projectRoot), sha256: manifestData.hash },
@@ -52,7 +52,7 @@ export async function createDeploymentInventoryReport({ source, manifestData, ma
   });
 }
 
-export async function verifyDeploymentInventoryReport({ source, manifestData, manifestPath, output, projectRoot }) {
+export async function verifyDeploymentInventoryReport({ source, manifestData, manifestPath, output, projectRoot, expectedIconProfile }) {
   const reportPath = await assertReportPath(output, { projectRoot, source });
   const initial = await lstat(reportPath).catch(() => null);
   if (!initial?.isFile() || initial.isSymbolicLink()) throw new Error(`Deployment inventory report must be a regular file: ${reportPath}`);
@@ -63,7 +63,7 @@ export async function verifyDeploymentInventoryReport({ source, manifestData, ma
   }
   let report;
   try { report = JSON.parse(text); } catch { throw new Error(`Deployment inventory report is not valid JSON: ${reportPath}`); }
-  const expected = await createDeploymentInventoryReport({ source, manifestData, manifestPath, projectRoot });
+  const expected = await createDeploymentInventoryReport({ source, manifestData, manifestPath, projectRoot, expectedIconProfile });
   if (text !== canonicalText(expected) || JSON.stringify(report) !== JSON.stringify(expected)) {
     throw new Error('Deployment inventory report does not exactly match the current canonical deployment inventory');
   }
@@ -78,6 +78,7 @@ export function parseVerifyDeploymentInventoryArgs(argv, { projectRoot = scriptP
     write: { type: 'boolean', default: false },
     check: { type: 'boolean', default: false },
     json: { type: 'boolean', default: false }
+    , 'icon-profile': { key: 'expectedIconProfile' }
   });
   if (options.write === options.check) throw new Error('Specify exactly one of --write or --check');
   return { ...options, source: resolve(options.source), manifest: resolve(options.manifest), output: resolve(options.output) };

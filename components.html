@@ -1292,6 +1292,8 @@
             <h1 class="nodel-catalogue-title">Media</h1>
             <p class="nodel-catalogue-description">
               Use <code>nodel-image</code> and <code>nodel-icon</code> as standalone control-grid items or as inline button children.
+              These examples use the public Free icon profile: canonical <code>tv</code>, a Classic Regular icon, a Brand icon,
+              manifest defaults, and the preserved Nodel <code>power</code> alias. Pro-only families are not part of this catalogue.
               Use <code>nodel-status-indicator</code> inside buttons for compact signal state.
             </p>
           </header>
@@ -1309,12 +1311,15 @@
                 <nodel-column md="8">
                   <nodel-control-grid columns="2" md="4" data-catalogue-example="media-standalone-media">
                     <nodel-image src="./v2/img/logo.png" alt="Nodel logo" size="lg"></nodel-image>
-                    <nodel-icon name="power" alt="Power" tone="accent"></nodel-icon>
-                    <nodel-group label="Volume" surface="panel" padding="compact">
-                      <nodel-icon name="volume" tone="success" size="lg"></nodel-icon>
+                    <nodel-icon name="tv" alt="Television" tone="accent"></nodel-icon>
+                    <nodel-group label="Regular address book" surface="panel" padding="compact">
+                      <nodel-icon name="address-book" family="classic" style="regular" size="lg"></nodel-icon>
                     </nodel-group>
-                    <nodel-group label="Warning">
-                      <nodel-icon name="warning" tone="warning" size="xl"></nodel-icon>
+                    <nodel-group label="Brand GitHub">
+                      <nodel-icon name="github" family="brands" size="xl"></nodel-icon>
+                    </nodel-group>
+                    <nodel-group label="Nodel alias">
+                      <nodel-icon name="power" tone="success"></nodel-icon>
                     </nodel-group>
                   </nodel-control-grid>
                 </nodel-column>
@@ -1323,12 +1328,15 @@
 
             <pre class="nodel-catalogue-code" data-catalogue-code-for="media-standalone-media"><code>&lt;nodel-control-grid columns=&quot;2&quot; md=&quot;4&quot;&gt;
   &lt;nodel-image src=&quot;./v2/img/logo.png&quot; alt=&quot;Nodel logo&quot; size=&quot;lg&quot;&gt;&lt;/nodel-image&gt;
-  &lt;nodel-icon name=&quot;power&quot; alt=&quot;Power&quot; tone=&quot;accent&quot;&gt;&lt;/nodel-icon&gt;
-  &lt;nodel-group label=&quot;Volume&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
-    &lt;nodel-icon name=&quot;volume&quot; tone=&quot;success&quot; size=&quot;lg&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-icon name=&quot;tv&quot; alt=&quot;Television&quot; tone=&quot;accent&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-group label=&quot;Regular address book&quot; surface=&quot;panel&quot; padding=&quot;compact&quot;&gt;
+    &lt;nodel-icon name=&quot;address-book&quot; family=&quot;classic&quot; style=&quot;regular&quot; size=&quot;lg&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
-  &lt;nodel-group label=&quot;Warning&quot;&gt;
-    &lt;nodel-icon name=&quot;warning&quot; tone=&quot;warning&quot; size=&quot;xl&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;nodel-group label=&quot;Brand GitHub&quot;&gt;
+    &lt;nodel-icon name=&quot;github&quot; family=&quot;brands&quot; size=&quot;xl&quot;&gt;&lt;/nodel-icon&gt;
+  &lt;/nodel-group&gt;
+  &lt;nodel-group label=&quot;Nodel alias&quot;&gt;
+    &lt;nodel-icon name=&quot;power&quot; tone=&quot;success&quot;&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
           </section>

@@ -6,6 +6,70 @@ async function openCatalogue(page: Page, pageId: string) {
 }
 
 test.describe('catalogue in-memory runtime', () => {
+  test('catalogue uses canonical public Free examples and preserves the Nodel alias', async ({ page }) => {
+    await openCatalogue(page, 'Media');
+    const examples = page.locator('[data-catalogue-example="media-standalone-media"] nodel-icon');
+    await expect(examples).toHaveCount(4);
+    await expect(examples.nth(0)).toHaveAttribute('data-name', 'tv');
+    await expect(examples.nth(0)).toHaveAttribute('data-family', 'classic');
+    await expect(examples.nth(0)).toHaveAttribute('data-style', 'solid');
+    await expect(examples.nth(1)).toHaveAttribute('data-name', 'address-book');
+    await expect(examples.nth(1)).toHaveAttribute('data-style', 'regular');
+    await expect(examples.nth(2)).toHaveAttribute('data-name', 'github');
+    await expect(examples.nth(2)).toHaveAttribute('data-family', 'brands');
+    await expect(examples.nth(3)).toHaveAttribute('data-name', 'power');
+    await expect(page.locator('nodel-icon[family="duotone"], nodel-icon[family="sharp"], nodel-icon[family="sharp-duotone"]')).toHaveCount(0);
+  });
+
+  test('loads catalogue icons from an authored page without remote Font Awesome requests', async ({ page }) => {
+    const requests: string[] = [];
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === 'http://127.0.0.1:4173') {
+        await route.continue();
+      } else {
+        await route.abort();
+      }
+    });
+    page.on('request', request => requests.push(request.url()));
+    await page.route('**/authored-stage-2.html', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><script type="module" src="./v2/nodel-webui.js"></script><nodel-icon name="tv"></nodel-icon><nodel-icon name="address-book" family="classic" style="regular"></nodel-icon><nodel-icon name="github" family="brands"></nodel-icon>'
+    }));
+    await page.goto('/authored-stage-2.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('nodel-icon')).toHaveCount(3);
+    await expect(page.locator('nodel-icon').nth(0)).toHaveAttribute('data-icon-state', 'ready');
+    await expect(page.locator('nodel-icon').nth(1)).toHaveAttribute('data-icon-state', 'ready');
+    await expect(page.locator('nodel-icon').nth(2)).toHaveAttribute('data-icon-state', 'ready');
+    expect(requests.some(url => /fontawesome|kit.fontawesome|use\.fontawesome/.test(url))).toBe(false);
+  });
+
+  test('covers standalone and button icon presentation, fallback accessibility, and inactive deferral', async ({ page }, testInfo) => {
+    await page.route('**/icon-surface.html', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><script type="module" src="./v2/nodel-webui.js"></script><nodel-icon id="standalone" name="tv" tone="danger" size="lg" alt="Television"></nodel-icon><nodel-button id="icon-button" aria-label="Open television"><nodel-icon name="tv" size="sm"></nodel-icon></nodel-button><nodel-icon id="missing" name="not-a-real-icon" alt="Unavailable icon"></nodel-icon><nodel-page id="inactive" hidden><nodel-icon id="deferred" name="address-book" family="classic" style="regular"></nodel-icon></nodel-page>'
+    }));
+    await page.goto('/icon-surface.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#standalone')).toHaveAttribute('data-icon-state', 'ready');
+    await expect(page.locator('#standalone')).toHaveAttribute('data-tone', 'danger');
+    await expect(page.locator('#standalone')).toHaveAttribute('data-size', 'lg');
+    await expect(page.locator('#standalone')).toHaveAttribute('role', 'img');
+    await expect(page.locator('#standalone')).toHaveAttribute('aria-label', 'Television');
+    await expect(page.locator('#icon-button button')).toHaveAttribute('aria-label', 'Open television');
+    await expect(page.locator('#icon-button nodel-icon')).toHaveAttribute('data-size', 'sm');
+    await expect(page.locator('#missing')).toHaveAttribute('data-icon-state', 'fallback');
+    await expect(page.locator('#missing')).toHaveAttribute('aria-label', 'Unavailable icon');
+    await expect(page.locator('#deferred')).toHaveAttribute('data-icon-state', 'loading');
+    await page.locator('#inactive').evaluate(element => element.removeAttribute('hidden'));
+    await expect(page.locator('#deferred')).toHaveAttribute('data-icon-state', 'ready');
+    if (testInfo.project.name === 'chromium-forced-colors') {
+      expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true);
+      await expect(page.locator('#icon-button button')).toBeVisible();
+    }
+  });
+
   test('starts in memory and closes the loop between actions and signals', async ({ page }) => {
     const requests: string[] = [];
     const websockets: string[] = [];

@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { verifyBundleBudget } from '../scripts/verify-bundle-budget.mjs';
 
@@ -12,7 +12,7 @@ const moduleIds = [
   'node_modules/@codemirror/lang-markdown/dist/index.js', 'node_modules/@codemirror/lang-java/dist/index.js', 'node_modules/@codemirror/legacy-modes/mode/groovy.js',
   'node_modules/@codemirror/lang-sql/dist/index.js', 'node_modules/@codemirror/legacy-modes/mode/shell.js'
 ];
-const budgetNames = ['stable-entry-closure', 'stable-css', 'codemirror-base', ...roles.map((role) => `codemirror-language-${role}`), 'components-html', 'dist-v2-inventory'];
+const budgetNames = ['stable-entry-closure', 'stable-css', 'codemirror-base', ...roles.map((role) => `codemirror-language-${role}`), 'components-html', 'free-icon-artifact', 'dist-v2-inventory'];
 type BudgetResult = { reports: Array<{ name: string; actual: { raw: number; gzip: number } }> };
 type Budget = { rawBaseline: number; rawMax: number; gzipBaseline: number; gzipMax: number };
 
@@ -20,7 +20,7 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'nodel-stage5-'));
   await mkdir(join(root, 'dist/v2'), { recursive: true });
   const files = new Map<string, string>();
-  const add = async (path: string, content: string) => { files.set(path, content); await writeFile(join(root, 'dist', path), content); };
+  const add = async (path: string, content: string) => { files.set(path, content); await mkdir(dirname(join(root, 'dist', path)), { recursive: true }); await writeFile(join(root, 'dist', path), content); };
   await add('v2/nodel-webui.js', 'stable');
   await add('v2/main.js', 'main');
   await add('v2/nodel-webui.css', 'css');
@@ -38,6 +38,8 @@ async function fixture() {
     outputs.push({ path, type: 'chunk', modules: [`${moduleIds[index]}`], imports: [], dynamicImports: [], facadeModuleId: moduleIds[index] });
   }
   await add('v2/codemirror.js', 'base');
+  await add('v2/nodel-icons.json', '{"schemaVersion":1,"profile":"free"}\n');
+  await add('v2/icons/fixture-shard.json', '{"schemaVersion":1,"profile":"free","family":"classic","style":"solid","bucket":0,"records":[]}\n');
   outputs.push({ path: 'v2/codemirror.js', type: 'chunk', modules: ['src/editor/codemirror-editor.ts'], imports: [], dynamicImports: languageEntries.map((entry) => `v2/${entry.role}.js`), facadeModuleId: null });
   for (const output of outputs) output.bytes = (await readFile(join(root, 'dist', String(output.path)))).byteLength;
   const graph = { schemaVersion: 1, outputs };
@@ -55,7 +57,7 @@ describe('Stage 5 temporary-root verifier', () => {
     try {
       const before = await readFile(join(test.root, 'performance-budgets.json'));
       const result = await verifyBundleBudget({ projectRoot: test.root, graphPath: 'build-graph.json', reportDir: 'reports' }) as BudgetResult;
-      expect(result.reports).toHaveLength(16);
+       expect(result.reports).toHaveLength(17);
       const firstReport = await readFile(join(test.root, 'reports/bundle-budget.md'), 'utf8');
       expect(firstReport).toContain('raw baseline');
       expect(firstReport).toContain('gzip baseline');

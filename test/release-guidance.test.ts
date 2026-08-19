@@ -163,6 +163,16 @@ describe('V1 migration and release guidance', () => {
     expect(guidance).not.toContain('show-total');
   });
 
+  it('documents safe Pro token bootstrap without inline assignment', async () => {
+    const guidance = await readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8');
+
+    expect(guidance).toContain('read -s -p "Font Awesome Pro token: " FONTAWESOME_PACKAGE_TOKEN');
+    expect(guidance).toContain('npm run build:pro:preview -- --version 7.3.1');
+    expect(guidance).toContain('FONTAWESOME_PACKAGE_TOKEN');
+    expect(guidance).not.toContain('FONTAWESOME_PACKAGE_TOKEN=... npm run build:pro:preview -- --version 7.3.1');
+    expect(guidance).not.toContain('FONTAWESOME_PACKAGE_TOKEN=');
+  });
+
   it('tests the exact built dist before deployment or packaging', async () => {
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
@@ -174,19 +184,26 @@ describe('V1 migration and release guidance', () => {
     expect(buildWorkflow).toContain('npm run check:jsviews');
     expect(buildWorkflow).toContain('npm run test:coverage');
     expect(buildWorkflow).toContain('npm run verify:dependencies');
-    expect(buildWorkflow).toContain('node scripts/verify-release-gate.mjs');
+    expect(buildWorkflow).toContain('node scripts/verify-release-gate.mjs --icon-profile free');
     expect(buildWorkflow).toContain('npm run verify:dist -- --write --json');
     expect(buildWorkflow).toContain('npm run test:browser:dist');
     expect(buildWorkflow).toContain('node scripts/deploy.mjs --target ./build/deploy-preview');
     expect(buildWorkflow).toContain('node scripts/deploy.mjs --target ./build/stage11-host/custom/content');
     expect(buildWorkflow).toContain('npm run test:deployment:smoke');
     expect(buildWorkflow).toContain('npm run verify:dist -- --check --json');
+    const buildBrowserJob = buildWorkflow.slice(buildWorkflow.indexOf('Download exact tested dist and inventory'));
+    expect(buildBrowserJob).toContain('npm run generate:icons:free');
+    expect(buildBrowserJob.indexOf('npm run generate:icons:free')).toBeLessThan(buildBrowserJob.indexOf('npm run test:browser:dist'));
     expect(releaseWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
+    expect(releaseWorkflow).toContain('node scripts/verify-release-gate.mjs --icon-profile free');
     expect(releaseWorkflow).toContain('npm run test:browser:dist');
     expect(releaseWorkflow).toContain('npm run test:deployment:smoke');
     expect(releaseWorkflow).toContain('npm run build:preview');
     expect(releaseWorkflow).toContain('npm run verify:dependencies');
     expect(releaseWorkflow).toContain('npm run verify:dist -- --check --json');
+    const releaseBrowserJob = releaseWorkflow.slice(releaseWorkflow.indexOf('Download exact tested dist and inventory'));
+    expect(releaseBrowserJob).toContain('npm run generate:icons:free');
+    expect(releaseBrowserJob.indexOf('npm run generate:icons:free')).toBeLessThan(releaseBrowserJob.indexOf('npm run test:browser:dist'));
     const browserToPrepare = releaseWorkflow.slice(releaseWorkflow.indexOf('npm run test:browser:dist'), releaseWorkflow.indexOf('npm run release:prepare --'));
     expect(browserToPrepare).not.toContain('npm run build:preview');
     expect(releaseWorkflow).toContain('Download exact tested dist and inventory');
@@ -491,11 +508,11 @@ describe('V1 migration and release guidance', () => {
     expect(architecture).toContain('no production installer');
     expect(architecture).toContain('preserve V1 by default');
     expect(readmeRehearsal).toContain('npm run verify:dependencies');
-    expect(readmeRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(readmeRehearsal.indexOf('npm run build'));
+    expect(readmeRehearsal.indexOf('npm run build')).toBeLessThan(readmeRehearsal.indexOf('npm run verify:dependencies'));
     expect(readmeRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(readmeRehearsal.indexOf('npm run release:prepare'));
     expect(handoffRehearsal).toContain('npm run verify:dependencies');
     expect(handoffRehearsal.indexOf('npm ci')).toBeLessThan(handoffRehearsal.indexOf('npm run verify:dependencies'));
-    expect(handoffRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(handoffRehearsal.indexOf('npm run build'));
+    expect(handoffRehearsal.indexOf('npm run build')).toBeLessThan(handoffRehearsal.indexOf('npm run verify:dependencies'));
     expect(handoffRehearsal.indexOf('npm run verify:dependencies')).toBeLessThan(handoffRehearsal.indexOf('npm run release:prepare'));
   });
 
@@ -523,7 +540,7 @@ describe('V1 migration and release guidance', () => {
     expect(packageJson.scripts['test:deployment:smoke']).toBe('node ./scripts/run-deployment-smoke.mjs');
     expect(packageJson.scripts['verify:dist']).toBe('node ./scripts/verify-deployment-inventory.mjs');
     expect(packageJson.scripts['release:prepare']).toBe('node ./scripts/prepare-release.mjs');
-    expect(packageJson.scripts['release:build']).toBe('npm run verify:dependencies && npm run build && npm run release:prepare');
+    expect(packageJson.scripts['release:build']).toBe('npm run build && npm run verify:dependencies && npm run release:prepare');
 
     for (const workflow of [buildWorkflow, releaseWorkflow]) {
       expect(workflow).toContain('java-handoff');
@@ -572,14 +589,14 @@ describe('V1 migration and release guidance', () => {
     expect(deploymentSpec).toContain('offline-mode="overlay"');
   });
 
-  it('documents schema 5 dependency evidence and executable, non-duplicated runbook commands', async () => {
+  it('documents schema 6 dependency evidence and icon catalogue release descriptors', async () => {
     const handoff = await readFile(resolve(process.cwd(), 'docs/release-handoff.md'), 'utf8');
     const architecture = await readFile(resolve(process.cwd(), 'docs/architecture.md'), 'utf8');
     const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');
 
     expect(handoff.indexOf('npm run verify:java-handoff')).toBeLessThan(handoff.indexOf('node scripts/deploy.mjs --java-checkout ../nodel-dev'));
     expect(handoff).not.toContain('npm run deploy:test --');
-    expect(handoff).toContain('schema 5');
+    expect(handoff).toContain('schema 6');
     expect(handoff).toContain('v2/nodel-components.json');
     expect(handoff).toContain('dist-inventory');
     expect(handoff).toContain('canonical\n`dist` inventory SHA-256 digest');
@@ -589,6 +606,7 @@ describe('V1 migration and release guidance', () => {
     expect(handoff).not.toContain('atomic staged replacement');
     expect(handoff).toContain('does not claim\nbit-for-bit reproducible ZIP bytes');
     expect(handoff).toContain('does not claim protection from a malicious same-user process');
+    expect(handoff).toContain('`iconCatalogue`');
     expect(handoff).toContain('between final filesystem syscall boundaries');
     expect(handoff).toContain('Approval identities and timestamps remain evidence');
     expect(handoff).toContain('## Local Nonpublishable Rehearsal');
@@ -598,13 +616,14 @@ describe('V1 migration and release guidance', () => {
     expect(handoff).toContain('--dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json');
     expect(handoff).toContain('intentionally nonpublishable');
     expect(handoff).toContain('production-release` environment provenance');
-    expect(architecture).toContain('schema is version 5');
+    expect(architecture).toContain('schema is version 6');
     expect(architecture).toContain('verify:dist');
     expect(architecture).toContain('no `--support-subdir` deployment option');
     expect(architecture).toContain('test:deployment:smoke');
     expect(notes).toContain('best-effort recoverable two-rename');
-    expect(notes).toContain('schema 5');
+    expect(notes).toContain('schema 6');
     expect(notes).toContain('v2/nodel-components.json');
-    expect(await readFile(resolve(process.cwd(), 'README.md'), 'utf8')).toContain('schema 5 `release.json`');
+    expect(notes).toContain('Free `iconCatalogue`');
+    expect(await readFile(resolve(process.cwd(), 'README.md'), 'utf8')).toContain('schema 6 `release.json`');
   });
 });

@@ -29,6 +29,7 @@ import {
   faXmark
 } from '@fortawesome/free-solid-svg-icons';
 import { controlIconNames, type ControlIconName } from './control-icon-names';
+import { escapeHtml } from '../utils/html';
 
 export { controlIconNames } from './control-icon-names';
 export type { ControlIconName } from './control-icon-names';
@@ -109,7 +110,12 @@ export function iconForName(value: string | null, fallback?: FontAwesomeIcon) {
 export function renderFontAwesomeIcon(icon: FontAwesomeIcon, className = 'h-3.5 w-3.5') {
   const [width, height, , , pathData] = icon.icon;
   const paths = Array.isArray(pathData) ? pathData : [pathData];
-  const pathMarkup = paths.map((path) => `<path fill="currentColor" d="${path}"></path>`).join('');
+  const pathMarkup = paths.map((path, index) => `<path fill="currentColor"${paths.length === 2 && index === 0 ? ' opacity="0.4"' : ''} d="${escapeHtml(path)}"></path>`).join('');
 
-  return `<svg aria-hidden="true" focusable="false" data-icon="${icon.iconName}" viewBox="0 0 ${width} ${height}" class="${className}">${pathMarkup}</svg>`;
+  return `<svg aria-hidden="true" focusable="false" data-icon="${escapeHtml(icon.iconName)}" viewBox="0 0 ${width} ${height}" class="${escapeHtml(className)}">${pathMarkup}</svg>`;
+}
+
+export function renderGeneratedIcon(icon: { name: string; width: number; height: number; paths: string[] }, className = 'h-3.5 w-3.5') {
+  const pathMarkup = icon.paths.map((path, index) => `<path fill="currentColor"${icon.paths.length === 2 && index === 0 ? ' opacity="0.4"' : ''} d="${escapeHtml(path)}"></path>`).join('');
+  return `<svg aria-hidden="true" focusable="false" data-icon="${escapeHtml(icon.name)}" viewBox="0 0 ${icon.width} ${icon.height}" class="${escapeHtml(className)}">${pathMarkup}</svg>`;
 }

@@ -5515,7 +5515,9 @@
         {
           "defaultValue": "image",
           "name": "name",
-          "description": "Built-in icon name.",
+          "description": "Preferred Nodel icon aliases plus canonical names from the generated Font Awesome catalogue, which is the exhaustive source for authored icon values.",
+          "valueType": "enum-or-string",
+          "syntax": "Generated catalogue canonical name or preserved Nodel alias",
           "values": [
             "image",
             "sun",
@@ -5536,7 +5538,26 @@
             "sliders",
             "stop"
           ],
-          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "classic",
+          "name": "family",
+          "description": "Icon family selected from the installed generated catalogue.",
+          "valueType": "string",
+          "syntax": "Generated catalogue family identifier",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultDescription": "Derived: the selected family manifest default style, solid for Classic and brands for Brands in the public profile.",
+          "name": "style",
+          "description": "Icon style selected from the installed generated catalogue for the effective family.",
+          "valueType": "string",
+          "syntax": "Generated catalogue style identifier",
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
@@ -5618,7 +5639,7 @@
         },
         {
           "name": "signals",
-          "description": "Signal binding list. Supported targets: name, alt, label, tone.",
+          "description": "Signal binding list. Supported targets: name, family, style, alt, label, tone.",
           "valueType": "binding",
           "syntax": "SignalName[.path][:target][; or , SignalName[.path][:target] ...]",
           "completion": "recommended",
@@ -5639,18 +5660,6 @@
             {
               "name": "name",
               "aggregations": []
-            },
-            {
-              "name": "alt",
-              "aggregations": []
-            },
-            {
-              "name": "label",
-              "aggregations": []
-            },
-            {
-              "name": "tone",
-              "aggregations": []
             }
           ]
         },
@@ -5660,6 +5669,14 @@
           "targets": [
             {
               "name": "name",
+              "aggregations": []
+            },
+            {
+              "name": "family",
+              "aggregations": []
+            },
+            {
+              "name": "style",
               "aggregations": []
             },
             {

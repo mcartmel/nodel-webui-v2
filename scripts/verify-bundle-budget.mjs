@@ -3,7 +3,7 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 
 const languageRoles = ['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'];
-const budgetNames = ['stable-entry-closure', 'stable-css', 'codemirror-base', ...languageRoles.map((role) => `codemirror-language-${role}`), 'components-html', 'dist-v2-inventory'];
+const budgetNames = ['stable-entry-closure', 'stable-css', 'codemirror-base', ...languageRoles.map((role) => `codemirror-language-${role}`), 'components-html', 'free-icon-artifact', 'dist-v2-inventory'];
 const compareCodeUnits = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
 const safe = (value, label) => {
@@ -48,7 +48,6 @@ async function inventory(dist) {
 export function validatePolicy(policy) {
   if (policy?.schemaVersion !== 1 || typeof policy.releaseNotesMarker !== 'string' || policy.releaseNotesMarker.length < 10 || policy.releaseNotesMarker.length > 100 || /\s/.test(policy.releaseNotesMarker) || typeof policy.rationale !== 'string' || policy.rationale.length < 20 || policy.rationale.length > 500) throw new Error('Malformed performance budget policy');
   if (!Array.isArray(policy.languageRoles) || JSON.stringify(policy.languageRoles) !== JSON.stringify(languageRoles)) throw new Error('Performance budget language roles are not the approved 11 roles');
-  if (!policy.budgets || JSON.stringify(Object.keys(policy.budgets).sort(compareCodeUnits)) !== JSON.stringify([...budgetNames].sort(compareCodeUnits))) throw new Error('Performance budget names are incomplete or unexpected');
   if (policy.codeMirrorBaseModuleId !== 'src/editor/codemirror-editor.ts' || !Array.isArray(policy.languageEntries) || policy.languageEntries.length !== languageRoles.length) throw new Error('Malformed CodeMirror role mapping');
   for (const [index, entry] of policy.languageEntries.entries()) {
     if (!entry || entry.role !== languageRoles[index] || typeof entry.moduleId !== 'string' || !entry.moduleId || entry.moduleId.startsWith('/') || entry.moduleId.split('/').includes('..')) throw new Error(`Malformed CodeMirror role mapping at ${index}`);
@@ -57,6 +56,7 @@ export function validatePolicy(policy) {
   for (const [name, budget] of Object.entries(policy.budgets ?? {})) {
     if (!budget || !Number.isInteger(budget.rawBaseline) || !Number.isInteger(budget.rawMax) || !Number.isInteger(budget.gzipBaseline) || !Number.isInteger(budget.gzipMax) || budget.rawBaseline < 0 || budget.gzipBaseline < 0 || budget.rawBaseline > budget.rawMax || budget.gzipBaseline > budget.gzipMax) throw new Error(`Malformed budget: ${name}`);
   }
+  if (!policy.budgets || JSON.stringify(Object.keys(policy.budgets).sort(compareCodeUnits)) !== JSON.stringify([...budgetNames].sort(compareCodeUnits))) throw new Error('Performance budget names are incomplete or unexpected');
 }
 function validateGraph(graph) {
   if (!graph || graph.schemaVersion !== 1 || !Array.isArray(graph.outputs)) throw new Error('Malformed bundle graph');
@@ -125,6 +125,8 @@ export async function verifyBundleBudget({ projectRoot = process.cwd(), distDir,
     reports.push(metric(`codemirror-language-${role}`, await measureFiles(paths, readDist), policy.budgets[`codemirror-language-${role}`]));
   }
   reports.push(metric('components-html', await measureFiles(['components.html'], readDist), policy.budgets['components-html']));
+  const iconPaths = ['v2/nodel-icons.json', ...(await inventory(dist)).filter(path => path.startsWith('v2/icons/'))];
+  reports.push(metric('free-icon-artifact', await measureFiles(iconPaths, readDist), policy.budgets['free-icon-artifact']));
   reports.push(metric('dist-v2-inventory', await measureFiles(await inventory(dist), readDist), policy.budgets['dist-v2-inventory']));
   const failures = reports.flatMap((report) => ['raw', 'gzip'].filter((kind) => report.actual[kind] > report.max[kind]).map((kind) => `${report.name} ${kind} exceeds maximum`));
   const markdown = `# Bundle Budget\n\n${reports.map(formatReportLine).join('\n')}`;

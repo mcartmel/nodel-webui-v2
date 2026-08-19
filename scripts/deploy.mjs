@@ -33,7 +33,8 @@ export function parseDeployArgs(argv) {
     manifest: { default: () => resolve(projectRoot, 'deployment-manifest.json') },
     'dry-run': { key: 'dryRun', type: 'boolean', default: false },
     json: { type: 'boolean', default: false },
-    'allow-unmanaged-target': { key: 'allowUnmanagedTarget', type: 'boolean', default: false }
+    'allow-unmanaged-target': { key: 'allowUnmanagedTarget', type: 'boolean', default: false },
+    'icon-profile': { key: 'expectedIconProfile' }
   });
   options.source = resolve(options.source);
   options.target = resolve(options.target);
@@ -101,7 +102,7 @@ export async function deploy(options, { operations = nativeOperations, roots, ho
   }
   const manifestData = await loadDeploymentManifest(options.manifest);
   const target = await assertProjectBuildTarget(options.target, { source: options.source, javaCheckout: options.javaCheckout, roots });
-  const inventory = await createDeploymentInventory(options.source, manifestData.manifest);
+  const inventory = await createDeploymentInventory(options.source, manifestData.manifest, { expectedIconProfile: options.expectedIconProfile });
   const state = await targetState(target, manifestData);
   if (!state.empty && !state.managed && !options.allowUnmanagedTarget) {
     throw new Error(`Refusing non-empty unmanaged deployment target: ${target}; use --allow-unmanaged-target only for explicit first use`);

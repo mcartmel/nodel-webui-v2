@@ -126,7 +126,7 @@ Exact visibility values are trimmed when authored and matched case-sensitively. 
 | --- | --- |
 | Node search inside the node drawer | Use the dedicated Network page. `nodel-link` uses a prefiltered Network-page fallback when direct node discovery is unavailable. |
 | Integrated range mute | Compose a fader with a toggle or button so level and mute remain explicit controls. |
-| Arbitrary Font Awesome or Glyphicon class names | Use `nodel-icon` and the curated V2 icon registry; add reusable named icons centrally. |
+| Arbitrary Font Awesome or Glyphicon class names | Use `nodel-icon` with the catalogue installed in `v2/nodel-icons.json`; preserved Nodel aliases remain valid authored values. |
 | Smart-panel detection, forced zoom, and touch workarounds | Retired. V2 uses responsive layout, viewport metadata, touch-sized controls, and current browser capabilities. |
 | Native V1 XML/XSL rendering in V2 | Keep unmigrated pages on the existing legacy-loader compatibility path. |
 | Automatic `pages/@css` and `pages/@js` loading | Use standard HTML `<link>` and `<script>` resources in authored pages. |
@@ -383,7 +383,7 @@ Add the following synchronous bootstrap before the stylesheet in authored pages 
 
 An app with no explicit or stored preference follows live system changes. An app without an explicit theme also follows valid preference changes from other tabs. For a fixed app theme, `nodel-app theme="light|dark"` is sufficient: the stylesheet recognizes the explicit app value before upgrade, and the connected app mirrors it to the root afterward. No matching root `data-theme` or theme toggle is needed for a fixed-theme page.
 
-`nodel-theme-toggle` renders an accessible slider switch and persists the selected light/dark preference. It is included in `nodel-node-menu` by default on node pages. It uses Font Awesome's free solid `sun` and `moon` icons by default. The icon imports are isolated in `src/icons/fontawesome.ts` so a licensed Font Awesome Pro package can be enabled later by changing that wrapper rather than the component API.
+`nodel-theme-toggle` renders an accessible slider switch and persists the selected light/dark preference. It is included in `nodel-node-menu` by default on node pages. It uses Font Awesome's free solid `sun` and `moon` icons by default. Enable licensed icon sets through the isolated Pro-local build commands (`npm run build:pro:preview`, `npm run build:pro`, `npm run deploy:local:pro`) and `NODEL_FONTAWESOME_PRO_DIR` / `FONTAWESOME_PACKAGE_TOKEN` instead of editing component internals.
 
 ## Layout
 
@@ -981,14 +981,20 @@ Images outside `nodel-page`, and images in visible standalone pages outside `nod
 `nodel-icon` supports:
 
 - `name`
+- `family`: an identifier declared by the installed `v2/nodel-icons.json` manifest.
+- `style`: a style declared for the effective family by that manifest.
 - `label`
 - `alt`
 - `tone="default|muted|accent|success|info|warning|danger"`
 - `size="auto|sm|md|lg|xl"`
 - `signal="SignalName"` as shorthand for `name`
-- `signals="SignalName:target"` with targets `name`, `alt`, `label`, and `tone`
+- `signals="SignalName:target"` with targets `name`, `family`, `style`, `alt`, `label`, and `tone`
 
-Use `nodel-group` when visible text or passive card/panel surfaces should appear with a standalone icon. Use `label` or `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `tone` colours the glyph itself; it does not create a media tile surface.
+`family` defaults to `classic`. Omit `style` to use the selected family's manifest default, normally `solid` for Classic and `brands` for Brands in the public Free profile. Family and style are not a universal hard-coded enum: completion and runtime availability come from the installed `v2/nodel-icons.json`, so a local profile may expose additional combinations. The manifest also declares the searchable catalogue and shard paths; it is the availability authority for authored pages.
+
+`name` accepts canonical names from that installed catalogue and these preserved authored Nodel compatibility aliases: `action` -> `person-running`, `arrow` -> `arrow-right`, `event` -> `traffic-light`, `mute` -> `volume-xmark`, `power` -> `power-off`, `info` -> `circle-info`, `warning` -> `triangle-exclamation`, `success` -> `circle-check`, and `volume` -> `volume-high`. The runtime canonicalizes those aliases before selecting the family/style shard, so they remain valid authored values. Font Awesome official legacy aliases remain search-only: completion offers the canonical replacement, but directly authoring an official alias is not preserved and falls back. Use `nodel-group` when visible text or passive card/panel surfaces should appear with a standalone icon. Use `label` or `alt` when the icon needs an accessible name without visible text. `size="auto"` uses the default standalone or inline icon size. Set `sm`, `md`, `lg`, or `xl` when a specific icon scale is required. `tone` colours the glyph itself; it does not create a media tile surface.
+
+The component keeps the existing image fallback for an unknown name, unavailable family/style combination, failed request, or malformed local artifact. `data-icon-state` is `loading`, `ready`, or `fallback`; fallback does not create a toast or a new public error event. Catalogue and shard requests are same-origin, manifest-declared, lazy, and cached. Icons in inactive `nodel-page` routes defer loading until the page becomes active. This is local artifact loading, not a Font Awesome CDN or Kit request.
 
 ```html
 <nodel-group label="Logo" surface="card">
@@ -998,7 +1004,42 @@ Use `nodel-group` when visible text or passive card/panel surfaces should appear
 <nodel-group label="Info" surface="panel" padding="compact">
   <nodel-icon name="info" tone="info" size="lg"></nodel-icon>
 </nodel-group>
+
+<!-- Public Free profile: canonical names, plus a preserved Nodel alias. -->
+<nodel-icon name="tv" alt="Television"></nodel-icon>
+<nodel-icon name="address-book" family="classic" style="regular"></nodel-icon>
+<nodel-icon name="github" family="brands"></nodel-icon>
+<nodel-icon name="power" alt="Power"></nodel-icon>
 ```
+
+Static attributes are appropriate when an icon's family and style are fixed. Use the shorthand `signal` for a changing icon name, or `signals` when family/style also change:
+
+```html
+<nodel-icon signal="IconName" label="Source icon"></nodel-icon>
+<nodel-icon signals="IconName:name; IconFamily:family; IconStyle:style" label="Source icon"></nodel-icon>
+```
+
+The public pre-built distribution is Free-only and includes Classic Solid, Classic Regular, and Brands. Its complete definitions are loaded from the installed `v2/nodel-icons.json` manifest, with manifest defaults governing any synchronously available core/control bootstrap icons. Do not assume every Font Awesome family or style is available in every installation; inspect the installed manifest or use editor completion. The public `components.html` catalogue intentionally demonstrates only Free icons and contains no Pro markup.
+
+### Pro-Local Icons
+
+Licensed operators can build a separate local profile without changing the public dependency graph or `dist/`:
+
+```sh
+NODEL_FONTAWESOME_PRO_DIR=/path/to/extracted/fontawesome-pro npm run build:pro:preview
+```
+
+Alternatively, an exact-version token bootstrap can be used in an isolated child process. Keep the token out of shell history and logs:
+
+```sh
+read -s -p "Font Awesome Pro token: " FONTAWESOME_PACKAGE_TOKEN
+export FONTAWESOME_PACKAGE_TOKEN
+npm run build:pro:preview -- --version 7.3.1
+```
+
+The two source modes are mutually exclusive. The directory must be an extracted all-inclusive package, not a repository. The token mode installs `@fortawesome/fontawesome-pro` into ignored `build/pro-workspace/`, uses a temporary private npm configuration, deletes credentials afterward, and writes deployable files only to `build/pro-dist/`; its separate bundle report is `build/pro-reports/bundle-graph.json`. Versions must be exact SemVer values in the same supported Font Awesome major as the public packages; the default is the exact public version. Pro+ Kit-only packs, uploaded custom icons, arbitrary transforms/animations, masks, and new duotone colour attributes are outside this component contract.
+
+The Pro adapter reads installed family/style directories and records exact source versions in its `pro-local` manifest. A Pro-local build is not a public release source, does not overwrite `dist/`, and is not covered by the public Free bundle maximum. The local license holder is responsible for licensing, storage, deployment, and redistribution of that output.
 
 `nodel-status` renders a stateful status block for equipment, areas, services, or other runtime health/state summaries. It is intentionally separate from `nodel-group`: use `nodel-group` for passive labelled surfaces, and `nodel-status` when the surrounding block itself represents a status. It preserves arbitrary child content such as buttons, images, text, and nested grids.
 

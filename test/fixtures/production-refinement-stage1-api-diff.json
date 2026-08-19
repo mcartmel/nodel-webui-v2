@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "0528312c673c8a64594afb6441fe0b38342c56361695729df0ab78efb80fba3f",
+  "serializedSha256": "fa4d6ee04fc1f3c02f339394524442a913e52783833c7524c0bd2a5e91e2d09c",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
@@ -19,14 +19,21 @@
       "elements.nodel-node-list.attributes.show-total: removed"
     ],
     "additive": [
+      "elements.nodel-icon.attributes.family: added",
+      "elements.nodel-icon.attributes.style: added",
       "elements.nodel-toolbar.attributes.show-host-icon: added"
     ],
-    "informational": [],
+    "informational": [
+      "elements.nodel-icon.attributes.name.description: changed",
+      "elements.nodel-icon.attributes.name.syntax: changed",
+      "elements.nodel-icon.attributes.name.valueType: widened",
+      "elements.nodel-icon.attributes.signals.description: changed"
+    ],
     "operational": []
   },
   "contractAnnotations": {
     "elements": 50,
-    "attributes": 442,
+    "attributes": 444,
     "audiences": {
       "custom": 32,
       "core": 15,
@@ -43,7 +50,7 @@
       "hidden": 3
     },
     "consumption": {
-      "observed": 434,
+      "observed": 436,
       "initialization": 0,
       "parent": 3,
       "contextual-child": 4,
@@ -51,7 +58,7 @@
     },
     "actionBindings": 37,
     "signalBindings": 51,
-    "signalTargets": 154,
+    "signalTargets": 153,
     "events": 41,
     "compositionRules": 5,
     "commonAttributes": 4,

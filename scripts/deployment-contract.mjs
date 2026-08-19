@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { validateComponentContractArtifact as validateFullComponentContractArtifact } from './component-contract-validator.mjs';
+import { validateIconArtifactFiles } from './icon-artifact.mjs';
 
 const execFileAsync = promisify(execFile);
 const moduleRoot = dirname(fileURLToPath(import.meta.url));
@@ -400,7 +401,7 @@ export async function validateDeploymentReferences(root, files, { fs = fsApi, ca
   }
 }
 
-export async function createDeploymentInventory(source, manifest, { fs = fsApi, packageVersion } = {}) {
+export async function createDeploymentInventory(source, manifest, { fs = fsApi, packageVersion, expectedIconProfile } = {}) {
   const root = resolve(source);
   await assertNoSymlinkAncestors(root, { fs });
   const sourceInfo = await checkedLstat(root, fs);
@@ -432,6 +433,14 @@ export async function createDeploymentInventory(source, manifest, { fs = fsApi, 
   const contractEntry = entries.find((entry) => entry.path === componentContractPath);
   validateComponentContractArtifact(capturedEntries.get(contractEntry.path), packageVersion ?? JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8')).version);
   await validateDeploymentReferences(root, files, { fs, capturedEntries });
+  const iconIndex = entries.find((entry) => entry.path === 'v2/nodel-icons.json');
+  if (iconIndex) {
+    const iconFiles = new Map(entries.filter(entry => entry.path === 'v2/nodel-icons.json' || entry.path.startsWith('v2/icons/')).map(entry => [entry.path, capturedEntries.get(entry.path)]));
+    let profile;
+    try { profile = JSON.parse(capturedEntries.get(iconIndex.path).toString('utf8')).profile; } catch { throw new Error('Icon artifact index is not valid JSON'); }
+    const iconResult = validateIconArtifactFiles(capturedEntries.get(iconIndex.path), iconFiles, { expectedProfile: expectedIconProfile ?? profile, expectedPackageVersion: packageVersion ?? JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8')).version });
+    for (const path of iconResult.paths) if (!entries.some(entry => entry.path === path)) throw new Error(`Icon artifact is not captured by deployment inventory: ${path}`);
+  }
   return Object.freeze({
     root,
     supportDirectory,

@@ -13,6 +13,7 @@ import { parseVerifyJavaHandoffArgs, runVerifyJavaHandoff } from '../scripts/ver
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { parseVerifyDeploymentInventoryArgs, runVerifyDeploymentInventory } from '../scripts/verify-deployment-inventory.mjs';
 import { serializeComponentContract } from '../src/component-contract';
+import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
 
 const execFileAsync = promisify(execFile);
 const fixtureRoot = join(projectRoot, 'build', 'deployment-tools-test');
@@ -47,6 +48,23 @@ async function writeSource(root = source) {
   await writeFile(join(root, 'v2', 'assets', 'object.svg'), '<svg/>\n');
   await writeFile(join(root, 'v2', 'nodel-webui.js.map'), '{}\n');
   await writeFile(join(root, 'v2', 'nodel-components.json'), serializeComponentContract('0.1.2'));
+  const icons = generateIconArtifacts({
+    packageVersion: '0.1.2', profile: 'free',
+    sources: [
+      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
+      { package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' }
+    ], aliases: { power: 'power-off' },
+    families: [
+      { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
+      { family: 'classic', defaultStyle: 'solid', styles: [
+        { style: 'regular', icons: [{ iconName: 'fixture-regular', icon: [16, 16, [], 'f002', 'M0'] }] },
+        { style: 'solid', icons: [{ iconName: 'power-off', icon: [16, 16, [], 'f003', 'M0'] }] }
+      ] }
+    ]
+  });
+  for (const [path, bytes] of icons.files) { await mkdir(dirname(join(root, path)), { recursive: true }); await writeFile(join(root, path), bytes); }
 }
 
 async function git(args: string[]) {

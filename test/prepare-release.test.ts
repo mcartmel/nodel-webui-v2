@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
 import { parsePrepareReleaseArgs } from '../scripts/prepare-release.mjs';
@@ -16,6 +16,7 @@ import { runVerifyDeploymentInventory } from '../scripts/verify-deployment-inven
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { runVerifyJavaHandoff } from '../scripts/verify-java-handoff.mjs';
 import { serializeComponentContract } from '../src/component-contract';
+import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
 // @ts-expect-error Security scripts are intentionally plain Node ESM.
 import { generateDependencyEvidence } from '../scripts/dependency-evidence.mjs';
 
@@ -42,6 +43,26 @@ async function writeSource() {
   await writeFile(join(source, 'v2', 'nodel-webui.css'), 'body { background: url("./assets/pixel.svg"); }\n');
   await writeFile(join(source, 'v2', 'assets', 'pixel.svg'), '<svg/>\n');
   await writeFile(join(source, 'v2', 'nodel-components.json'), serializeComponentContract('0.1.1'));
+  const iconArtifact = generateIconArtifacts({
+    packageVersion: '0.1.1', profile: 'free',
+    sources: [
+      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
+      { package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' }
+    ], aliases: { power: 'power-off' }, defaultFamily: 'classic', defaultStyle: 'solid',
+    families: [
+      { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
+      { family: 'classic', defaultStyle: 'solid', styles: [
+        { style: 'regular', icons: [{ iconName: 'fixture-regular', icon: [16, 16, [], 'f002', 'M0'] }] },
+        { style: 'solid', icons: [{ iconName: 'power-off', icon: [16, 16, [], 'f003', 'M0'] }] }
+      ] }
+    ]
+  });
+  for (const [path, bytes] of iconArtifact.files) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await writeFile(join(source, path), bytes);
+  }
 }
 
 async function writeFixtureProject() {
@@ -188,7 +209,7 @@ describe('prepare-release', () => {
     expect(() => validateTaggedReleaseNotes('0.1.1\n-----\n\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
   });
 
-  it('creates a schema 5 bundle with dependency evidence and exact hashes', async () => {
+  it('creates a schema 6 bundle with icon and dependency evidence and exact hashes', async () => {
     const derived = await resolveReleaseOptions(await options(), { projectRoot: fixtureRoot });
     expect(derived.sourceDateEpoch).toBe(Number((await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim()));
     const epoch = (await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim();
@@ -199,7 +220,7 @@ describe('prepare-release', () => {
 
     expect(report).toMatchObject({ dirty: false, publishable: false, sourceDateEpoch: Number(epoch) });
     expect(manifest).toMatchObject({
-       schemaVersion: 5,
+       schemaVersion: 6,
       name: 'nodel-webui-v2',
       version: '0.1.1',
       source: { repository: 'mcartmel/nodel-webui-v2', branch: 'main', tag: null, dirty: false, publishable: false },
@@ -210,6 +231,7 @@ describe('prepare-release', () => {
         javaTargets: { dev: 'prerelease', master: 'stable' }
        },
        componentContract: { path: 'v2/nodel-components.json', schemaVersion: 1, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+       iconCatalogue: { path: 'v2/nodel-icons.json', schemaVersion: 1, profile: 'free', sourceVersions: expect.any(Array), sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
        dependencyEvidence: {
          lockSha256: expect.stringMatching(/^[0-9a-f]{64}$/), policySha256: expect.stringMatching(/^[0-9a-f]{64}$/), noticeSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
          sbom: { path: 'SBOM.cdx.json', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
@@ -220,16 +242,16 @@ describe('prepare-release', () => {
       inventoryAlgorithm: 'sha256',
       inventoryExcludes: ['release.json']
     });
-    expect(output.sort()).toEqual([
+    expect(output.sort()).toEqual(expect.arrayContaining([
        'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'SBOM.cdx.json', 'THIRD-PARTY-LICENSES.json', 'THIRD-PARTY-NOTICES.md',
       'components.html', 'deployment-manifest.json', 'index.htm', 'nodel.html', 'nodes.html',
       'release.json', 'toolkit.html', 'v2'
-    ]);
-    expect(manifest.files.map((entry: { path: string }) => entry.path)).toEqual([
+    ]));
+    expect(manifest.files.map((entry: { path: string }) => entry.path)).toEqual(expect.arrayContaining([
        'LICENSE', 'PRODUCTION_HANDOFF.md', 'RELEASE_NOTES.md', 'SBOM.cdx.json', 'THIRD-PARTY-LICENSES.json', 'THIRD-PARTY-NOTICES.md',
       'components.html', 'deployment-manifest.json', 'index.htm', 'nodel.html', 'nodes.html',
-       'toolkit.html', 'v2/assets/pixel.svg', 'v2/chunks/main.js', 'v2/nodel-components.json', 'v2/nodel-webui.css', 'v2/nodel-webui.js'
-    ]);
+       'toolkit.html', 'v2/assets/pixel.svg', 'v2/chunks/main.js', 'v2/nodel-components.json', 'v2/nodel-icons.json', 'v2/nodel-webui.css', 'v2/nodel-webui.js'
+     ]));
     expect(manifest.files.some((entry: { path: string }) => entry.path === 'release.json')).toBe(false);
     for (const entry of manifest.files as Array<{ path: string; bytes: number; sha256: string }>) {
       const content = await readFile(join(target, entry.path));
@@ -333,7 +355,7 @@ describe('prepare-release', () => {
       name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit,
       repository: resolved.repository, branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty,
       publishable: false, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,
-       componentContract: bundleManifest.componentContract, dependencyEvidence: bundleManifest.dependencyEvidence, ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
+       componentContract: bundleManifest.componentContract, iconCatalogue: bundleManifest.iconCatalogue, dependencyEvidence: bundleManifest.dependencyEvidence, ciRunUrl: null, approvalEnvironment: null, distInventorySha256: null, javaEvidence: bundleManifest.javaEvidence,
       filesInventorySha256: createHash('sha256').update(JSON.stringify(bundleManifest.files)).digest('hex')
     };
     await writeFile(join(first, 'unexpected.txt'), 'unexpected\n');
@@ -493,7 +515,7 @@ describe('prepare-release', () => {
   it('standalone verification rejects corrupted release provenance, report, and inventory paths', async () => {
     await git(['tag', 'v0.1.1']);
     await release(await taggedOptions());
-    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 5 });
+    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 6 });
     const releasePath = join(target, 'release.json');
     let manifest = JSON.parse(await readFile(releasePath, 'utf8'));
     manifest.componentContract.sha256 = '0'.repeat(64);

@@ -191,4 +191,32 @@ describe('component contract', () => {
     expect(diff.additive).toContain(`styles.stateClasses: added ${style.name}`);
     expect(diff.informational).toContain(`elements.nodel-app.events.${appEvent.name}.description: changed`);
   });
+
+  it('classifies enum-to-string icon widening without weakening aliases or toggle contracts', () => {
+    const after = componentContractDocument('1.2.3');
+    const before = structuredClone(after);
+    const icon = required(before.elements.find((element) => element.name === 'nodel-icon'), 'icon contract');
+    const toggle = required(before.elements.find((element) => element.name === 'nodel-toggle'), 'toggle contract');
+    required(icon.attributes.find((attribute) => attribute.name === 'name'), 'icon name').valueType = 'enum';
+    icon.attributes = icon.attributes.filter((attribute) => attribute.name !== 'family' && attribute.name !== 'style');
+    const signals = required(icon.signalBindings.find((binding) => binding.attribute === 'signals'), 'icon signals');
+    signals.targets = signals.targets.filter((target) => target.name !== 'family' && target.name !== 'style');
+    const diff = diffComponentContracts(before, after);
+    expect(diff.breaking).toEqual([]);
+    expect(diff.informational).toContain('elements.nodel-icon.attributes.name.valueType: widened');
+    expect(new Set(toggle.attributes.find((attribute) => attribute.name === 'on-icon')?.values)).toEqual(new Set(icon.attributes.find((attribute) => attribute.name === 'name')?.values));
+    expect(diffComponentContracts(after, before).breaking).toContain('elements.nodel-icon.attributes.name.valueType: changed');
+    const aliasesRemoved = structuredClone(after);
+    const aliases = required(required(aliasesRemoved.elements.find((element) => element.name === 'nodel-icon'), 'icon contract').attributes.find((attribute) => attribute.name === 'name'), 'icon name');
+    aliases.values = required(aliases.values, 'icon aliases').slice(1);
+    expect(diffComponentContracts(after, aliasesRemoved).breaking).toContain('elements.nodel-icon.attributes.name.values: removed image');
+  });
+
+  it('keeps icon signal shorthand narrow while exposing family and style through signals', () => {
+    const icon = required(componentContracts.find((element) => element.name === 'nodel-icon'), 'icon contract');
+    expect(icon.signalBindings.find((binding) => binding.attribute === 'signal')).toEqual({
+      attribute: 'signal', defaultTarget: 'name', targets: [{ name: 'name', aggregations: [] }]
+    });
+    expect(icon.signalBindings.find((binding) => binding.attribute === 'signals')?.targets.map((target) => target.name)).toEqual(['name', 'family', 'style', 'alt', 'label', 'tone', 'visibility']);
+  });
 });

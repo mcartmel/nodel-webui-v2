@@ -35,7 +35,7 @@ describe('Stage 5 pure budget and graph functions', () => {
   });
 
   it('rejects malformed, missing, extra, and baseline-overrun policy fields', () => {
-    const names = ['stable-entry-closure', 'stable-css', 'codemirror-base', 'components-html', 'dist-v2-inventory', ...['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'].map((role) => `codemirror-language-${role}`)];
+    const names = ['stable-entry-closure', 'stable-css', 'codemirror-base', 'components-html', 'free-icon-artifact', 'dist-v2-inventory', ...['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'].map((role) => `codemirror-language-${role}`)];
     const budgets = Object.fromEntries(names.map((name) => [name, { rawBaseline: 1, rawMax: 2, gzipBaseline: 1, gzipMax: 2 }]));
     const base = { schemaVersion: 1, releaseNotesMarker: 'STAGE5_TEST_MARKER', rationale: 'This is a sufficiently bounded reviewed rationale.', codeMirrorBaseModuleId: 'src/editor/codemirror-editor.ts', languageRoles: ['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'], languageEntries: Array.from({ length: 11 }, (_, index) => ({ role: ['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'][index], moduleId: `module-${index}` })), budgets };
     expect(() => validatePolicy({ ...base, budgets: {} })).toThrow(/budget names/i);
@@ -45,7 +45,7 @@ describe('Stage 5 pure budget and graph functions', () => {
   });
 
   it('reports raw and gzip overruns independently for every budget role', () => {
-    const names = ['stable-entry-closure', 'stable-css', 'codemirror-base', 'components-html', 'dist-v2-inventory', ...['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'].map((role) => `codemirror-language-${role}`)];
+    const names = ['stable-entry-closure', 'stable-css', 'codemirror-base', 'components-html', 'free-icon-artifact', 'dist-v2-inventory', ...['python', 'html', 'xml', 'javascript', 'json', 'css', 'markdown', 'java', 'groovy', 'sql', 'shell'].map((role) => `codemirror-language-${role}`)];
     for (const name of names) {
       const budget = { rawBaseline: 10, rawMax: 10, gzipBaseline: 10, gzipMax: 10 };
       expect(metric(name, { raw: 11, gzip: 10, files: [] }, budget)).toMatchObject({ headroom: { raw: -1, gzip: 0 } });

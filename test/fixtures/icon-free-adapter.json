@@ -1,0 +1,17 @@
+{
+  "packageVersion": "0.1.2",
+  "profile": "free",
+  "sources": [
+    { "package": "@fortawesome/fontawesome-free", "version": "7.3.1" },
+    { "package": "@fortawesome/free-solid-svg-icons", "version": "7.3.1" }
+  ],
+  "aliases": { "power": "power-off" },
+  "families": [{
+    "family": "classic",
+    "defaultStyle": "solid",
+    "styles": [{ "style": "solid", "icons": [
+      { "iconName": "power-off", "icon": [16, 16, ["power-alias"], "f011", "M0"], "searchTerms": ["shutdown"] },
+      { "iconName": "split", "icon": [20, 20, [], "e001", ["M1", "M2"]] }
+    ] }]
+  }]
+}

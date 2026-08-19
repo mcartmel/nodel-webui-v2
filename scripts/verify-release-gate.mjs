@@ -1,7 +1,8 @@
 import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateComponentContractArtifact } from './deployment-contract.mjs';
+import { parseStrictArgs, validateComponentContractArtifact } from './deployment-contract.mjs';
+import { validateIconArtifactFiles } from './icon-artifact.mjs';
 
 const dist = resolve(process.cwd(), 'dist');
 const entryPages = ['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html'];
@@ -48,13 +49,20 @@ async function eagerEntryClosure(entry, distRoot = dist) {
   return sources;
 }
 
-export async function verifyReleaseGate({ distRoot = dist } = {}) {
+export async function verifyReleaseGate({ distRoot = dist, expectedIconProfile = 'free' } = {}) {
   for (const page of entryPages) {
     await access(join(distRoot, page));
   }
   await access(join(distRoot, 'v2/nodel-webui.css'));
   await access(join(distRoot, 'v2/nodel-webui.js'));
+  const iconIndex = await readFile(join(distRoot, 'v2/nodel-icons.json'));
+  const iconFiles = new Map();
+  for (const path of await readdir(join(distRoot, 'v2/icons'))) iconFiles.set(`v2/icons/${path}`, await readFile(join(distRoot, 'v2/icons', path)));
+  iconFiles.set('v2/nodel-icons.json', iconIndex);
+  const index = JSON.parse(iconIndex);
+  iconFiles.set(index.cataloguePath, await readFile(join(distRoot, index.cataloguePath)));
   const packageMetadata = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8'));
+  validateIconArtifactFiles(iconIndex, iconFiles, { expectedProfile: expectedIconProfile, expectedPackageVersion: packageMetadata.version });
   const componentContract = await readFile(join(distRoot, 'v2/nodel-components.json'));
   const componentContractDocument = validateComponentContractArtifact(componentContract, packageMetadata.version);
   const scaffoldSource = await readFile(resolve(process.cwd(), 'src/editor/authored-page-scaffold.ts'), 'utf8');
@@ -105,8 +113,9 @@ export async function verifyReleaseGate({ distRoot = dist } = {}) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  verifyReleaseGate().then(() => {
-    console.log('Release gate verified entry pages, component contract, runtime marker, stable assets, offline modes, and authored-page scaffold.');
+  const options = parseStrictArgs(process.argv.slice(2), { 'icon-profile': { key: 'expectedIconProfile', default: 'free' } });
+  verifyReleaseGate(options).then(() => {
+    console.log('Release gate verified entry pages, component contract, Free icon profile, runtime marker, stable assets, offline modes, and authored-page scaffold.');
   }).catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

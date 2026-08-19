@@ -3,4 +3,6 @@ export const controlIconNames = [
   'power', 'sliders', 'stop', 'success', 'sun', 'warning', 'volume', 'volume-low'
 ] as const;
 
+export const controlIconAliases = { action: 'person-running', arrow: 'arrow-right', event: 'traffic-light', mute: 'volume-xmark' } as const;
+
 export type ControlIconName = (typeof controlIconNames)[number];
