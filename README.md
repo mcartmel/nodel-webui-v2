@@ -29,6 +29,31 @@ npm run build
 ```
 
 `npm run build` runs all validation steps before writing the production site to `dist/`.
+The build first generates the mandatory public Free icon profile. It includes
+Classic Solid, Classic Regular, and Brands definitions under `dist/v2/`, while
+the searchable catalogue and definitions remain lazy at runtime. Public
+validation rejects Pro packages, private registry configuration, and non-Free
+icon artifacts.
+
+For a licensed local Pro build, use one isolated source mode only:
+
+```sh
+NODEL_FONTAWESOME_PRO_DIR=/path/to/extracted/fontawesome-pro npm run build:pro:preview
+```
+
+The token-bootstrap mode expects `FONTAWESOME_PACKAGE_TOKEN` to already be set;
+do not place credentials in source, shell history, or documentation:
+
+```sh
+npm run build:pro:preview -- --version 7.3.1
+```
+
+The version must be exact SemVer in the same supported Font Awesome major as
+the public packages. Deployable Pro output is isolated to ignored
+`build/pro-dist/`, with reports in `build/pro-reports/`; it never overwrites
+`dist/`. `build:pro` runs validation first and
+`deploy:local:pro` deploys only the Pro-local output. License holders are
+responsible for licensed local assets and their deployment.
 
 ## Deployment
 
@@ -47,7 +72,7 @@ test deployment tooling only with a disposable host, then hand the validated
 release bundle to the Java Nodel release process. See
 [the production handoff runbook](docs/release-handoff.md).
 
-Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths, with the machine-readable authoring contract at `v2/nodel-components.json`. The built `components.html` page is the user-facing catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
+Built pages use stable `v2/nodel-webui.js` and `v2/nodel-webui.css` entry paths, with the machine-readable authoring contract at `v2/nodel-components.json` and icon manifest at `v2/nodel-icons.json`. The built `components.html` page is the user-facing Free catalogue of UI components and copyable authoring examples. See [the architecture guidance](docs/architecture.md) and [web component guidance](docs/web-components.md) for further implementation and authoring details.
 
 ## Releases
 
@@ -56,7 +81,7 @@ Pushing a `v`-prefixed version tag that matches `package.json`, such as
 exact `dist/`, deploys and smoke-tests the unchanged files, rechecks the
 checkpoint before and after packaging, then publishes a GitHub Release. Each release includes a
 versioned ZIP containing the deployable pages, complete `v2/` support directory,
-schema 5 `release.json`, deterministic `SBOM.cdx.json` and
+schema 6 `release.json`, deterministic `SBOM.cdx.json` and
 `THIRD-PARTY-LICENSES.json` dependency evidence, normalized Java `dev` and `master` handoff reports, a
 SHA-256 checksum, and build provenance attestation.
 
@@ -69,8 +94,8 @@ not automatically install Java production content.
 For a local release rehearsal, build before preparing the bundle:
 
 ```sh
-npm run verify:dependencies
 npm run build
+npm run verify:dependencies
 npm run verify:dist -- --write
 npm run release:prepare -- --dist-inventory build/dist-inventory.json
 ```

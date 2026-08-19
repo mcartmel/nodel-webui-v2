@@ -22,6 +22,9 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `@codemirror/state` | MIT |
 | `@codemirror/view` | MIT |
 | `@fortawesome/fontawesome-common-types` | MIT |
+| `@fortawesome/fontawesome-free` | (CC-BY-4.0 AND OFL-1.1 AND MIT) |
+| `@fortawesome/free-brands-svg-icons` | (CC-BY-4.0 AND MIT) |
+| `@fortawesome/free-regular-svg-icons` | (CC-BY-4.0 AND MIT) |
 | `@fortawesome/free-solid-svg-icons` | (CC-BY-4.0 AND MIT) |
 | `@kurkle/color` | MIT |
 | `@lezer/common` | MIT |

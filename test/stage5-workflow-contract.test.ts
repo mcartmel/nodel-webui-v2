@@ -25,7 +25,9 @@ describe('Stage 5 workflow contract', () => {
 
   it('keeps graph and report artifacts outside deployable dist', async () => {
     const source = await readFile('scripts/bundle-graph.mjs', 'utf8');
-    expect(source).toContain("resolve(projectRoot, 'build')");
+    const viteConfig = await readFile('vite.config.ts', 'utf8');
+    expect(source).toContain("resolve(projectRoot, 'build/bundle-graph.json')");
+    expect(viteConfig).toContain("'build/pro-reports/bundle-graph.json'");
     expect(source).not.toContain("resolve(projectRoot, 'dist/.vite')");
   });
 

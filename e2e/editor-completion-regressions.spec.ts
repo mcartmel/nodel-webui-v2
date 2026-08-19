@@ -10,6 +10,7 @@ async function openCompletionEditor(page: Page, text: string, path = 'panel.html
   await page.goto('/components.html#Buttons', { waitUntil: 'domcontentloaded' });
   await page.locator('nodel-page[data-page-id="Buttons"][active]').waitFor();
   await page.evaluate((defaultPath) => {
+    document.querySelector('#stage-2-completion-fixture')?.remove();
     const host = document.createElement('section');
     host.id = 'stage-2-completion-fixture';
     host.innerHTML = `<nodel-editor default-file="${defaultPath}"></nodel-editor>`;
@@ -225,5 +226,112 @@ test.describe('Stage 2 CodeMirror completion regressions', () => {
     await content.press('Control+Space');
     await expect(page.locator('.cm-tooltip-autocomplete')).toBeVisible();
     await expectCompletionA11y(page, testInfo.project.name);
+  });
+
+  test('supports the Free profile-aware icon catalogue in HTML', async ({ page }) => {
+    const content = await openCompletionEditor(page, '<nodel-icon name="televis');
+    let options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'tv · classic solid' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: /duotone/i })).toHaveCount(0);
+
+    await content.press('Control+A');
+    await content.pressSequentially('<nodel-icon name="address-book" family="classic" style="');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'regular' }).first()).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await content.press('Control+A');
+    await content.pressSequentially('<nodel-icon name="power');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'power' }).first()).toBeVisible();
+
+  });
+
+  test('applies an official Font Awesome alias as its canonical icon name', async ({ page }) => {
+    const content = await openCompletionEditor(page, '<nodel-icon family="brands" name="innosoft');
+    await chooseCompletion(await openCompletions(page), '42-group');
+    await expect.poll(() => editorText(content)).toContain('name="42-group');
+  });
+
+  test('completes nodel-icon signal targets in HTML', async ({ page }) => {
+    await openCompletionEditor(page, '<nodel-icon signals="Source:');
+    const options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'name' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: 'family' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: 'style' }).first()).toBeVisible();
+  });
+
+  test('completes icon families and reports invalid HTML icon combinations', async ({ page }) => {
+    await openCompletionEditor(page, '<nodel-icon name="github" family="');
+    const options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'brands' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: /duotone/i })).toHaveCount(0);
+
+    const brandContent = await openCompletionEditor(page, '<nodel-icon family="brands" name="gith');
+    const brandOptions = await openCompletions(page);
+    await expect(brandOptions.filter({ hasText: 'github' }).first()).toBeVisible();
+    await chooseCompletion(brandOptions, 'github');
+    await expect.poll(() => editorText(brandContent)).toContain('family="brands"');
+    await expect.poll(() => editorText(brandContent)).toContain('name="github');
+  });
+
+  test('reports invalid HTML icon names and combinations', async ({ page }) => {
+    await openCompletionEditor(page, '<nodel-icon name="not-a-public-icon" family="brands" style="solid" />');
+    const diagnosticStatus = page.locator('#stage-2-completion-fixture [data-editor-diagnostic-status]');
+    await expect(diagnosticStatus).toContainText('error');
+    await expect(page.locator('#stage-2-completion-fixture .cm-lintRange-error')).toHaveCount(2);
+  });
+
+  test('supports the Free profile-aware icon catalogue in XML with invalid diagnostics', async ({ page }) => {
+    const content = await openCompletionEditor(page, '<nodel-icon family="brands" name="', 'panel.xml');
+    let options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'github' }).first()).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await content.press('Control+A');
+    await content.pressSequentially('<nodel-icon name="address-book" family="classic" style="');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'regular' }).first()).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await content.press('Control+A');
+    await content.pressSequentially('<nodel-icon name="missing" family="brands" style="solid" />');
+    const diagnosticStatus = page.locator('#stage-2-completion-fixture [data-editor-diagnostic-status]');
+    await expect(diagnosticStatus).toContainText('error');
+    await expect(page.locator('#stage-2-completion-fixture .cm-lintRange-error').first()).toBeVisible();
+  });
+
+  test('completes XML tv, Nodel aliases, families, signals, and excludes Pro-only options', async ({ page }) => {
+    await openCompletionEditor(page, '<nodel-icon name="televis', 'panel.xml');
+    let options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'tv · classic solid' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: /duotone/i })).toHaveCount(0);
+
+    await openCompletionEditor(page, '<nodel-icon name="power', 'panel.xml');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'power' }).first()).toBeVisible();
+
+    await openCompletionEditor(page, '<nodel-icon name="github" family="', 'panel.xml');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'brands' }).first()).toBeVisible();
+
+    await openCompletionEditor(page, '<nodel-icon signals="Source:', 'panel.xml');
+    options = await openCompletions(page);
+    await expect(options.filter({ hasText: 'name' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: 'family' }).first()).toBeVisible();
+    await expect(options.filter({ hasText: 'style' }).first()).toBeVisible();
+  });
+
+  test('applies an official XML Font Awesome alias canonically', async ({ page }) => {
+    const content = await openCompletionEditor(page, '<nodel-icon family="brands" name="innosoft', 'panel.xml');
+    await chooseCompletion(await openCompletions(page), '42-group');
+    await expect.poll(() => editorText(content)).toContain('name="42-group');
+  });
+
+  test('reports invalid XML icon names and combinations', async ({ page }) => {
+    await openCompletionEditor(page, '<nodel-icon name="not-a-public-icon" family="brands" style="solid" />', 'panel.xml');
+    const diagnosticStatus = page.locator('#stage-2-completion-fixture [data-editor-diagnostic-status]');
+    await expect(diagnosticStatus).toContainText('error');
+    await expect(page.locator('#stage-2-completion-fixture .cm-lintRange-error')).toHaveCount(2);
   });
 });

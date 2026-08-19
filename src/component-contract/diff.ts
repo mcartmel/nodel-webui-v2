@@ -31,7 +31,10 @@ function compareAttributes(label: string, before: ComponentAttributeContract[], 
       continue;
     }
     compareSet(`${prefix}.values`, attribute.values ?? [], next.values ?? [], diff);
-    if (attribute.valueType !== next.valueType) diff.breaking.push(`${prefix}.valueType: changed`);
+    if (attribute.valueType !== next.valueType) {
+      if (attribute.valueType === 'enum' && next.valueType === 'enum-or-string') diff.informational.push(`${prefix}.valueType: widened`);
+      else diff.breaking.push(`${prefix}.valueType: changed`);
+    }
     if (attribute.defaultValue !== next.defaultValue) diff.breaking.push(`${prefix}.defaultValue: changed`);
     if (numericNarrowed(attribute.numeric, next.numeric)) diff.breaking.push(`${prefix}.numeric: narrowed`);
     else infoIfChanged(`${prefix}.numeric`, attribute.numeric, next.numeric, diff);

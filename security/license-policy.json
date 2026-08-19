@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
-  "allowedLicenses": ["(CC-BY-4.0 AND MIT)", "BSD", "ISC", "MIT"],
+  "allowedLicenses": ["(CC-BY-4.0 AND MIT)", "(CC-BY-4.0 AND OFL-1.1 AND MIT)", "BSD", "ISC", "MIT"],
+  "requiredPublicFontAwesomePackages": ["@fortawesome/fontawesome-free", "@fortawesome/free-brands-svg-icons", "@fortawesome/free-regular-svg-icons", "@fortawesome/free-solid-svg-icons"],
   "noticeRequired": true
 }

@@ -159,6 +159,11 @@ export async function generateDependencyEvidence({ projectRoot = process.cwd(), 
   let policy; try { policy = JSON.parse(policyBytes); } catch { fail('license-policy.json is not valid JSON'); }
   if (policy.schemaVersion !== 1 || !Array.isArray(policy.allowedLicenses)) fail('license-policy.json schema is invalid');
   const packages = normalizeProductionPackages(lock);
+  if (Array.isArray(policy.requiredPublicFontAwesomePackages)) {
+    const packageNames = new Set(packages.map(pkg => pkg.name));
+    const missing = policy.requiredPublicFontAwesomePackages.filter(name => !packageNames.has(name));
+    if (missing.length) fail(`Required public Font Awesome packages are missing from production dependencies: ${missing.join(', ')}`);
+  }
   const sbom = generateSbom({ lock, lockHash });
   const licenses = generateLicenses({ packages, lockHash, policy, policyHash: sha256(policyBytes), notices: noticesBytes.toString('utf8'), noticeHash: sha256(noticesBytes) });
   return { outputDir, files: { sbom: json(sbom), licenses: json(licenses) }, lockHash, sbom, licenses };

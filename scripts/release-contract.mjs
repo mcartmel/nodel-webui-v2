@@ -22,10 +22,11 @@ import {
 } from './deployment-contract.mjs';
 import { verifyDeploymentInventoryReport } from './verify-deployment-inventory.mjs';
 import { generateDependencyEvidence, validateDependencyEvidence } from './dependency-evidence.mjs';
+import { validateIconArtifactFiles, iconArtifactSchemaVersion, isExactSemVer, publicIconSources, semVerMajor } from './icon-artifact.mjs';
 
 const execFileAsync = promisify(execFile);
 export const nodelApiRange = Object.freeze({ min: '1.0', maxExclusive: '2.0' });
-export const releaseSchemaVersion = 5;
+export const releaseSchemaVersion = 6;
 const deploymentManifestName = 'deployment-manifest.json';
 const releaseFile = 'release.json';
 const stableReleasePages = Object.freeze(['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html']);
@@ -48,6 +49,18 @@ function isCommit(value) { return typeof value === 'string' && /^[0-9a-f]{40}$/.
 function validEpoch(value) { return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0; }
 function validHash(value) { return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value); }
 function safePath(value) { return safeRelativePath(value); }
+
+export function validateIconSourceVersions(sources) {
+  if (!Array.isArray(sources) || sources.length !== publicIconSources.length) throw new Error('release.json icon catalogue sourceVersions must contain the complete public source set');
+  let previous = ''; let major;
+  for (const source of sources) {
+    if (!sameKeys(source, ['package', 'version']) || typeof source.package !== 'string' || !/^@fortawesome\/[a-z0-9-]+$/.test(source.package) || !isExactSemVer(source.version) || source.package <= previous) throw new Error('release.json icon catalogue sourceVersions are invalid or unsorted');
+    if (major === undefined) major = semVerMajor(source.version);
+    if (semVerMajor(source.version) !== major) throw new Error('release.json icon catalogue sourceVersions must use one Font Awesome major');
+    previous = source.package;
+  }
+  if (JSON.stringify(sources.map(source => source.package)) !== JSON.stringify([...publicIconSources].sort())) throw new Error('release.json icon catalogue sourceVersions are not the approved public packages');
+}
 
 export function validateTaggedReleaseNotes(markdown, version) {
   if (typeof markdown !== 'string' || !isVersion(version)) throw new Error('Tagged release notes validation requires Markdown and a valid package version');
@@ -299,7 +312,7 @@ export async function resolveReleaseOptions(options, { projectRoot, gitRunner = 
     sourceDateEpoch, initial, publishable: false });
 }
 
-function expectedManifestKeys() { return ['schemaVersion', 'name', 'version', 'commit', 'source', 'sourceDateEpoch', 'nodelApi', 'deploymentManifest', 'componentContract', 'dependencyEvidence', 'releaseProcess', 'javaEvidence', 'inventoryAlgorithm', 'inventoryExcludes', 'files']; }
+function expectedManifestKeys() { return ['schemaVersion', 'name', 'version', 'commit', 'source', 'sourceDateEpoch', 'nodelApi', 'deploymentManifest', 'componentContract', 'iconCatalogue', 'dependencyEvidence', 'releaseProcess', 'javaEvidence', 'inventoryAlgorithm', 'inventoryExcludes', 'files']; }
 
 export function validateReleaseManifest(manifest, expected = undefined, deploymentManifest = undefined) {
   const canonicalRepository = deploymentManifest?.manifest?.artifact?.repository;
@@ -320,7 +333,9 @@ export function validateReleaseManifest(manifest, expected = undefined, deployme
    if (!sameKeys(manifest.componentContract, ['path', 'schemaVersion', 'sha256']) || manifest.componentContract.path !== componentContractPath
     || manifest.componentContract.schemaVersion !== componentContractSchemaVersion || !validHash(manifest.componentContract.sha256)) {
     throw new Error('release.json component contract is invalid');
-  }
+   }
+    if (!sameKeys(manifest.iconCatalogue, ['path', 'schemaVersion', 'profile', 'sourceVersions', 'sha256']) || manifest.iconCatalogue.path !== 'v2/nodel-icons.json' || manifest.iconCatalogue.schemaVersion !== iconArtifactSchemaVersion || manifest.iconCatalogue.profile !== 'free' || !validHash(manifest.iconCatalogue.sha256)) throw new Error('release.json icon catalogue descriptor is invalid');
+   validateIconSourceVersions(manifest.iconCatalogue.sourceVersions);
   if (!sameKeys(manifest.dependencyEvidence, ['lockSha256', 'policySha256', 'noticeSha256', 'sbom', 'licenses']) || !validHash(manifest.dependencyEvidence.lockSha256) || !validHash(manifest.dependencyEvidence.policySha256) || !validHash(manifest.dependencyEvidence.noticeSha256)
     || !sameKeys(manifest.dependencyEvidence.sbom, ['path', 'sha256']) || manifest.dependencyEvidence.sbom.path !== 'SBOM.cdx.json' || !validHash(manifest.dependencyEvidence.sbom.sha256)
     || !sameKeys(manifest.dependencyEvidence.licenses, ['path', 'sha256']) || manifest.dependencyEvidence.licenses.path !== 'THIRD-PARTY-LICENSES.json' || !validHash(manifest.dependencyEvidence.licenses.sha256)) throw new Error('release.json dependency evidence is invalid');
@@ -349,21 +364,24 @@ export function validateReleaseManifest(manifest, expected = undefined, deployme
   if (!componentContractEntry || componentContractEntry.sha256 !== manifest.componentContract.sha256) {
     throw new Error('release.json component contract descriptor must match its files inventory entry');
   }
-  const deploymentManifestEntry = manifest.files.find((entry) => entry.path === deploymentManifestName);
+   const deploymentManifestEntry = manifest.files.find((entry) => entry.path === deploymentManifestName);
   if (!deploymentManifestEntry || deploymentManifestEntry.sha256 !== manifest.deploymentManifest.sha256) {
     throw new Error('release.json deployment manifest descriptor must match its files inventory entry');
-  }
+   }
+   const iconEntry = manifest.files.find(entry => entry.path === manifest.iconCatalogue.path);
+   if (!iconEntry || iconEntry.sha256 !== manifest.iconCatalogue.sha256) throw new Error('release.json icon catalogue descriptor must match its files inventory entry');
   for (const descriptor of [manifest.dependencyEvidence.sbom, manifest.dependencyEvidence.licenses]) {
     const entry = manifest.files.find(item => item.path === descriptor.path);
     if (!entry || entry.sha256 !== descriptor.sha256) throw new Error('release.json dependency evidence descriptor must match its files inventory entry');
   }
-  if (expected && (!sameKeys(expected, ['name', 'version', 'commit', 'repository', 'branch', 'tag', 'dirty', 'publishable', 'sourceDateEpoch', 'deploymentManifestHash', 'componentContract', 'dependencyEvidence', 'ciRunUrl', 'approvalEnvironment', 'distInventorySha256', 'javaEvidence', 'filesInventorySha256'])
+  if (expected && (!sameKeys(expected, ['name', 'version', 'commit', 'repository', 'branch', 'tag', 'dirty', 'publishable', 'sourceDateEpoch', 'deploymentManifestHash', 'componentContract', 'iconCatalogue', 'dependencyEvidence', 'ciRunUrl', 'approvalEnvironment', 'distInventorySha256', 'javaEvidence', 'filesInventorySha256'])
     || !validHash(expected.filesInventorySha256)
     || manifest.name !== expected.name || manifest.version !== expected.version || manifest.commit !== expected.commit
     || manifest.source.repository !== expected.repository || manifest.source.branch !== expected.branch || manifest.source.tag !== expected.tag
     || manifest.source.dirty !== expected.dirty || manifest.source.publishable !== expected.publishable || manifest.sourceDateEpoch !== expected.sourceDateEpoch
     || manifest.deploymentManifest.sha256 !== expected.deploymentManifestHash
-    || JSON.stringify(manifest.componentContract) !== JSON.stringify(expected.componentContract)
+     || JSON.stringify(manifest.componentContract) !== JSON.stringify(expected.componentContract)
+     || JSON.stringify(manifest.iconCatalogue) !== JSON.stringify(expected.iconCatalogue)
     || manifest.releaseProcess.ciRunUrl !== expected.ciRunUrl || manifest.releaseProcess.approvalEnvironment !== expected.approvalEnvironment
     || manifest.releaseProcess.distInventorySha256 !== expected.distInventorySha256
     || JSON.stringify(manifest.javaEvidence) !== JSON.stringify(expected.javaEvidence)
@@ -398,6 +416,11 @@ export async function verifyReleaseBundle(target, { operations = defaultOperatio
     if (capture.bytes !== entry.bytes || capture.sha256 !== entry.sha256) throw new Error(`Release inventory hash or size does not match: ${entry.path}`);
     capturedFiles.set(entry.path, capture.content);
   }
+  const iconIndex = capturedFiles.get('v2/nodel-icons.json');
+  if (!iconIndex) throw new Error('Release inventory is missing the icon catalogue index');
+  const iconFiles = new Map([...capturedFiles.entries()].filter(([path]) => path === 'v2/nodel-icons.json' || path.startsWith('v2/icons/') || path === manifest.iconCatalogue.path));
+  const iconResult = validateIconArtifactFiles(iconIndex, iconFiles, { expectedProfile: 'free', expectedPackageVersion: manifest.version });
+  if (sha256(iconIndex) !== manifest.iconCatalogue.sha256 || manifest.iconCatalogue.sourceVersions.length !== iconResult.index.sources.length || JSON.stringify(manifest.iconCatalogue.sourceVersions) !== JSON.stringify(iconResult.index.sources)) throw new Error('Packaged icon catalogue descriptor does not match the inventoried index');
   const componentContractContent = capturedFiles.get(componentContractPath);
   if (!componentContractContent) throw new Error('Release inventory is missing the packaged component contract');
   validateComponentContractArtifact(componentContractContent, manifest.version);
@@ -475,7 +498,7 @@ async function captureStageIdentity(stage, operations) {
 
 async function revalidateFinalStage({ stage, expected, manifestData, inventory, handoffs, javaReports, dependencyEvidence, resolved, gitRunner, operations, capturedIdentity }) {
   await validateCapturedDeploymentInventory(inventory);
-  const currentSource = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version });
+  const currentSource = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version, expectedIconProfile: 'free' });
   if (currentSource.inventorySha256 !== inventory.inventorySha256) throw new Error('Deployment source changed after release assembly');
   for (const capture of handoffs) await revalidateCapture(capture, 'Release handoff file', operations);
   for (const path of dependencyEvidenceFiles) await revalidateCapture(dependencyEvidence.captures[path], 'Dependency evidence', operations);
@@ -488,7 +511,7 @@ async function revalidateFinalStage({ stage, expected, manifestData, inventory, 
     }
   }
   if (resolved.distInventory) {
-    const checked = await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot });
+    const checked = await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot, expectedIconProfile: 'free' });
     if (checked.inventory.sha256 !== expected.distInventorySha256) throw new Error('Deployment inventory changed after release assembly');
   }
   await assertFinalTaggedProvenance(resolved, gitRunner);
@@ -548,9 +571,9 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
   const manifestData = resolved.deploymentManifest;
   if (manifestData.manifest.artifact.name !== resolved.packageMetadata.name || manifestData.manifest.artifact.stableEntries.join('\0') !== stableReleasePages.join('\0')) throw new Error('deployment-manifest.json does not match the release package contract');
   const target = await assertProjectBuildTarget(resolved.target, { source: resolved.source, roots: { projectRoot: resolved.projectRoot } });
-  const inventory = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version });
+  const inventory = await createDeploymentInventory(resolved.source, manifestData.manifest, { packageVersion: resolved.packageMetadata.version, expectedIconProfile: 'free' });
   const distInventory = resolved.distInventory
-    ? await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot })
+    ? await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot, expectedIconProfile: 'free' })
     : null;
   if (distInventory && distInventory.inventory.sha256 !== inventory.inventorySha256) throw new Error('Deployment inventory changed before release staging');
   const capturedTarget = await targetState(target, manifestData);
@@ -565,10 +588,18 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
   if (resolved.tag && !publishable) throw new Error('Tagged releases require Java evidence, a GitHub CI run URL, and approval environment production-release');
   const capturedComponentContract = await readCapturedDeploymentEntry(inventory.root, inventory.entries.find((entry) => entry.path === componentContractPath));
   validateComponentContractArtifact(capturedComponentContract, resolved.version);
-  const componentContract = Object.freeze({ path: componentContractPath, schemaVersion: componentContractSchemaVersion, sha256: sha256(capturedComponentContract) });
+   const componentContract = Object.freeze({ path: componentContractPath, schemaVersion: componentContractSchemaVersion, sha256: sha256(capturedComponentContract) });
+   const iconEntry = inventory.entries.find(entry => entry.path === 'v2/nodel-icons.json');
+   if (!iconEntry) throw new Error('Public release requires an inventoried Free icon catalogue index');
+   const capturedIconIndex = await readCapturedDeploymentEntry(inventory.root, iconEntry);
+   const iconIndex = JSON.parse(capturedIconIndex.toString('utf8'));
+    const iconFiles = new Map();
+    for (const entry of inventory.entries.filter(entry => entry.path === 'v2/nodel-icons.json' || entry.path.startsWith('v2/icons/') || entry.path === iconIndex.cataloguePath)) iconFiles.set(entry.path, await readCapturedDeploymentEntry(inventory.root, entry));
+    validateIconArtifactFiles(capturedIconIndex, iconFiles, { expectedProfile: 'free', expectedPackageVersion: resolved.packageMetadata.version });
+   const iconCatalogue = Object.freeze({ path: 'v2/nodel-icons.json', schemaVersion: iconArtifactSchemaVersion, profile: 'free', sourceVersions: iconIndex.sources, sha256: sha256(capturedIconIndex) });
   const expected = Object.freeze({ name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit, repository: resolved.repository,
     branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty, publishable, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,
-    componentContract,
+     componentContract, iconCatalogue,
     ciRunUrl: resolved.ciRunUrl ?? null, approvalEnvironment: resolved.approvalEnvironment ?? null,
      distInventorySha256: distInventory?.inventory.sha256 ?? null, javaEvidence });
   const expectedWithDependencies = Object.freeze({ ...expected, dependencyEvidence: dependencyEvidence.descriptor });
@@ -588,7 +619,7 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
     }
      const bundleFiles = [...inventory.files, ...handoffs.map((capture) => capture.destination), ...dependencyEvidenceFiles, ...(javaReports ? javaRoles.map((role) => javaReports[role].path) : [])].sort();
     if (distInventory) {
-      const rechecked = await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot });
+       const rechecked = await verifyDeploymentInventoryReport({ source: resolved.source, manifestData, manifestPath: manifestData.path, output: resolved.distInventory, projectRoot: resolved.projectRoot, expectedIconProfile: 'free' });
       if (rechecked.inventory.sha256 !== distInventory.inventory.sha256) throw new Error('Deployment inventory changed during release staging');
     }
     const releaseManifest = {
@@ -596,7 +627,7 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
       source: { repository: expected.repository, branch: expected.branch, tag: expected.tag, dirty: expected.dirty, publishable: expected.publishable },
       sourceDateEpoch: expected.sourceDateEpoch, nodelApi: nodelApiRange,
       deploymentManifest: { path: deploymentManifestName, sha256: manifestData.hash, defaultV1Policy: manifestData.manifest.v1.defaultPolicy, javaTargets: manifestData.manifest.java.targets },
-       componentContract, dependencyEvidence: dependencyEvidence.descriptor,
+       componentContract, iconCatalogue, dependencyEvidence: dependencyEvidence.descriptor,
       releaseProcess: { ciRunUrl: resolved.ciRunUrl ?? null, approvalEnvironment: resolved.approvalEnvironment ?? null, distInventorySha256: expected.distInventorySha256 }, javaEvidence,
      inventoryAlgorithm: 'sha256', inventoryExcludes: [releaseFile], files: await fileEntries(stage, bundleFiles, operations)
     };

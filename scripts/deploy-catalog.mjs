@@ -25,7 +25,8 @@ export function parseDeployCatalogArgs(argv) {
     'support-root': { key: 'supportRoot', required: true },
     manifest: { default: () => resolve(projectRoot, 'deployment-manifest.json') },
     'dry-run': { key: 'dryRun', type: 'boolean', default: false },
-    json: { type: 'boolean', default: false }
+    json: { type: 'boolean', default: false },
+    'icon-profile': { key: 'expectedIconProfile' }
   });
   return { ...options, source: resolve(options.source), target: resolve(options.target), supportRoot: resolve(options.supportRoot) };
 }
@@ -48,7 +49,7 @@ export async function deployCatalog(options, { operations = nativeOperations, ro
   if (isInside(target, supportRoot) || isInside(supportRoot, target)) {
     throw new Error('Catalog target and managed support root must not contain one another');
   }
-  const inventory = await createDeploymentInventory(options.source, manifestData.manifest);
+  const inventory = await createDeploymentInventory(options.source, manifestData.manifest, { expectedIconProfile: options.expectedIconProfile });
   const sourceEntry = inventory.entries.find((entry) => entry.path === page);
   const supportState = await targetState(supportRoot, manifestData);
   if (!supportState.managed) throw new Error(`Catalog support root must be a complete managed deployment: ${supportRoot}`);

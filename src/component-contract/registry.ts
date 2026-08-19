@@ -49,7 +49,7 @@ const signalTargetMap: Record<string, string[]> = {
   'nodel-app': ['title'], 'nodel-button': ['active', 'label', 'disabled'], 'nodel-toggle': ['state', 'label', 'disabled'], 'nodel-segmented': ['value', 'label', 'disabled', 'options'],
   'nodel-select': ['value', 'label', 'disabled', 'options'], 'nodel-fader': ['value', 'label', 'disabled'], 'nodel-stepper': ['value', 'label', 'disabled'],
   'nodel-pad': ['disabled', 'label', 'center-disabled'], 'nodel-readout': ['value', 'label', 'variant', 'suffix', 'prefix'], 'nodel-palette': ['value', 'label', 'disabled', 'custom-color'],
-  'nodel-meter': ['value', 'peak', 'label'], 'nodel-image': ['src', 'alt', 'label'], 'nodel-icon': ['name', 'alt', 'label', 'tone'], 'nodel-qrcode': ['value', 'help', 'label'],
+  'nodel-meter': ['value', 'peak', 'label'], 'nodel-image': ['src', 'alt', 'label'], 'nodel-icon': ['name', 'family', 'style', 'alt', 'label', 'tone'], 'nodel-qrcode': ['value', 'help', 'label'],
   'nodel-status-indicator': ['value', 'label'], 'nodel-status': ['value', 'state', 'level', 'message', 'label'], 'nodel-text': ['value'], 'nodel-title': ['value'],
   'nodel-markdown': ['value'], 'nodel-clock': ['value'], 'nodel-host-icon': ['host', 'icon-host', 'href', 'title', 'alt']
 };
@@ -217,7 +217,9 @@ function signalBindingsFor(element: NodelElementDefinition): ComponentSignalBind
     }
     const bindingTargets = attribute.name === 'options-signal'
       ? ['options']
-      : attribute.name === 'signals' && !targets.includes('visibility') ? [...targets, 'visibility'] : targets;
+      : element.name === 'nodel-icon' && attribute.name === 'signal'
+        ? ['name']
+        : attribute.name === 'signals' && !targets.includes('visibility') ? [...targets, 'visibility'] : targets;
     return [{
       attribute: attribute.name,
       ...(attribute.name !== 'options-signal' && element.defaultSignalTarget ? { defaultTarget: element.defaultSignalTarget } : {}),

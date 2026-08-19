@@ -63,12 +63,13 @@ export function finalizeBundleGraph(graph, presentPaths, expectedPaths = graph.o
   return { ...graph, outputs: outputs.sort((left, right) => compareCodeUnits(left.path, right.path)) };
 }
 
-export async function writeBundleGraph(graph, buildRoot = resolve(process.cwd(), 'build')) {
-  await mkdir(buildRoot, { recursive: true });
-  await writeFile(resolve(buildRoot, 'bundle-graph.json'), `${JSON.stringify(graph, null, 2)}\n`, 'utf8');
+export async function writeBundleGraph(graph, reportPath = resolve(process.cwd(), 'build/bundle-graph.json')) {
+  const target = resolve(reportPath);
+  await mkdir(resolve(target, '..'), { recursive: true });
+  await writeFile(target, `${JSON.stringify(graph, null, 2)}\n`, 'utf8');
 }
 
-export function bundleGraphPlugin(projectRoot) {
+export function bundleGraphPlugin(projectRoot, outputRoot = resolve(projectRoot, 'dist'), reportPath = resolve(projectRoot, 'build/bundle-graph.json')) {
   let graph;
   return {
     name: 'nodel-bundle-graph',
@@ -79,13 +80,13 @@ export function bundleGraphPlugin(projectRoot) {
       const presentPaths = new Set();
       for (const output of graph.outputs) {
         if (/^v2\/entries\/(?:nodel|nodes|toolkit)\.js$/.test(output.path)) continue;
-        const source = await readFile(resolve(projectRoot, 'dist', output.path));
+        const source = await readFile(resolve(outputRoot, output.path));
         presentPaths.add(output.path);
         output.bytes = source.byteLength;
       }
       const cssPath = 'v2/nodel-webui.css';
       try {
-        const source = await readFile(resolve(projectRoot, 'dist', cssPath));
+        const source = await readFile(resolve(outputRoot, cssPath));
         presentPaths.add(cssPath);
         if (!graph.outputs.some((output) => output.path === cssPath)) graph.outputs.push({ path: cssPath, type: 'asset', bytes: source.byteLength, facadeModuleId: null, modules: [], imports: [], dynamicImports: [] });
       } catch (error) {
@@ -94,7 +95,7 @@ export function bundleGraphPlugin(projectRoot) {
       // Vite consumes the unused HTML entry chunks after Rollup renders pages.
       const expectedPaths = graph.outputs.map((output) => output.path).filter((path) => !/^v2\/entries\/(?:nodel|nodes|toolkit)\.js$/.test(path));
       graph = finalizeBundleGraph(graph, presentPaths, expectedPaths);
-      await writeBundleGraph(graph, resolve(projectRoot, 'build'));
+      await writeBundleGraph(graph, reportPath);
     }
   };
 }

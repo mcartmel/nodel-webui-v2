@@ -78,7 +78,7 @@ const mockUnsafeReturnFiles = [
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'build/**', 'coverage/**', 'playwright-report/**', 'test-results/**']
+    ignores: ['dist/**', 'build/**', 'coverage/**', 'playwright-report/**', 'test-results/**', '.kilo/**']
   },
   eslint.configs.recommended,
   {

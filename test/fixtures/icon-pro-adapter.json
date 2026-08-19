@@ -1,0 +1,13 @@
+{
+  "packageVersion": "0.1.2",
+  "profile": "pro-local",
+  "sources": [{ "package": "@fortawesome/fontawesome-pro", "version": "7.3.1" }],
+  "aliases": {},
+  "families": [{
+    "family": "sharp",
+    "defaultStyle": "solid",
+    "styles": [{ "style": "solid", "icons": [
+      { "iconName": "bolt", "icon": [16, 16, [], "f0e7", "M0"], "aliases": ["flash"] }
+    ] }]
+  }]
+}

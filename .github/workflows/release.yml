@@ -118,7 +118,10 @@ jobs:
         run: npm run build:preview
 
       - name: Verify release gate
-        run: node scripts/verify-release-gate.mjs
+        run: node scripts/verify-release-gate.mjs --icon-profile free
+
+      - name: Verify public Free profile and dependency boundary
+        run: npm run verify:public-release
 
       - name: Report bundle budget
         if: always()
@@ -155,7 +158,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Capture tested dist inventory
-        run: npm run verify:dist -- --write --json
+        run: npm run verify:dist -- --write --json --icon-profile free
 
       - name: Upload exact tested dist and inventory
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -259,24 +262,24 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Verify release gate against downloaded dist
-        run: node scripts/verify-release-gate.mjs
+        run: node scripts/verify-release-gate.mjs --icon-profile free
 
       - name: Verify downloaded dist inventory
-        run: npm run verify:dist -- --check --json
+        run: npm run verify:dist -- --check --json --icon-profile free
 
       - name: Run browser visual and accessibility tests against exact dist
         run: npm run test:browser:dist
 
       - name: Create deployment smoke roots from downloaded dist
         run: |
-          node scripts/deploy.mjs --target ./build/deploy-preview
-          node scripts/deploy.mjs --target ./build/stage11-host/custom/content
+          node scripts/deploy.mjs --target ./build/deploy-preview --icon-profile free
+          node scripts/deploy.mjs --target ./build/stage11-host/custom/content --icon-profile free
 
       - name: Smoke deployed layouts
         run: npm run test:deployment:smoke
 
       - name: Verify exact dist continuity before packaging
-        run: npm run verify:dist -- --check --json
+        run: npm run verify:dist -- --check --json --icon-profile free
 
       - name: Upload Playwright artifacts
         if: failure()
@@ -292,7 +295,7 @@ jobs:
         run: npm run release:prepare -- --version "${{ steps.version.outputs.version }}" --commit "$GITHUB_SHA" --branch main --tag "$GITHUB_REF_NAME" --repository "${{ github.repository }}" --source-date-epoch "$(git show -s --format=%ct "$GITHUB_SHA")" --dist-inventory build/dist-inventory.json --java-dev-report build/java-handoff/dev.json --java-master-report build/java-handoff/master.json --ci-run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" --approval-environment production-release
 
       - name: Verify exact dist continuity after packaging
-        run: npm run verify:dist -- --check --json
+        run: npm run verify:dist -- --check --json --icon-profile free
 
       - name: Create release archive
         id: archive

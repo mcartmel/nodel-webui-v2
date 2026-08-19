@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "STAGE5_APPROVED_BUNDLE_BASELINE_2026-08-08",
-  "rationale": "Stage 5 baseline is the clean Stage 4 production build; each maximum is a reviewed five percent headroom for maintenance without automatic ratcheting.",
+  "releaseNotesMarker": "STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20",
+  "rationale": "Stage 6 baselines are measured from the deterministic public build; each maximum retains reviewed five percent headroom without automatic ratcheting.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -18,12 +18,12 @@
     { "role": "shell", "moduleId": "node_modules/@codemirror/legacy-modes/mode/shell.js" }
   ],
   "budgets": {
-    "stable-entry-closure": { "rawBaseline": 370708, "rawMax": 389244, "gzipBaseline": 98444, "gzipMax": 103367 },
+    "stable-entry-closure": { "rawBaseline": 386548, "rawMax": 405876, "gzipBaseline": 104552, "gzipMax": 109780 },
     "stable-css": { "rawBaseline": 169854, "rawMax": 178347, "gzipBaseline": 21137, "gzipMax": 22194 },
     "codemirror-base": { "rawBaseline": 411183, "rawMax": 431743, "gzipBaseline": 133409, "gzipMax": 140080 },
     "codemirror-language-python": { "rawBaseline": 71704, "rawMax": 75290, "gzipBaseline": 27989, "gzipMax": 29389 },
     "codemirror-language-html": { "rawBaseline": 256111, "rawMax": 268917, "gzipBaseline": 87809, "gzipMax": 92200 },
-    "codemirror-language-xml": { "rawBaseline": 130027, "rawMax": 136529, "gzipBaseline": 36129, "gzipMax": 37936 },
+    "codemirror-language-xml": { "rawBaseline": 136882, "rawMax": 143727, "gzipBaseline": 38317, "gzipMax": 40233 },
     "codemirror-language-javascript": { "rawBaseline": 111238, "rawMax": 116800, "gzipBaseline": 42326, "gzipMax": 44443 },
     "codemirror-language-json": { "rawBaseline": 28617, "rawMax": 30048, "gzipBaseline": 10118, "gzipMax": 10624 },
     "codemirror-language-css": { "rawBaseline": 53800, "rawMax": 56490, "gzipBaseline": 21113, "gzipMax": 22169 },
@@ -32,7 +32,8 @@
     "codemirror-language-groovy": { "rawBaseline": 4139, "rawMax": 4346, "gzipBaseline": 1765, "gzipMax": 1854 },
     "codemirror-language-sql": { "rawBaseline": 40595, "rawMax": 42625, "gzipBaseline": 14926, "gzipMax": 15673 },
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
-    "components-html": { "rawBaseline": 114502, "rawMax": 120228, "gzipBaseline": 14072, "gzipMax": 14776 },
-    "dist-v2-inventory": { "rawBaseline": 2257115, "rawMax": 2369971, "gzipBaseline": 645734, "gzipMax": 678021 }
+    "components-html": { "rawBaseline": 117949, "rawMax": 123847, "gzipBaseline": 14993, "gzipMax": 15743 },
+    "free-icon-artifact": { "rawBaseline": 2758285, "rawMax": 2896200, "gzipBaseline": 666125, "gzipMax": 699432 },
+    "dist-v2-inventory": { "rawBaseline": 5048766, "rawMax": 5301205, "gzipBaseline": 1323709, "gzipMax": 1389895 }
   }
 }

@@ -42,8 +42,8 @@ do not reuse a mutable checkout for both targets.
 
 ```sh
 npm ci
-npm run verify:dependencies
 npm run build
+npm run verify:dependencies
 npm run verify:java-handoff -- --java-checkout ../nodel-dev --expected-branch dev --output build/java-handoff/dev.json
 npm run verify:java-handoff -- --java-checkout ../nodel-master --expected-branch master --output build/java-handoff/master.json
 npm run verify:dist -- --write
@@ -60,6 +60,14 @@ The resulting release is intentionally nonpublishable because local rehearsal
 does not assert a GitHub Actions run or protected approval environment. Tagged
 CI runs the same evidence flow and additionally records the CI run URL and
 `production-release` environment provenance required for publishing.
+
+The public build always generates and verifies a Free icon profile before this
+flow. The inventory includes `v2/nodel-icons.json`, its content-hashed catalogue,
+and all declared `v2/icons/` shards. Install the complete `v2/` directory from
+the handoff; copying only the stable JavaScript or CSS entry omits required
+runtime and icon assets. Authored pages resolve those assets relative to the
+adjacent stable `v2/nodel-webui.js`, including pages authored after the build
+and pages served below a node path.
 
 ## Commands and Interfaces
 
@@ -104,7 +112,7 @@ the stable entry pages, `v2/**` support tree, V1 protected ownership and
 collision policy, generated-path cleanliness exception, and the Java branch
 mapping (`dev` prerelease, `master` stable).
 
-`release.json` schema 5 (superseding schema 4) is the exact release identity and artifact inventory.
+`release.json` schema 6 (superseding schema 5) is the exact release identity and artifact inventory.
 It includes `releaseProcess` (CI run URL, environment name, and the canonical
 `dist` inventory SHA-256 digest) and normalized, hash-pinned Java handoff
 evidence. Its `componentContract` entry pins `v2/nodel-components.json`, public
@@ -133,6 +141,32 @@ name and CI run URL, not an identity assertion.
 
 This Java integration is future work; this repository does not claim automatic
 Java packaging or installation.
+
+## Icon Profiles And Licensing
+
+Public release preparation requires `profile: free` and the supported public
+Free package set. The exact Font Awesome source versions are recorded in the
+`iconCatalogue` descriptor and must use one supported major. The Free catalogue
+budget is a separately reviewed metric in addition to the total `dist-v2`
+budget; its increase is intentional for offline Classic Solid, Classic Regular,
+and Brands coverage and is not an automatic budget ratchet.
+
+Licensed operators may use `npm run build:pro:preview` with exactly one of
+`NODEL_FONTAWESOME_PRO_DIR` or `FONTAWESOME_PACKAGE_TOKEN` set. The extracted
+directory must be an all-inclusive package. Token bootstrap accepts an exact
+SemVer, defaults to the exact public version, uses an isolated temporary npm
+configuration, and removes it after installation. Both modes require the same
+supported Font Awesome major and produce deployable output only in ignored
+`build/pro-dist/`, with the separate bundle report at
+`build/pro-reports/bundle-graph.json`. `build:pro` adds the normal validation gates and
+`deploy:local:pro` deploys only that directory; neither command overwrites
+`dist/`.
+
+Pro-local output is not a public release source and must not replace public
+SBOM, licence evidence, dependency manifests, inventory, or release notes.
+License holders are responsible for the licensed source, local output,
+deployment, and redistribution decisions. Pro+ Kit-only packs and unsupported
+custom/transform features remain outside this handoff contract.
 
 ## Handoff Package Layout
 

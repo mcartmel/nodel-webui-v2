@@ -6,6 +6,31 @@
 
 - Project tooling now requires Node.js `24.15.0` and npm `11.12.1`.
 
+### Icon Catalogue And Local Builds
+
+- The public `components.html` catalogue now demonstrates canonical Free `tv`,
+  Classic Regular, Brands, manifest defaults, and the preserved Nodel `power`
+  alias. It contains no Pro-only markup.
+- `nodel-icon` family/style availability and defaults are read from the
+  installed `v2/nodel-icons.json`; the runtime resolves its declared catalogue
+  and shards relative to the stable `v2/nodel-webui.js` entry, including for
+  authored pages created after the build or served below a node path. Missing or
+  unavailable records retain the image fallback and expose loading/ready/
+  fallback state.
+- The icon index, searchable catalogue, and every declared shard are part of
+  the complete `v2/` installation unit. Copying only the stable JavaScript and
+  CSS entries is unsupported because hashed runtime and icon assets may be
+  referenced.
+- Public releases remain Free-only. The complete Free icon artifacts add the
+  reviewed `free-icon-artifact` budget metric and intentional offline payload
+  cost; Pro-local output is measured separately and is not part of that public
+  maximum.
+- `build:pro:preview`, `build:pro`, and `deploy:local:pro` isolate licensed
+  output in ignored `build/pro-dist/`. Directory and exact-version token source
+  modes require the supported Font Awesome major; Pro output cannot replace
+  `dist/`, public release evidence, or public dependency manifests. License
+  holders are responsible for licensed local output and deployment.
+
 ### Dependency Operations
 
 - Dependabot uses monthly minor/patch version groups; sensitive updates remain individual, major migrations are tracked in issues #7-#11, and security updates remain unrestricted and immediate.
@@ -15,11 +40,14 @@
 - `v2/nodel-components.json` publishes the deterministic schema 1 component
   contract used by the catalogue and editor tooling, including audience,
   registration, completion, consumption, binding, event, and style metadata.
-- `release.json` uses schema 5. Its `componentContract` entry pins the path,
-  schema, and SHA-256 of `v2/nodel-components.json` alongside the existing
-  tested-`dist` inventory and release evidence.
+- `release.json` uses schema 6. Its `componentContract` entry pins the path,
+  schema, and SHA-256 of `v2/nodel-components.json`, while its Free `iconCatalogue`
+  entry binds `v2/nodel-icons.json` with its schema and SHA-256 alongside the
+  existing tested-`dist` inventory and release evidence.
 
 ### Performance And Review Impact
+
+- `STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20` records the measured Free icon artifact raw/gzip, total `v2/` inventory, stable-entry closure, and expanded `components.html` catalogue baselines. Stage 6 baselines are measured from the deterministic public build; each maximum retains reviewed five percent headroom without automatic ratcheting. The increase is intentional: the complete offline Free catalogue, official searchable metadata, and public examples are shipped while Pro-local output remains isolated and separately reported.
 
 - `STAGE5_APPROVED_BUNDLE_BASELINE_2026-08-08` approves the clean Stage 4
   production build as the Stage 5 uncompressed and independently gzipped-file baseline.
@@ -45,7 +73,8 @@
 ### Quality And Supply Chain
 
 - Strict TypeScript, lint, selected per-file coverage gates, and property tests remain required; dependency advisory policy, pinned actions, and Dependabot provide supply-chain review. Repository policy permits only GitHub-owned actions at full commit SHAs, while `security/ci-actions.json` records the independently verified release tags and approved SHAs that must change atomically with workflows.
-- Release evidence includes deterministic CycloneDX `SBOM.cdx.json`, `THIRD-PARTY-LICENSES.json`, schema-5 hash binding, and archive verification.
+- Release evidence includes deterministic CycloneDX `SBOM.cdx.json`, `THIRD-PARTY-LICENSES.json`, schema-6 hash binding, and archive verification. Public evidence is generated from the Free root lockfile only; license holders are responsible for licensed Pro-local output, while pre-built public artifacts remain Free-only.
+- schema 5 release evidence is retained only as historical migration context; its schema-5 hash binding is superseded by schema 6, which public release preparation now requires with the inventoried Free icon catalogue.
 
 ### Maintenance Boundaries
 

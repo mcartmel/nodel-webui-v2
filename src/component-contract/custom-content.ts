@@ -51,7 +51,9 @@ export const customContentElements: NodelElementDefinition[] = [
     defaultSignalTarget: 'name',
     description: 'Standalone or inline control icon.',
     attributes: [
-      { name: 'name', description: 'Built-in icon name.', values: ['image', ...preferredToggleIconNames.filter((iconName) => iconName !== 'image')] },
+      { name: 'name', description: 'Preferred Nodel icon aliases plus canonical names from the generated Font Awesome catalogue, which is the exhaustive source for authored icon values.', valueType: 'enum-or-string', syntax: 'Generated catalogue canonical name or preserved Nodel alias', values: ['image', ...preferredToggleIconNames.filter((iconName) => iconName !== 'image')] },
+      { name: 'family', description: 'Icon family selected from the installed generated catalogue.', valueType: 'string', syntax: 'Generated catalogue family identifier' },
+      { name: 'style', description: 'Icon style selected from the installed generated catalogue for the effective family.', valueType: 'string', syntax: 'Generated catalogue style identifier' },
       { name: 'label', description: 'Accessibility/fallback label. Use nodel-group label for visible captions.' },
       { name: 'alt', description: 'Accessible label without visible text.' },
       { name: 'aria-label', description: 'Explicit accessible label.' },
@@ -59,7 +61,7 @@ export const customContentElements: NodelElementDefinition[] = [
       { name: 'tone', description: 'Icon tone.', values: ['default', 'muted', 'accent', 'success', 'info', 'warning', 'danger'] },
       { name: 'size', description: 'Icon size.', values: ['auto', 'sm', 'md', 'lg', 'xl'] },
       { name: 'signal', description: signalBindingDescription('name') },
-      { name: 'signals', description: signalsBindingDescription('name, alt, label, tone') }
+      { name: 'signals', description: signalsBindingDescription('name, family, style, alt, label, tone') }
     ],
     snippet: '<nodel-icon name="power"></nodel-icon>'
   },

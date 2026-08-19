@@ -1,8 +1,10 @@
 import { syntaxTree } from '@codemirror/language';
-import { linter, type Diagnostic, type LintSource } from '@codemirror/lint';
+import { forceLinting, linter, type Diagnostic, type LintSource } from '@codemirror/lint';
+import { ViewPlugin, type EditorView } from '@codemirror/view';
 import type { EditorState, Extension } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import { componentContractCommonAttributes, findComponentContract } from '../component-contract';
+import { loadIconCatalogue, loadIconIndex, type IconCatalogue, type IconIndex } from '../icons/catalogue-loader';
 
 export const NODEL_DIAGNOSTIC_LIMITS = Object.freeze({ maxDocumentLength: 100_000, maxNodes: 3_000, maxDiagnostics: 100, maxMessageLength: 160 });
 
@@ -26,6 +28,49 @@ function add(result: Diagnostic[], severity: Diagnostic['severity'], from: numbe
   result.push({ source: 'Nodel', severity, from, to: Math.max(from + 1, to), message: message(text) });
 }
 function isPlaceholder(value: string) { return placeholder.test(value); }
+
+export function diagnoseNodelIconCatalogue(state: EditorState, catalogue: IconCatalogue, tree = syntaxTree(state), index?: IconIndex): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const records = catalogue.records;
+  const families = new Set(records.map(record => record.family));
+  const styles = new Map<string, Set<string>>();
+  for (const record of records) styles.set(record.family, (styles.get(record.family) ?? new Set()).add(record.style));
+  const aliases = new Set([...records.flatMap(record => record.aliases), ...Object.keys(index?.aliases ?? {})]);
+  const officialAliases = new Map(records.flatMap(record => record.officialAliases.map(alias => [alias, record.name] as const)));
+  tree.iterate({ enter(cursor) {
+    if (cursor.name !== 'Element') return;
+    const tag = child(cursor.node, 'OpenTag') ?? child(cursor.node, 'SelfClosingTag');
+    const nameNode = tag && child(tag, 'TagName');
+    if (!tag || !nameNode || state.sliceDoc(nameNode.from, nameNode.to) !== 'nodel-icon') return;
+    const values = new Map<string, SyntaxNode>();
+    for (const attr of attrNodes(tag)) values.set(attrName(attr, state), attr);
+    const nameAttr = values.get('name');
+    const familyAttr = values.get('family');
+    const styleAttr = values.get('style');
+    const name = nameAttr ? attrValue(nameAttr, state) : '';
+    const family = familyAttr ? attrValue(familyAttr, state) : undefined;
+    const style = styleAttr ? attrValue(styleAttr, state) : undefined;
+    if (isPlaceholder(name) || (family !== undefined && isPlaceholder(family)) || (style !== undefined && isPlaceholder(style))) return;
+    if (family !== undefined && !families.has(family)) add(diagnostics, 'error', familyAttr!.from, familyAttr!.to, 'Icon family is unavailable in the installed catalogue.');
+    if (style !== undefined && family !== undefined && families.has(family) && !styles.get(family)?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for this icon family.');
+    if (style !== undefined && family === undefined && !styles.get(index?.default.family ?? '')?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for the default icon family.');
+    if (!name || !nameAttr) return;
+    const knownName = aliases.has(name) || records.some(record => record.name === name);
+    if (officialAliases.has(name) && !knownName) {
+      add(diagnostics, 'error', nameAttr.from, nameAttr.to, `Official Font Awesome alias is not an authored icon name; use ${officialAliases.get(name)}.`);
+      return;
+    }
+    if (!knownName) add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Unknown Nodel icon name in the installed catalogue.');
+    const canonical = index?.aliases[name] ?? records.find(record => record.name === name)?.name ?? records.find(record => record.aliases.includes(name))?.name ?? name;
+    const canonicalFamily = family ?? index?.default.family ?? records.find(record => record.name === canonical)?.family;
+    const effectiveStyle = style ?? (index?.families.find(item => item.family === canonicalFamily)?.defaultStyle);
+    if (knownName && (family === undefined || families.has(family)) && (effectiveStyle === undefined || (canonicalFamily !== undefined && styles.get(canonicalFamily)?.has(effectiveStyle)))) {
+      const available = records.some(record => record.name === canonical && (!family || record.family === family) && (!effectiveStyle || record.style === effectiveStyle));
+      if (!available) add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Icon is unavailable for the selected family/style combination.');
+    }
+  }});
+  return diagnostics;
+}
 
 function parseActions(value: string, phases: readonly string[]) {
   if (!value.trim()) return true;
@@ -186,11 +231,20 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
 }
 
 export function nodelDocumentDiagnostics(options: NodelDocumentDiagnosticsOptions = {}): Extension {
+  let catalogue: IconCatalogue | undefined;
+  let index: IconIndex | undefined;
   const source: LintSource = (view) => {
     if (options.isCurrent && !options.isCurrent()) return [];
     const result = diagnoseNodelDocument(view.state);
-    options.onDiagnostics?.(result.summary);
-    return result.diagnostics;
+    const iconDiagnostics = catalogue ? diagnoseNodelIconCatalogue(view.state, catalogue, undefined, index) : [];
+    const diagnostics = [...result.diagnostics, ...iconDiagnostics].slice(0, NODEL_DIAGNOSTIC_LIMITS.maxDiagnostics);
+    const errors = diagnostics.filter(diagnostic => diagnostic.severity === 'error').length;
+    const summary = { ...result.summary, errors, warnings: diagnostics.length - errors, truncated: result.summary.truncated || diagnostics.length < result.diagnostics.length + iconDiagnostics.length };
+    options.onDiagnostics?.(summary);
+    return diagnostics;
   };
-  return linter(source, { delay: 350 });
+  const load = Promise.all([loadIconIndex(), loadIconCatalogue()]).then(([loadedIndex, value]) => { index = loadedIndex; catalogue = value; }).catch(() => undefined);
+  return [linter(source, { delay: 350 }), ViewPlugin.fromClass(class {
+    constructor(private view: EditorView) { void load.then(() => { if (catalogue && this.view.dom.isConnected && (!options.isCurrent || options.isCurrent())) forceLinting(this.view); }); }
+  })];
 }

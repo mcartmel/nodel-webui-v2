@@ -17,12 +17,12 @@ const languageEntries = [
   ['shell', 'node_modules/@codemirror/legacy-modes/mode/shell.js']
 ] as const;
 const expected = {
-  'stable-entry-closure': [370708, 389244, 98444, 103367],
+  'stable-entry-closure': [386548, 405876, 104552, 109780],
   'stable-css': [169854, 178347, 21137, 22194],
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
   'codemirror-language-html': [256111, 268917, 87809, 92200],
-  'codemirror-language-xml': [130027, 136529, 36129, 37936],
+  'codemirror-language-xml': [136882, 143727, 38317, 40233],
   'codemirror-language-javascript': [111238, 116800, 42326, 44443],
   'codemirror-language-json': [28617, 30048, 10118, 10624],
   'codemirror-language-css': [53800, 56490, 21113, 22169],
@@ -31,8 +31,9 @@ const expected = {
   'codemirror-language-groovy': [4139, 4346, 1765, 1854],
   'codemirror-language-sql': [40595, 42625, 14926, 15673],
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
-  'components-html': [114502, 120228, 14072, 14776],
-  'dist-v2-inventory': [2257115, 2369971, 645734, 678021]
+  'components-html': [117949, 123847, 14993, 15743],
+  'free-icon-artifact': [2758285, 2896200, 666125, 699432],
+  'dist-v2-inventory': [5048766, 5301205, 1323709, 1389895]
 } as const;
 
 describe('Stage 5 performance budget governance', () => {
@@ -43,7 +44,7 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('STAGE5_APPROVED_BUNDLE_BASELINE_2026-08-08');
+    expect(policy.releaseNotesMarker).toBe('STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);

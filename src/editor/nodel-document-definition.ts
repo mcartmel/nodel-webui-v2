@@ -9,6 +9,7 @@ import {
   findComponentContract as findNodelElement
 } from '../component-contract';
 import { slugPageTitle } from '../navigation/navigation';
+import { loadIconCatalogue, loadIconIndex, type IconIndex } from '../icons/catalogue-loader';
 import { authoredPageDocumentSnippet, authoredPageHead, authoredPageScaffold, authoredPageScaffoldSnippet } from './authored-page-scaffold';
 
 export { authoredPageDocumentSnippet, authoredPageHead, authoredPageScaffold, authoredPageScaffoldSnippet, commonNodelAttributes, findNodelElement, nodelDocumentElements };
@@ -208,7 +209,83 @@ function fragmentCompletions(context: CompletionContext, from: number): Completi
   return { from: from + 1, to: context.pos, options: Array.from(new Map(options.map((option) => [option.label, option])).values()) };
 }
 
-export function completeNodelDocument(context: CompletionContext): CompletionResult | null {
+function iconAttributes(context: CompletionContext) {
+  const current = documentContext(context);
+  if (!current || current.tagName !== 'nodel-icon') return null;
+  const values = new Map<string, string>();
+  for (const attribute of current.tag.getChildren('Attribute')) {
+    const name = attribute.getChild('AttributeName');
+    const value = attribute.getChild('AttributeValue');
+    if (name && value) values.set(context.state.sliceDoc(name.from, name.to), context.state.sliceDoc(value.from, value.to).replace(/^['"]|['"]$/g, ''));
+  }
+  return { current, values };
+}
+
+function effectiveIconSelection(index: IconIndex, values: Map<string, string>) {
+  const family = values.get('family') || index.default.family;
+  const familyEntry = index.families.find(item => item.family === family);
+  const style = values.get('style') || familyEntry?.defaultStyle;
+  return { family, style, familyEntry };
+}
+
+function iconCatalogueCompletions(context: CompletionContext): CompletionResult | Promise<CompletionResult | null> | null {
+  const icon = iconAttributes(context);
+  if (!icon || !icon.current.attribute || icon.current.valueText === undefined || icon.current.valueFrom === undefined) return null;
+  const attribute = icon.current.attribute;
+  if (attribute !== 'name' && attribute !== 'family' && attribute !== 'style') return null;
+  return Promise.all([loadIconIndex(), loadIconCatalogue()]).then(([index, catalogue]) => {
+    const selection = effectiveIconSelection(index, icon.values);
+    const from = icon.current.valueFrom ?? context.pos;
+    // XML can expose an incomplete AttributeValue node with an empty slice;
+    // derive the live query from the cursor range in that case.
+    const value = context.state.sliceDoc(from, context.pos).replace(/["']$/, '');
+    if (attribute === 'family') {
+      const families = index.families.filter(family => {
+        const style = icon.values.get('style');
+        const name = icon.values.get('name');
+        const canonicalName = name ? (index.aliases[name] ?? name) : undefined;
+        return (!style || family.styles.some(item => item.style === style))
+          && (!canonicalName || catalogue.records.some(record => record.name === canonicalName && record.family === family.family && (!style || record.style === style)));
+      });
+      return { ...valueRange(context, from), options: families.map(family => ({ label: family.family, type: 'constant', apply: family.family, detail: 'icon family' })) };
+    }
+    if (attribute === 'style') {
+      const family = selection.familyEntry;
+      const name = icon.values.get('name');
+      const canonicalName = name ? (index.aliases[name] ?? catalogue.records.find(record => record.aliases.includes(name))?.name ?? name) : undefined;
+      const styles = family?.styles.filter(style => !canonicalName || catalogue.records.some(record => record.family === family.family && record.style === style.style && record.name === canonicalName)) ?? [];
+      return { ...valueRange(context, from), options: styles.map(style => ({ label: style.style, type: 'constant', apply: style.style, detail: 'icon style' })) };
+    }
+    const records = catalogue.records.filter(record => record.family === selection.family && record.style === selection.style);
+    const query = value.toLocaleLowerCase();
+    const optionsWithRank = records.flatMap(record => {
+      const nodelAliases = [...record.aliases, ...Object.entries(index.aliases).filter(([, canonicalName]) => canonicalName === record.name).map(([alias]) => alias)];
+      const canonicalPrefix = record.name.toLocaleLowerCase().startsWith(query);
+      const aliasPrefix = nodelAliases.some(alias => alias.toLocaleLowerCase().startsWith(query));
+      const termMatch = record.terms.some(term => term.toLocaleLowerCase().includes(query));
+      const officialMatch = record.officialAliases.some(alias => alias.toLocaleLowerCase().includes(query));
+      if (query && !canonicalPrefix && !aliasPrefix && !termMatch && !officialMatch) return [];
+      const rank = canonicalPrefix ? 0 : aliasPrefix ? 1 : termMatch ? 2 : 3;
+      const result: Array<{ option: Completion; rank: number }> = [{
+        option: { label: record.name, type: 'constant', detail: `${record.label} · ${record.family} ${record.style}`, apply: record.name, boost: 100 - rank },
+        rank
+      }];
+      for (const alias of nodelAliases) result.push({ option: { label: alias, type: 'constant', detail: `Nodel alias for ${record.name}`, apply: alias, boost: 90 - rank }, rank: Math.max(1, rank) });
+      for (const alias of record.officialAliases) result.push({ option: { label: alias, type: 'constant', detail: `Font Awesome alias for ${record.name}`, apply: record.name, boost: 80 - rank }, rank: Math.max(3, rank) });
+      return result;
+    });
+    const options = optionsWithRank
+      .sort((left, right) => left.rank - right.rank || left.option.label.localeCompare(right.option.label))
+      .map(item => item.option)
+      .filter((option, index, all) => all.findIndex(candidate => candidate.label === option.label) === index)
+      .slice(0, 200);
+    // The catalogue source has already matched terms and official aliases;
+    // CodeMirror's label-only filter would discard those canonical results.
+    return { ...valueRange(context, from), options, filter: false, validFor: /^[a-z0-9-]*$/ };
+  }).catch(() => null);
+}
+
+function completeNodelDocumentBase(context: CompletionContext): CompletionResult | null {
   const current = documentContext(context);
   if (!current) {
     return context.explicit && context.state.sliceDoc(0, context.pos).trim() === '' ? { from: context.pos, options: nodelDocumentSnippets, validFor: /^[\w -]*$/ } : null;
@@ -224,6 +301,15 @@ export function completeNodelDocument(context: CompletionContext): CompletionRes
     return null;
   }
   return null;
+}
+
+export function completeNodelDocument(context: CompletionContext): CompletionResult | null {
+  return completeNodelDocumentBase(context);
+}
+
+function completeNodelDocumentAsync(context: CompletionContext): CompletionResult | Promise<CompletionResult | null> | null {
+  const icon = iconCatalogueCompletions(context);
+  return icon ?? completeNodelDocumentBase(context);
 }
 
 type SyncCompletionSource = (context: CompletionContext) => CompletionResult | null;
@@ -245,19 +331,35 @@ function decorateNativeResult(context: CompletionContext, result: CompletionResu
   return { ...result, options: result.options.map((option) => ({ ...option, ...nativeMetadata(context, option) })) };
 }
 
+function filterIconNativeResult(context: CompletionContext, result: CompletionResult): CompletionResult {
+  const icon = iconAttributes(context);
+  const query = icon?.current.valueText?.toLocaleLowerCase();
+  if (!icon || icon.current.attribute !== 'name' || query === undefined) return result;
+  return { ...result, options: result.options.filter(option => option.label.toLocaleLowerCase().includes(query)) };
+}
+
 export function withNodelDocumentCompletions(native: CompletionSource): SyncCompletionSource {
-  return (context) => {
+  return ((context: CompletionContext) => {
     const base = native(context);
-    const extra = completeNodelDocument(context);
-    if (base instanceof Promise || extra instanceof Promise) return null;
+    const extra = completeNodelDocumentAsync(context);
+    if (base instanceof Promise || extra instanceof Promise) {
+      return Promise.all([Promise.resolve(base), Promise.resolve(extra)]).then(([baseResult, extraResult]) => {
+        if (!baseResult) return extraResult;
+        const decorated = filterIconNativeResult(context, decorateNativeResult(context, baseResult));
+        if (!extraResult) return decorated;
+        if (extraResult.from !== decorated.from || (extraResult.to ?? context.pos) !== (decorated.to ?? context.pos)) return extraResult;
+        const options = [...extraResult.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index);
+        return { ...decorated, ...(extraResult.validFor ? { validFor: extraResult.validFor } : {}), ...(extraResult.filter !== undefined ? { filter: extraResult.filter } : {}), options };
+      }).catch(() => base instanceof Promise ? base.then(result => result ? filterIconNativeResult(context, decorateNativeResult(context, result)) : null) : base);
+    }
     if (!base) return extra;
-    const decorated = decorateNativeResult(context, base);
+    const decorated = filterIconNativeResult(context, decorateNativeResult(context, base));
     if (!extra) return decorated;
     if (extra.from !== decorated.from || (extra.to ?? context.pos) !== (decorated.to ?? context.pos)) return extra;
     const options = [...extra.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index);
     const validFor = extra.validFor ?? decorated.validFor;
     return { ...decorated, ...(validFor ? { validFor } : {}), options };
-  };
+  }) as unknown as SyncCompletionSource;
 }
 
 export { htmlExtraGlobalAttributes as nodelHtmlExtraGlobalAttributes, htmlExtraTags as nodelHtmlExtraTags, xmlAttributes as nodelXmlAttributes, xmlElements as nodelXmlElements };

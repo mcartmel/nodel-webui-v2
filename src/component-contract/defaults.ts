@@ -142,6 +142,8 @@ export const attributeDefaultMetadata: Record<string, AttributeDefaultMetadata> 
   'nodel-image.shape': { defaultValue: 'rounded' },
   'nodel-image.size': { defaultValue: 'auto' },
   'nodel-icon.name': { defaultValue: 'image' },
+  'nodel-icon.family': { defaultValue: 'classic' },
+  'nodel-icon.style': { defaultDescription: 'Derived: the selected family manifest default style, solid for Classic and brands for Brands in the public profile.' },
   'nodel-icon.tone': { defaultValue: 'default' },
   'nodel-icon.size': { defaultValue: 'auto' },
   'nodel-status-indicator.tone': { defaultValue: 'success' },

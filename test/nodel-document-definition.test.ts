@@ -297,7 +297,15 @@ describe('nodel document definition', () => {
     expect(new Set(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'on-icon')?.values)).toEqual(new Set(controlIconNames));
     expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-toggle on-icon="'))?.options[0]?.label).toBe('sun');
     expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values?.[0]).toBe('image');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.valueType).toBe('enum-or-string');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.syntax).toContain('Generated catalogue');
     expect(new Set(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values)).toEqual(new Set(controlIconNames));
+    expect(byName('nodel-icon').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['family', 'style']));
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'family')?.syntax).toContain('Generated catalogue');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'style')?.defaultDescription).toContain('manifest default');
+    expect(byName('nodel-icon').signalBindings.find((binding) => binding.attribute === 'signal')?.targets.map((target) => target.name)).toEqual(['name']);
+    expect(byName('nodel-icon').signalBindings.find((binding) => binding.attribute === 'signals')?.targets.map((target) => target.name)).toEqual(expect.arrayContaining(['name', 'family', 'style']));
+    expect(byName('nodel-toggle').attributes.find((attribute) => attribute.name === 'on-icon')?.valueType).toBe('enum');
     expect(byName('nodel-status').attributes.find((attribute) => attribute.name === 'state')?.valueType).toBe('enum-or-string');
     expect(byName('nodel-status').attributes.find((attribute) => attribute.name === 'level')?.syntax).toBe('integer-prefixed text');
     expect(byName('nodel-stepper').attributes.find((attribute) => attribute.name === 'precision')?.syntax).toBe('integer-prefixed text');
