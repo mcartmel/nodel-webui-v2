@@ -522,29 +522,7 @@
   }
 
   nodel-pad .nodel-pad-button[data-direction='center'] {
-    @apply z-10 justify-self-center self-center rounded-full border-2 p-0;
-    width: 2.875rem;
-    height: 2.875rem;
-    min-height: 0;
-    border-color: rgb(var(--nodel-bg) / 0.95);
-    background: rgb(var(--nodel-touch-fill-rgb));
-    box-shadow: 0 0 0 0.2rem rgb(var(--nodel-bg) / 0.75), var(--nodel-shadow-control, none);
-  }
-
-  nodel-pad .nodel-pad-button[data-direction='center'] span {
-    @apply sr-only;
-  }
-
-  nodel-pad .nodel-pad-button[data-direction='center']::after {
-    @apply block rounded-full;
-    content: '';
-    width: 1rem;
-    height: 1rem;
-    background: rgb(255 255 255 / 0.72);
-  }
-
-  nodel-pad .nodel-pad-button[data-direction='center']:disabled {
-    background: rgb(var(--nodel-muted) / 0.55);
+    border-radius: 0.35rem;
   }
 
   .nodel-readout-shell {
