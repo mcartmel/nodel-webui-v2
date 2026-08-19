@@ -6,3 +6,6 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+
+# Kilo working plans
+/.kilo/plans/
