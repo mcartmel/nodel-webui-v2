@@ -8,6 +8,7 @@ type BoundarySample = { box: Box; borderWidth: number; name: string; surface: st
 type StatusSample = { box: Box; name: string; surface: string };
 
 const representativeViews: Array<{ pageId: string; selector: string; openReference?: boolean }> = [
+  { pageId: 'Quickstart', selector: '[data-catalogue-quickstart]' },
   { pageId: 'Buttons', selector: '[data-catalogue-example="buttons-variants"]' },
   { pageId: 'Buttons', selector: '[data-catalogue-reference-for="nodel-button"]', openReference: true },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },

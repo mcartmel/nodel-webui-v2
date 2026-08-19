@@ -21,6 +21,10 @@ Examples:
 - Omit `nav-id` when the title-derived hash is stable enough.
 - Specify `nav-id`, `theme`, `span`, `scope`, or behavior flags only when the page needs a non-default value.
 
+## Quickstart
+
+The Components catalogue opens on a production-ready starter for node custom UI pages. Save the copied document as `content/index.html` to make it the node's primary UI and open it automatically. Use descriptive names such as `content/control.html` for additional custom UIs available from the node drawer. The starter uses a fixed dark theme through `nodel-app theme="dark"`; change that attribute to `light` when needed. It intentionally omits the theme toggle. Keep the stable relative `./v2/` CSS and JavaScript assets, and do not copy the catalogue-only `data-nodel-runtime="memory"` marker. The catalogue is also available from the node drawer's `Components` reference link.
+
 ## Current Elements
 
 The component set has two authoring audiences plus an internal implementation audience. Custom UI components are public authoring primitives intended for node-specific pages and are eagerly registered by the stable runtime. Core Nodel components implement the standard host and node administration pages. They are documented here because they share the same runtime and may be useful when replacing a core page, but they are intentionally not part of the visual component catalogue except for `nodel-link`, whose safe authored-link behavior is demonstrated there. Internal components are app-created infrastructure and are not author-instantiated. The stable runtime automatically loads documented core components found in initial markup or inserted later; ordinary authored pages do not need import calls. Advanced module code may import `loadNodelComponent` from `v2/nodel-webui.js` when it must await a core definition before creating the element.
@@ -280,7 +284,7 @@ Use the stable v2 asset path when authoring pages:
 <nodel-toolbar icon-src="./v2/img/logo.png"></nodel-toolbar>
 ```
 
-The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. A `nodel-app` `signal` or `signals` binding targets `title` by default and updates both `document.title` and the default toolbar title. An explicit `nodel-toolbar title="..."` remains the visible toolbar override. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
+The visible title is omitted by default on host pages. On node pages, the toolbar fetches relative `REST/` and uses the node display name as the default title. A `nodel-app` `signal` or `signals` binding targets `title` by default and updates both `document.title` and the default toolbar title. An explicit `nodel-toolbar title="..."` remains the visible toolbar override; the starter intentionally supplies one so custom UI authors can replace it. `icon-alt` defaults to the resolved title when one is available, otherwise it remains empty.
 
 ```html
 <nodel-app signal="DisplayTitle">
@@ -374,7 +378,7 @@ Add the following synchronous bootstrap before the stylesheet in authored pages 
 <link rel="stylesheet" href="./v2/nodel-webui.css" />
 ```
 
-An app with no explicit or stored preference follows live system changes. An app without an explicit theme also follows valid preference changes from other tabs. For a fixed app theme, set the same root value before the bootstrap, for example `<html data-theme="dark">` and `<nodel-app theme="dark">`, to keep the first paint aligned with the app.
+An app with no explicit or stored preference follows live system changes. An app without an explicit theme also follows valid preference changes from other tabs. For a fixed app theme, `nodel-app theme="light|dark"` is sufficient: the stylesheet recognizes the explicit app value before upgrade, and the connected app mirrors it to the root afterward. No matching root `data-theme` or theme toggle is needed for a fixed-theme page.
 
 `nodel-theme-toggle` renders an accessible slider switch and persists the selected light/dark preference. It is included in `nodel-node-menu` by default on node pages. It uses Font Awesome's free solid `sun` and `moon` icons by default. The icon imports are isolated in `src/icons/fontawesome.ts` so a licensed Font Awesome Pro package can be enabled later by changing that wrapper rather than the component API.
 

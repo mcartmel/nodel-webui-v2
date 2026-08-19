@@ -500,7 +500,7 @@ describe('nodel document definition', () => {
     const template = document.createElement('template');
     template.innerHTML = componentsUi;
     const examples = Array.from(template.content.querySelectorAll('[data-catalogue-example]'));
-    const codeElements = Array.from(template.content.querySelectorAll<HTMLElement>('pre.nodel-catalogue-code'));
+    const codeElements = Array.from(template.content.querySelectorAll<HTMLElement>('pre.nodel-catalogue-code[data-catalogue-code-for]'));
     const codeIds = codeElements.map((code) => code.dataset.catalogueCodeFor ?? '');
     const exampleIds = examples.map((example) => (example as HTMLElement).dataset.catalogueExample ?? '');
 
@@ -532,5 +532,41 @@ describe('nodel document definition', () => {
     }
 
     expect(Array.from(codeBlocks.keys()).filter(Boolean)).toEqual([]);
+  });
+
+  it('keeps the production Quickstart scaffold first and copy-safe', async () => {
+    const componentsUi = await readFile(resolve(process.cwd(), 'components.html'), 'utf8');
+    const template = document.createElement('template');
+    template.innerHTML = componentsUi;
+    const app = template.content.querySelector('nodel-app');
+    const pages = Array.from(app?.children ?? []).filter((element): element is HTMLElement => element.matches('nodel-page'));
+    const quickstart = pages[0];
+    const scaffold = template.content.querySelector<HTMLElement>('[data-catalogue-quickstart-code] code')?.textContent ?? '';
+
+    expect(quickstart?.getAttribute('title')).toBe('Quickstart');
+    expect(pages[1]?.getAttribute('title')).toBe('Layout');
+    expect(template.content.querySelector('[data-catalogue-quickstart]')).not.toBeNull();
+    expect(quickstart?.textContent).toContain('content/index.html');
+    expect(quickstart?.textContent).toContain('open it automatically');
+    expect(quickstart?.textContent).toContain('content/control.html');
+    expect(scaffold).toContain('<!doctype html>');
+    expect(scaffold).toContain('<link rel="stylesheet" href="./v2/nodel-webui.css" />');
+    expect(scaffold).toContain('<script type="module" src="./v2/nodel-webui.js"></script>');
+    expect(scaffold).toContain('<html lang="en">');
+    expect(scaffold).toContain('<nodel-app title="YOUR BROWSER TAB TITLE" theme="dark">');
+    expect(scaffold).toContain('<nodel-toolbar title="YOUR TOOLBAR TITLE"></nodel-toolbar>');
+    expect(scaffold).toContain('<nodel-page title="YOUR NAVIGATION TAB TITLE">');
+    expect(scaffold).toContain('<nodel-title level="1">YOUR PAGE HEADING</nodel-title>');
+    expect(scaffold).not.toContain('<title>');
+    expect(scaffold).not.toContain('data-theme=');
+    expect(scaffold).not.toContain('<nodel-theme-toggle>');
+    expect((scaffold.match(/\btheme="/g) ?? []).length).toBe(1);
+    expect(scaffold).toContain('<nodel-row>');
+    expect(scaffold).toContain('<nodel-column>');
+    expect(scaffold).toContain('<nodel-text>Your content goes here.</nodel-text>');
+    expect(scaffold).not.toContain('/src/');
+    expect(scaffold).not.toContain('data-nodel-runtime');
+    expect(scaffold).not.toContain('offline-mode');
+    expect(scaffold).not.toContain("localStorage.getItem('nodel.theme')");
   });
 });

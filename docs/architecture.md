@@ -169,7 +169,7 @@ User-authored pages should reference the stable v2 entry files, not the Vite sou
 <script type="module" src="./v2/nodel-webui.js"></script>
 ```
 
-Place this synchronous bootstrap before the stylesheet to set the initial theme from a valid root theme, then the stored preference, then the system preference. It tolerates unavailable storage and media queries. The connected `nodel-app` remains authoritative: explicit `theme="light"` or `theme="dark"` wins, otherwise it keeps the root synchronized with stored and system preferences. Pages with a fixed app theme should set the same root `data-theme` value (for example, `<html data-theme="dark">` with `<nodel-app theme="dark">`) so the first paint cannot differ from the app theme.
+Place this synchronous bootstrap before the stylesheet to set the initial theme from a valid root theme, then the stored preference, then the system preference. It tolerates unavailable storage and media queries. The connected `nodel-app` remains authoritative: explicit `theme="light"` or `theme="dark"` wins, otherwise it keeps the root synchronized with stored and system preferences. The stylesheet also recognizes an explicit `nodel-app theme="light|dark"` before upgrade, so fixed-theme pages do not need a matching root `data-theme` value.
 
 The page title can then be controlled by `nodel-app title="..."`.
 
