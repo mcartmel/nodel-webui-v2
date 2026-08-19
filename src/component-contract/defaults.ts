@@ -18,6 +18,7 @@ export const attributeDefaultMetadata: Record<string, AttributeDefaultMetadata> 
   'nodel-app.offline-mode': { defaultValue: 'modal' },
   'nodel-toolbar.title': { defaultDescription: 'Derived: app signal title or discovered node name when available.' },
   'nodel-toolbar.icon-alt': { defaultDescription: 'Derived: title.' },
+  'nodel-toolbar.show-host-icon': { defaultValue: 'false' },
   'nodel-page.title': { defaultDescription: 'Derived: Page for parent navigation when neither title nor nav-label is configured.' },
   'nodel-page.nav-label': { defaultDescription: 'Derived: title, otherwise Page.' },
   'nodel-page.nav-id': { defaultDescription: 'Derived: slugged navigation label/title, with a numeric suffix when needed for uniqueness.' },

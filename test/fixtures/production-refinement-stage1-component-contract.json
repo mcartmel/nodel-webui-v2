@@ -196,6 +196,15 @@
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "show-host-icon",
+          "description": "Opt in to the generated host identicon and link.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
         }
       ],
       "snippet": "<nodel-toolbar icon-src=\"./v2/img/logo.png\">\n  ${}\n</nodel-toolbar>",

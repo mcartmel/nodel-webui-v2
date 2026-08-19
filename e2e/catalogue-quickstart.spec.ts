@@ -48,6 +48,7 @@ test.describe('catalogue Quickstart', () => {
     await expect(page.locator('nodel-app[data-nodel-app="true"]')).toHaveCount(1);
     await expect(page).toHaveTitle('YOUR BROWSER TAB TITLE');
     await expect(page.locator('[data-toolbar-title]')).toHaveText('YOUR TOOLBAR TITLE');
+    await expect(page.locator('nodel-toolbar [data-toolbar-host-icon]')).toBeHidden();
     await expect(page.locator('[data-nav-page-id="YOURNAVIGATIONTABTITLE"]')).toHaveText('YOUR NAVIGATION TAB TITLE');
     await expect(page.locator('nodel-title')).toHaveText('YOUR PAGE HEADING');
     await expect(page.locator('nodel-text')).toHaveText('Your content goes here.');

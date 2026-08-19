@@ -23,7 +23,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'title', description: 'Toolbar title override.' },
       { name: 'icon-src', description: 'Static toolbar icon URL.' },
-      { name: 'icon-alt', description: 'Static toolbar icon alt text.' }
+      { name: 'icon-alt', description: 'Static toolbar icon alt text.' },
+      { name: 'show-host-icon', description: 'Opt in to the generated host identicon and link.' }
     ],
     snippet: '<nodel-toolbar icon-src="./v2/img/logo.png">\n  ${}\n</nodel-toolbar>'
   },

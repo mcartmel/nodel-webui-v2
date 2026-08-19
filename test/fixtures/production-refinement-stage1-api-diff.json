@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "ce14e521685026871c4c101ba720bfbb27227dd6dbb65845718718d9255de579",
+  "serializedSha256": "0528312c673c8a64594afb6441fe0b38342c56361695729df0ab78efb80fba3f",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
@@ -18,13 +18,15 @@
       "elements.nodel-node-list.attributes.show-filter: removed",
       "elements.nodel-node-list.attributes.show-total: removed"
     ],
-    "additive": [],
+    "additive": [
+      "elements.nodel-toolbar.attributes.show-host-icon: added"
+    ],
     "informational": [],
     "operational": []
   },
   "contractAnnotations": {
     "elements": 50,
-    "attributes": 441,
+    "attributes": 442,
     "audiences": {
       "custom": 32,
       "core": 15,
@@ -41,7 +43,7 @@
       "hidden": 3
     },
     "consumption": {
-      "observed": 433,
+      "observed": 434,
       "initialization": 0,
       "parent": 3,
       "contextual-child": 4,
