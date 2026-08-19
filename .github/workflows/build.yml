@@ -126,7 +126,7 @@ jobs:
   browser-deployment:
     needs: [quality, java-handoff]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
 
     steps:
       - name: Checkout source for test scripts

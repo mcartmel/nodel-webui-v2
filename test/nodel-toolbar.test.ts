@@ -24,11 +24,53 @@ describe('nodel-toolbar', () => {
 
     const title = document.querySelector('[data-toolbar-title]') as HTMLElement | null;
     const icon = document.querySelector('[data-toolbar-icon]') as HTMLImageElement | null;
+    const hostIcon = document.querySelector('[data-toolbar-host-icon]') as HTMLElement | null;
 
     expect(title?.hidden).toBe(true);
     expect(title?.textContent).toBe('');
     expect(icon?.alt).toBe('');
+    expect(hostIcon?.hidden).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('hides the host icon unless explicitly enabled', async () => {
+    document.body.innerHTML = '<nodel-toolbar></nodel-toolbar>';
+    await customElements.whenDefined('nodel-toolbar');
+    await flush();
+
+    const hostIcon = document.querySelector('[data-toolbar-host-icon]') as HTMLElement;
+
+    expect(hostIcon.hidden).toBe(true);
+  });
+
+  it('renders the opted-in host icon with current-host link and accessible labels', async () => {
+    document.body.innerHTML = '<nodel-toolbar show-host-icon></nodel-toolbar>';
+    await customElements.whenDefined('nodel-toolbar');
+    await flush();
+
+    const hostIcon = document.querySelector('[data-toolbar-host-icon]') as HTMLElement;
+    const link = hostIcon.querySelector('a') as HTMLAnchorElement;
+    const image = hostIcon.querySelector('img') as HTMLImageElement;
+    const expectedHref = `${window.location.protocol}//${window.location.host}/`;
+
+    expect(hostIcon.hidden).toBe(false);
+    expect(link.href).toBe(expectedHref);
+    expect(link.title).toBe('Browse this host');
+    expect(image.alt).toBe('Browse this host');
+  });
+
+  it('updates host icon visibility when the opt-in attribute changes', async () => {
+    document.body.innerHTML = '<nodel-toolbar></nodel-toolbar>';
+    await customElements.whenDefined('nodel-toolbar');
+    await flush();
+
+    const toolbar = document.querySelector('nodel-toolbar') as HTMLElement;
+    const hostIcon = toolbar.querySelector('[data-toolbar-host-icon]') as HTMLElement;
+
+    toolbar.setAttribute('show-host-icon', '');
+    expect(hostIcon.hidden).toBe(false);
+    toolbar.removeAttribute('show-host-icon');
+    expect(hostIcon.hidden).toBe(true);
   });
 
   it('defaults to the node display name on node pages', async () => {

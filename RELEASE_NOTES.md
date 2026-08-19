@@ -33,8 +33,8 @@
 
 ### Compatibility And Public API
 
-- **Breaking:** None. Supported markup and wire contracts are unchanged.
-- **Additive:** Schema-1 public component-contract metadata and allowlisted lazy-load fallback are additive.
+- **Breaking:** Toolbar host identity is now opt-in for custom pages. Existing custom pages must add the presence attribute `show-host-icon` to retain host identity; shipped core pages already opt in.
+- **Additive:** The `show-host-icon` attribute, schema-1 public component-contract metadata, and allowlisted lazy-load fallback are additive.
 - **Informational/operational:** Removal of the unreleased, nonfunctional node-list `show-filter` and `show-total` declarations requires no migration.
 
 ### Editor Assistance And Recovery

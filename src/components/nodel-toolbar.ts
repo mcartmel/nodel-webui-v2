@@ -20,7 +20,7 @@ function selectorString(value: string) {
 }
 
 export class NodelToolbar extends HTMLElement {
-  static observedAttributes = ['title', 'icon-src', 'icon-alt'];
+  static observedAttributes = ['title', 'icon-src', 'icon-alt', 'show-host-icon'];
 
   private appNode: NavigationAppElement | null = null;
   private activePageId = '';
@@ -87,7 +87,7 @@ export class NodelToolbar extends HTMLElement {
         <div class="nodel-shell nodel-toolbar-shell">
           <div data-toolbar-brand class="nodel-toolbar-brand">
             <img data-toolbar-icon class="hidden h-12 w-24 shrink-0 object-contain" alt="" />
-            <nodel-host-icon data-toolbar-host-icon class="nodel-toolbar-host-icon" href="" title="Browse this host"></nodel-host-icon>
+            <nodel-host-icon data-toolbar-host-icon class="nodel-toolbar-host-icon" hidden href="" title="Browse this host"></nodel-host-icon>
             <span data-toolbar-title class="truncate text-base font-semibold tracking-wide"></span>
           </div>
           <nav data-toolbar-nav class="nodel-toolbar-nav" aria-label="Page navigation">
@@ -129,6 +129,7 @@ export class NodelToolbar extends HTMLElement {
     }
 
     if (this.hostIconNode) {
+      this.hostIconNode.hidden = !this.hasAttribute('show-host-icon');
       this.hostIconNode.setAttribute('host', window.location.host);
       this.hostIconNode.setAttribute('icon-host', window.location.host);
       this.hostIconNode.setAttribute('href', `${window.location.protocol}//${window.location.host}/`);
