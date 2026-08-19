@@ -46,6 +46,39 @@ async function editorText(content: Locator) {
   return (await content.locator('.cm-line').allTextContents()).join('\n');
 }
 
+async function tooltipColors(lintTooltip: Locator) {
+  return lintTooltip.evaluate((tooltip) => {
+    const host = document.querySelector<HTMLElement>('#stage-2-completion-fixture .nodel-editor-host');
+    if (!host) {
+      throw new Error('Missing editor host for lint tooltip color probe.');
+    }
+    const probe = document.createElement('div');
+    probe.style.color = 'rgb(var(--nodel-fg))';
+    probe.style.background = 'var(--nodel-popover-background, rgb(var(--nodel-surface-raised)))';
+    probe.style.borderColor = 'rgb(var(--nodel-border))';
+    host.append(probe);
+    const expected = getComputedStyle(probe);
+    const actual = getComputedStyle(tooltip);
+    const colors = {
+      actualBackground: actual.backgroundColor,
+      actualBorder: actual.borderTopColor,
+      actualForeground: actual.color,
+      expectedBackground: expected.backgroundColor,
+      expectedBorder: expected.borderTopColor,
+      expectedForeground: expected.color
+    };
+    probe.remove();
+    return colors;
+  });
+}
+
+async function expectCompletionA11y(page: Page, projectName: string) {
+  // CodeMirror keeps keyboard focus on the editor and controls its listbox
+  // through aria-activedescendant, which this Safari-oriented rule cannot infer.
+  const results = await new AxeBuilder({ page }).include('#stage-2-completion-fixture').disableRules(['scrollable-region-focusable']).analyze();
+  expect(results.violations, projectName).toEqual([]);
+}
+
 test.describe('Stage 2 CodeMirror completion regressions', () => {
   test.beforeEach(({ page }, testInfo) => {
     void page;
@@ -157,17 +190,40 @@ test.describe('Stage 2 CodeMirror completion regressions', () => {
 
   test('shows bounded non-blocking diagnostics and keeps completion UI accessible', async ({ page }, testInfo) => {
     const content = await openCompletionEditor(page, '<nodel-button variant="invalid"></nodel-button>');
+    const initialTheme = testInfo.project.name === 'chromium-light-desktop' ? 'light' : 'dark';
+    const app = page.locator('nodel-app');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', initialTheme);
     const diagnosticStatus = page.locator('#stage-2-completion-fixture [data-editor-diagnostic-status]');
     await expect(diagnosticStatus).toContainText('1 error');
-    await expect(page.locator('#stage-2-completion-fixture .cm-lintRange-error')).toHaveCount(1);
+    const diagnosticRange = page.locator('#stage-2-completion-fixture .cm-lintRange-error');
+    await expect(diagnosticRange).toHaveCount(1);
+    await diagnosticRange.hover();
+    const lintTooltip = page.locator('#stage-2-completion-fixture .cm-tooltip-lint');
+    await expect(lintTooltip).toBeVisible();
+    await expect(lintTooltip).toContainText('Enum value is not supported.');
+    const tooltipColorsBeforeThemeSwitch = await tooltipColors(lintTooltip);
+    expect(tooltipColorsBeforeThemeSwitch.actualForeground).toBe(tooltipColorsBeforeThemeSwitch.expectedForeground);
+    expect(tooltipColorsBeforeThemeSwitch.actualBackground).toBe(tooltipColorsBeforeThemeSwitch.expectedBackground);
+    expect(tooltipColorsBeforeThemeSwitch.actualBorder).toBe(tooltipColorsBeforeThemeSwitch.expectedBorder);
+    await expectCompletionA11y(page, testInfo.project.name);
+    const oppositeTheme = initialTheme === 'light' ? 'dark' : 'light';
+    await app.evaluate((element, theme) => element.setAttribute('theme', theme), oppositeTheme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', oppositeTheme);
+    await expect(lintTooltip).toBeVisible();
+    const tooltipColorsAfterThemeSwitch = await tooltipColors(lintTooltip);
+    expect(tooltipColorsAfterThemeSwitch.actualForeground).toBe(tooltipColorsAfterThemeSwitch.expectedForeground);
+    expect(tooltipColorsAfterThemeSwitch.actualBackground).toBe(tooltipColorsAfterThemeSwitch.expectedBackground);
+    expect(tooltipColorsAfterThemeSwitch.actualBorder).toBe(tooltipColorsAfterThemeSwitch.expectedBorder);
+    expect(tooltipColorsAfterThemeSwitch.actualForeground).not.toBe(tooltipColorsBeforeThemeSwitch.actualForeground);
+    expect(tooltipColorsAfterThemeSwitch.actualBackground).not.toBe(tooltipColorsBeforeThemeSwitch.actualBackground);
+    expect(tooltipColorsAfterThemeSwitch.actualBorder).not.toBe(tooltipColorsBeforeThemeSwitch.actualBorder);
+    await app.evaluate((element, theme) => element.setAttribute('theme', theme), initialTheme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', initialTheme);
     await content.press('End');
     await content.pressSequentially(' ');
     await expect(page.locator('#stage-2-completion-fixture [data-editor-save]')).toBeEnabled();
     await content.press('Control+Space');
     await expect(page.locator('.cm-tooltip-autocomplete')).toBeVisible();
-    // CodeMirror keeps keyboard focus on the editor and controls its listbox
-    // through aria-activedescendant, which this Safari-oriented rule cannot infer.
-    const results = await new AxeBuilder({ page }).include('#stage-2-completion-fixture').disableRules(['scrollable-region-focusable']).analyze();
-    expect(results.violations, testInfo.project.name).toEqual([]);
+    await expectCompletionA11y(page, testInfo.project.name);
   });
 });
