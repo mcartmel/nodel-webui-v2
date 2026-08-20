@@ -49,6 +49,20 @@ describe('Nodel document diagnostics', () => {
     expect((await diagnose('<nodel-segmented />')).summary.errors).toBe(0);
   });
 
+  it('checks fill placement without rejecting conditional alternatives', async () => {
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-group fill></nodel-group>')).diagnostics).toEqual([expect.objectContaining({ severity: 'warning', message: expect.stringContaining('nodel-column') })]);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button>Other</nodel-button></nodel-column>')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group>text</nodel-column>')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button hidden>Other</nodel-button></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-control-grid fill hidden></nodel-control-grid></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button visibility="Mode" visible-value="other">Other</nodel-button></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button signals="Mode:visibility">Other</nodel-button></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button signals="Mode:visibility(last)">Other</nodel-button></nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group>&amp;</nodel-column>')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-group fill></nodel-group>&#32;</nodel-column>')).summary.warnings).toBe(0);
+  });
+
   it('reports authoring warnings without rejecting globals or ordinary HTML', async () => {
     const result = await diagnose('<nodel-button data-test="x" aria-label="x" onpointerdown="x" xmlns:svg="x" class="nodel-button" unknown="x" /><nodel-console collapse-preview="last-line" /><div weird="free-form" />');
     expect(result.summary.errors).toBe(0);
@@ -60,6 +74,10 @@ describe('Nodel document diagnostics', () => {
 
   it('supports XML and deterministic bounds without raw document content in messages', async () => {
     expect((await diagnose('<nodel-button variant="bad"/>', 'xml')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-control-grid fill/></nodel-column>', 'xml')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-control-grid fill/>', 'xml')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-group fill/>&amp;</nodel-column>', 'xml')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-column><nodel-group fill/>&#32;</nodel-column>', 'xml')).summary.warnings).toBe(0);
     const result = await diagnose('x'.repeat(NODEL_DIAGNOSTIC_LIMITS.maxDocumentLength + 1));
     expect(result.summary.truncated).toBe(true);
     expect(result.diagnostics.every((diagnostic) => diagnostic.message.length <= NODEL_DIAGNOSTIC_LIMITS.maxMessageLength)).toBe(true);

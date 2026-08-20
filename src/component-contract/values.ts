@@ -23,5 +23,5 @@ export const confirmationAttributes: NodelAttributeDefinition[] = [
 
 export const booleanAttributeNames = new Set([
   'active', 'allow-deselect', 'center-disabled', 'confirm', 'disabled', 'fixed', 'increment', 'live',
-  'open', 'show-host-icon', 'show-state-label'
+  'fill', 'open', 'show-host-icon', 'show-state-label'
 ]);

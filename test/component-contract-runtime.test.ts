@@ -12,7 +12,9 @@ const nonReactiveAttributes = new Set([
   'nodel-button.border',
   'nodel-button.color',
   'nodel-button.value',
-  'nodel-console.collapse-preview'
+  'nodel-console.collapse-preview',
+  'nodel-control-grid.fill',
+  'nodel-group.fill'
 ]);
 
 const internalComponentEvents = new Set([
@@ -54,6 +56,15 @@ describe('component contract runtime alignment', () => {
           expect(observed.has(attribute.name), `${element.name}.${attribute.name}`).toBe(false);
         }
       }
+    }
+  });
+
+  it('keeps parent-consumed fill out of child observed attributes', () => {
+    for (const name of ['nodel-group', 'nodel-control-grid']) {
+      const element = componentContracts.find((candidate) => candidate.name === name)!;
+      const constructor = customElements.get(name) as { observedAttributes?: string[] };
+      expect(element.attributes.find((attribute) => attribute.name === 'fill')).toMatchObject({ consumption: 'parent', consumer: 'nodel-column' });
+      expect(constructor.observedAttributes ?? []).not.toContain('fill');
     }
   });
 
