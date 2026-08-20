@@ -32,7 +32,7 @@ describe('actsig controller', () => {
     expect(api.getActions).toHaveBeenCalledWith(expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(api.getSignals).toHaveBeenCalledWith(expect.objectContaining({ signal: expect.any(AbortSignal) }));
     resolveActions({}); resolveSignals({});
-    expect(await pending).toEqual({ status: 'verified' });
+    expect(await pending).toEqual({ status: 'verified', changed: true });
     expect(state.empty).toBe(true);
     expect(state.overrideSignals).toBe(true);
   });
@@ -99,7 +99,7 @@ describe('actsig controller', () => {
     const secondSignalSignal = api.getSignals.mock.calls[1]?.[0].signal;
     expect(secondActionSignal).toBe(secondSignalSignal);
     expect(secondActionSignal).not.toBe(firstActionSignal);
-    expect(await second).toEqual({ status: 'verified' });
+    expect(await second).toEqual({ status: 'verified', changed: true });
     resolveOldActions({ old: { name: 'Old' } });
     resolveOldSignals({});
     expect(await first).toEqual({ status: 'superseded', detail: 'Actions and signals refresh was superseded.' });
@@ -132,6 +132,180 @@ describe('actsig controller', () => {
     expect(hydrated).toEqual(expect.arrayContaining([action, signal]));
     expect(action.schemaForm!.fields[0]!.value).toBe('edited');
     expect(signal.schemaForm!.fields[0]!.value).toBe('signal update');
+  });
+
+  it('reports unseen local points once, ignores remote and binding activity, and answers exact known-point checks', () => {
+    const { controller } = setup();
+    loadDefinitions(controller);
+    const result = controller.applyActivityEntries([
+      { seq: 1, source: 'remote', type: 'action', alias: 'Missing' },
+      { seq: 2, source: 'unbound', type: 'event', alias: 'Missing' },
+      { seq: 3, source: 'local', type: 'action', alias: 'Missing' },
+      { seq: 4, source: 'local', type: 'action', alias: 'Missing', arg: false },
+      { seq: 5, source: 'local', type: 'event', alias: 'New event' },
+      { seq: 6, source: 'local', type: 'event', alias: 'New event' },
+      { seq: 7, source: 'local', type: 'event', alias: 'Ready' },
+      { seq: 8, source: 'local', type: 'actionBinding', alias: 'Missing' },
+      { seq: 9, source: 'remote', type: 'eventBinding', alias: 'Missing' }
+    ], { canHydrate: () => false });
+    expect(result.unseen).toEqual(['action|Missing', 'event|New event']);
+    expect(controller.isPointKnown('action', 'Run')).toBe(true);
+    expect(controller.isPointKnown('event', 'Run')).toBe(false);
+    expect(controller.isPointKnown('event', 'Ready')).toBe(true);
+  });
+
+  it('compares complete snapshots, preserves state on equal or failed refresh, and uses no-store', async () => {
+    const { api, controller, state } = setup();
+    const definitions = { run: { name: 'Run', schema: { type: 'string' } } };
+    api.getActions.mockResolvedValue(definitions);
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready' } });
+    expect(await controller.load(lifecycle())).toEqual({ status: 'verified', changed: true });
+    const sections = state.sections;
+    state.overrideSignals = true;
+    state.error = 'old warning';
+    api.getActions.mockResolvedValue({ run: { name: 'Run', schema: { type: 'string' }, arg: 42 } });
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready' } });
+    expect(await controller.refresh(lifecycle())).toEqual({ status: 'verified', changed: false });
+    expect(state.sections).toBe(sections);
+    expect(state.error).toBe('old warning');
+    expect(state.overrideSignals).toBe(true);
+    expect(api.getActions.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({ cache: 'no-store', signal: expect.any(AbortSignal) }));
+    api.getActions.mockRejectedValueOnce(new Error('refresh unavailable'));
+    const beforeFailure = state.sections;
+    expect(await controller.refresh(lifecycle())).toEqual({ status: 'failed', detail: 'refresh unavailable' });
+    expect(state.sections).toBe(beforeFailure);
+    expect(state.error).toBe('old warning');
+  });
+
+  it('leaves loading, error, and sections untouched while a non-initial refresh is pending', async () => {
+    const { api, controller, state } = setup();
+    api.getActions.mockResolvedValue({ run: { name: 'Run' } });
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready' } });
+    await controller.load(lifecycle());
+    state.loading = false;
+    state.error = 'activity warning';
+    const sections = state.sections;
+    let resolveActions!: (value: Record<string, { name: string }>) => void;
+    let resolveSignals!: (value: Record<string, { name: string }>) => void;
+    api.getActions.mockReturnValueOnce(new Promise((resolve) => { resolveActions = resolve; }));
+    api.getSignals.mockReturnValueOnce(new Promise((resolve) => { resolveSignals = resolve; }));
+
+    const pending = controller.refresh(lifecycle());
+    expect({ loading: state.loading, error: state.error, sections: state.sections }).toEqual({ loading: false, error: 'activity warning', sections });
+    expect(state.sections).toBe(sections);
+    resolveActions({ run: { name: 'Run' } });
+    resolveSignals({ ready: { name: 'Ready' } });
+    expect(await pending).toEqual({ status: 'verified', changed: false });
+  });
+
+  it('preserves state when a non-initial refresh is aborted', async () => {
+    const { api, controller, state } = setup();
+    api.getActions.mockResolvedValue({ run: { name: 'Run' } });
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready' } });
+    await controller.load(lifecycle());
+    state.loading = false;
+    state.error = 'existing error';
+    const sections = state.sections;
+    let actionsObservedAbort = false;
+    let signalsObservedAbort = false;
+    const pendingRequest = (observedAbort: () => void) => (init?: RequestInit) => new Promise<Record<string, { name: string }>>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        observedAbort();
+        reject(new DOMException('aborted', 'AbortError'));
+      }, { once: true });
+    });
+    api.getActions.mockImplementationOnce(pendingRequest(() => { actionsObservedAbort = true; }));
+    api.getSignals.mockImplementationOnce(pendingRequest(() => { signalsObservedAbort = true; }));
+
+    const pending = controller.refresh(lifecycle());
+    controller.abort();
+    expect(await pending).toEqual({ status: 'superseded', detail: 'Actions and signals refresh was superseded.' });
+    expect(actionsObservedAbort).toBe(true);
+    expect(signalsObservedAbort).toBe(true);
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe('existing error');
+    expect(state.sections).toBe(sections);
+  });
+
+  it('aborts the paired sibling request when one endpoint fails but reports the endpoint failure', async () => {
+    const { api, controller } = setup();
+    let siblingAborted = false;
+    api.getActions.mockRejectedValueOnce(new Error('actions unavailable'));
+    api.getSignals.mockImplementationOnce((init?: RequestInit) => new Promise<Record<string, never>>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        siblingAborted = true;
+        reject(new DOMException('aborted', 'AbortError'));
+      }, { once: true });
+    }));
+
+    await expect(controller.load(lifecycle())).resolves.toEqual({ status: 'failed', detail: 'actions unavailable' });
+    expect(siblingAborted).toBe(true);
+  });
+
+  it('aborts the pending actions request when signals fail but reports the signal failure', async () => {
+    const { api, controller } = setup();
+    let siblingAborted = false;
+    api.getActions.mockImplementationOnce((init?: RequestInit) => new Promise<Record<string, never>>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        siblingAborted = true;
+        reject(new DOMException('aborted', 'AbortError'));
+      }, { once: true });
+    }));
+    api.getSignals.mockRejectedValueOnce(new Error('signals unavailable'));
+
+    await expect(controller.load(lifecycle())).resolves.toEqual({ status: 'failed', detail: 'signals unavailable' });
+    expect(siblingAborted).toBe(true);
+  });
+
+  it('preserves state when an abort-insensitive non-initial refresh is superseded', async () => {
+    const { api, controller, state } = setup();
+    api.getActions.mockResolvedValue({ run: { name: 'Run' } });
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready' } });
+    await controller.load(lifecycle());
+    state.loading = false;
+    state.error = 'keep this error';
+    const sections = state.sections;
+    let resolveOldActions!: (value: Record<string, { name: string }>) => void;
+    let resolveOldSignals!: (value: Record<string, { name: string }>) => void;
+    api.getActions
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOldActions = resolve; }))
+      .mockResolvedValueOnce({ run: { name: 'Run' } });
+    api.getSignals
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOldSignals = resolve; }))
+      .mockResolvedValueOnce({ ready: { name: 'Ready' } });
+
+    const first = controller.refresh(lifecycle());
+    expect(state.sections).toBe(sections);
+    const second = controller.refresh(lifecycle());
+    expect(await second).toEqual({ status: 'verified', changed: false });
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe('keep this error');
+    expect(state.sections).toBe(sections);
+    resolveOldActions({ old: { name: 'Old' } });
+    resolveOldSignals({});
+    expect(await first).toEqual({ status: 'superseded', detail: 'Actions and signals refresh was superseded.' });
+    expect(state.loading).toBe(false);
+    expect(state.error).toBe('keep this error');
+    expect(state.sections).toBe(sections);
+  });
+
+  it('applies a changed snapshot once and hydrates a newly discovered form from cached activity', async () => {
+    const { api, controller, state } = setup();
+    api.getActions.mockResolvedValue({ run: { name: 'Run', schema: { type: 'string' } } });
+    api.getSignals.mockResolvedValue({});
+    await controller.load(lifecycle());
+    state.overrideSignals = true;
+    controller.applyActivityEntries([{ seq: 1, source: 'local', type: 'event', alias: 'Ready', arg: 'cached' }], { canHydrate: () => false });
+    api.getActions.mockResolvedValue({ run: { name: 'Run', schema: { type: 'string' } } });
+    api.getSignals.mockResolvedValue({ ready: { name: 'Ready', schema: { type: 'string' } } });
+    const result = await controller.refresh(lifecycle());
+    expect(result).toEqual({ status: 'verified', changed: true });
+    expect(state.overrideSignals).toBe(true);
+    const section = state.sections[0]!;
+    const event = formsInSection(section).find((form) => form.name === 'Ready')!;
+    controller.materializeForm(event);
+    expect(controller.hydrateCachedForms({ canHydrate: () => true })).toContain(event);
+    expect(event.schemaForm?.sourceValue).toEqual({ arg: 'cached' });
   });
 
   it('returns invalid, submitted, error, and stale outcomes with exact endpoint payloads', async () => {

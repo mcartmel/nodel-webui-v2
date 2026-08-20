@@ -4,6 +4,12 @@ import type * as jsViewsRuntime from '../src/jsviews/jsviews-runtime';
 
 type PulseActivityState = { batch: { items: Array<{ entry: { seq: number; source: 'local'; type: 'action'; alias: string } }> } };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
 const jsViewsLifecycleMock = vi.hoisted(() => {
   let resolveBootstrap!: () => void;
   let bootstrapReady: Promise<void>;
@@ -163,5 +169,73 @@ describe('nodel-actsig JsViews lifecycle', () => {
     expect(pulseTimers.size).toBe(1);
     actsig.remove();
     expect(pulseTimers.size).toBe(0);
+  });
+
+  it('cancels a pending discovery timer on disconnect and keeps one active subscription after reconnect', async () => {
+    const actsig = document.createElement('nodel-actsig');
+    document.body.append(actsig);
+    await flush();
+    jsViewsLifecycleMock.releaseBootstrap();
+    await waitFor(() => jsViewsLifecycleMock.links.length === 1);
+    jsViewsLifecycleMock.links[0]!.resolve();
+    await waitFor(() => actsigLifecycleMock.subscriptions.length === 1);
+
+    vi.useFakeTimers();
+    try {
+      actsigLifecycleMock.subscriptions[0]!.listener({ batch: { items: [{ entry: { seq: 1, source: 'local', type: 'action', alias: 'NewPoint' } }] } });
+      expect((actsig as any).activityTimer).not.toBeNull();
+      actsig.remove();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigLifecycleMock.getNodeActions).toHaveBeenCalledOnce();
+      expect(actsigLifecycleMock.subscriptions[0]!.dispose).toHaveBeenCalledOnce();
+      expect(actsigLifecycleMock.subscriptions.filter((subscription) => subscription.active)).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps a reconnect generation guard when a stale activity refresh settles late', async () => {
+    const actsig = document.createElement('nodel-actsig');
+    document.body.append(actsig);
+    await flush();
+    jsViewsLifecycleMock.releaseBootstrap();
+    await waitFor(() => jsViewsLifecycleMock.links.length === 1);
+    jsViewsLifecycleMock.links[0]!.resolve();
+    await waitFor(() => actsigLifecycleMock.subscriptions.length === 1);
+
+    const stale = deferred<Record<string, unknown>>();
+    const fresh = deferred<Record<string, unknown>>();
+    actsigLifecycleMock.getNodeActions.mockReturnValueOnce(stale.promise).mockResolvedValueOnce({}).mockReturnValueOnce(fresh.promise);
+    actsigLifecycleMock.getNodeSignals.mockResolvedValueOnce({}).mockResolvedValueOnce({}).mockResolvedValueOnce({});
+    const unknown = (listener: (state: any) => void) => listener({ batch: { items: [{ entry: { seq: 1, source: 'local', type: 'action', alias: 'NewPoint' } }] } });
+
+    vi.useFakeTimers();
+    unknown(actsigLifecycleMock.subscriptions[0]!.listener);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(actsigLifecycleMock.getNodeActions).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+
+    actsig.remove();
+    document.body.append(actsig);
+    await waitFor(() => jsViewsLifecycleMock.links.length === 2);
+    jsViewsLifecycleMock.links[1]!.resolve();
+    await waitFor(() => actsigLifecycleMock.subscriptions.length === 2);
+
+    vi.useFakeTimers();
+    try {
+      const active = actsigLifecycleMock.subscriptions.find((subscription) => subscription.active)!;
+      unknown(active.listener);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigLifecycleMock.getNodeActions).toHaveBeenCalledTimes(4);
+      stale.resolve({});
+      await Promise.resolve();
+      await Promise.resolve();
+      unknown(active.listener);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigLifecycleMock.getNodeActions).toHaveBeenCalledTimes(4);
+      fresh.resolve({});
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

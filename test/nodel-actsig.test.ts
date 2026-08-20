@@ -7,6 +7,16 @@ function required<T>(value: T | undefined): T {
   return value;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+
 const actsigMock = vi.hoisted(() => ({
   activityListeners: [] as Array<(state: any) => void>,
   activitySubscriptions: [] as Array<{ active: boolean; dispose: ReturnType<typeof vi.fn> }>,
@@ -39,6 +49,7 @@ vi.mock('../src/data/node-activity-source', () => ({
 }));
 
 import '../src/components/nodel-actsig';
+import '../src/components/nodel-toast-host';
 
 const nativeClipboard = navigator.clipboard;
 const nativeExecCommand = document.execCommand;
@@ -604,6 +615,411 @@ describe('nodel-actsig', () => {
     }
   });
 
+  it('discovers the complete definition set once for one unseen local event', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Known: { name: 'Known', title: 'Known', schema: { type: 'null' } } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    vi.useFakeTimers();
+    try {
+      actsigMock.getNodeActions.mockResolvedValueOnce({
+        Known: { name: 'Known', title: 'Known', schema: { type: 'null' } },
+        NewAction: { name: 'NewAction', title: 'New Action', schema: { type: 'string' } },
+        AnotherAction: { name: 'AnotherAction', title: 'Another Action', schema: { type: 'number' } }
+      });
+      actsigMock.getNodeSignals.mockResolvedValueOnce({
+        NewEvent: { name: 'NewEvent', title: 'New Event', schema: { type: 'boolean' } },
+        AnotherEvent: { name: 'AnotherEvent', title: 'Another Event', schema: { type: 'string' } }
+      });
+      const listener = actsigMock.activityListeners[0]!;
+      listener({ batch: { items: [{
+        entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'NewEvent' }, changed: true, live: true
+      }] } });
+      await vi.advanceTimersByTimeAsync(199);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await vi.runAllTimersAsync();
+
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(2);
+      expect(formByTitle('New Action')).not.toBeNull();
+      expect(formByTitle('Another Action')).not.toBeNull();
+      expect(formByTitle('New Event')).not.toBeNull();
+      expect(formByTitle('Another Event')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not discover for known, remote, unbound, or binding activity', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Known: { name: 'Known', title: 'Known', schema: { type: 'null' } } });
+    await mountActSig();
+    const listener = actsigMock.activityListeners[0]!;
+    listener({ batch: { items: [
+      { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Known' }, changed: true, live: true },
+      { entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'remote', type: 'action', alias: 'Unknown' }, changed: true, live: true },
+      { entry: { seq: 3, timestamp: '2026-01-01T00:00:00Z', source: 'unbound', type: 'event', alias: 'Unknown' }, changed: true, live: true },
+      { entry: { seq: 4, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'actionBinding', alias: 'Unknown' }, changed: true, live: true },
+      { entry: { seq: 5, timestamp: '2026-01-01T00:00:00Z', source: 'remote', type: 'eventBinding', alias: 'Unknown' }, changed: true, live: true }
+    ] } });
+    await flush();
+    expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(1);
+    expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not poll definitions when no unknown activity arrives', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Known: { name: 'Known', title: 'Known', schema: { type: 'null' } } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    const actionReads = actsigMock.getNodeActions.mock.calls.length;
+    const eventReads = actsigMock.getNodeSignals.mock.calls.length;
+    vi.useFakeTimers();
+    try {
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(actionReads);
+      expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(eventReads);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry failed discovery from retained, empty, known, remote, or binding batches', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Known: { name: 'Known', schema: { type: 'null' } } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    vi.useFakeTimers();
+    try {
+      actsigMock.getNodeActions.mockRejectedValueOnce(new Error('Definitions unavailable'));
+      const listener = actsigMock.activityListeners[0]!;
+      listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Missing' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      listener({ batch: { items: [] } });
+      listener({ batch: { items: [
+        { entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Known' }, changed: true, live: true },
+        { entry: { seq: 3, timestamp: '2026-01-01T00:00:00Z', source: 'remote', type: 'event', alias: 'Missing' }, changed: true, live: true },
+        { entry: { seq: 4, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'actionBinding', alias: 'Missing' }, changed: true, live: true },
+        { entry: { seq: 5, timestamp: '2026-01-01T00:00:00Z', source: 'remote', type: 'eventBinding', alias: 'Missing' }, changed: true, live: true }
+      ] } });
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+
+      actsigMock.getNodeActions.mockResolvedValueOnce({ Later: { name: 'Later', title: 'Later', schema: { type: 'null' } } });
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      listener({ batch: { items: [{ entry: { seq: 6, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Later' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(199);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('coalesces multiple unseen aliases arriving within 200ms into one request pair', async () => {
+    await mountActSig();
+    const listener = actsigMock.activityListeners[0]!;
+    vi.useFakeTimers();
+    try {
+      listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'First' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(100);
+      listener({ batch: { items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Second' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(99);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(1);
+      expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tracks in-flight unknown identities and performs at most one trailing check for a miss', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({});
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    vi.useFakeTimers();
+    try {
+      const actions = deferred<Record<string, any>>();
+      const signals = deferred<Record<string, any>>();
+      actsigMock.getNodeActions.mockReturnValueOnce(actions.promise).mockResolvedValueOnce({ First: { name: 'First', schema: { type: 'null' } } });
+      actsigMock.getNodeSignals.mockReturnValueOnce(signals.promise).mockResolvedValueOnce({});
+      const listener = actsigMock.activityListeners[0]!;
+      const emit = (alias: string) => listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias }, changed: true, live: true }] } });
+      listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'First' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      listener({ batch: { items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'First' }, changed: true, live: true }] } });
+      emit('Missed');
+      actions.resolve({ First: { name: 'First', schema: { type: 'null' } } });
+      signals.resolve({});
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(3);
+      await vi.runAllTimersAsync();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves equal-refresh DOM, drafts, focus, groups, and pulse timers intact', async () => {
+    const definitions = {
+      Run: { name: 'Run', title: 'Run', schema: { type: 'string' } },
+      Grouped: { name: 'Grouped', title: 'Grouped', group: 'More', schema: { type: 'null' } }
+    };
+    actsigMock.getNodeActions.mockResolvedValueOnce(definitions);
+    await mountActSig();
+    const form = formByTitle('Run')!;
+    const input = form.querySelector<HTMLInputElement>('[data-schema-field-input]')!;
+    await setInputValue(input, 'draft');
+    input.focus();
+    const group = document.querySelector<HTMLDetailsElement>('details[data-actsig-section-id]')!;
+    await openDetails(group);
+    const listener = actsigMock.activityListeners[0]!;
+    vi.useFakeTimers();
+    try {
+      actsigMock.getNodeActions.mockResolvedValueOnce(definitions);
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      listener({ batch: { items: [
+        { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Run' }, changed: true, live: true },
+        { entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Unknown' }, changed: true, live: true }
+      ] } });
+      const originalForm = form;
+      await vi.advanceTimersByTimeAsync(200);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(formByTitle('Run')).toBe(originalForm);
+      expect(input.value).toBe('draft');
+      expect(document.activeElement).toBe(input);
+      expect(group.open).toBe(true);
+      expect(form.classList.contains('is-pulsing')).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps existing controls usable while an activity refresh is pending', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Run: { name: 'Run', title: 'Run', schema: { type: 'null' } } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    const form = formByTitle('Run')!;
+    const actions = deferred<Record<string, any>>();
+    const signals = deferred<Record<string, any>>();
+    actsigMock.getNodeActions.mockReturnValueOnce(actions.promise);
+    actsigMock.getNodeSignals.mockReturnValueOnce(signals.promise);
+    vi.useFakeTimers();
+    try {
+      actsigMock.activityListeners[0]?.({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'NewEvent' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(formByTitle('Run')).toBe(form);
+      expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+      submitForm(form);
+      await Promise.resolve();
+      expect(actsigMock.callNodeAction).toHaveBeenCalledWith('Run', {}, expect.anything());
+
+      actions.resolve({ Run: { name: 'Run', title: 'Run', schema: { type: 'null' } } });
+      signals.resolve({});
+      await Promise.resolve();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps restart-equal definitions and form state without rebuilding', async () => {
+    const definitions = { Run: { name: 'Run', title: 'Run', schema: { type: 'string' } } };
+    actsigMock.getNodeActions.mockResolvedValueOnce(definitions);
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    const actsig = await mountActSig();
+    const form = formByTitle('Run')!;
+    const input = form.querySelector<HTMLInputElement>('[data-schema-field-input]')!;
+    await setInputValue(input, 'draft');
+    input.focus();
+    const toast = vi.fn();
+    actsig.addEventListener('nodel-toast', toast);
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Run: { name: 'Run', title: 'Run', schema: { type: 'string' }, seq: 4 } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+
+    const result = await (actsig as any).refreshAfterRestart();
+
+    expect(result).toEqual({ status: 'verified', changed: false });
+    expect(formByTitle('Run')).toBe(form);
+    expect(input.value).toBe('draft');
+    expect(document.activeElement).toBe(input);
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ id: 'nodel-actsig-refresh-warning' }) }));
+  });
+
+  it('cancels activity on restart, suppresses refresh-time activity, and reports no activity toast', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Run: { name: 'Run', schema: { type: 'null' } } });
+    await mountActSig();
+    const actsig = document.querySelector('nodel-actsig')!;
+    const listener = actsigMock.activityListeners[0]!;
+    const toast = vi.fn();
+    actsig.addEventListener('nodel-toast', toast);
+    vi.useFakeTimers();
+    try {
+      listener({ batch: { items: [
+        { entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Run' }, changed: true, live: true },
+        { entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Missing' }, changed: true, live: true }
+      ] } });
+      expect(actsig.querySelector('.is-pulsing')).not.toBeNull();
+      actsigMock.getNodeActions.mockRejectedValueOnce(new Error('Restart unavailable'));
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      const restart = (actsig as any).refreshAfterRestart() as Promise<unknown>;
+      listener({ batch: { items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'DuringRestart' }, changed: true, live: true }] } });
+      await restart;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+      expect(toast).not.toHaveBeenCalled();
+      expect((actsig as any).pendingActivity.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps activity suppressed for the latest of overlapping restart refreshes', async () => {
+    await mountActSig();
+    const actsig = document.querySelector('nodel-actsig')!;
+    const listener = actsigMock.activityListeners[0]!;
+    const olderActions = deferred<Record<string, any>>();
+    const olderSignals = deferred<Record<string, any>>();
+    const latestActions = deferred<Record<string, any>>();
+    const latestSignals = deferred<Record<string, any>>();
+    actsigMock.getNodeActions
+      .mockReturnValueOnce(olderActions.promise)
+      .mockReturnValueOnce(latestActions.promise);
+    actsigMock.getNodeSignals
+      .mockReturnValueOnce(olderSignals.promise)
+      .mockReturnValueOnce(latestSignals.promise);
+
+    const older = (actsig as any).refreshAfterRestart() as Promise<unknown>;
+    const latest = (actsig as any).refreshAfterRestart() as Promise<unknown>;
+    expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(3);
+
+    listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'DuringLatestRestart' }, changed: true, live: true }] } });
+    olderActions.resolve({});
+    olderSignals.resolve({});
+    await expect(older).resolves.toMatchObject({ status: 'superseded' });
+
+    vi.useFakeTimers();
+    try {
+      listener({ batch: { items: [{ entry: { seq: 2, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'StillSuppressed' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(3);
+
+      latestActions.resolve({});
+      latestSignals.resolve({});
+      await expect(latest).resolves.toMatchObject({ status: 'verified' });
+      listener({ batch: { items: [{ entry: { seq: 3, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'AfterLatestRestart' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let a disconnected restart suppress discovery after reconnect', async () => {
+    const actsig = await mountActSig();
+    const staleActions = deferred<Record<string, any>>();
+    const staleSignals = deferred<Record<string, any>>();
+    actsigMock.getNodeActions.mockReturnValueOnce(staleActions.promise);
+    actsigMock.getNodeSignals.mockReturnValueOnce(staleSignals.promise);
+    const staleRestart = (actsig as any).refreshAfterRestart() as Promise<unknown>;
+    expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
+
+    actsig.remove();
+    document.body.append(actsig);
+    await waitFor(() => actsigMock.getNodeActions.mock.calls.length === 3 && actsigMock.activityListeners.length === 2);
+    staleActions.resolve({});
+    staleSignals.resolve({});
+    await expect(staleRestart).resolves.toMatchObject({ status: 'superseded' });
+
+    vi.useFakeTimers();
+    try {
+      actsigMock.activityListeners[1]!({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'AfterReconnect' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('deduplicates activity warning identity and bounds failure detail', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Run: { name: 'Run', title: 'Run', schema: { type: 'null' } } });
+    actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    await mountActSig();
+    const actsig = document.querySelector('nodel-actsig')!;
+    const existingForm = formByTitle('Run')!;
+    const toastHost = document.createElement('nodel-toast-host');
+    document.body.append(toastHost);
+    document.body.addEventListener('nodel-toast', (event) => (toastHost as any).show((event as CustomEvent).detail));
+    const events: CustomEvent[] = [];
+    actsig.addEventListener('nodel-toast', (event) => events.push(event as CustomEvent));
+    vi.useFakeTimers();
+    try {
+      const detail = 'x'.repeat(500);
+      actsigMock.getNodeActions.mockRejectedValueOnce(new Error(detail));
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      const listener = actsigMock.activityListeners[0]!;
+      const emit = () => listener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Missing' }, changed: true, live: true }] } });
+      emit();
+      await vi.advanceTimersByTimeAsync(200);
+       await Promise.resolve();
+       await Promise.resolve();
+       expect(events).toHaveLength(1);
+       expect(formByTitle('Run')).toBe(existingForm);
+       expect(existingForm.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+       expect(events[0]?.detail).toMatchObject({ id: 'nodel-actsig-refresh-warning', tone: 'warning', durationMs: 7000 });
+      expect(events[0]?.detail.detail.length).toBeLessThanOrEqual(240);
+
+      actsigMock.getNodeActions.mockRejectedValueOnce(new Error(detail));
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      emit();
+      await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(200);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(events).toHaveLength(2);
+      expect(events[1]?.detail.id).toBe(events[0]?.detail.id);
+      expect(document.querySelectorAll('.nodel-toast')).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not toast when an in-flight activity refresh is superseded', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({});
+    await mountActSig();
+    const actsig = document.querySelector('nodel-actsig')!;
+    const toast = vi.fn();
+    actsig.addEventListener('nodel-toast', toast);
+    const actions = deferred<Record<string, any>>();
+    const signals = deferred<Record<string, any>>();
+    actsigMock.getNodeActions.mockReturnValueOnce(actions.promise).mockResolvedValueOnce({});
+    actsigMock.getNodeSignals.mockReturnValueOnce(signals.promise).mockResolvedValueOnce({});
+    vi.useFakeTimers();
+    try {
+      actsigMock.getNodeActions.mockResolvedValueOnce({});
+      actsigMock.getNodeSignals.mockResolvedValueOnce({});
+      actsigMock.activityListeners[0]?.({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'event', alias: 'Missing' }, changed: true, live: true }] } });
+      await vi.advanceTimersByTimeAsync(200);
+      const restart = (actsig as any).refreshAfterRestart() as Promise<unknown>;
+      await restart;
+      actions.resolve({});
+      signals.resolve({});
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('hydrates pristine action arguments but preserves edited action fields during later activity', async () => {
     actsigMock.getNodeActions.mockResolvedValue({
       Run: { name: 'Run', title: 'Run Action', schema: { type: 'string' } },
@@ -1002,14 +1418,30 @@ describe('nodel-actsig', () => {
     expect(document.querySelector('[data-actsig-override]')).toBeNull();
   });
 
-  it('reports a failed restart refresh while preserving the definitions error', async () => {
-    const element = await mountActSig();
-    actsigMock.getNodeActions.mockRejectedValueOnce(new Error('Restart actions unavailable'));
+  it('keeps existing controls through pending and failed restart refreshes', async () => {
+    actsigMock.getNodeActions.mockResolvedValueOnce({ Run: { name: 'Run', title: 'Run', schema: { type: 'null' } } });
     actsigMock.getNodeSignals.mockResolvedValueOnce({});
+    const element = await mountActSig();
+    const existingForm = formByTitle('Run')!;
+    expect(existingForm.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
 
-    const result = await (element as any).refreshAfterRestart();
+    const actions = deferred<Record<string, any>>();
+    const signals = deferred<Record<string, any>>();
+    actsigMock.getNodeActions.mockReturnValueOnce(actions.promise);
+    actsigMock.getNodeSignals.mockReturnValueOnce(signals.promise);
+    const refresh = (element as any).refreshAfterRestart() as Promise<unknown>;
+
+    expect(formByTitle('Run')).toBe(existingForm);
+    expect(element.textContent).not.toContain('Loading actions and signals');
+    expect(existingForm.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+
+    actions.reject(new Error('Restart actions unavailable'));
+    signals.resolve({});
+    const result = await refresh;
 
     expect(result).toMatchObject({ status: 'failed', detail: 'Restart actions unavailable' });
+    expect(formByTitle('Run')).toBe(existingForm);
+    expect(existingForm.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
     expect(element.textContent).toContain('Restart actions unavailable');
   });
 
@@ -1023,20 +1455,31 @@ describe('nodel-actsig', () => {
 
     const element = await mountActSig();
     await setCheckboxValue(document.querySelector<HTMLInputElement>('[data-actsig-override]')!, true);
+    const initialForm = formByTitle('Power')!;
+    const initialListener = actsigMock.activityListeners[0]!;
+    initialListener({ batch: { items: [{ entry: { seq: 1, timestamp: '2026-01-01T00:00:00Z', source: 'local', type: 'action', alias: 'Power', arg: true }, changed: true, live: true }] } });
+    await flush();
+    expect(initialForm.classList.contains('is-pulsing')).toBe(true);
 
     actsigMock.getNodeActions.mockResolvedValueOnce({
-      Level: { name: 'Level', title: 'Level', schema: { type: 'integer' } }
+      Level: { name: 'Level', title: 'Level', schema: { type: 'string' } }
     });
     actsigMock.getNodeSignals.mockResolvedValueOnce({
       State: { name: 'State', title: 'Updated State', schema: { type: 'string' } }
     });
 
+    const restartToast = vi.fn();
+    element.addEventListener('nodel-toast', restartToast);
     await (element as any).refreshAfterRestart();
     await waitFor(() => Boolean(formByTitle('Level')));
 
     expect(formByTitle('Power')).toBeNull();
     expect(formByTitle('Updated State')).not.toBeNull();
     expect(document.querySelector<HTMLInputElement>('[data-actsig-override]')?.checked).toBe(true);
+    expect(initialForm.classList.contains('is-pulsing')).toBe(false);
+    expect((element as any).pulseTimers.size).toBe(0);
+    expect(formByTitle('Level')?.querySelector<HTMLInputElement>('[data-schema-field-input]')?.value).toBe('');
+    expect(restartToast).not.toHaveBeenCalledWith(expect.objectContaining({ detail: expect.objectContaining({ id: 'nodel-actsig-refresh-warning' }) }));
     expect(actsigMock.getNodeActions).toHaveBeenCalledTimes(2);
     expect(actsigMock.getNodeSignals).toHaveBeenCalledTimes(2);
   });

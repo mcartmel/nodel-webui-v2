@@ -1409,6 +1409,9 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 `nodel-actsig` behavior:
 
 - Reads current-node actions from relative `REST/actions` and signals from relative `REST/events`.
+- Does not poll definitions. Previously unseen local action or event activity triggers complete snapshots from both endpoints, compared and applied atomically; restart uses the same non-initial refresh path.
+- Keeps existing controls usable while a snapshot refresh is pending or fails, and leaves the UI unchanged when the snapshots are equal.
+- Silent additions, removals, and same-name schema changes wait for later unknown activity, activity history/reconnect, or restart to be discovered.
 - Pairs actions and signals by matching name, groups them by metadata `group`, and sorts by metadata `order`, matching v1 behavior.
 - Builds form controls from each action/signal JSON schema using JsViews live bindings.
 - Posts action payloads to relative `REST/actions/<name>/call` and signal override payloads to relative `REST/events/<name>/emit`.

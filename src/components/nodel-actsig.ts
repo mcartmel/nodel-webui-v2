@@ -34,6 +34,10 @@ const copyIconMarkup = renderFontAwesomeIcon(uiIcons.copy, 'h-3.5 w-3.5');
 const actionIconMarkup = renderFontAwesomeIcon(logIcons.action, 'h-4 w-4');
 const eventIconMarkup = renderFontAwesomeIcon(logIcons.event, 'h-4 w-4');
 const copyToastId = 'nodel-actsig-copy-name';
+const refreshToastId = 'nodel-actsig-refresh-warning';
+const activityCoalesceMs = 200;
+const activityRetryMs = 5000;
+const maxRefreshErrorDetail = 240;
 let registered = false;
 
 const actSigFormTemplate = `
@@ -143,6 +147,14 @@ export class NodelActSig extends HTMLElement {
   private linkController = new JsViewsLinkController(this);
   private materializeTimers = new Map<string, number>();
   private pulseTimers = new Map<string, number>();
+  private activityTimer: number | null = null;
+  private activityRefresh: Promise<void> | null = null;
+  private activityGeneration = 0;
+  private pendingActivity = new Set<string>();
+  private trailingActivity = new Set<string>();
+  private lastActivityAttempt = -Infinity;
+  private restartGeneration = 0;
+  private activeRestartGeneration: number | null = null;
   private source: ReturnType<typeof subscribeNodeActivity> | null = null;
   private controller = new ActSigController({
     getActions: (init) => getNodeActions(init),
@@ -166,6 +178,9 @@ export class NodelActSig extends HTMLElement {
   disconnectedCallback() {
     this.lifecycle.disconnect();
     this.controller.abort();
+    this.cancelActivityScheduler();
+    this.restartGeneration += 1;
+    this.activeRestartGeneration = null;
     for (const timer of this.materializeTimers.values()) {
       window.clearTimeout(timer);
     }
@@ -178,17 +193,19 @@ export class NodelActSig extends HTMLElement {
   }
 
   refreshAfterRestart(): Promise<NodeRestartRefreshResult> {
+    this.cancelActivityScheduler();
+    const restartGeneration = ++this.restartGeneration;
+    this.activeRestartGeneration = restartGeneration;
     this.controller.clearFeedback();
-    for (const timer of this.materializeTimers.values()) {
-      window.clearTimeout(timer);
-    }
-    for (const timer of this.pulseTimers.values()) {
-      window.clearTimeout(timer);
-    }
-    this.materializeTimers.clear();
-    this.pulseTimers.clear();
+    this.clearPulseTimers();
     const scope = this.lifecycle.current;
-    return scope ? this.loadDefinitions(scope) : Promise.resolve({ status: 'aborted', detail: 'Actions and signals component is disconnected.' });
+    if (!scope) {
+      if (this.activeRestartGeneration === restartGeneration) this.activeRestartGeneration = null;
+      return Promise.resolve({ status: 'aborted', detail: 'Actions and signals component is disconnected.' });
+    }
+    return this.refreshDefinitions(scope, false, false).finally(() => {
+      if (this.activeRestartGeneration === restartGeneration) this.activeRestartGeneration = null;
+    });
   }
 
   private async initialize(scope: ConnectionScope) {
@@ -210,18 +227,38 @@ export class NodelActSig extends HTMLElement {
     scope.listen(this, 'toggle', this.handleToggle, true);
     scope.listen(document, 'visibilitychange', this.handleVisibilityChange);
 
-    await this.loadDefinitions(scope);
+    await this.refreshDefinitions(scope, true, false);
     if (scope.isCurrent()) {
       this.subscribeActivity(scope);
     }
   }
 
-  private async loadDefinitions(scope: ConnectionScope): Promise<NodeRestartRefreshResult> {
-    const result = await this.controller.load({ signal: scope.signal, isCurrent: () => scope.isCurrent() });
-    if (result.status === 'verified') {
+  private async refreshDefinitions(scope: ConnectionScope, initial: boolean, activity: boolean): Promise<NodeRestartRefreshResult> {
+    const result = initial
+      ? await this.controller.load({ signal: scope.signal, isCurrent: () => scope.isCurrent() })
+      : await this.controller.refresh({ signal: scope.signal, isCurrent: () => scope.isCurrent() });
+    if (result.status === 'verified' && result.changed) {
+      this.clearMaterializationAndPulseTimers();
       for (const section of this.state.sections) if (!section.grouped || section.open) this.materializeSection(section);
+      this.syncSchemaFormControls(this.controller.hydrateCachedForms(this.hydrationContext()));
+    }
+    if (!activity && scope.isCurrent() && result.status === 'verified') this.setState({ error: '' });
+    if (!activity && scope.isCurrent() && result.status === 'failed') this.setState({ error: result.detail ?? 'Failed to refresh actions and signals' });
+    if (activity && result.status === 'failed' && scope.isCurrent()) {
+      this.dispatchActivityRefreshWarning(result.detail);
     }
     return result;
+  }
+
+  private clearMaterializationAndPulseTimers() {
+    for (const timer of this.materializeTimers.values()) window.clearTimeout(timer);
+    this.materializeTimers.clear();
+    this.clearPulseTimers();
+  }
+
+  private clearPulseTimers() {
+    for (const timer of this.pulseTimers.values()) window.clearTimeout(timer);
+    this.pulseTimers.clear();
   }
 
   private materializeSection(section: ActSigSectionModel) {
@@ -289,6 +326,7 @@ export class NodelActSig extends HTMLElement {
         const result = this.controller.applyActivityEntries(state.batch.items.map((item) => item.entry), this.hydrationContext());
         this.syncSchemaFormControls(result.hydrated);
         for (const pulse of result.pulses) this.pulseForm(pulse.form, pulse.token, pulse.durationMs);
+        this.scheduleActivityRefresh(result.unseen);
       }
     }));
     this.source = source;
@@ -298,6 +336,96 @@ export class NodelActSig extends HTMLElement {
         this.source = null;
       }
     });
+  }
+
+  private scheduleActivityRefresh(identities: string[]) {
+    if (!identities.length || this.activitySchedulingSuppressed()) return;
+    for (const identity of identities) this.pendingActivity.add(identity);
+    this.schedulePendingActivityRefresh();
+  }
+
+  private scheduleTrailingActivityRefresh() {
+    if (!this.pendingActivity.size || this.activitySchedulingSuppressed()) return;
+    this.schedulePendingActivityRefresh();
+  }
+
+  private schedulePendingActivityRefresh() {
+    if (this.activityRefresh || this.activityTimer !== null) return;
+    const scope = this.lifecycle.current;
+    if (!scope) return;
+    const delay = Math.max(activityCoalesceMs, this.lastActivityAttempt + activityRetryMs - Date.now());
+    const timer = scope.setTimeout(() => {
+      if (this.activityTimer !== timer) return;
+      this.activityTimer = null;
+      void this.runActivityRefresh(scope);
+    }, delay);
+    if (timer !== null) this.activityTimer = timer;
+  }
+
+  private async runActivityRefresh(scope: ConnectionScope) {
+    if (this.activityRefresh || !this.pendingActivity.size || !scope.isCurrent() || this.activitySchedulingSuppressed()) return;
+    const generation = this.activityGeneration;
+    this.pendingActivity.clear();
+    this.lastActivityAttempt = Date.now();
+    const operation = (async () => {
+      const result = await this.refreshDefinitions(scope, false, true);
+      if (generation !== this.activityGeneration) return;
+      this.activityRefresh = null;
+      if (result.status === 'verified') {
+        const trailing = new Set<string>();
+        for (const identity of this.pendingActivity) {
+          if (this.trailingActivity.has(identity)) continue;
+          const [pointType, name] = this.activityIdentity(identity);
+          if (!this.controller.isPointKnown(pointType, name)) trailing.add(identity);
+        }
+        this.pendingActivity = trailing;
+        if (trailing.size) {
+          for (const identity of trailing) this.trailingActivity.add(identity);
+          this.scheduleTrailingActivityRefresh();
+        } else {
+          this.trailingActivity.clear();
+        }
+      } else if (result.status === 'failed') {
+        // Drop failed identities so only a later unseen activity batch can explicitly
+        // trigger the next cooldown-bounded discovery attempt.
+        this.pendingActivity.clear();
+        this.trailingActivity.clear();
+      }
+    })();
+    this.activityRefresh = operation;
+    await operation;
+  }
+
+  private cancelActivityScheduler() {
+    this.activityGeneration += 1;
+    if (this.activityTimer !== null) window.clearTimeout(this.activityTimer);
+    this.activityTimer = null;
+    this.pendingActivity.clear();
+    this.trailingActivity.clear();
+    this.activityRefresh = null;
+    this.lastActivityAttempt = -Infinity;
+  }
+
+  private activitySchedulingSuppressed() {
+    return this.activeRestartGeneration !== null;
+  }
+
+  private activityIdentity(identity: string): ['action' | 'event', string] {
+    const separator = identity.indexOf('|');
+    return [identity.slice(0, separator) as 'action' | 'event', identity.slice(separator + 1)];
+  }
+
+  private dispatchActivityRefreshWarning(detail?: string) {
+    this.dispatchEvent(new CustomEvent<NodelToastDetail>(NODEL_TOAST, {
+      bubbles: true,
+      detail: {
+        id: refreshToastId,
+        message: 'Actions and signals may be out of date',
+        ...(detail ? { detail: detail.slice(0, maxRefreshErrorDetail) } : {}),
+        tone: 'warning',
+        durationMs: 7000
+      }
+    }));
   }
 
   private applyCachedArgsToSection(section: ActSigSectionModel) {
