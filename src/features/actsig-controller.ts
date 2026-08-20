@@ -4,7 +4,7 @@ import { hydrateSchemaFormModel, resetSchemaFormDirty, serializeSchemaFormModel 
 import { updateSchemaFormValidation } from '../schema/schema-validation';
 import { apiErrorMessage, isAbortError } from '../utils/errors';
 import { hasOwn } from '../utils/records';
-import { createActSigSections, createActSigViewModel, findActSigFormById, findActSigSectionById, findActSigSectionForForm, formsInSection, materializeActSigForm, syncActSigSignalControls, type ActSigFormModel, type ActSigSectionModel, type ActSigViewModel } from './actsig-model';
+import { areActSigDefinitionSetsEqual, createActSigSections, createActSigViewModel, findActSigFormById, findActSigSectionById, findActSigSectionForForm, formsInSection, materializeActSigForm, normalizeActSigDefinitionSet, syncActSigSignalControls, type ActSigDefinitionSet, type ActSigFormModel, type ActSigSectionModel, type ActSigViewModel, type NormalizedActSigDefinitionSet } from './actsig-model';
 
 export interface ActSigApiPort {
   getActions(init?: RequestInit): Promise<Record<string, NodelActionDefinition>>;
@@ -24,7 +24,9 @@ export interface ActSigMutationAdapter {
   setSection(section: ActSigSectionModel, values: Partial<ActSigSectionModel>): void;
 }
 
-export type ActSigLoadResult = { status: 'verified' | 'failed' | 'aborted' | 'superseded'; detail?: string };
+export type ActSigLoadResult =
+  | { status: 'verified'; changed: boolean }
+  | { status: 'failed' | 'aborted' | 'superseded'; detail?: string };
 export type ActSigSubmitResult =
   | { type: 'invalid' }
   | { type: 'submitted'; detail: { type: 'action' | 'event'; name: string; payload: unknown } }
@@ -46,6 +48,7 @@ export class ActSigController {
   private generation = 0;
   private readonly latestArgs = new Map<string, unknown>();
   private readonly pulseGenerations = new Map<string, number>();
+  private appliedSnapshot: NormalizedActSigDefinitionSet | null = null;
 
   constructor(private readonly api: ActSigApiPort, private readonly mutation: ActSigMutationAdapter) {
     this.state = createActSigViewModel();
@@ -57,25 +60,49 @@ export class ActSigController {
   }
 
   async load(context: ActSigLifecycle): Promise<ActSigLoadResult> {
+    return this.fetchApply(context, true);
+  }
+
+  async refresh(context: ActSigLifecycle): Promise<ActSigLoadResult> {
+    return this.fetchApply(context, false);
+  }
+
+  private async fetchApply(context: ActSigLifecycle, initial: boolean): Promise<ActSigLoadResult> {
     this.abortController?.abort();
     const controller = new AbortController();
     this.abortController = controller;
     const generation = ++this.generation;
-    this.mutation.setState({ loading: true, error: '', empty: false });
+    if (initial) this.mutation.setState({ loading: true, error: '', empty: false });
     const stale = () => !context.isCurrent() || controller !== this.abortController || generation !== this.generation;
     try {
-      const [actions, signals] = await Promise.all([this.api.getActions({ signal: controller.signal }), this.api.getSignals({ signal: controller.signal })]);
+      const init = { signal: controller.signal, cache: 'no-store' as const };
+      const [actions, signals] = await Promise.all([this.api.getActions(init), this.api.getSignals(init)]);
       if (stale()) return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
-      const sections = createActSigSections(actions, signals);
-      this.replaceSections(sections);
-      this.mutation.setState({ loading: false, error: '', empty: sections.length === 0 });
-      return { status: 'verified' };
+      const definitions: ActSigDefinitionSet = { actions, signals };
+      const snapshot = normalizeActSigDefinitionSet(definitions);
+      const changed = !this.appliedSnapshot || !areActSigDefinitionSetsEqual(this.appliedSnapshot, snapshot);
+      if (changed) {
+        this.replaceSections(createActSigSections(actions, signals));
+        this.appliedSnapshot = snapshot;
+        this.mutation.setState({ loading: false, error: '', empty: this.state.sections.length === 0 });
+      } else if (initial) {
+        this.mutation.setState({ loading: false });
+      }
+      return { status: 'verified', changed };
     } catch (error) {
       if (stale()) return { status: 'superseded', detail: 'Actions and signals refresh was superseded.' };
-      if (isAbortError(error) || controller.signal.aborted) return { status: 'aborted', detail: 'Actions and signals refresh was canceled.' };
+      const aborted = isAbortError(error) || controller.signal.aborted;
+      // The two reads are one atomic snapshot. Stop the sibling before classifying the
+      // initiating failure so a pending request cannot outlive this operation.
+      controller.abort();
+      if (aborted) return { status: 'aborted', detail: 'Actions and signals refresh was canceled.' };
       const detail = apiErrorMessage(error, 'Failed to load actions and signals');
-      this.mutation.setState({ loading: false, error: detail, sections: [], hasSignals: false, empty: false });
-      this.state.sections = [];
+      if (initial && this.state.sections.length === 0) {
+        this.mutation.setState({ loading: false, error: detail, sections: [], hasSignals: false, empty: false });
+        this.state.sections = [];
+      } else if (initial) {
+        this.mutation.setState({ loading: false, error: detail });
+      }
       return { status: 'failed', detail };
     } finally {
       if (this.abortController === controller) this.abortController = null;
@@ -110,12 +137,19 @@ export class ActSigController {
   applyActivityEntries(entries: NodelActivityLogEntry[], context: ActSigHydrationContext) {
     const hydrated: ActSigFormModel[] = [];
     const pulses: ActSigPulse[] = [];
+    const unseen: string[] = [];
+    const reported = new Set<string>();
     for (const entry of entries) {
       if (entry.source !== 'local' || (entry.type !== 'action' && entry.type !== 'event')) continue;
       const name = String(entry.alias ?? '');
       const key = `${entry.type}:${name}`;
       if (hasOwn(entry, 'arg')) this.latestArgs.set(key, entry.arg);
       const form = this.state.sections.flatMap((section) => formsInSection(section)).find((candidate) => candidate.pointType === entry.type && candidate.name === name);
+      const identity = `${entry.type}|${name}`;
+      if (!form && !reported.has(identity)) {
+        reported.add(identity);
+        unseen.push(identity);
+      }
       if (!form) continue;
       const token = (this.pulseGenerations.get(form.id) ?? 0) + 1;
       this.pulseGenerations.set(form.id, token);
@@ -123,7 +157,11 @@ export class ActSigController {
       this.hydrateCachedForm(form, context, hydrated);
       pulses.push({ form, token, durationMs: 700 });
     }
-    return { hydrated, pulses };
+    return { hydrated, pulses, unseen };
+  }
+
+  isPointKnown(pointType: 'action' | 'event', name: string) {
+    return this.state.sections.flatMap((section) => formsInSection(section)).some((form) => form.pointType === pointType && form.name === name);
   }
 
   hydrateCachedForms(context: ActSigHydrationContext) {

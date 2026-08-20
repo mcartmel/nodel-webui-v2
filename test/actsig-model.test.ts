@@ -1,4 +1,4 @@
-import { ACTSIG_MATERIALIZE_CHUNK_SIZE, createActSigSections, createActSigViewModel, formsInSection, hasConcreteArgument, materializeActSigForm } from '../src/features/actsig-model';
+import { ACTSIG_MATERIALIZE_CHUNK_SIZE, areActSigDefinitionSetsEqual, createActSigSections, createActSigViewModel, formsInSection, hasConcreteArgument, materializeActSigForm, normalizeActSigDefinitionSet } from '../src/features/actsig-model';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -47,6 +47,36 @@ describe('actsig model', () => {
 
   it('creates a default view without DOM state', () => {
     expect(createActSigViewModel()).toEqual({ loading: true, error: '', overrideSignals: false, hasSignals: false, sections: [], empty: false });
+  });
+
+  it('normalizes effective defaults and ignores runtime and unknown definition fields', () => {
+    const first = normalizeActSigDefinitionSet({
+      actions: { response: { name: '', arg: 1, seq: 2, timestamp: 'now', metadata: 'ignored' } },
+      signals: {}
+    });
+    const second = normalizeActSigDefinitionSet({
+      actions: { response: { name: 'response', title: 'response', desc: '', group: '', caution: '', order: 0, schema: null, arg: 99, seq: 4, timestamp: 'later', other: true } },
+      signals: {}
+    });
+    expect(first).toEqual(second);
+    expect(first.actions[0]).toEqual({ key: 'response', name: 'response', title: 'response', description: '', group: '', caution: '', order: 0, schema: null });
+    expect(areActSigDefinitionSetsEqual(first, second)).toBe(true);
+  });
+
+  it('treats response order and keys as structural', () => {
+    const ordered = normalizeActSigDefinitionSet({ actions: { first: definition('same'), second: definition('same') }, signals: {} });
+    const reversed = normalizeActSigDefinitionSet({ actions: { second: definition('same'), first: definition('same') }, signals: {} });
+    const renamed = normalizeActSigDefinitionSet({ actions: { other: definition('same'), second: definition('same') }, signals: {} });
+    expect(areActSigDefinitionSetsEqual(ordered, reversed)).toBe(false);
+    expect(areActSigDefinitionSetsEqual(ordered, renamed)).toBe(false);
+  });
+
+  it('compares schemas deeply without depending on object key order', () => {
+    const base = normalizeActSigDefinitionSet({ actions: { response: definition('response', { schema: { type: 'object', properties: { a: { type: 'string' }, b: { type: 'number' } } } }) }, signals: {} });
+    const reordered = normalizeActSigDefinitionSet({ actions: { response: definition('response', { schema: { properties: { b: { type: 'number' }, a: { type: 'string' } }, type: 'object' } }) }, signals: {} });
+    const changed = normalizeActSigDefinitionSet({ actions: { response: definition('response', { schema: { type: 'object', properties: { a: { type: 'boolean' }, b: { type: 'number' } } } }) }, signals: {} });
+    expect(areActSigDefinitionSetsEqual(base, reordered)).toBe(true);
+    expect(areActSigDefinitionSetsEqual(base, changed)).toBe(false);
   });
 
   it('keeps feature model and controller free of UI adapter and DOM dependencies', () => {
