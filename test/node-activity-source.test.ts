@@ -263,9 +263,72 @@ describe('node-activity-source', () => {
     socket.message({ activityHistory: [activityEntry({ seq: 3 })] });
 
     expect(getLatestState(states).batch?.nextSeq).toBe(6);
+    expect(getBatchItem(getLatestState(states).batch, 0, 'same-session history batch').entry.seq).toBe(5);
     socket.closeFromServer();
     await flushMicrotasks();
     expect(getMockCallArg<{ from: number }>(activityMock.getNodeActivity, -1, 0, 'poll refresh request')).toEqual({ from: 6 });
+    subscription.dispose();
+  });
+
+  it('accepts reconnect history even when its sequence is below the retained cursor', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    getSocket(0).message({ activityHistory: [activityEntry({ seq: 10, arg: 'initial' })] });
+    const oldSocket = getSocket(0);
+
+    visibilityHandler()(false);
+    visibilityHandler()(true);
+    getSocket(1).message({ activityHistory: [activityEntry({ seq: 1, arg: 'reconnected' })] });
+    oldSocket.message({ activityHistory: [activityEntry({ seq: 20, arg: 'stale history' })] });
+    oldSocket.message({ activity: activityEntry({ seq: 21, arg: 'stale live' }) });
+    vi.advanceTimersByTime(100);
+    await flushMicrotasks();
+
+    expect(getBatchItem(getLatestState(states).batch, 0, 'reconnect history batch').entry.arg).toBe('reconnected');
+    expect(getLatestState(states).batch?.nextSeq).toBe(11);
+    subscription.dispose();
+  });
+
+  it('overlays a newer live entry received before reconnect history', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    getSocket(0).message({ activityHistory: [activityEntry({ seq: 10, arg: 'initial' })] });
+
+    visibilityHandler()(false);
+    visibilityHandler()(true);
+    const statesBeforeLive = states.length;
+    getSocket(1).message({ activity: activityEntryWithoutTimestamp({ seq: 2, arg: 'live' }) });
+    getSocket(1).message({ activity: activityEntryWithoutTimestamp({ seq: 1, arg: 'older live' }) });
+    expect(states).toHaveLength(statesBeforeLive);
+    getSocket(1).message({ activityHistory: [activityEntry({ seq: 1, arg: 'old', timestamp: '2026-01-01T00:00:01Z' })] });
+
+    const batch = getLatestState(states).batch;
+    expect(getBatchItem(batch, 0, 'reconciled history batch').entry.arg).toBe('live');
+    expect(batch?.nextSeq).toBe(11);
+    subscription.dispose();
+  });
+
+  it('bounds live entries retained before the first history message', async () => {
+    const { subscribeNodeActivity } = await loadSource();
+    const states: ActivityState[] = [];
+    const subscription = subscribeNodeActivity(createSubscriberHost(), (state) => states.push(state));
+    const socket = getSocket(0);
+
+    for (let index = 0; index < 501; index += 1) {
+      socket.message({ activity: activityEntry({
+        seq: index + 1,
+        alias: `Signal${index}`,
+        arg: index
+      }) });
+    }
+    socket.message({ activityHistory: [] });
+
+    const batch = getLatestState(states).batch;
+    expect(batch?.items).toHaveLength(500);
+    expect(batch?.items.some((item) => item.entry.alias === 'Signal0')).toBe(false);
+    expect(batch?.items.some((item) => item.entry.alias === 'Signal500')).toBe(true);
     subscription.dispose();
   });
 
