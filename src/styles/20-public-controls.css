@@ -1158,12 +1158,15 @@
 
   nodel-fader[data-orientation='vertical'] .nodel-fader-track {
     @apply w-10;
-    height: var(--nodel-fader-length, 12rem);
-    min-height: 8rem;
+    flex: 1 1 var(--nodel-fader-length, 12rem);
+    min-height: max(8rem, var(--nodel-fader-length, 0px));
+    max-height: var(--nodel-fader-length, none);
   }
 
   nodel-fader[data-orientation='vertical'][data-increment='false'] .nodel-fader-track {
-    height: var(--nodel-fader-length-no-increment, calc(var(--nodel-fader-length, 12rem) + (var(--nodel-fader-nudge-size, 2.25rem) * 2) + (var(--nodel-fader-control-gap, 0.5rem) * 2)));
+    flex-basis: var(--nodel-fader-length-no-increment, calc(var(--nodel-fader-length, 12rem) + (var(--nodel-fader-nudge-size, 2.25rem) * 2) + (var(--nodel-fader-control-gap, 0.5rem) * 2)));
+    min-height: max(8rem, var(--nodel-fader-length-no-increment, var(--nodel-fader-length, 0px)));
+    max-height: var(--nodel-fader-length-no-increment, var(--nodel-fader-length, none));
   }
 
   nodel-fader[data-orientation='horizontal'] .nodel-fader-track {
