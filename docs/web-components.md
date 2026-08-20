@@ -537,7 +537,7 @@ Supported `nodel-group` attributes:
 </nodel-control-grid>
 ```
 
-Nested grids are supported for mixed layouts. For example, a future tall fader can sit beside a stack of buttons:
+Nested grids are supported for mixed layouts. An unconfigured vertical fader expands to use extra height in its parent, so it can sit beside a stack of buttons:
 
 ```html
 <nodel-control-grid columns="2">
@@ -852,7 +852,7 @@ Faders preserve compound children and place them in a compact rail in source ord
 
 The fader readout is rendered inside the track by default. On vertical faders it sits near the top when the value is low and near the bottom when the value is high so it stays away from the thumb.
 
-Vertical faders keep a stable overall height whether or not increment buttons are shown. When increment buttons are hidden, the track grows by the missing button slots so simple faders align with nudged faders. Override `--nodel-fader-length` for the increment-mode track length, or `--nodel-fader-length-no-increment` when no-button faders need a different length.
+Vertical faders keep their current preferred and minimum intrinsic sizing whether or not increment buttons are shown. When their parent provides extra height, an unconfigured track grows to fill it; hidden increment buttons still contribute their slots and gaps to the preferred size so simple faders align with nudged faders. `--nodel-fader-length` and `--nodel-fader-length-no-increment` request fixed track lengths, with the existing 8rem minimum still enforced, so an explicit value can leave whitespace in a taller parent. The parent must provide the extra height; an auto-height parent still sizes from the fader's intrinsic dimensions.
 
 ```html
 <nodel-control-grid columns="2">
