@@ -34,6 +34,11 @@ interface Subscriber {
   disposeVisibility: () => void;
 }
 
+interface WebSocketSessionState {
+  historyConsumed: boolean;
+  preHistoryLiveEntries: Map<string, NodelActivityLogEntry>;
+}
+
 const reconnectDelayMs = 5000;
 const pollIntervalMs = 1000;
 const pollMaxBackoffMs = 15_000;
@@ -49,6 +54,7 @@ let error = '';
 let currentBatch: NodeActivityBatch | null = null;
 let lastSeq: number | null = null;
 let ws: WebSocket | null = null;
+let wsSession: WebSocketSessionState | null = null;
 let wsConnectTimer: number | null = null;
 let pollTimer: number | null = null;
 let pollController: AbortController | null = null;
@@ -140,8 +146,24 @@ function isFreshLogicalEntry(entry: NodelActivityLogEntry, existing: NodelActivi
   return entry.seq > existing.seq;
 }
 
-function enqueueLiveEntry(entry: NodelActivityLogEntry) {
+function enqueueLiveEntry(entry: NodelActivityLogEntry, session: WebSocketSessionState) {
   const key = activityEntryKey(entry);
+  if (!session.historyConsumed) {
+    const existingSessionEntry = session.preHistoryLiveEntries.get(key);
+    if (existingSessionEntry && !isFreshLogicalEntry(entry, existingSessionEntry)) {
+      return;
+    }
+    session.preHistoryLiveEntries.delete(key);
+    session.preHistoryLiveEntries.set(key, entry);
+    while (session.preHistoryLiveEntries.size > maxRetainedActivityEntries) {
+      const firstKey = session.preHistoryLiveEntries.keys().next().value;
+      if (firstKey === undefined) {
+        break;
+      }
+      session.preHistoryLiveEntries.delete(firstKey);
+    }
+  }
+
   const existing = pendingLiveEntries.get(key) ?? latestEntries.get(key);
   if (!isFreshLogicalEntry(entry, existing)) {
     return;
@@ -260,6 +282,8 @@ function resetConnection() {
     }
     ws = null;
   }
+  wsSession?.preHistoryLiveEntries.clear();
+  wsSession = null;
   activeState = 'idle';
   pollFailureCount = 0;
   connected = false;
@@ -498,7 +522,7 @@ function runPoll() {
   return request;
 }
 
-function handleWebSocketMessage(message: MessageEvent<unknown>) {
+function handleWebSocketMessage(message: MessageEvent<unknown>, session: WebSocketSessionState) {
   try {
     if (typeof message.data !== 'string') return;
     const data = decodeActivityWebSocketMessage(JSON.parse(message.data) as unknown, 'WebSocket activity');
@@ -511,15 +535,23 @@ function handleWebSocketMessage(message: MessageEvent<unknown>) {
     }
 
     if (Array.isArray(data.activityHistory)) {
-      const normalized = normalizeEntries(data.activityHistory);
-      if (lastSeq !== null && normalized.length > 0 && Math.max(...normalized.map((entry) => entry.seq)) + 1 <= lastSeq) {
+      if (session.historyConsumed) {
         return;
       }
+      session.historyConsumed = true;
+      const normalized = normalizeEntries(data.activityHistory);
+      const reconciledEntries = new Map(normalized.map((entry) => [activityEntryKey(entry), entry]));
+      for (const [key, entry] of session.preHistoryLiveEntries) {
+        reconciledEntries.delete(key);
+        reconciledEntries.set(key, entry);
+      }
+      const reconciled = Array.from(reconciledEntries.values());
       liveAccumulator.clear();
       pendingLiveEntries.clear();
-      lastSeq = nextSeqFrom(normalized, lastSeq);
+      session.preHistoryLiveEntries.clear();
+      lastSeq = nextSeqFrom(reconciled, lastSeq);
       emit({
-        items: normalized.map((entry) => ({ entry, changed: false, live: false })),
+        items: reconciled.map((entry) => ({ entry, changed: false, live: false })),
         replace: true,
         transport: 'websocket',
         nextSeq: lastSeq ?? 0
@@ -528,7 +560,7 @@ function handleWebSocketMessage(message: MessageEvent<unknown>) {
     }
 
     if (data.activity) {
-      enqueueLiveEntry(data.activity);
+      enqueueLiveEntry(data.activity, session);
     }
   } catch (caught) {
     error = boundedErrorMessage(caught, 'WebSocket activity returned invalid data');
@@ -554,12 +586,17 @@ async function openWebSocket() {
   activeState = 'connecting';
 
   const generation = connectionGeneration;
+  const session: WebSocketSessionState = {
+    historyConsumed: false,
+    preHistoryLiveEntries: new Map()
+  };
   let socket: WebSocket;
   try {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${protocol}//${window.location.host}${localNodePath(nodeName)}`;
     socket = new WebSocket(url);
     ws = socket;
+    wsSession = session;
   } catch (connectError) {
     reportConnectivityFailure('REST/', connectError);
     error = connectError instanceof Error ? connectError.message : 'Failed to open activity socket';
@@ -585,8 +622,8 @@ async function openWebSocket() {
   };
 
   socket.onmessage = (message) => {
-    if (ws === socket && generation === connectionGeneration) {
-      handleWebSocketMessage(message);
+    if (ws === socket && wsSession === session && generation === connectionGeneration) {
+      handleWebSocketMessage(message, session);
     }
   };
 
@@ -599,6 +636,7 @@ async function openWebSocket() {
     clearTimer(wsConnectTimer);
     wsConnectTimer = null;
     ws = null;
+    wsSession = null;
     connected = false;
     activeState = 'polling';
     try {
@@ -617,6 +655,7 @@ async function openWebSocket() {
     clearTimer(wsConnectTimer);
     wsConnectTimer = null;
     ws = null;
+    wsSession = null;
     connected = false;
 
     if (!shouldRun()) {
@@ -636,6 +675,7 @@ async function openWebSocket() {
       return;
     }
     ws = null;
+    wsSession = null;
     activeState = 'polling';
     try {
       socket.close();
