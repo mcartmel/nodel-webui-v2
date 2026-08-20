@@ -43,6 +43,16 @@ describe('component contract', () => {
     expect(Object.values(componentContractStyles).flat().map((style) => style.name)).toEqual(expect.arrayContaining(['nodel-button', 'nodel-alert-danger', 'text-nodel-muted', 'rounded-panel']));
   });
 
+  it('publishes fill only as a dynamic parent-consumed boolean on group and control grid', () => {
+    const supported = componentContracts.filter((element) => element.attributes.some((attribute) => attribute.name === 'fill'));
+    expect(supported.map((element) => element.name)).toEqual(['nodel-control-grid', 'nodel-group']);
+    for (const element of supported) {
+      expect(element.attributes.find((attribute) => attribute.name === 'fill')).toMatchObject({
+        valueType: 'boolean', defaultValue: 'false', consumption: 'parent', consumer: 'nodel-column', lifecycle: 'dynamic', completion: 'recommended'
+      });
+    }
+  });
+
   it('serializes a deterministic, JSON-safe schema document', () => {
     const first = serializeComponentContract('1.2.3');
     expect(first).toBe(serializeComponentContract('1.2.3'));

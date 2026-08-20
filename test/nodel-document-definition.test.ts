@@ -237,7 +237,9 @@ describe('nodel document definition', () => {
       if (!element) throw new Error(`Missing document element ${name}`);
       return element;
     };
-    expect(byName('nodel-control-grid').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['xl', '2xl']));
+    expect(byName('nodel-control-grid').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['xl', '2xl', 'fill']));
+    expect(byName('nodel-group').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['fill']));
+    expect(byName('nodel-column').attributes.map((attribute) => attribute.name)).not.toContain('fill');
     expect(byName('nodel-stepper').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['prefix', 'repeat-delay', 'repeat-interval', 'aria-label', 'aria-labelledby']));
     expect(byName('nodel-pad').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['up-actions', 'down-actions', 'left-actions', 'right-actions', 'center-actions', 'up-arg', 'center-label']));
     expect(byName('nodel-palette').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['custom-label', 'allow-deselect', 'aria-label', 'aria-labelledby']));

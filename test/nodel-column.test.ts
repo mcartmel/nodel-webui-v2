@@ -1,5 +1,6 @@
 import '../src/components/nodel-row';
 import '../src/components/nodel-column';
+import { flush } from './helpers';
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('Expected test fixture value');
@@ -71,5 +72,115 @@ describe('nodel-column responsive spans', () => {
     const column = document.querySelector('nodel-column') as HTMLElement;
     expect(column.style.getPropertyValue('--nodel-column-order')).toBe('');
     expect(column.hasAttribute('data-order')).toBe(false);
+  });
+
+  it.each(['nodel-group', 'nodel-control-grid'])('activates for a sole filled %s', async (tagName) => {
+    document.body.innerHTML = `<nodel-column><${tagName} fill></${tagName}></nodel-column>`;
+    await flush();
+    expect(document.querySelector('nodel-column')?.getAttribute('data-fill-child')).toBe('true');
+  });
+
+  it('keeps fill inactive when the sole child omits fill', async () => {
+    document.body.innerHTML = '<nodel-column><nodel-group></nodel-group></nodel-column>';
+    await flush();
+    expect(document.querySelector('nodel-column')?.hasAttribute('data-fill-child')).toBe(false);
+  });
+
+  it('keeps fill inactive when omitted or when visible content competes', async () => {
+    document.body.innerHTML = '<nodel-column><nodel-group fill></nodel-group><nodel-control-grid fill></nodel-control-grid></nodel-column>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    const group = column.querySelector<HTMLElement>('nodel-group')!;
+    const grid = column.querySelector<HTMLElement>('nodel-control-grid')!;
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
+
+    grid.hidden = true;
+    await flush();
+    expect(column.getAttribute('data-fill-child')).toBe('true');
+
+    group.hidden = true;
+    grid.hidden = false;
+    await flush();
+    expect(column.getAttribute('data-fill-child')).toBe('true');
+
+    group.hidden = false;
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
+  });
+
+  it('ignores comments and whitespace but rejects substantive text', async () => {
+    document.body.innerHTML = '<nodel-column>\n  <!-- retained -->\n  <nodel-group fill></nodel-group>\n</nodel-column>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    expect(column.getAttribute('data-fill-child')).toBe('true');
+
+    const whitespace = Array.from(column.querySelector('[data-column]')!.childNodes)
+      .find((node) => node.nodeType === Node.TEXT_NODE) as Text;
+    whitespace.data = 'visible text';
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
+
+    whitespace.data = '  ';
+    await flush();
+    expect(column.getAttribute('data-fill-child')).toBe('true');
+  });
+
+  it('reacts to direct child, fill, and hidden changes', async () => {
+    document.body.innerHTML = '<nodel-column><nodel-group fill></nodel-group></nodel-column>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    const group = column.querySelector('nodel-group')!;
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+
+    group.removeAttribute('fill');
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
+    group.setAttribute('fill', '');
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+
+    (group as HTMLElement).hidden = true;
+    const grid = document.createElement('nodel-control-grid');
+    grid.setAttribute('fill', '');
+    column.append(grid);
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+  });
+
+  it('normalizes public host additions and re-arbitrates after logical removal', async () => {
+    document.body.innerHTML = '<nodel-column><nodel-group fill></nodel-group></nodel-column>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    const group = column.querySelector('nodel-group')!;
+    const competing = document.createElement('nodel-button');
+    column.prepend(competing);
+    await flush();
+    expect(column.querySelector('[data-column]')?.firstElementChild).toBe(competing);
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
+
+    competing.remove();
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+    expect(group.parentElement?.getAttribute('data-column')).not.toBeNull();
+  });
+
+  it('does not arbitrate nested mutations and disconnects on reconnect', async () => {
+    document.body.innerHTML = '<nodel-column><nodel-group fill></nodel-group></nodel-column>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    const group = column.querySelector('nodel-group')!;
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+
+    group.append(document.createElement('nodel-button'));
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(true);
+
+    const parent = column.parentElement!;
+    parent.removeChild(column);
+    group.removeAttribute('fill');
+    await flush();
+    parent.append(column);
+    await flush();
+    expect(column.hasAttribute('data-fill-child')).toBe(false);
   });
 });

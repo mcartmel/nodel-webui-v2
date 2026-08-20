@@ -38,9 +38,21 @@ export class NodelColumn extends HTMLElement {
 
   private shellReady = false;
   private columnNode: HTMLElement | null = null;
+  private observer: MutationObserver | null = null;
+  private hostObserver: MutationObserver | null = null;
+  private normalizingHost = false;
 
   connectedCallback() {
     this.render();
+    this.observeColumn();
+    this.syncFillChild();
+  }
+
+  disconnectedCallback() {
+    this.observer?.disconnect();
+    this.observer = null;
+    this.hostObserver?.disconnect();
+    this.hostObserver = null;
   }
 
   attributeChangedCallback() {
@@ -65,8 +77,68 @@ export class NodelColumn extends HTMLElement {
           this.columnNode.appendChild(child);
         }
       }
+      this.syncFillChild();
       return;
     }
+  }
+
+  private observeColumn() {
+    if (!this.columnNode || this.observer) return;
+    this.observer = new MutationObserver((records) => {
+      if (records.some((record) => record.type === 'childList' && record.target === this.columnNode
+        || record.type === 'attributes' && record.target.parentNode === this.columnNode
+        || record.type === 'characterData' && record.target.parentNode === this.columnNode)) {
+        this.syncFillChild();
+      }
+    });
+    this.observer.observe(this.columnNode, {
+      attributeFilter: ['fill', 'hidden'],
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true
+    });
+
+    this.hostObserver = new MutationObserver(() => {
+      if (!this.normalizingHost) this.normalizeHostChildren();
+    });
+    this.hostObserver.observe(this, { childList: true });
+    this.normalizeHostChildren();
+  }
+
+  private normalizeHostChildren() {
+    if (!this.columnNode || this.normalizingHost) return;
+    const outside = Array.from(this.childNodes).filter((node) => node !== this.columnNode);
+    if (outside.length === 0) return;
+
+    this.normalizingHost = true;
+    try {
+      const shellIndex = Array.from(this.childNodes).indexOf(this.columnNode);
+      const beforeShell = outside.filter((node) => Array.from(this.childNodes).indexOf(node) < shellIndex);
+      const afterShell = outside.filter((node) => Array.from(this.childNodes).indexOf(node) > shellIndex);
+      for (const node of [...beforeShell].reverse()) this.columnNode.insertBefore(node, this.columnNode.firstChild);
+      for (const node of afterShell) this.columnNode.appendChild(node);
+    } finally {
+      this.normalizingHost = false;
+    }
+    this.syncFillChild();
+  }
+
+  private syncFillChild() {
+    if (!this.columnNode) return;
+
+    const substantiveNodes = Array.from(this.columnNode.childNodes).filter((node) => {
+      if (node.nodeType === Node.COMMENT_NODE) return false;
+      if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent?.trim());
+      return node.nodeType === Node.ELEMENT_NODE && !(node as HTMLElement).hidden && !(node as HTMLElement).hasAttribute('hidden');
+    });
+    const child = substantiveNodes.length === 1 ? substantiveNodes[0] : null;
+    const active = child instanceof HTMLElement
+      && (child.localName === 'nodel-group' || child.localName === 'nodel-control-grid')
+      && child.hasAttribute('fill');
+
+    if (active) this.dataset.fillChild = 'true';
+    else delete this.dataset.fillChild;
   }
 
   private syncResponsiveSpans() {

@@ -29,6 +29,76 @@ function add(result: Diagnostic[], severity: Diagnostic['severity'], from: numbe
 }
 function isPlaceholder(value: string) { return placeholder.test(value); }
 
+function directChildren(node: SyntaxNode) {
+  const children: SyntaxNode[] = [];
+  const cursor = node.cursor();
+  if (!cursor.firstChild()) return children;
+  do children.push(cursor.node); while (cursor.nextSibling());
+  return children;
+}
+
+function decodeReference(value: string) {
+  if (value.length > 256) return value;
+  const match = /^&(?:#x[\da-f]+|#[\d]+|[a-z][a-z\d]+);$/i.exec(value.trim());
+  if (!match) return value;
+  const numeric = /^&#x([\da-f]+);$/i.exec(match[0]) ?? /^&#(\d+);$/i.exec(match[0]);
+  if (numeric) {
+    const codePoint = Number.parseInt(numeric[1]!, numeric[0].startsWith('&#x') ? 16 : 10);
+    return Number.isSafeInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : value;
+  }
+  try {
+    const decoded = new DOMParser().parseFromString(`<span>${match[0]}</span>`, 'text/html').querySelector('span')?.textContent;
+    return decoded ?? value;
+  } catch {
+    return value;
+  }
+}
+
+function isSubstantiveDirectContent(node: SyntaxNode, state: EditorState) {
+  const value = state.sliceDoc(node.from, node.to);
+  if (node.name === 'Text') return value.trim().length > 0;
+  if (node.name === 'EntityReference' || node.name === 'CharacterReference') return decodeReference(value).trim().length > 0;
+  return false;
+}
+
+function elementName(node: SyntaxNode, state: EditorState) {
+  const tag = child(node, 'OpenTag') ?? child(node, 'SelfClosingTag');
+  const name = tag && child(tag, 'TagName');
+  return name ? state.sliceDoc(name.from, name.to) : undefined;
+}
+
+function elementAttributes(node: SyntaxNode, state: EditorState) {
+  const tag = child(node, 'OpenTag') ?? child(node, 'SelfClosingTag');
+  return tag ? new Map(attrNodes(tag).map((attr) => [attrName(attr, state), attrValue(attr, state)])) : new Map<string, string>();
+}
+
+function hasDeclarativeVisibility(attributes: Map<string, string>) {
+  if (attributes.has('hidden') || attributes.has('visibility')) return true;
+  if ((attributes.has('visible-value') || attributes.has('visible-values')) && attributes.has('visibility')) return true;
+  return ['signal', 'signals'].some((name) => /(?:^|[;,])\s*[^:;,]+:\s*visibility(?:\((?:last|any|all)\))?(?:\s*[;,]|$)/.test(attributes.get(name) ?? ''));
+}
+
+function diagnoseFillPlacement(item: { node: SyntaxNode; name: string; attrs: SyntaxNode[] }, state: EditorState, result: Diagnostic[]) {
+  if ((item.name !== 'nodel-group' && item.name !== 'nodel-control-grid')) return;
+  const fill = item.attrs.find((attr) => attrName(attr, state) === 'fill');
+  if (!fill) return;
+  const parent = item.node.parent;
+  const parentName = parent ? elementName(parent, state) : undefined;
+  if (!parent || parentName !== 'nodel-column') {
+    add(result, 'warning', fill.from, fill.to, 'Fill applies only to a sole visible child directly inside nodel-column.');
+    return;
+  }
+  if (elementAttributes(item.node, state).has('hidden')) return;
+  const competing = directChildren(parent).some((sibling) => {
+    if (sibling.from === item.node.from && sibling.to === item.node.to) return false;
+    if (sibling.name === 'Text' || sibling.name === 'EntityReference' || sibling.name === 'CharacterReference') return isSubstantiveDirectContent(sibling, state);
+    if (sibling.name !== 'Element') return false;
+    const attributes = elementAttributes(sibling, state);
+    return !hasDeclarativeVisibility(attributes);
+  });
+  if (competing) add(result, 'warning', fill.from, fill.to, 'Fill is inactive while nodel-column has other definitely visible direct content.');
+}
+
 export function diagnoseNodelIconCatalogue(state: EditorState, catalogue: IconCatalogue, tree = syntaxTree(state), index?: IconIndex): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const records = catalogue.records;
@@ -224,6 +294,7 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
       for (const directChild of item.node.getChildren('Element')) { const tag = child(directChild, 'OpenTag') ?? child(directChild, 'SelfClosingTag'); const name = tag ? child(tag, 'TagName') : null; if (name) childNames.add(state.sliceDoc(name.from, name.to)); }
       if (contract.composition.requiredDirectChildren.some((required) => !childNames.has(required))) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Component is missing a required direct child.');
     }
+    diagnoseFillPlacement(item, state, diagnostics);
   }
   if (diagnostics.length >= NODEL_DIAGNOSTIC_LIMITS.maxDiagnostics) truncated = true;
   const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length;

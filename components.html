@@ -188,6 +188,87 @@
 
           <div data-catalogue-reference="nodel-row"></div>
           <div data-catalogue-reference="nodel-column"></div>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Available Height</h2>
+              <p class="nodel-catalogue-description">
+                A filled group or one-column control grid uses the height already available from its column when it is the sole visible substantive child.
+              </p>
+            </header>
+
+            <div class="nodel-catalogue-examples" data-catalogue-example="layout-column-fill">
+              <nodel-row>
+                <nodel-column md="6">
+                  <nodel-group fill label="Filled group">
+                    <nodel-control-grid>
+                      <nodel-button>Power</nodel-button>
+                      <nodel-button>Start</nodel-button>
+                    </nodel-control-grid>
+                  </nodel-group>
+                </nodel-column>
+                <nodel-column md="6">
+                  <nodel-group label="Taller content">
+                    <nodel-button>One</nodel-button>
+                    <nodel-button>Two</nodel-button>
+                    <nodel-button>Three</nodel-button>
+                  </nodel-group>
+                </nodel-column>
+              </nodel-row>
+              <nodel-row>
+                <nodel-column md="6">
+                  <nodel-control-grid fill>
+                    <nodel-button>One</nodel-button>
+                    <nodel-button>Two</nodel-button>
+                    <nodel-button>Three</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+                <nodel-column md="6">
+                  <nodel-control-grid>
+                    <nodel-button>Tall one</nodel-button>
+                    <nodel-button>Tall two</nodel-button>
+                    <nodel-button>Tall three</nodel-button>
+                    <nodel-button>Tall four</nodel-button>
+                  </nodel-control-grid>
+                </nodel-column>
+              </nodel-row>
+            </div>
+
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="layout-column-fill"><code>&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-group fill label=&quot;Filled group&quot;&gt;
+      &lt;nodel-control-grid&gt;
+        &lt;nodel-button&gt;Power&lt;/nodel-button&gt;
+        &lt;nodel-button&gt;Start&lt;/nodel-button&gt;
+      &lt;/nodel-control-grid&gt;
+    &lt;/nodel-group&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-group label=&quot;Taller content&quot;&gt;
+      &lt;nodel-button&gt;One&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Two&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Three&lt;/nodel-button&gt;
+    &lt;/nodel-group&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;
+&lt;nodel-row&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-control-grid fill&gt;
+      &lt;nodel-button&gt;One&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Two&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Three&lt;/nodel-button&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-column&gt;
+  &lt;nodel-column md=&quot;6&quot;&gt;
+    &lt;nodel-control-grid&gt;
+      &lt;nodel-button&gt;Tall one&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Tall two&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Tall three&lt;/nodel-button&gt;
+      &lt;nodel-button&gt;Tall four&lt;/nodel-button&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-column&gt;
+&lt;/nodel-row&gt;</code></pre>
+          </section>
         </nodel-page>
 
         <nodel-page title="Responsive">

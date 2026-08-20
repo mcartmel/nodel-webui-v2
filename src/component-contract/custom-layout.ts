@@ -89,7 +89,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'md', description: 'Medium breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
       { name: 'lg', description: 'Large breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
       { name: 'xl', description: 'Extra-large breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
-      { name: '2xl', description: '2XL breakpoint control column count. Finite input is truncated and clamped to 1..12.' }
+      { name: '2xl', description: '2XL breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
+      { name: 'fill', description: 'Request available column height when this is the sole visible substantive child of a nodel-column.' }
     ],
     snippet: '<nodel-control-grid columns="3">\n  ${}\n</nodel-control-grid>'
   },
@@ -107,7 +108,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
     attributes: [
       { name: 'label', description: 'Visible group label. A single direct child control is auto-labelled for accessibility.' },
       { name: 'surface', description: 'Passive group surface.', values: ['card', 'panel', 'none'] },
-      { name: 'padding', description: 'Group interior padding.', values: ['default', 'compact', 'none'] }
+      { name: 'padding', description: 'Group interior padding.', values: ['default', 'compact', 'none'] },
+      { name: 'fill', description: 'Request available column height when this is the sole visible substantive child of a nodel-column.' }
     ],
     snippet: '<nodel-group label="Group">\n  ${}\n</nodel-group>'
   },

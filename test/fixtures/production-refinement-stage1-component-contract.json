@@ -658,6 +658,16 @@
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "fill",
+          "description": "Request available column height when this is the sole visible substantive child of a nodel-column.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "parent",
+          "consumer": "nodel-column"
         }
       ],
       "snippet": "<nodel-control-grid columns=\"3\">\n  ${}\n</nodel-control-grid>",
@@ -724,6 +734,16 @@
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "fill",
+          "description": "Request available column height when this is the sole visible substantive child of a nodel-column.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "parent",
+          "consumer": "nodel-column"
         }
       ],
       "snippet": "<nodel-group label=\"Group\">\n  ${}\n</nodel-group>",

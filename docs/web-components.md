@@ -445,7 +445,7 @@ Add `fixed` only for V1-style touch pages that need persistent bottom actions. F
 
 ## Touch Controls
 
-Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls.
+Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls. Add `fill` to a group or control grid when it is the sole visible substantive direct child of a `nodel-column`; the child requests the height already available from that column, and does not create page or viewport height.
 
 Use `nodel-group` for visible control labels, passive card/panel surfaces, padding, and grouping. Control `label` attributes are accessibility-only fallback labels; they no longer render visible captions. When a labelled group contains exactly one direct labelable control with no explicit `label`, `aria-label`, or `aria-labelledby`, the group automatically labels that child for accessibility.
 
@@ -485,14 +485,41 @@ Supported `nodel-control-grid` attributes:
 - `lg`
 - `xl`
 - `2xl`
+- `fill`
 
 Column counts are mobile-first and normalized to 1-12. A grid fills its parent width. Children naturally take the width of one grid cell; if there are more children than columns, they wrap to later rows.
+
+`fill` is a safe no-op unless the filled group or control grid is the only visible substantive direct child of `nodel-column`. Whitespace and comments do not count, and a sibling with native `hidden` may remain as a conditional alternative. Multiple visible substantive children leave normal column flow unchanged. Visibility-controlled alternatives may take turns filling at runtime; if alternatives overlap, runtime visibility remains authoritative. Fill only consumes height supplied by the surrounding row/column context, so an auto-height column does not invent extra height. Responsive row spans can change the available height and should be treated as a layout caveat rather than a fixed height guarantee.
+
+```html
+<nodel-column>
+  <nodel-group fill label="Transport">
+    <nodel-control-grid>
+      <nodel-button>Power</nodel-button>
+      <nodel-button>Start</nodel-button>
+    </nodel-control-grid>
+  </nodel-group>
+</nodel-column>
+```
+
+Add `fill` directly to a one-column control grid when its wrapped rows should share the available height equally. Each row uses the established control minimum, so fractional rows expand evenly without making controls smaller than their touch minimum. The group’s internal composition is unchanged: it still owns its label, surface, padding, and nested content.
+
+```html
+<nodel-column>
+  <nodel-control-grid fill>
+    <nodel-button>One</nodel-button>
+    <nodel-button>Two</nodel-button>
+    <nodel-button>Three</nodel-button>
+  </nodel-control-grid>
+</nodel-column>
+```
 
 Supported `nodel-group` attributes:
 
 - `label`: visible group label and auto-label source for one direct child control.
 - `surface="card|panel|none"`: passive group surface. Defaults to `card`.
 - `padding="default|compact|none"`: group interior padding. Defaults to `default`.
+- `fill`: request available column height when this group is the sole visible substantive child of a `nodel-column`.
 
 `nodel-group` intentionally has no column attributes. Put a control grid inside a group when the group should contain equal cells, or put groups inside a control grid when each labelled surface should be one cell.
 
