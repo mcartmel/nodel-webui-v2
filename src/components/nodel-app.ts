@@ -74,14 +74,11 @@ function isNodelPage(element: Element): element is HTMLElement {
   return element.localName === 'nodel-page';
 }
 
-function getNearestPageParent(page: HTMLElement): HTMLElement | null {
-  return page.parentElement?.closest('nodel-page') ?? null;
-}
-
 function getDirectChildPages(page: HTMLElement): HTMLElement[] {
-  return Array.from(page.querySelectorAll('nodel-page')).filter(
-    (child): child is HTMLElement => child instanceof HTMLElement && getNearestPageParent(child) === page
-  );
+  const content = Array.from(page.children).find((child) => child.matches('[data-page-content]'));
+  const authored = Array.from(page.children).filter(isNodelPage);
+  const generated = content ? Array.from(content.children).filter(isNodelPage) : [];
+  return [...new Set([...generated, ...authored])];
 }
 
 function eventDetailValue(event: Event, key: string) {

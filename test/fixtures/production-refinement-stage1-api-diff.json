@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "9ad7387e050f4b811c27bf379dd9a9bc3070f4df9008cf6c64c4c044026f85bd",
+  "serializedSha256": "1fba19bd7f813d231caa7e6736c400024de15c671640cc0bd9ca1d6a4f24dc2a",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
@@ -23,6 +23,7 @@
       "elements.nodel-group.attributes.fill: added",
       "elements.nodel-icon.attributes.family: added",
       "elements.nodel-icon.attributes.style: added",
+      "elements.nodel-page.attributes.min-height: added",
       "elements.nodel-toolbar.attributes.show-host-icon: added"
     ],
     "informational": [
@@ -35,7 +36,7 @@
   },
   "contractAnnotations": {
     "elements": 50,
-    "attributes": 446,
+    "attributes": 447,
     "audiences": {
       "custom": 32,
       "core": 15,
@@ -52,7 +53,7 @@
       "hidden": 3
     },
     "consumption": {
-      "observed": 436,
+      "observed": 437,
       "initialization": 0,
       "parent": 5,
       "contextual-child": 4,

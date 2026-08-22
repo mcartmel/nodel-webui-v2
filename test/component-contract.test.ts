@@ -24,7 +24,8 @@ describe('component contract', () => {
     const link = required(componentContracts.find((element) => element.name === 'nodel-link'), 'link contract');
     const host = required(componentContracts.find((element) => element.name === 'nodel-toast-host'), 'toast host contract');
     expect(page.attributes.find((attribute) => attribute.name === 'title')).toMatchObject({ consumption: 'parent', lifecycle: 'initialization', consumer: 'nodel-app' });
-    expect((NodelPage as typeof NodelPage & { observedAttributes?: string[] }).observedAttributes ?? []).toEqual(['action', 'actions', 'arg', 'arg-type']);
+    expect(page.attributes.find((attribute) => attribute.name === 'min-height')).toMatchObject({ values: ['auto', 'viewport'], defaultValue: 'auto', consumption: 'observed', lifecycle: 'dynamic' });
+    expect((NodelPage as typeof NodelPage & { observedAttributes?: string[] }).observedAttributes ?? []).toEqual(['action', 'actions', 'arg', 'arg-type', 'min-height']);
     expect(page.actionBindings).toEqual(expect.arrayContaining([{ attribute: 'action', phases: ['activate'], defaultPhase: 'activate' }, { attribute: 'actions', phases: ['activate'], defaultPhase: 'activate' }]));
     expect(button.actionBindings).toEqual(expect.arrayContaining([
       { attribute: 'action', phases: ['click', 'press', 'release'], defaultPhase: 'click' },
@@ -46,9 +47,12 @@ describe('component contract', () => {
   it('publishes fill only as a dynamic parent-consumed boolean on group and control grid', () => {
     const supported = componentContracts.filter((element) => element.attributes.some((attribute) => attribute.name === 'fill'));
     expect(supported.map((element) => element.name)).toEqual(['nodel-control-grid', 'nodel-group']);
+    for (const name of ['nodel-page', 'nodel-row', 'nodel-column']) {
+      expect(componentContracts.find((element) => element.name === name)?.attributes.some((attribute) => attribute.name === 'fill')).toBe(false);
+    }
     for (const element of supported) {
       expect(element.attributes.find((attribute) => attribute.name === 'fill')).toMatchObject({
-        valueType: 'boolean', defaultValue: 'false', consumption: 'parent', consumer: 'nodel-column', lifecycle: 'dynamic', completion: 'recommended'
+        valueType: 'boolean', defaultValue: 'false', consumption: 'parent', consumer: 'nodel-column,nodel-page', lifecycle: 'dynamic', completion: 'recommended'
       });
     }
   });

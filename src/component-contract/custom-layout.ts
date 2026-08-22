@@ -39,7 +39,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'action', description: 'Action called whenever this page is explicitly activated.' },
       { name: 'actions', description: 'Activation action bindings. Supported phase: activate.' },
       { name: 'arg', description: 'Optional activation action argument.' },
-      { name: 'arg-type', description: 'Parser for the activation argument.', values: ['string', 'number', 'boolean', 'json'] }
+      { name: 'arg-type', description: 'Parser for the activation argument.', values: ['string', 'number', 'boolean', 'json'] },
+      { name: 'min-height', description: 'Minimum page height mode. auto preserves natural document flow; viewport uses the dynamic available height left by normal-flow shell content and may grow for intrinsic content.', values: ['auto', 'viewport'] }
     ],
     snippet: '<nodel-page title="Page">\n  ${}\n</nodel-page>'
   },
@@ -90,7 +91,7 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'lg', description: 'Large breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
       { name: 'xl', description: 'Extra-large breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
       { name: '2xl', description: '2XL breakpoint control column count. Finite input is truncated and clamped to 1..12.' },
-      { name: 'fill', description: 'Request available column height when this is the sole visible substantive child of a nodel-column.' }
+      { name: 'fill', description: 'Request available height when this is the sole visible substantive child of a nodel-column, or directly inside a viewport leaf nodel-page.' }
     ],
     snippet: '<nodel-control-grid columns="3">\n  ${}\n</nodel-control-grid>'
   },
@@ -109,7 +110,7 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'label', description: 'Visible group label. A single direct child control is auto-labelled for accessibility.' },
       { name: 'surface', description: 'Passive group surface.', values: ['card', 'panel', 'none'] },
       { name: 'padding', description: 'Group interior padding.', values: ['default', 'compact', 'none'] },
-      { name: 'fill', description: 'Request available column height when this is the sole visible substantive child of a nodel-column.' }
+      { name: 'fill', description: 'Request available height when this is the sole visible substantive child of a nodel-column, or directly inside a viewport leaf nodel-page.' }
     ],
     snippet: '<nodel-group label="Group">\n  ${}\n</nodel-group>'
   },

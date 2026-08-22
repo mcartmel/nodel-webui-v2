@@ -23,6 +23,7 @@ export const attributeDefaultMetadata: Record<string, AttributeDefaultMetadata> 
   'nodel-page.nav-label': { defaultDescription: 'Derived: title, otherwise Page.' },
   'nodel-page.nav-id': { defaultDescription: 'Derived: slugged navigation label/title, with a numeric suffix when needed for uniqueness.' },
   'nodel-page.arg-type': { defaultValue: 'string' },
+  'nodel-page.min-height': { defaultValue: 'auto' },
   'nodel-footer.fixed': { defaultValue: 'false' },
   'nodel-group.surface': { defaultValue: 'card' },
   'nodel-group.padding': { defaultValue: 'default' },

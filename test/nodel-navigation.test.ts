@@ -67,6 +67,35 @@ describe('nodel page navigation', () => {
     expect(upstairsPage.hidden).toBe(true);
   });
 
+  it('ignores pages below non-page wrappers for navigation ownership', async () => {
+    document.body.innerHTML = `
+      <nodel-app>
+        <nodel-toolbar title="Pages"></nodel-toolbar>
+        <nodel-page title="Outer">
+          <div><nodel-page title="Wrapped"></nodel-page></div>
+        </nodel-page>
+        <nodel-page title="Direct"></nodel-page>
+      </nodel-app>
+    `;
+    await waitForNavigation();
+
+    const outer = document.querySelector('nodel-page[title="Outer"]') as HTMLElement;
+    const wrapped = document.querySelector('nodel-page[title="Wrapped"]') as HTMLElement;
+    expect(outer.dataset.navGroupPage).toBe('false');
+    expect(wrapped.dataset.navGroupPage).toBe('false');
+    expect(document.querySelector('[data-nav-page-id="Wrapped"]')).toBeNull();
+    expect(document.querySelector('[data-nav-group-id="Outer"]')).toBeNull();
+
+    wrapped.setAttribute('title', 'Changed wrapped');
+    wrapped.setAttribute('min-height', 'viewport');
+    await flush();
+    expect(outer.dataset.navGroupPage).toBe('false');
+    expect(document.querySelector('[data-nav-page-id="Changed-wrapped"]')).toBeNull();
+    wrapped.removeAttribute('min-height');
+    await flush();
+    expect(outer.dataset.navGroupPage).toBe('false');
+  });
+
   it('suspends every page synchronously before the initial navigation sync', () => {
     renderNavigationFixture();
 

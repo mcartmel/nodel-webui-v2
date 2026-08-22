@@ -63,7 +63,7 @@ describe('component contract runtime alignment', () => {
     for (const name of ['nodel-group', 'nodel-control-grid']) {
       const element = componentContracts.find((candidate) => candidate.name === name)!;
       const constructor = customElements.get(name) as { observedAttributes?: string[] };
-      expect(element.attributes.find((attribute) => attribute.name === 'fill')).toMatchObject({ consumption: 'parent', consumer: 'nodel-column' });
+       expect(element.attributes.find((attribute) => attribute.name === 'fill')).toMatchObject({ consumption: 'parent', consumer: 'nodel-column,nodel-page' });
       expect(constructor.observedAttributes ?? []).not.toContain('fill');
     }
   });

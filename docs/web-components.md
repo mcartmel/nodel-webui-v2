@@ -389,11 +389,21 @@ An app with no explicit or stored preference follows live system changes. An app
 
 Use `nodel-row` and `nodel-column` for page composition. Keep the markup close to the shape of the page, not the implementation details.
 
+`nodel-page` establishes the optional height context for its active leaf content. Set `min-height="viewport"` when the page should receive at least the dynamic available viewport height; omit the attribute, or set `min-height="auto"`, for ordinary document flow. `auto` is the safe default, and invalid values also normalize to `auto`. Only the active leaf page receives viewport sizing: a navigation-group page containing child pages does not become a viewport leaf.
+
+Viewport sizing is a minimum, not a fixed or clipped height. Intrinsic content, control minimums, and focusable content can enlarge the document when necessary, so a deliberately short viewport remains scrollable and the last control remains reachable and focusable.
+
+Inside a viewport leaf, normal-flow toolbar content and a normal-flow footer consume their natural height before page content receives the remainder. A fixed footer stays out of flow and the nearest `nodel-app` reserves its measured wrapped height once, including the safe-area inset. Removing the footer removes that reservation. Fixed toast, confirmation, and connectivity hosts do not consume page layout space.
+
+Direct `nodel-row` children and direct `nodel-group[fill]` or `nodel-control-grid[fill]` children of the viewport page share the height remaining after natural-height siblings equally, subject to intrinsic minimums. Rows and columns propagate that allocation automatically; do not add `fill` to `nodel-page`, `nodel-row`, or `nodel-column`. A direct page-level filled group or grid is supported in this context and may share space with natural-height siblings.
+
+The existing column rule remains separate: a filled group or grid consumes column height only when it is the sole visible substantive direct child of that column. It does not invent height for an auto-height page or column.
+
 `nodel-row` uses a responsive 12-column grid. `nodel-column` defaults to full width, equivalent to `span="12"`.
 
 Responsive column spans follow Tailwind's mobile-first breakpoint model using Tailwind's default breakpoint widths:
 
-- `span` applies at all sizes unless a breakpoint overrides it.
+- `span` is the base layout, including the 480px layout used by compact touch pages.
 - `sm` applies from `640px`.
 - `md` applies from `768px`.
 - `lg` applies from `1024px`.
@@ -441,11 +451,11 @@ Ordering changes visual layout only. Keep the authored source sequence logical f
 </nodel-footer>
 ```
 
-Add `fixed` only for V1-style touch pages that need persistent bottom actions. Fixed mode respects the device safe-area inset and measures its wrapped height so the nearest `nodel-app` reserves matching bottom space. Removing or disconnecting the fixed footer removes that reservation. Pages with no fixed footer receive no extra spacing.
+Add `fixed` only for V1-style touch pages that need persistent bottom actions. Fixed mode respects the device safe-area inset and measures its wrapped height so the nearest `nodel-app` reserves matching bottom space. The viewport page fills the space after that reservation; it does not subtract the footer a second time. Removing or disconnecting the fixed footer removes the reservation. Pages with no fixed footer receive no extra spacing. Normal-flow footers remain ordinary content and are consumed before the viewport page remainder is allocated.
 
 ## Touch Controls
 
-Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls. Add `fill` to a group or control grid when it is the sole visible substantive direct child of a `nodel-column`; the child requests the height already available from that column, and does not create page or viewport height.
+Use `nodel-control-grid` for equal-cell touch-control layouts inside normal page columns. It is separate from `nodel-row` and `nodel-column`: rows and columns compose the page, while the control grid divides the width available to controls. In a viewport leaf, `fill` may also be placed on a direct group or control grid child of the page; direct filled children share the page remainder equally. In a normal column, add `fill` only when the group or control grid is the sole visible substantive direct child; the child requests height already supplied by that column and does not create page or viewport height.
 
 Use `nodel-group` for visible control labels, passive card/panel surfaces, padding, and grouping. Control `label` attributes are accessibility-only fallback labels; they no longer render visible captions. When a labelled group contains exactly one direct labelable control with no explicit `label`, `aria-label`, or `aria-labelledby`, the group automatically labels that child for accessibility.
 
@@ -489,7 +499,7 @@ Supported `nodel-control-grid` attributes:
 
 Column counts are mobile-first and normalized to 1-12. A grid fills its parent width. Children naturally take the width of one grid cell; if there are more children than columns, they wrap to later rows.
 
-`fill` is a safe no-op unless the filled group or control grid is the only visible substantive direct child of `nodel-column`. Whitespace and comments do not count, and a sibling with native `hidden` may remain as a conditional alternative. Multiple visible substantive children leave normal column flow unchanged. Visibility-controlled alternatives may take turns filling at runtime; if alternatives overlap, runtime visibility remains authoritative. Fill only consumes height supplied by the surrounding row/column context, so an auto-height column does not invent extra height. Responsive row spans can change the available height and should be treated as a layout caveat rather than a fixed height guarantee.
+Inside `nodel-column`, `fill` is a safe no-op unless the filled group or control grid is the only visible substantive direct child. Whitespace and comments do not count, and a sibling with native `hidden` may remain as a conditional alternative. Multiple visible substantive children leave normal column flow unchanged. Visibility-controlled alternatives may take turns filling at runtime; if alternatives overlap, runtime visibility remains authoritative. Fill only consumes height supplied by its context, so an auto-height column does not invent extra height. The separate direct-page context requires an active viewport leaf and allows direct filled children to share its remainder. Responsive row spans can change the available height and should be treated as a layout caveat rather than a fixed height guarantee.
 
 ```html
 <nodel-column>
@@ -514,12 +524,37 @@ Add `fill` directly to a one-column control grid when its wrapped rows should sh
 </nodel-column>
 ```
 
+For a direct page-level filled grid, opt into the viewport page and let natural content share the remainder:
+
+```html
+<nodel-page title="Controls" min-height="viewport">
+  <nodel-title level="1">Controls</nodel-title>
+  <nodel-control-grid fill columns="2">
+    <nodel-button>One</nodel-button>
+    <nodel-button>Two</nodel-button>
+    <nodel-button>Three</nodel-button>
+    <nodel-button>Four</nodel-button>
+  </nodel-control-grid>
+</nodel-page>
+```
+
+Rows and columns carry a page allocation without layout attributes of their own:
+
+```html
+<nodel-page title="Scenes" min-height="viewport">
+  <nodel-row>
+    <nodel-column span="6"><nodel-group fill label="Scene A">...</nodel-group></nodel-column>
+    <nodel-column span="6"><nodel-control-grid fill>...</nodel-control-grid></nodel-column>
+  </nodel-row>
+</nodel-page>
+```
+
 Supported `nodel-group` attributes:
 
 - `label`: visible group label and auto-label source for one direct child control.
 - `surface="card|panel|none"`: passive group surface. Defaults to `card`.
 - `padding="default|compact|none"`: group interior padding. Defaults to `default`.
-- `fill`: request available column height when this group is the sole visible substantive child of a `nodel-column`.
+- `fill`: request available height as the sole visible substantive child of a `nodel-column`, or as a direct child sharing the remainder of an active viewport leaf page.
 
 `nodel-group` intentionally has no column attributes. Put a control grid inside a group when the group should contain equal cells, or put groups inside a control grid when each labelled surface should be one cell.
 

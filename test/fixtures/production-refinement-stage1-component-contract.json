@@ -290,6 +290,19 @@
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
+        },
+        {
+          "defaultValue": "auto",
+          "name": "min-height",
+          "description": "Minimum page height mode. auto preserves natural document flow; viewport uses the dynamic available height left by normal-flow shell content and may grow for intrinsic content.",
+          "values": [
+            "auto",
+            "viewport"
+          ],
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
         }
       ],
       "snippet": "<nodel-page title=\"Page\">\n  ${}\n</nodel-page>",
@@ -662,12 +675,12 @@
         {
           "defaultValue": "false",
           "name": "fill",
-          "description": "Request available column height when this is the sole visible substantive child of a nodel-column.",
+          "description": "Request available height when this is the sole visible substantive child of a nodel-column, or directly inside a viewport leaf nodel-page.",
           "valueType": "boolean",
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "parent",
-          "consumer": "nodel-column"
+          "consumer": "nodel-column,nodel-page"
         }
       ],
       "snippet": "<nodel-control-grid columns=\"3\">\n  ${}\n</nodel-control-grid>",
@@ -738,12 +751,12 @@
         {
           "defaultValue": "false",
           "name": "fill",
-          "description": "Request available column height when this is the sole visible substantive child of a nodel-column.",
+          "description": "Request available height when this is the sole visible substantive child of a nodel-column, or directly inside a viewport leaf nodel-page.",
           "valueType": "boolean",
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "parent",
-          "consumer": "nodel-column"
+          "consumer": "nodel-column,nodel-page"
         }
       ],
       "snippet": "<nodel-group label=\"Group\">\n  ${}\n</nodel-group>",

@@ -84,8 +84,17 @@ function diagnoseFillPlacement(item: { node: SyntaxNode; name: string; attrs: Sy
   if (!fill) return;
   const parent = item.node.parent;
   const parentName = parent ? elementName(parent, state) : undefined;
-  if (!parent || parentName !== 'nodel-column') {
-    add(result, 'warning', fill.from, fill.to, 'Fill applies only to a sole visible child directly inside nodel-column.');
+  if (!parent || (parentName !== 'nodel-column' && parentName !== 'nodel-page')) {
+    add(result, 'warning', fill.from, fill.to, 'Fill applies only to a sole visible child of nodel-column or a direct child of a viewport leaf nodel-page.');
+    return;
+  }
+  if (parentName === 'nodel-page') {
+    const pageAttributes = elementAttributes(parent, state);
+    const hasDirectPageChild = directChildren(parent).some((child) => child.name === 'Element' && elementName(child, state) === 'nodel-page');
+    const minHeight = pageAttributes.get('min-height');
+    if ((!minHeight || (!isPlaceholder(minHeight) && minHeight !== 'viewport')) || hasDirectPageChild) {
+      add(result, 'warning', fill.from, fill.to, 'Page-level fill requires min-height="viewport" on a leaf nodel-page.');
+    }
     return;
   }
   if (elementAttributes(item.node, state).has('hidden')) return;
@@ -97,6 +106,15 @@ function diagnoseFillPlacement(item: { node: SyntaxNode; name: string; attrs: Sy
     return !hasDeclarativeVisibility(attributes);
   });
   if (competing) add(result, 'warning', fill.from, fill.to, 'Fill is inactive while nodel-column has other definitely visible direct content.');
+}
+
+function diagnosePageSizing(item: { node: SyntaxNode; name: string; attrs: SyntaxNode[] }, state: EditorState, result: Diagnostic[]) {
+  if (item.name !== 'nodel-page') return;
+  const minHeight = item.attrs.find((attr) => attrName(attr, state) === 'min-height');
+  if (!minHeight || attrValue(minHeight, state) !== 'viewport') return;
+  if (directChildren(item.node).some((child) => child.name === 'Element' && elementName(child, state) === 'nodel-page')) {
+    add(result, 'warning', minHeight.from, minHeight.to, 'min-height="viewport" applies only to a leaf nodel-page, not a navigation group.');
+  }
 }
 
 export function diagnoseNodelIconCatalogue(state: EditorState, catalogue: IconCatalogue, tree = syntaxTree(state), index?: IconIndex): Diagnostic[] {
@@ -295,6 +313,7 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
       if (contract.composition.requiredDirectChildren.some((required) => !childNames.has(required))) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Component is missing a required direct child.');
     }
     diagnoseFillPlacement(item, state, diagnostics);
+    diagnosePageSizing(item, state, diagnostics);
   }
   if (diagnostics.length >= NODEL_DIAGNOSTIC_LIMITS.maxDiagnostics) truncated = true;
   const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length;
