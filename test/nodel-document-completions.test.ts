@@ -70,9 +70,19 @@ describe('native Nodel document completions', () => {
     const completion = result('<nodel-button si', nodelXmlCompletionSource, xmlLanguage);
     expect(completion.options.map((option) => option.label)).toContain('signal');
     expect(completion.options.find((option) => option.label === 'signal')?.detail).toContain('dynamic');
+    const pageAttributes = result('<nodel-page min-height="', nodelXmlCompletionSource, xmlLanguage).options.map((option) => option.label);
+    expect(pageAttributes).toEqual(expect.arrayContaining(['"auto"', '"viewport"']));
     const closing = result('<nodel-page></', nodelXmlCompletionSource, xmlLanguage);
     expect(closing.options.map((option) => option.label)).toContain('nodel-page>');
     expect(closing.options.find((option) => option.label === 'nodel-page>')?.apply).toBeUndefined();
+  });
+
+  it('offers page min-height values without exposing parent-consumed fill on structural elements', () => {
+    const pageValues = result('<nodel-page min-height="', nodelHtmlCompletionSource).options.map((option) => option.label);
+    expect(pageValues).toEqual(expect.arrayContaining(['auto', 'viewport']));
+    for (const tagName of ['nodel-page', 'nodel-row', 'nodel-column']) {
+      expect(result(`<${tagName} `, nodelHtmlCompletionSource).options.map((option) => option.label)).not.toContain('fill');
+    }
   });
 
   it('adds XML-only binding hints without replacing XML native ranges', () => {

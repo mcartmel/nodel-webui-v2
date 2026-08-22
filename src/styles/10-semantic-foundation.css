@@ -9,6 +9,100 @@
     background: var(--nodel-toolbar-background, rgb(var(--nodel-surface)));
   }
 
+  /* The app shell is enabled only when an active leaf opts into viewport sizing. */
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100vh;
+    min-block-size: 100dvh;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'] {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'] > [data-page-content] {
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='true'] > [data-page-content] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100vh;
+    min-block-size: 100dvh;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-block-size: 0;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > :where(nodel-row, nodel-group[fill], nodel-control-grid[fill]) {
+    flex: 1 1 0;
+    min-block-size: min-content;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > nodel-row {
+    display: flex;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > nodel-row > [data-row] {
+    flex: 1 1 auto;
+    min-block-size: min-content;
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > nodel-row nodel-column,
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > nodel-row nodel-column > [data-column] {
+    min-block-size: 0;
+  }
+
+  nodel-page[data-min-height='viewport'][data-nav-group-page='false']:not(:where(nodel-app *)) > [data-page-content] > nodel-control-grid[fill] {
+    display: grid;
+    grid-auto-rows: minmax(var(--nodel-control-min-height, 3.5rem), 1fr);
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > :where(nodel-row, nodel-group[fill], nodel-control-grid[fill]) {
+    flex: 1 1 0;
+    min-block-size: min-content;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > nodel-row {
+    display: flex;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > nodel-row > [data-row] {
+    flex: 1 1 auto;
+    min-block-size: min-content;
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > nodel-row nodel-column,
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > nodel-row nodel-column > [data-column] {
+    min-block-size: 0;
+  }
+
+  nodel-app:has(nodel-page[data-active-page='true'][data-nav-group-page='false'][data-min-height='viewport']) nodel-page[data-active-page='true'][data-nav-group-page='false'] > [data-page-content] > nodel-control-grid[fill] {
+    display: grid;
+    grid-auto-rows: minmax(var(--nodel-control-min-height, 3.5rem), 1fr);
+  }
+
   .nodel-toolbar-shell {
     @apply grid min-h-16 items-center gap-x-3 gap-y-2 py-2;
     grid-template-columns: minmax(0, 1fr) auto;

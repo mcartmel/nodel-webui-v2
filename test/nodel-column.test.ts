@@ -1,5 +1,6 @@
 import '../src/components/nodel-row';
 import '../src/components/nodel-column';
+import '../src/components/nodel-page';
 import { flush } from './helpers';
 
 function required<T>(value: T | undefined): T {
@@ -78,6 +79,16 @@ describe('nodel-column responsive spans', () => {
     document.body.innerHTML = `<nodel-column><${tagName} fill></${tagName}></nodel-column>`;
     await flush();
     expect(document.querySelector('nodel-column')?.getAttribute('data-fill-child')).toBe('true');
+  });
+
+  it('preserves column fill arbitration through viewport page and row structure', async () => {
+    document.body.innerHTML = '<nodel-page min-height="viewport"><nodel-row><nodel-column><nodel-group fill></nodel-group></nodel-column></nodel-row></nodel-page>';
+    await flush();
+    const column = document.querySelector('nodel-column')!;
+    expect(column.getAttribute('data-fill-child')).toBe('true');
+    expect((customElements.get('nodel-page') as typeof HTMLElement & { observedAttributes?: string[] }).observedAttributes ?? []).not.toContain('fill');
+    expect((customElements.get('nodel-row') as typeof HTMLElement & { observedAttributes?: string[] }).observedAttributes ?? []).not.toContain('fill');
+    expect((customElements.get('nodel-column') as typeof HTMLElement & { observedAttributes?: string[] }).observedAttributes ?? []).not.toContain('fill');
   });
 
   it('keeps fill inactive when the sole child omits fill', async () => {

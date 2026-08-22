@@ -93,6 +93,29 @@
 
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Viewport page layout</h2>
+              <p class="nodel-catalogue-description">
+                Keep <code>nodel-page</code> in normal flow by default. Add <code>min-height="viewport"</code> to an active leaf page when its rows or direct filled groups/grids should share the dynamic space left after the toolbar and footer. Rows and columns carry that space automatically; fixed footers reserve their wrapped height once.
+              </p>
+            </header>
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-app&gt;
+  &lt;nodel-toolbar&gt;&lt;/nodel-toolbar&gt;
+  &lt;nodel-page title="Controls" min-height="viewport"&gt;
+    &lt;nodel-row&gt;
+      &lt;nodel-column span="6"&gt;
+        &lt;nodel-control-grid fill columns="2"&gt;
+          &lt;nodel-button&gt;One&lt;/nodel-button&gt;
+          &lt;nodel-button&gt;Two&lt;/nodel-button&gt;
+        &lt;/nodel-control-grid&gt;
+      &lt;/nodel-column&gt;
+    &lt;/nodel-row&gt;
+  &lt;/nodel-page&gt;
+  &lt;nodel-footer&gt;Ready&lt;/nodel-footer&gt;
+&lt;/nodel-app&gt;</code></pre>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
               <h2 class="nodel-catalogue-subtitle">Attribute Reference</h2>
               <p class="nodel-catalogue-description">Open a component to see its complete authored attribute API.</p>
             </header>

@@ -167,7 +167,8 @@ describe('nodel document definition', () => {
     expect(app?.attributes.find((attribute) => attribute.name === 'offline-mode')?.values).toEqual(['modal', 'overlay']);
     expect(app?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['signal', 'signals']));
     const page = nodelDocumentElements.find((element) => element.name === 'nodel-page');
-    expect(page?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['action', 'actions', 'arg', 'arg-type']));
+    expect(page?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['action', 'actions', 'arg', 'arg-type', 'min-height']));
+    expect(page?.attributes.find((attribute) => attribute.name === 'min-height')?.values).toEqual(['auto', 'viewport']);
     const link = nodelDocumentElements.find((element) => element.name === 'nodel-link');
     expect(link?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['href', 'node', 'event-binding', 'target', 'rel']));
     const nodeListDefinition = nodelDocumentElements.find((element) => element.name === 'nodel-node-list');
@@ -201,6 +202,7 @@ describe('nodel document definition', () => {
 
     const completions = nodelHtmlCompletionSource(fakeCompletionContext('<nodel-node-list scope="'));
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
+    expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-page min-height="'))?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['auto', 'viewport']));
 
     const elementCompletions = nodelHtmlCompletionSource(fakeCompletionContext('<'))?.options.map((option) => option.label) ?? [];
     expect(elementCompletions).toContain('nodel-link');

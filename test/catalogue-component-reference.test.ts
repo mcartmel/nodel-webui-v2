@@ -173,6 +173,8 @@ describe('catalogue component reference renderer', () => {
     expect(segmented.querySelector('[data-catalogue-reference-composition]')?.textContent)
       .toContain('Advisory direct children: nodel-button');
     expect(page.querySelector('[data-catalogue-reference-composition]')).toBeNull();
+    expect(page.querySelector('[data-catalogue-reference-row="min-height"]')?.textContent).toContain('auto');
+    expect(page.querySelector('[data-catalogue-reference-row="min-height"]')?.textContent).toContain('viewport');
   });
 
   it('does not render removed node-list attributes', () => {

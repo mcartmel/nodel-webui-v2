@@ -61,6 +61,11 @@ describe('Nodel document diagnostics', () => {
     expect((await diagnose('<nodel-column><nodel-group fill></nodel-group><nodel-button signals="Mode:visibility(last)">Other</nodel-button></nodel-column>')).summary.warnings).toBe(0);
     expect((await diagnose('<nodel-column><nodel-group fill></nodel-group>&amp;</nodel-column>')).summary.warnings).toBe(1);
     expect((await diagnose('<nodel-column><nodel-group fill></nodel-group>&#32;</nodel-column>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-page min-height="viewport"><nodel-group fill></nodel-group></nodel-page>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-page min-height="{{mode}}"><nodel-group fill></nodel-group></nodel-page>')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-page><nodel-group fill></nodel-group></nodel-page>')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-page min-height="viewport"><nodel-page><nodel-group fill></nodel-group></nodel-page></nodel-page>')).summary.warnings).toBe(2);
+    expect((await diagnose('<nodel-page min-height="viewport"><nodel-group fill></nodel-group><nodel-button>Other</nodel-button></nodel-page>')).summary.warnings).toBe(0);
   });
 
   it('reports authoring warnings without rejecting globals or ordinary HTML', async () => {
@@ -76,6 +81,10 @@ describe('Nodel document diagnostics', () => {
     expect((await diagnose('<nodel-button variant="bad"/>', 'xml')).summary.errors).toBe(1);
     expect((await diagnose('<nodel-column><nodel-control-grid fill/></nodel-column>', 'xml')).summary.warnings).toBe(0);
     expect((await diagnose('<nodel-control-grid fill/>', 'xml')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-page min-height="viewport"><nodel-control-grid fill/></nodel-page>', 'xml')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-page min-height="{{mode}}"><nodel-control-grid fill/></nodel-page>', 'xml')).summary.warnings).toBe(0);
+    expect((await diagnose('<nodel-page><nodel-control-grid fill/></nodel-page>', 'xml')).summary.warnings).toBe(1);
+    expect((await diagnose('<nodel-page min-height="viewport"><nodel-page><nodel-control-grid fill/></nodel-page></nodel-page>', 'xml')).summary.warnings).toBe(2);
     expect((await diagnose('<nodel-column><nodel-group fill/>&amp;</nodel-column>', 'xml')).summary.warnings).toBe(1);
     expect((await diagnose('<nodel-column><nodel-group fill/>&#32;</nodel-column>', 'xml')).summary.warnings).toBe(0);
     const result = await diagnose('x'.repeat(NODEL_DIAGNOSTIC_LIMITS.maxDocumentLength + 1));
