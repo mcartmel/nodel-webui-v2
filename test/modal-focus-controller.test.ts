@@ -327,4 +327,50 @@ describe('ModalFocusController', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
     expect(cancel).toHaveBeenCalledOnce();
   });
+
+  it('restores the trigger when Firefox-style focus points at a removed layer', async () => {
+    document.body.innerHTML = '<main id="root"><button id="trigger">Trigger</button><section id="layer"><section id="dialog"><button>Confirm</button></section></section></main>';
+    const root = document.querySelector<HTMLElement>('#root')!;
+    const trigger = document.querySelector<HTMLButtonElement>('#trigger')!;
+    const layer = document.querySelector<HTMLElement>('#layer')!;
+    const modal = controller();
+    trigger.focus();
+    activate(modal, layer, document.querySelector<HTMLElement>('#dialog')!, root);
+    const removedFocus = document.createElement('button');
+    layer.append(removedFocus);
+    const activeElement = vi.spyOn(document, 'activeElement', 'get').mockReturnValue(removedFocus);
+    modal.deactivate();
+    layer.remove();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    activeElement.mockRestore();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('does not steal focus from a newly focused connected outside element', async () => {
+    document.body.innerHTML = '<main id="root"><button id="trigger">Trigger</button><button id="outside">Outside</button><section id="layer"><section id="dialog"><button>Confirm</button></section></section></main>';
+    const root = document.querySelector<HTMLElement>('#root')!;
+    const trigger = document.querySelector<HTMLButtonElement>('#trigger')!;
+    const outside = document.querySelector<HTMLButtonElement>('#outside')!;
+    const modal = controller();
+    trigger.focus();
+    activate(modal, document.querySelector<HTMLElement>('#layer')!, document.querySelector<HTMLElement>('#dialog')!, root);
+    modal.deactivate();
+    outside.focus();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('does not restore focus over a connected SVG target outside the removed layer', async () => {
+    document.body.innerHTML = '<main id="root"><button id="trigger">Trigger</button><svg id="outside"><circle id="target" tabindex="0"></circle></svg><section id="layer"><section id="dialog"><button>Confirm</button></section></section></main>';
+    const root = document.querySelector<HTMLElement>('#root')!;
+    const trigger = document.querySelector<HTMLButtonElement>('#trigger')!;
+    const target = document.querySelector<SVGCircleElement>('#target')!;
+    const modal = controller();
+    trigger.focus();
+    activate(modal, document.querySelector<HTMLElement>('#layer')!, document.querySelector<HTMLElement>('#dialog')!, root);
+    modal.deactivate();
+    target.focus();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(target);
+  });
 });

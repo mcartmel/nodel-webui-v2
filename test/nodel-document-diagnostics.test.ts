@@ -49,6 +49,35 @@ describe('Nodel document diagnostics', () => {
     expect((await diagnose('<nodel-segmented />')).summary.errors).toBe(0);
   });
 
+  it('validates shortcut declarations and exact document-level chords', async () => {
+    expect((await diagnose('<nodel-app><nodel-shortcut action="Run" /></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="" action="Run" /></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key=" " action="Run" /></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="A" /></nodel-app>')).summary.errors).toBe(1);
+    const malformed = await diagnose('<nodel-app><nodel-shortcut key="A" actions=";Run" /></nodel-app>');
+    expect(malformed.summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="A" action="Run:" /></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="A" actions="Run:other" /></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="A" actions="First;Second:trigger" /></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="A" action="UnknownAction" /></nodel-app>')).summary.errors).toBe(0);
+
+    const duplicate = await diagnose('<nodel-app><nodel-shortcut id="first" key="K" action="A"></nodel-shortcut><nodel-shortcut id="second" key="K" action="B"></nodel-shortcut><nodel-shortcut id="third" key="K" action="C"></nodel-shortcut></nodel-app>');
+    expect(duplicate.diagnostics.filter((item) => item.message.includes('Duplicate nodel shortcut chord.'))).toHaveLength(1);
+    expect(duplicate.diagnostics.find((item) => item.message.includes('Duplicate nodel shortcut chord.'))?.from).toBeGreaterThan('<nodel-app><nodel-shortcut id="first" key="K" action="A" />'.length);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" action="A"></nodel-shortcut><nodel-shortcut key="k" action="B"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" ctrl action="A"></nodel-shortcut><nodel-shortcut key="K" action="B"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" action="A"></nodel-shortcut><nodel-shortcut key="K" action="B"></nodel-shortcut></nodel-app><nodel-app><nodel-shortcut key="K" action="C"></nodel-shortcut></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" action="A" disabled></nodel-shortcut><nodel-shortcut key="K" action="B" hidden></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-shortcut key="K" action="A"></nodel-shortcut><nodel-app><nodel-shortcut key="K" action="B"></nodel-shortcut></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" action="A" visibility="Mode"></nodel-shortcut><nodel-shortcut key="K" action="B" visibility="Other"></nodel-shortcut></nodel-app>')).summary.errors).toBe(1);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="{{key}}" action="{{action}}" /></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="{{key}}" action="Run"></nodel-shortcut><nodel-shortcut key="{{key}}" action="Run"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" action="{{action}}"></nodel-shortcut><nodel-shortcut key="K" action="Run"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="K" actions="{{actions}}"></nodel-shortcut><nodel-shortcut key="K" action="Run"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key="{{key}}" ctrl action="Run"></nodel-shortcut><nodel-shortcut key="{{key}}" ctrl action="Run"></nodel-shortcut></nodel-app>')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app><nodel-shortcut key=" " action="A"></nodel-shortcut><nodel-shortcut key=" " action="B"></nodel-shortcut></nodel-app>')).summary.errors).toBe(1);
+  });
+
   it('checks fill placement without rejecting conditional alternatives', async () => {
     expect((await diagnose('<nodel-column><nodel-group fill></nodel-group></nodel-column>')).summary.warnings).toBe(0);
     expect((await diagnose('<nodel-group fill></nodel-group>')).diagnostics).toEqual([expect.objectContaining({ severity: 'warning', message: expect.stringContaining('nodel-column') })]);

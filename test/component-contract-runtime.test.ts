@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { componentContracts } from '../src/component-contract';
+import { componentContractCommonAttributes, componentContracts } from '../src/component-contract';
 import { loadNodelComponent } from '../src/nodel-component-loader';
 import '../src/main';
 
@@ -42,7 +42,7 @@ describe('component contract runtime alignment', () => {
       const constructor = customElements.get(element.name) as (CustomElementConstructor & { observedAttributes?: string[] }) | undefined;
       expect(constructor, element.name).toBeDefined();
       const observed = new Set(constructor?.observedAttributes ?? []);
-      const declared = new Map(element.attributes.map((attribute) => [attribute.name, attribute]));
+      const declared = new Map([...componentContractCommonAttributes, ...element.attributes].map((attribute) => [attribute.name, attribute]));
 
       for (const attribute of observed) {
         if (attribute.startsWith('data-nodel-native-')) continue;
@@ -57,6 +57,23 @@ describe('component contract runtime alignment', () => {
         }
       }
     }
+  });
+
+  it('keeps shortcut common attributes global rather than component-observed', () => {
+    const shortcut = componentContracts.find((element) => element.name === 'nodel-shortcut')!;
+    const constructor = customElements.get('nodel-shortcut') as { observedAttributes?: string[] };
+    expect(constructor.observedAttributes).not.toEqual(expect.arrayContaining(['signals', 'visibility', 'visible-value', 'visible-values']));
+    expect(shortcut.attributes.map((attribute) => attribute.name)).not.toEqual(expect.arrayContaining(['signals', 'visibility', 'visible-value', 'visible-values']));
+    expect(componentContractCommonAttributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['signals', 'visibility', 'visible-value', 'visible-values']));
+  });
+
+  it('imports shortcut eagerly from main rather than the lazy loader', async () => {
+    const [mainSource, loaderSource] = await Promise.all([
+      readFile(resolve(process.cwd(), 'src/main.ts'), 'utf8'),
+      readFile(resolve(process.cwd(), 'src/nodel-component-loader.ts'), 'utf8')
+    ]);
+    expect(mainSource).toContain("import './components/nodel-shortcut';");
+    expect(loaderSource).not.toContain("import('./components/nodel-shortcut')");
   });
 
   it('keeps parent-consumed fill out of child observed attributes', () => {

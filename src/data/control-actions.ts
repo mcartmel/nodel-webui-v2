@@ -36,6 +36,7 @@ interface ControlActionErrorOptions {
   failures?: ActionBindingResult[];
   error?: string;
   toastMessage?: string;
+  extra?: Record<string, unknown>;
 }
 
 export function buildActionPayload(rawValue: string | null, type: ControlArgType): ControlActionPayloadResult {
@@ -96,6 +97,7 @@ export function dispatchControlActionError(host: HTMLElement, options: ControlAc
   host.dispatchEvent(new CustomEvent(options.eventName, {
     bubbles: true,
     detail: {
+      ...(options.extra ?? {}),
       action: options.action ?? '',
       phase: options.phase,
       phases: options.phases,

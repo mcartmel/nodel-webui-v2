@@ -11,6 +11,15 @@
 - Added the opt-in `nodel-readout` edge-ring layout with named notch positions and percentage depth. Existing compact rings and ordinary pages are unchanged, so the addition is migration-free.
 - Added the opt-in `nodel-page bleed` leaf-page containment override for edge-to-edge display compositions. It is migration-free and does not change viewport allocation or fill defaults; use it with `min-height="viewport"` and a direct `nodel-control-grid fill` when required.
 
+### Keyboard Shortcuts
+
+- **Additive:** Added the nonvisual, app-global `nodel-shortcut` component. Direct children of `nodel-app` can bind exact keyboard chords to ordered current-node `trigger` actions, with existing typed arguments, confirmation, visibility, disabled, singleflight, and error semantics. The addition is migration-free; existing pages and `nodel-button`, including native `hidden`, are unchanged.
+
+### Performance Budget Evidence
+
+- `STAGE8_APPROVED_SHORTCUT_EAGER_CATALOGUE_BASELINE_2026-08-28`: shortcut eager-catalogue measurements set `codemirror-language-html` to raw `271633`/max `285215`, gzip `92689`/max `97324`, and `codemirror-language-xml` to raw `144439`/max `151661`, gzip `40512`/max `42538`; each maximum is `ceil(measured actual * 1.05)`. Other roles were not ratcheted.
+- Rationale: Shortcut eager-catalogue measurements raised only HTML/XML language baselines; each affected maximum is measured actual plus reviewed five percent headroom, with no automatic ratcheting elsewhere.
+
 ### Icon Catalogue And Local Builds
 
 - The public `components.html` catalogue now demonstrates canonical Free `tv`,

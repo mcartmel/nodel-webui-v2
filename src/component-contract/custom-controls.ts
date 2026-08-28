@@ -318,4 +318,24 @@ export const customControlElements: NodelElementDefinition[] = [
     ],
     snippet: '<nodel-group label="Colour">\n  <nodel-palette action="SetColour" signal="Colour" picker="native">\n    <nodel-button value="#ff0000" color="#ff0000">Red</nodel-button>\n    <nodel-button value="#00ff00" color="#00ff00">Green</nodel-button>\n    <nodel-button value="#0000ff" color="#0000ff">Blue</nodel-button>\n  </nodel-palette>\n</nodel-group>'
   },
+  {
+    name: 'nodel-shortcut',
+    catalogue: true,
+    description: 'Nonvisual app-global keyboard shortcut action binding.',
+    attributes: [
+      { name: 'key', description: 'Exact case-sensitive KeyboardEvent.key value.' },
+      { name: 'ctrl', description: 'Require the Control modifier.', valueType: 'boolean' },
+      { name: 'alt', description: 'Require the Alt modifier.', valueType: 'boolean' },
+      { name: 'shift', description: 'Require the Shift modifier.', valueType: 'boolean' },
+      { name: 'meta', description: 'Require the Meta modifier.', valueType: 'boolean' },
+      { name: 'action', description: 'Current-node action name to call on keydown.' },
+      { name: 'actions', description: 'Ordered action bindings. Supported phase: trigger.' },
+      { name: 'arg', description: 'Optional action argument value.' },
+      { name: 'arg-type', description: 'Parser for arg.', values: ['string', 'number', 'boolean', 'json'] },
+      { name: 'label', description: 'Optional human description for confirmation and errors.' },
+      { name: 'disabled', description: 'Disable the shortcut.' },
+      ...confirmationAttributes
+    ],
+    snippet: '<nodel-app>\n  <nodel-shortcut key="F2" action="ActionName"></nodel-shortcut>\n</nodel-app>'
+  },
 ];

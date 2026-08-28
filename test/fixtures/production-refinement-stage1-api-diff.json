@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "fc90fe4d952da482721332ad1d58848f689cb7fa9ed8ab4c4cd6d9cdb592a4a1",
+  "serializedSha256": "567e5539d2dcf6d1bb71572eed8dc9bce8ab552a66f6c566bf675725a9c8e90b",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
@@ -28,6 +28,7 @@
       "elements.nodel-readout.attributes.notch-depth: added",
       "elements.nodel-readout.attributes.notch-position: added",
       "elements.nodel-readout.attributes.ring-layout: added",
+      "elements.nodel-shortcut: added",
       "elements.nodel-toolbar.attributes.show-host-icon: added"
     ],
     "informational": [
@@ -39,35 +40,35 @@
     "operational": []
   },
   "contractAnnotations": {
-    "elements": 50,
-    "attributes": 451,
+    "elements": 51,
+    "attributes": 470,
     "audiences": {
-      "custom": 32,
+      "custom": 33,
       "core": 15,
       "internal": 3
     },
     "registrations": {
-      "eager": 32,
+      "eager": 33,
       "lazy": 15,
       "auto-host": 3
     },
     "completion": {
-      "recommended": 32,
+      "recommended": 33,
       "advanced": 15,
       "hidden": 3
     },
     "consumption": {
-      "observed": 441,
+      "observed": 460,
       "initialization": 0,
       "parent": 5,
       "contextual-child": 4,
       "wildcard": 1
     },
-    "actionBindings": 37,
+    "actionBindings": 39,
     "signalBindings": 51,
     "signalTargets": 153,
-    "events": 41,
-    "compositionRules": 5,
+    "events": 44,
+    "compositionRules": 6,
     "commonAttributes": 4,
     "styles": {
       "semanticClasses": 14,

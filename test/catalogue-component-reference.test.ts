@@ -177,6 +177,17 @@ describe('catalogue component reference renderer', () => {
     expect(page.querySelector('[data-catalogue-reference-row="min-height"]')?.textContent).toContain('viewport');
   });
 
+  it('renders the nonvisual shortcut contract and direct-app composition', () => {
+    document.body.innerHTML = '<div data-catalogue-reference="nodel-shortcut"></div>';
+    renderCatalogueReferences({ requiredElements: ['nodel-shortcut'], strict: true });
+
+    const reference = document.querySelector('[data-catalogue-reference-for="nodel-shortcut"]')!;
+    expect(reference.querySelector('[data-catalogue-reference-row="key"]')?.textContent).toContain('KeyboardEvent.key');
+    expect(reference.querySelector('[data-catalogue-reference-row="actions"]')?.textContent).toContain('trigger');
+    expect(reference.querySelector('[data-catalogue-reference-composition]')?.textContent).toContain('nodel-app');
+    expect(reference.querySelector('[data-catalogue-reference-row="signals"] [data-catalogue-reference-badge="common"]')).toBeTruthy();
+  });
+
   it('does not render removed node-list attributes', () => {
     document.body.innerHTML = '<div data-catalogue-reference="nodel-node-list"></div>';
     renderCatalogueReferences({ requiredElements: [] });

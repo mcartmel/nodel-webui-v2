@@ -54,6 +54,7 @@ The JSON contract describes supported syntax and behavior. It does not query a r
 - `nodel-group`: labelled composition group with optional card or panel surface.
 - `nodel-template`: safe repeated-markup authoring helper using native HTML templates.
 - `nodel-button`: touch-sized action and signal-state button.
+- `nodel-shortcut`: nonvisual app-global keyboard shortcut action binding.
 - `nodel-toggle`: boolean switch with full and partial feedback states.
 - `nodel-segmented`: mutually exclusive horizontal or vertical button choices.
 - `nodel-select`: touch-friendly picker for larger sets of choices.
@@ -601,6 +602,34 @@ Use `nodel-control-space` for deliberate empty cells. It is scoped to control-gr
 `nodel-button` renders a touch-sized native button. Without an `action`, it is inert and can be used for examples or custom scripting. With an `action`, it posts to the current node's relative `REST/actions/<name>/call` endpoint, so action-enabled buttons should be used from a node page.
 
 Action-capable controls (`nodel-button`, `nodel-toggle`, `nodel-pad`, `nodel-stepper`, `nodel-fader`, `nodel-select`, `nodel-segmented`, `nodel-palette`, and page activation) own their action work for the current connection only. Disconnecting aborts pending confirmation and request work, prevents queued phases or bindings from beginning, and suppresses stale completion, error, rollback, and change events. Reconnecting starts fresh work without waiting for an old request to settle; a request already accepted by the node cannot be undone. When an action sequence partly fails, its error event includes both `results` for completed successful actions and `failures` for unsuccessful actions.
+
+## Keyboard Shortcuts
+
+`nodel-shortcut` is a nonvisual declaration. It must be a direct child of `nodel-app`, is app-global rather than page-scoped, and authors should provide separate visible or accessible discoverability text when users need to know the shortcut. It has no rendered control or button API. `<nodel-button hidden>` remains ordinary native button behavior and is unrelated to shortcut registration; this feature does not change `nodel-button`.
+
+```html
+<nodel-app>
+  <nodel-shortcut key="F2" action="FirstAction"></nodel-shortcut>
+  <nodel-shortcut key="F3" action="SecondAction"></nodel-shortcut>
+  <nodel-shortcut key="K" ctrl shift action="OpenDiagnostics"></nodel-shortcut>
+  <nodel-page title="Display">
+    <nodel-text>F2: first action; F3: second action; Ctrl+Shift+K: diagnostics.</nodel-text>
+  </nodel-page>
+</nodel-app>
+```
+
+The `key` value is the exact, case-sensitive `KeyboardEvent.key`: `F2` and `F3` are distinct values, `key="K"` does not match `k`, and a literal Space is written as `key=" "`. Character keys depend on the active keyboard layout; physical-position matching through `KeyboardEvent.code` is not supported. `ctrl`, `alt`, `shift`, and `meta` require exact equality, so omitted modifiers must be absent and an extra modifier prevents a match. Only `keydown` is handled. A non-repeating keydown activates once; matching repeat events remain consumed without activating again. Browser- and OS-reserved keys may be intercepted before a page receives them, so delivery cannot be guaranteed.
+
+Use the shared action and confirmation contract for ordered trigger actions and typed arguments:
+
+```html
+<nodel-shortcut key=" " actions="FirstAction; SecondAction:trigger" arg="42" arg-type="number" label="run the sequence" confirm="Run this sequence?">
+</nodel-shortcut>
+```
+
+A unique eligible declaration consumes the matching event with `preventDefault()` and propagation stopping before focused controls or document handlers run. A busy declaration continues consuming its chord. Two or more eligible declarations for the exact chord, including declarations in different apps, fail closed: the event is consumed, no action runs, and one conflict event is reported. Conflict `count` is exact, while `key` and the document-order `ids` prefix in the event detail are bounded for allocation; no elements or events are included in that detail. `disabled`, native `hidden`, common visibility-hidden state, and a hidden app are the explicit opt-out conditions; invalid placement or action configuration also cannot claim a key.
+
+Capture occurs on `window` in the capture phase. Matching remains active over inputs, contenteditable elements, CodeMirror editors, inert branches, open modals, and offline presentation, and can override typing or native activation. This is deliberately author-managed: avoid unsafe printable or activation keys, and use `disabled` or common visibility when a state should opt out. Shortcut action errors, confirmation cancel/confirm, and focus restoration use the existing control action layer.
 
 ## Templates
 

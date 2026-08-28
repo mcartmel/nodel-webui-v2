@@ -25,6 +25,12 @@ The complete `v2/` directory is one indivisible release asset. The stable JavaSc
 
 Focused modules under `src/component-contract/` provide the typed source of truth. An aggregate feeds the catalogue, editor assistance, reports, and the public deterministic JSON artifact; development middleware and production builds generate the same artifact without a runtime dependency. Schema 1 consumers must remain compatible with additive fields. Golden diffs classify breaking, additive, informational, and operational changes, and the release manifest binds the artifact hash.
 
+### Shortcut Runtime Boundary
+
+`nodel-shortcut` has one module-global registry and one `window` capture-phase `keydown` listener for the document. Direct-child placement under `nodel-app` is validated at eligibility time, while exact key/modifier matching, visibility opt-outs, duplicate conflict handling, event consumption, and repeat suppression stay in the registry boundary. Multiple apps therefore share one document-global chord namespace.
+
+The component owns declaration validation, payload construction, confirmation, focus restoration, singleflight, ordered `trigger` actions, and submitted/error/conflict events. Shared action and confirmation utilities remain the action-layer boundary; shortcut runtime must not duplicate REST calls or manufacture a hidden button. The component is DOM-free and CSS-hidden, so it contributes no layout or accessibility node. Offline, modal, inert, input, contenteditable, and CodeMirror state are intentionally outside the registry suppression policy; authors own the interaction consequences and discoverability.
+
 ### Icon Artifact Data Flow
 
 The public Free generator reads the pinned Free Solid, Regular, and Brands packages and writes a deterministic icon artifact set under `v2/`: the stable `nodel-icons.json` index, a content-hashed searchable catalogue, and bounded content-hashed shards. The index declares the profile, exact source package versions, Nodel aliases, family/style defaults, and every permitted relative path. Runtime code resolves the index from `import.meta.url`, then fetches only same-origin paths declared by that index. Static authored pages are not Vite inputs, so their relative `v2/nodel-webui.js` entry resolves the adjacent `v2/nodel-icons.json` and shards correctly whether the page is at the site root or below a node path.
