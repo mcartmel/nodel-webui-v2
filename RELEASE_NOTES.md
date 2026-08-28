@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0
+
 ### Toolchain
 
 - Project tooling now requires Node.js `24.15.0` and npm `11.12.1`.

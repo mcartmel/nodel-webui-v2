@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { adaptProIconSource, bootstrapProPackage, parseProBuildArgs, redactProError, runProBuild, sanitizeProChildEnvironment } from '../scripts/pro-local-build.mjs';
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { createDeploymentInventory, loadDeploymentManifest } from '../scripts/deployment-contract.mjs';
+import packageMetadata from '../package.json';
 
 const fixtureIconNames = ['circle-check', 'circle-info', 'power-off', 'triangle-exclamation', 'volume-high'];
 const fixtureRoot = resolve('build/pro-local-build-test');
@@ -217,7 +218,7 @@ describe('Pro-local icon adapter', () => {
     expect(JSON.parse(await readFile(proGraph, 'utf8'))).toMatchObject({ schemaVersion: 1 });
     expect(await readdir(resolve('build/pro-dist'))).not.toContain('bundle-graph.json');
     const manifest = await loadDeploymentManifest(resolve('deployment-manifest.json'));
-    await expect(createDeploymentInventory(resolve('build/pro-dist'), manifest.manifest, { packageVersion: '0.1.2', expectedIconProfile: 'pro-local' })).resolves.toMatchObject({ root: resolve('build/pro-dist') });
+    await expect(createDeploymentInventory(resolve('build/pro-dist'), manifest.manifest, { packageVersion: packageMetadata.version, expectedIconProfile: 'pro-local' })).resolves.toMatchObject({ root: resolve('build/pro-dist') });
     const proGraphBytes = await readFile(proGraph);
     await execFileAsync(process.execPath, ['scripts/generate-icon-assets.mjs'], { cwd: resolve('.') });
     await execFileAsync(process.execPath, [resolve('node_modules/vite/bin/vite.js'), 'build', '--mode', 'public'], { cwd: resolve('.') });

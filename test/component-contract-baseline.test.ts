@@ -107,12 +107,12 @@ describe('Stage 1 reviewed component API baseline', () => {
     const stageZero = JSON.parse(await readFile(resolve(fixtureRoot, reviewed.baseline), 'utf8')) as StageZeroSnapshot;
     const goldenSource = await readFile(resolve(fixtureRoot, reviewed.golden), 'utf8');
     const golden = JSON.parse(goldenSource) as ComponentContractDocument;
-    const current = componentContractDocument(stageZero.packageVersion);
+    const current = componentContractDocument(golden.packageVersion);
     expect(diffComponentContracts(legacySurfaceDocument(stageZero), current)).toEqual(reviewed.reviewedDiff);
     expect(annotationSummary(current)).toEqual(reviewed.contractAnnotations);
     expect(validateComponentContract(golden)).toEqual([]);
     expect(diffComponentContracts(golden, current)).toEqual({ breaking: [], additive: [], informational: [], operational: [] });
-    expect(goldenSource).toBe(serializeComponentContract(stageZero.packageVersion));
-    expect(createHash('sha256').update(serializeComponentContract(stageZero.packageVersion)).digest('hex')).toBe(reviewed.serializedSha256);
+    expect(goldenSource).toBe(serializeComponentContract(golden.packageVersion));
+    expect(createHash('sha256').update(serializeComponentContract(golden.packageVersion)).digest('hex')).toBe(reviewed.serializedSha256);
   });
 });

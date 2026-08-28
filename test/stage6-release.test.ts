@@ -7,10 +7,11 @@ import { generateIconArtifacts, validateIconArtifactFiles } from '../scripts/ico
 import { verifyPublicRelease } from '../scripts/verify-public-release.mjs';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
 import { validateIconSourceVersions } from '../scripts/release-contract.mjs';
+import packageMetadata from '../package.json';
 
 function adapter(profile: 'free' | 'pro-local' = 'free') {
   return {
-    packageVersion: '0.1.2', profile,
+    packageVersion: packageMetadata.version, profile,
     sources: [
       { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
       { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
