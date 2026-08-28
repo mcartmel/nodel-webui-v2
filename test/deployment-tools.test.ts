@@ -14,6 +14,7 @@ import { parseVerifyJavaHandoffArgs, runVerifyJavaHandoff } from '../scripts/ver
 import { parseVerifyDeploymentInventoryArgs, runVerifyDeploymentInventory } from '../scripts/verify-deployment-inventory.mjs';
 import { serializeComponentContract } from '../src/component-contract';
 import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
+import packageMetadata from '../package.json';
 
 const execFileAsync = promisify(execFile);
 const fixtureRoot = join(projectRoot, 'build', 'deployment-tools-test');
@@ -47,9 +48,9 @@ async function writeSource(root = source) {
   await writeFile(join(root, 'v2', 'assets', 'poster.svg'), '<svg/>\n');
   await writeFile(join(root, 'v2', 'assets', 'object.svg'), '<svg/>\n');
   await writeFile(join(root, 'v2', 'nodel-webui.js.map'), '{}\n');
-  await writeFile(join(root, 'v2', 'nodel-components.json'), serializeComponentContract('0.1.2'));
+  await writeFile(join(root, 'v2', 'nodel-components.json'), serializeComponentContract(packageMetadata.version));
   const icons = generateIconArtifacts({
-    packageVersion: '0.1.2', profile: 'free',
+    packageVersion: packageMetadata.version, profile: 'free',
     sources: [
       { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
       { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
@@ -217,19 +218,19 @@ describe('Stage 11 deployment tools', () => {
     await writeSource();
     await writeFile(join(source, 'v2', 'nodel-components.json'), '{\n');
     await expect(createDeploymentInventory(source, manifestData.manifest)).rejects.toThrow(/not valid JSON/);
-    const wrongSchema = JSON.parse(serializeComponentContract('0.1.2'));
+    const wrongSchema = JSON.parse(serializeComponentContract(packageMetadata.version));
     wrongSchema.schemaVersion = 2;
     await writeFile(join(source, 'v2', 'nodel-components.json'), JSON.stringify(wrongSchema));
     await expect(createDeploymentInventory(source, manifestData.manifest)).rejects.toThrow(/schemaVersion/);
-    const wrongPackage = JSON.parse(serializeComponentContract('0.1.2'));
+    const wrongPackage = JSON.parse(serializeComponentContract(packageMetadata.version));
     wrongPackage.packageVersion = '0.0.0';
     await writeFile(join(source, 'v2', 'nodel-components.json'), JSON.stringify(wrongPackage));
     await expect(createDeploymentInventory(source, manifestData.manifest)).rejects.toThrow(/packageVersion/);
-    const malformedElement = JSON.parse(serializeComponentContract('0.1.2'));
+    const malformedElement = JSON.parse(serializeComponentContract(packageMetadata.version));
     malformedElement.elements[0].attributes[0].completion = 'visible';
     await writeFile(join(source, 'v2', 'nodel-components.json'), JSON.stringify(malformedElement));
     await expect(createDeploymentInventory(source, manifestData.manifest)).rejects.toThrow(/attributes\[0\]\.completion/);
-    const emptyPhases = JSON.parse(serializeComponentContract('0.1.2'));
+    const emptyPhases = JSON.parse(serializeComponentContract(packageMetadata.version));
     emptyPhases.elements.find((element: { name: string }) => element.name === 'nodel-button').actionBindings[0].phases = [];
     await writeFile(join(source, 'v2', 'nodel-components.json'), JSON.stringify(emptyPhases));
     await expect(createDeploymentInventory(source, manifestData.manifest)).rejects.toThrow(/phases.*non-empty/);

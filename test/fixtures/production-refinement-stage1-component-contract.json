@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "packageVersion": "0.1.2",
+  "packageVersion": "0.2.0",
   "commonAttributes": [
     {
       "name": "signals",

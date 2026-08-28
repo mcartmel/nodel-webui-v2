@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "567e5539d2dcf6d1bb71572eed8dc9bce8ab552a66f6c566bf675725a9c8e90b",
+  "serializedSha256": "b2a4459463dd15699c58050001b1b692b8093a2ba9a21e7bf5997b9e1324be23",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
