@@ -242,6 +242,59 @@ test.describe('catalogue visual regressions', () => {
     }
   });
 
+  test('renders bounded edge-ring examples without changing page containment', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Edge-ring geometry runs for the desktop themes.');
+
+    await openCatalogue(page, 'PickersPrecision');
+    const example = page.locator('[data-catalogue-example="readouts-edge"]');
+    const rings = example.locator('nodel-readout');
+    await expect(rings).toHaveCount(2);
+
+    const metrics = await rings.evaluateAll((elements) => elements.map((element) => {
+      const parent = element.parentElement?.getBoundingClientRect();
+      const box = element.getBoundingClientRect();
+      const svg = element.querySelector<SVGSVGElement>('.nodel-readout-edge-visual');
+      const content = element.querySelector<HTMLElement>('.nodel-readout-content');
+      const contentBox = content?.getBoundingClientRect();
+      const track = element.querySelector<SVGPathElement>('.nodel-readout-edge-track');
+      const progress = element.querySelector<SVGPathElement>('.nodel-readout-edge-progress');
+      return {
+        parent: parent && { bottom: parent.bottom, left: parent.left, right: parent.right, top: parent.top },
+        box: { bottom: box.bottom, left: box.left, right: box.right, top: box.top, width: box.width, height: box.height },
+        svg: svg && { width: svg.getBoundingClientRect().width, height: svg.getBoundingClientRect().height },
+        contentCenter: contentBox && { x: contentBox.left + contentBox.width / 2, y: contentBox.top + contentBox.height / 2 },
+        hostCenter: { x: box.left + box.width / 2, y: box.top + box.height / 2 },
+        valueFontSize: Number.parseFloat(getComputedStyle(element.querySelector('.nodel-readout-value')!).fontSize),
+        position: element.dataset.notchPosition,
+        depth: element.dataset.notchDepth,
+        rotation: element.querySelector('svg > g')?.getAttribute('transform'),
+        trackPath: track?.getAttribute('d'),
+        progressPath: progress?.getAttribute('d')
+      };
+    }));
+
+    expect(metrics[0]?.position).toBe('bottom');
+    expect(metrics[0]?.depth).toBe('15.4167%');
+    expect(metrics[0]?.rotation).toBe('rotate(0 120 120)');
+    expect(metrics[1]?.position).toBe('left');
+    expect(metrics[1]?.rotation).toBe('rotate(90 120 120)');
+    for (const metric of metrics) {
+      expect(metric.trackPath).toContain('202.999');
+      expect(metric.progressPath).toBe(metric.trackPath);
+      expect(metric.svg?.width).toBeCloseTo(metric.svg?.height ?? 0, 1);
+      expect(metric.contentCenter?.x).toBeCloseTo(metric.hostCenter.x, 1);
+      expect(metric.contentCenter?.y).toBeCloseTo(metric.hostCenter.y, 1);
+      expect(metric.valueFontSize).toBeGreaterThanOrEqual(26);
+      expect(metric.valueFontSize).toBeLessThanOrEqual(48);
+      expect(metric.box.left).toBeGreaterThanOrEqual((metric.parent?.left ?? 0) - 1);
+      expect(metric.box.right).toBeLessThanOrEqual((metric.parent?.right ?? 0) + 1);
+      expect(metric.box.top).toBeGreaterThanOrEqual((metric.parent?.top ?? 0) - 1);
+      expect(metric.box.bottom).toBeLessThanOrEqual((metric.parent?.bottom ?? 0) + 1);
+    }
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  });
+
   test('renders the readout ring fallback without masks', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Focused fallback baselines run for the desktop themes.');
 

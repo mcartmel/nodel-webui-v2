@@ -1016,6 +1016,51 @@
   &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
 
+            <section class="nodel-catalogue-section">
+              <header class="nodel-catalogue-header">
+                <h2 class="nodel-catalogue-subtitle">Bounded edge rings</h2>
+                <p class="nodel-catalogue-description">
+                  Edge rings are opt-in and remain contained by their parent. The first example uses the default bottom notch; the second names a left-side notch. The parent supplies the square dimensions.
+                </p>
+              </header>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="nodel-catalogue-examples" data-catalogue-example="readouts-edge">
+                  <div class="h-48 w-48">
+                    <nodel-readout label="Brightness" type="percent" visual="ring" ring-layout="edge" value="72"></nodel-readout>
+                  </div>
+                  <div class="h-48 w-48">
+                    <nodel-readout label="Signal" type="percent" visual="ring" ring-layout="edge" notch-position="left" value="48" variant="primary"></nodel-readout>
+                  </div>
+                </div>
+              </div>
+              <pre class="nodel-catalogue-code" data-catalogue-code-for="readouts-edge"><code>&lt;div class=&quot;h-48 w-48&quot;&gt;
+  &lt;nodel-readout label=&quot;Brightness&quot; type=&quot;percent&quot; visual=&quot;ring&quot; ring-layout=&quot;edge&quot; value=&quot;72&quot;&gt;&lt;/nodel-readout&gt;
+&lt;/div&gt;
+&lt;div class=&quot;h-48 w-48&quot;&gt;
+  &lt;nodel-readout label=&quot;Signal&quot; type=&quot;percent&quot; visual=&quot;ring&quot; ring-layout=&quot;edge&quot; notch-position=&quot;left&quot; value=&quot;48&quot; variant=&quot;primary&quot;&gt;&lt;/nodel-readout&gt;
+&lt;/div&gt;</code></pre>
+            </section>
+
+            <section class="nodel-catalogue-section">
+              <header class="nodel-catalogue-header">
+                <h2 class="nodel-catalogue-subtitle">Single-display composition</h2>
+                <p class="nodel-catalogue-description">
+                  Copy this minimal display when the page itself should occupy the nominal viewport. <code>bleed</code> removes the leaf page container, while <code>min-height=&quot;viewport&quot;</code> allocates the available height and the direct filled grid consumes it. Notch defaults are intentionally omitted.
+                </p>
+              </header>
+              <pre class="nodel-catalogue-code"><code>&lt;nodel-app theme=&quot;dark&quot;&gt;
+  &lt;nodel-page title=&quot;Readout&quot; min-height=&quot;viewport&quot; bleed&gt;
+    &lt;nodel-control-grid fill&gt;
+      &lt;nodel-readout label=&quot;Brightness&quot; type=&quot;percent&quot; visual=&quot;ring&quot; ring-layout=&quot;edge&quot; signal=&quot;Brightness&quot;&gt;
+      &lt;/nodel-readout&gt;
+    &lt;/nodel-control-grid&gt;
+  &lt;/nodel-page&gt;
+&lt;/nodel-app&gt;</code></pre>
+              <p class="nodel-catalogue-description">
+                The omitted edge settings use a bottom notch at <code>15.4167%</code>. Set <code>notch-position</code> to <code>bottom</code>, <code>left</code>, <code>top</code>, or <code>right</code> for another mounting orientation, and set <code>notch-depth</code> when the physical ratio differs.
+              </p>
+            </section>
+
             <div data-catalogue-reference="nodel-readout"></div>
           </section>
 

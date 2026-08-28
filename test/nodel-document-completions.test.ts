@@ -75,6 +75,14 @@ describe('native Nodel document completions', () => {
     const closing = result('<nodel-page></', nodelXmlCompletionSource, xmlLanguage);
     expect(closing.options.map((option) => option.label)).toContain('nodel-page>');
     expect(closing.options.find((option) => option.label === 'nodel-page>')?.apply).toBeUndefined();
+    expect(result('<nodel-readout ring-layout="', nodelHtmlCompletionSource).options.map((option) => option.label)).toEqual(expect.arrayContaining(['compact', 'edge']));
+    expect(result('<nodel-readout notch-position="', nodelHtmlCompletionSource).options.map((option) => option.label)).toEqual(expect.arrayContaining(['bottom', 'left', 'top', 'right']));
+    expect(result('<nodel-readout notch-depth="', nodelHtmlCompletionSource).options).toEqual([]);
+    expect(result('<nodel-page bl', nodelHtmlCompletionSource).options.map((option) => option.label)).toContain('bleed');
+    expect(result('<nodel-readout ring-layout="', nodelXmlCompletionSource, xmlLanguage).options.map((option) => option.label)).toEqual(expect.arrayContaining(['"compact"', '"edge"']));
+    expect(result('<nodel-readout notch-position="', nodelXmlCompletionSource, xmlLanguage).options.map((option) => option.label)).toEqual(expect.arrayContaining(['"bottom"', '"left"', '"top"', '"right"']));
+    expect(nodelXmlCompletionSource(context('<nodel-readout notch-depth="', xmlLanguage))).toBeNull();
+    expect(result('<nodel-page bl', nodelXmlCompletionSource, xmlLanguage).options.map((option) => option.label)).toContain('bleed');
   });
 
   it('offers page min-height values without exposing parent-consumed fill on structural elements', () => {

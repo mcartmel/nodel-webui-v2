@@ -15,12 +15,31 @@ describe('nodel-page viewport layout state', () => {
     const page = document.querySelector('nodel-page') as HTMLElement;
 
     expect(page.dataset.minHeight).toBe('auto');
+    expect(page.dataset.bleed).toBe('false');
 
     page.setAttribute('min-height', 'viewport');
     expect(page.dataset.minHeight).toBe('viewport');
 
     page.setAttribute('min-height', 'invalid');
     expect(page.dataset.minHeight).toBe('auto');
+  });
+
+  it('normalizes presence-only bleed for leaves and updates it dynamically', async () => {
+    document.body.innerHTML = '<nodel-page bleed></nodel-page>';
+    const page = document.querySelector('nodel-page') as HTMLElement;
+
+    expect(page.dataset.bleed).toBe('true');
+    page.setAttribute('bleed', 'false');
+    expect(page.dataset.bleed).toBe('true');
+    page.removeAttribute('bleed');
+    expect(page.dataset.bleed).toBe('false');
+
+    page.setAttribute('bleed', '');
+    page.remove();
+    page.removeAttribute('bleed');
+    document.body.append(page);
+    await flush();
+    expect(page.dataset.bleed).toBe('false');
   });
 
   it('falls back to auto when the attribute is removed and remains reactive while detached', () => {
@@ -40,7 +59,7 @@ describe('nodel-page viewport layout state', () => {
 
   it('does not make a navigation group a viewport leaf', () => {
     document.body.innerHTML = `
-      <nodel-page min-height="viewport">
+      <nodel-page min-height="viewport" bleed>
         <nodel-page title="Child"></nodel-page>
       </nodel-page>
     `;
@@ -49,6 +68,7 @@ describe('nodel-page viewport layout state', () => {
 
     expect(group.dataset.navGroupPage).toBe('true');
     expect(group.dataset.minHeight).toBe('auto');
+    expect(group.dataset.bleed).toBe('false');
     expect(child.dataset.navGroupPage).toBe('false');
     expect(child.dataset.minHeight).toBe('auto');
 
@@ -56,6 +76,7 @@ describe('nodel-page viewport layout state', () => {
     return flush().then(() => {
       expect(group.dataset.navGroupPage).toBe('false');
       expect(group.dataset.minHeight).toBe('viewport');
+      expect(group.dataset.bleed).toBe('true');
     });
   });
 

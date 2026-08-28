@@ -32,6 +32,40 @@ async function boxes(page: Page, selector: string) {
   }));
 }
 
+async function edgeGeometry(page: Page, selector: string) {
+  return page.locator(selector).evaluate((element) => {
+    const svg = element.querySelector<SVGSVGElement>('.nodel-readout-edge-visual')!;
+    const path = element.querySelector<SVGPathElement>('.nodel-readout-edge-track')!;
+    const matrix = svg.querySelector('g')!.getScreenCTM()!;
+    const length = path.getTotalLength();
+    const points = [0, 0.05, 0.5, 1].map((fraction) => {
+      const point = path.getPointAtLength(length * fraction);
+      return { x: point.x, y: point.y };
+    });
+    const screen = points.map(({ x, y }) => ({
+      x: matrix.a * x + matrix.c * y + matrix.e,
+      y: matrix.b * x + matrix.d * y + matrix.f
+    }));
+    const rect = svg.getBoundingClientRect();
+    return {
+      points,
+      screen,
+      length,
+      scale: { x: Math.hypot(matrix.a, matrix.b), y: Math.hypot(matrix.c, matrix.d) },
+      drawnSide: Math.min(Math.hypot(matrix.a, matrix.b), Math.hypot(matrix.c, matrix.d)) * 240,
+      center: { x: matrix.a * 120 + matrix.c * 120 + matrix.e, y: matrix.b * 120 + matrix.d * 120 + matrix.f },
+      rect,
+      value: element.querySelector('.nodel-readout-value')!.getBoundingClientRect(),
+      fontSize: Number.parseFloat(getComputedStyle(element.querySelector('.nodel-readout-value')!).fontSize),
+      content: element.querySelector<HTMLElement>('.nodel-readout-content')!.getBoundingClientRect(),
+      contentClient: { width: element.querySelector<HTMLElement>('.nodel-readout-content')!.clientWidth, height: element.querySelector<HTMLElement>('.nodel-readout-content')!.clientHeight },
+      contentScroll: { width: element.querySelector<HTMLElement>('.nodel-readout-content')!.scrollWidth, height: element.querySelector<HTMLElement>('.nodel-readout-content')!.scrollHeight },
+      valueClient: { width: element.querySelector<HTMLElement>('.nodel-readout-value')!.clientWidth, height: element.querySelector<HTMLElement>('.nodel-readout-value')!.clientHeight },
+      valueScroll: { width: element.querySelector<HTMLElement>('.nodel-readout-value')!.scrollWidth, height: element.querySelector<HTMLElement>('.nodel-readout-value')!.scrollHeight }
+    };
+  });
+}
+
 test.describe('viewport page layout geometry', () => {
   test('fills a 480x480 direct grid with six controls in three equal rows', async ({ page }) => {
     await loadEntry(page);
@@ -234,6 +268,36 @@ test.describe('viewport page layout geometry', () => {
     expect(result.page.height + result.footer.height).toBeCloseTo(result.app.height, 0);
   });
 
+  test('bleed preserves fixed-footer reservation without overlap or horizontal overflow', async ({ page }) => {
+    await loadEntry(page);
+    await page.setViewportSize({ width: 320, height: 640 });
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page title="Bleed footer" min-height="viewport" bleed>
+          <nodel-control-grid fill columns="1"><nodel-button>Content</nodel-button></nodel-control-grid>
+        </nodel-page>
+        <nodel-footer fixed><span>Fixed footer</span></nodel-footer>
+      </nodel-app>`);
+    const result = await fixture.evaluate((root) => {
+      const app = root.querySelector('nodel-app')!.getBoundingClientRect();
+      const page = root.querySelector('nodel-page')!.getBoundingClientRect();
+      const footer = root.querySelector('[data-footer-shell]')!.getBoundingClientRect();
+      const button = root.querySelector('nodel-button')!.getBoundingClientRect();
+      const appStyle = getComputedStyle(root.querySelector('nodel-app')!);
+      return {
+        app, page, footer, button,
+        scrollWidth: document.documentElement.scrollWidth,
+        reserved: Number.parseFloat(appStyle.paddingBottom),
+        footerHeight: footer.height
+      };
+    });
+    expect(result.scrollWidth).toBeLessThanOrEqual(320);
+    expect(result.reserved).toBeGreaterThanOrEqual(result.footerHeight - 1);
+    expect(result.page.bottom).toBeLessThanOrEqual(result.footer.top + 1);
+    expect(result.button.bottom).toBeLessThanOrEqual(result.footer.top + 1);
+    expect(result.app.height).toBeLessThanOrEqual(641);
+  });
+
   test('normalizes page changes and active nested leaf routes', async ({ page }) => {
     await loadEntry(page);
     const fixture = await addFixture(page, `
@@ -381,6 +445,64 @@ test.describe('viewport page layout geometry', () => {
     expect(result.clippedAncestor).toBe('');
   });
 
+  test('bleed retains intrinsic overflow reachability without wrapper clipping', async ({ page }) => {
+    await loadEntry(page);
+    await page.setViewportSize({ width: 390, height: 180 });
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page title="Bleed overflow" min-height="viewport" bleed>
+          <nodel-control-grid fill columns="1">
+            <nodel-button>One</nodel-button><nodel-button>Two</nodel-button><nodel-button>Three</nodel-button><nodel-button>Last</nodel-button>
+          </nodel-control-grid>
+        </nodel-page>
+      </nodel-app>`, { fixed: false });
+    const last = fixture.locator('nodel-button').last().locator('button');
+    await last.focus();
+    await expect(last).toBeFocused();
+    await last.evaluate((button) => button.scrollIntoView({ block: 'center' }));
+    const result = await fixture.evaluate((root) => {
+      const page = root.querySelector('nodel-page')!;
+      const content = root.querySelector('[data-page-content]')!;
+      const grid = root.querySelector('nodel-control-grid')!;
+      const lastButton = root.querySelector('nodel-button:last-of-type button')!.getBoundingClientRect();
+      let ancestor: Element | null = root.querySelector('nodel-button:last-of-type button')!.parentElement;
+      let clippedAncestor = '';
+      while (ancestor && ancestor !== root) {
+        const style = getComputedStyle(ancestor);
+        if ([style.overflow, style.overflowX, style.overflowY].some((value) => value === 'hidden' || value === 'clip')) {
+          clippedAncestor = ancestor.localName;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      return {
+        page: page.getBoundingClientRect(),
+        content: content.getBoundingClientRect(),
+        grid: grid.getBoundingClientRect(),
+        paddingTop: getComputedStyle(content).paddingTop,
+        paddingRight: getComputedStyle(content).paddingRight,
+        paddingBottom: getComputedStyle(content).paddingBottom,
+        paddingLeft: getComputedStyle(content).paddingLeft,
+        lastButton,
+        clippedAncestor,
+        scrollHeight: document.documentElement.scrollHeight,
+        viewportHeight: innerHeight
+      };
+    });
+    expect(result.scrollHeight).toBeGreaterThan(result.viewportHeight);
+    expect(result.clippedAncestor).toBe('');
+    expect(result.lastButton.top).toBeGreaterThanOrEqual(0);
+    expect(result.lastButton.bottom).toBeLessThanOrEqual(result.viewportHeight);
+    expect(result.paddingTop).toBe('0px');
+    expect(result.paddingRight).toBe('0px');
+    expect(result.paddingBottom).toBe('0px');
+    expect(result.paddingLeft).toBe('0px');
+    expect(result.content.left).toBeCloseTo(result.page.left, 0);
+    expect(result.content.right).toBeCloseTo(result.page.right, 0);
+    expect(result.grid.left).toBeCloseTo(result.content.left, 0);
+    expect(result.grid.right).toBeCloseTo(result.content.right, 0);
+  });
+
   test('updates min-height and responsive reflow without stale geometry', async ({ page }) => {
     await loadEntry(page);
     await page.setViewportSize({ width: 900, height: 600 });
@@ -402,5 +524,222 @@ test.describe('viewport page layout geometry', () => {
     await expect(fixture.locator('nodel-page[title="Dynamic"]')).toHaveAttribute('data-min-height', 'auto');
     const natural = await boxes(page, '[data-viewport-fixture] nodel-control-grid');
     expect(Math.max(...natural.map((box) => box.height))).toBeLessThan(600);
+  });
+
+  test('bleed viewport composition reaches all four edges without document overflow', async ({ page }) => {
+    await loadEntry(page);
+    await page.setViewportSize({ width: 240, height: 240 });
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page title="Display" min-height="viewport" bleed>
+          <nodel-control-grid fill columns="1">
+            <nodel-readout label="Brightness" type="percent" visual="ring" ring-layout="edge" value="50"></nodel-readout>
+          </nodel-control-grid>
+        </nodel-page>
+      </nodel-app>`);
+    await fixture.evaluate((root) => { root.style.width = '100vw'; });
+    const result = await fixture.evaluate((root) => {
+      const rect = (selector: string) => root.querySelector(selector)!.getBoundingClientRect();
+      const page = rect('nodel-page');
+      const content = rect('[data-page-content]');
+      const grid = rect('nodel-control-grid');
+      const readout = rect('nodel-readout');
+      const svg = rect('.nodel-readout-edge-visual');
+      const value = rect('.nodel-readout-value');
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+        clientHeight: document.documentElement.clientHeight,
+        page, content, grid, readout, svg, value
+      };
+    });
+    expect(result.viewport).toEqual({ width: 240, height: 240 });
+    expect(result.scrollWidth).toBeLessThanOrEqual(240);
+    expect(result.scrollHeight).toBeLessThanOrEqual(240);
+    expect(result.clientHeight).toBeGreaterThan(0);
+    for (const rect of [result.page, result.content, result.grid, result.readout]) {
+      expect(rect.left).toBeCloseTo(0, 0);
+      expect(rect.top).toBeCloseTo(0, 0);
+      expect(rect.right).toBeCloseTo(240, 0);
+      expect(rect.bottom).toBeCloseTo(240, 0);
+    }
+    expect(result.svg.width).toBeCloseTo(result.svg.height, 1);
+    expect(result.value.left + result.value.width / 2).toBeCloseTo(120, 0);
+    expect(result.value.top + result.value.height / 2).toBeCloseTo(120, 0);
+    const typography = await fixture.locator('.nodel-readout-value').evaluate((element) => ({
+      fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+      lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+      width: element.getBoundingClientRect().width
+    }));
+    expect(typography.fontSize).toBeGreaterThan(0);
+    expect(typography.fontSize).toBeLessThanOrEqual(40);
+    expect(typography.lineHeight).toBeGreaterThan(0);
+    expect(typography.width).toBeGreaterThan(0);
+  });
+
+  test('updates edge notch orientation and progress while preserving normalized geometry', async ({ page }) => {
+    await loadEntry(page);
+    await page.setViewportSize({ width: 240, height: 240 });
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page min-height="viewport" bleed>
+          <nodel-control-grid fill columns="1">
+            <nodel-readout label="Level" type="percent" visual="ring" ring-layout="edge" value="0"></nodel-readout>
+          </nodel-control-grid>
+        </nodel-page>
+      </nodel-app>`);
+    const readout = fixture.locator('nodel-readout');
+    const geometry = async () => readout.evaluate((element) => {
+      const group = element.querySelector('svg > g')!;
+      const track = element.querySelector('.nodel-readout-edge-track')!;
+      const progress = element.querySelector('.nodel-readout-edge-progress') as SVGPathElement;
+      return { transform: group.getAttribute('transform'), path: track.getAttribute('d') ?? '', dash: progress.style.strokeDasharray, display: progress.style.display, valueTransform: getComputedStyle(element.querySelector('.nodel-readout-value')!).transform };
+    });
+    const orientations = [
+      ['bottom', 'rotate(0 120 120)'],
+      ['left', 'rotate(90 120 120)'],
+      ['top', 'rotate(180 120 120)'],
+      ['right', 'rotate(270 120 120)']
+    ] as const;
+    let initialPath = '';
+    const boundaries = { bottom: 203, left: 37, top: 37, right: 203 };
+    for (const [position, transform] of orientations) {
+      await readout.evaluate((element, value) => element.setAttribute('notch-position', value), position);
+      const current = await geometry();
+      const transformed = await edgeGeometry(page, '[data-viewport-fixture] nodel-readout');
+      initialPath ||= current.path;
+      expect(current.transform).toBe(transform);
+      expect(current.path).toBe(initialPath);
+      expect(current.valueTransform).toBe('none');
+      expect(Math.abs(transformed.screen[0]!.x - transformed.screen[1]!.x) + Math.abs(transformed.screen[0]!.y - transformed.screen[1]!.y)).toBeGreaterThan(10);
+      const coordinate = position === 'bottom' || position === 'top' ? 'y' : 'x';
+      const center = transformed.center[coordinate];
+      const scale = coordinate === 'x' ? transformed.scale.x : transformed.scale.y;
+      const expected = center + (boundaries[position] - 120) * scale;
+      expect(Math.abs(transformed.screen[0]![coordinate] - expected)).toBeLessThanOrEqual(2);
+      expect(Math.abs(transformed.screen[3]![coordinate] - expected)).toBeLessThanOrEqual(2);
+      if (position === 'bottom') {
+        expect(transformed.screen[0]!.x).toBeLessThan(transformed.screen[3]!.x);
+        expect(transformed.screen[0]!.y).toBeCloseTo(transformed.screen[3]!.y, 0);
+      } else if (position === 'left') {
+        expect(transformed.screen[0]!.y).toBeLessThan(transformed.screen[3]!.y);
+        expect(transformed.screen[0]!.x).toBeCloseTo(transformed.screen[3]!.x, 0);
+      } else if (position === 'top') {
+        expect(transformed.screen[0]!.x).toBeGreaterThan(transformed.screen[3]!.x);
+        expect(transformed.screen[0]!.y).toBeCloseTo(transformed.screen[3]!.y, 0);
+      } else {
+        expect(transformed.screen[0]!.y).toBeGreaterThan(transformed.screen[3]!.y);
+        expect(transformed.screen[0]!.x).toBeCloseTo(transformed.screen[3]!.x, 0);
+      }
+    }
+    await readout.evaluate((element) => element.setAttribute('notch-position', 'bottom'));
+    const bottom = await edgeGeometry(page, '[data-viewport-fixture] nodel-readout');
+    expect(bottom.points[0]!.x).toBeLessThan(120);
+    expect(bottom.points[0]!.y).toBeGreaterThan(120);
+    expect(bottom.points[1]!.x).toBeLessThan(bottom.points[0]!.x);
+    expect(bottom.points[1]!.y).toBeLessThan(bottom.points[0]!.y);
+    expect(bottom.points[2]!.y).toBeLessThan(bottom.points[0]!.y);
+    for (const value of ['0', '50', '100']) {
+      await readout.evaluate((element, next) => element.setAttribute('value', next), value);
+      const current = await geometry();
+      expect(current.path).toBe(initialPath);
+      if (value === '0') expect(current.display).toBe('none');
+      else {
+        const dash = current.dash.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+        expect(dash[0]).toBeCloseTo(value === '50' ? 0.5 : 1, 5);
+        expect(dash[1]).toBeCloseTo(1, 5);
+      }
+    }
+  });
+
+  test('uniformly scales edge geometry and inscribes it in ordinary rectangular containment', async ({ page }) => {
+    await loadEntry(page);
+    await page.setViewportSize({ width: 480, height: 300 });
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page title="Contained">
+          <nodel-group surface="none" padding="none" style="width:320px;height:180px"><nodel-readout style="width:320px;height:180px" label="Level" type="number" visual="ring" ring-layout="edge" value="123456789" prefix="~" suffix=" ms"></nodel-readout></nodel-group>
+        </nodel-page>
+      </nodel-app>`, { expectViewport: false });
+    const result = await fixture.evaluate((root) => {
+      const page = root.querySelector('nodel-page')!.getBoundingClientRect();
+      const group = root.querySelector('nodel-group')!.getBoundingClientRect();
+      const readout = root.querySelector('nodel-readout')!.getBoundingClientRect();
+      const svg = root.querySelector('.nodel-readout-edge-visual')!.getBoundingClientRect();
+      const matrix = root.querySelector<SVGSVGElement>('.nodel-readout-edge-visual')!.getScreenCTM()!;
+      const content = root.querySelector('.nodel-readout-content')!.getBoundingClientRect();
+      const value = root.querySelector('.nodel-readout-value')!.getBoundingClientRect();
+      const drawnSide = Math.min(Math.hypot(matrix.a, matrix.b), Math.hypot(matrix.c, matrix.d)) * 240;
+      const contentElement = root.querySelector<HTMLElement>('.nodel-readout-content')!;
+      const valueElement = root.querySelector<HTMLElement>('.nodel-readout-value')!;
+      return {
+        page, group, readout, svg, content, value, drawnSide,
+        scaleX: Math.hypot(matrix.a, matrix.b), scaleY: Math.hypot(matrix.c, matrix.d), matrixE: matrix.e, matrixF: matrix.f,
+        contentClient: { width: contentElement.clientWidth, height: contentElement.clientHeight },
+        contentScroll: { width: contentElement.scrollWidth, height: contentElement.scrollHeight },
+        valueClient: { width: valueElement.clientWidth, height: valueElement.clientHeight },
+        valueScroll: { width: valueElement.scrollWidth, height: valueElement.scrollHeight },
+        path: root.querySelector('.nodel-readout-edge-track')!.getAttribute('d')
+      };
+    });
+    expect(result.group.left).toBeGreaterThan(result.page.left);
+    expect(result.group.right).toBeLessThan(result.page.right);
+    expect(result.readout.width).toBeCloseTo(320, 0);
+    expect(result.readout.height).toBeCloseTo(180, 0);
+    expect(result.scaleX).toBeCloseTo(result.scaleY, 5);
+    expect(result.scaleX * 240).toBeLessThanOrEqual(Math.min(result.readout.width, result.readout.height) + 1);
+    expect(Math.abs(result.scaleX * 240 - Math.min(result.readout.width, result.readout.height))).toBeLessThanOrEqual(3);
+    expect(result.matrixE + result.scaleX * 120).toBeCloseTo(result.readout.left + result.readout.width / 2, 0);
+    expect(result.matrixF + result.scaleY * 120).toBeCloseTo(result.readout.top + result.readout.height / 2, 0);
+    expect(result.value.left + result.value.width / 2).toBeCloseTo(result.readout.left + result.readout.width / 2, 0);
+    expect(result.value.top + result.value.height / 2).toBeCloseTo(result.readout.top + result.readout.height / 2, 0);
+    expect(result.value.width).toBeGreaterThan(0);
+    for (const box of [result.content, result.value]) {
+      expect(box.width).toBeLessThanOrEqual(result.drawnSide * 0.72 + 1);
+      expect(box.height).toBeLessThanOrEqual(result.drawnSide * 0.72 + 1);
+      expect(box.left).toBeGreaterThanOrEqual(result.readout.left + result.readout.width / 2 - result.drawnSide * 0.36 - 1);
+      expect(box.right).toBeLessThanOrEqual(result.readout.left + result.readout.width / 2 + result.drawnSide * 0.36 + 1);
+      expect(box.top).toBeGreaterThanOrEqual(result.readout.top + result.readout.height / 2 - result.drawnSide * 0.36 - 1);
+      expect(box.bottom).toBeLessThanOrEqual(result.readout.top + result.readout.height / 2 + result.drawnSide * 0.36 + 1);
+    }
+    for (const dimensions of [result.contentClient, result.valueClient]) {
+      expect(dimensions.width).toBeGreaterThan(0);
+      expect(dimensions.height).toBeGreaterThan(0);
+    }
+    expect(result.contentScroll.width).toBeLessThanOrEqual(result.contentClient.width + 1);
+    expect(result.contentScroll.height).toBeLessThanOrEqual(result.contentClient.height + 1);
+    expect(result.valueScroll.width).toBeLessThanOrEqual(result.valueClient.width + 1);
+    expect(result.valueScroll.height).toBeLessThanOrEqual(result.valueClient.height + 1);
+    expect(result.path).not.toContain('NaN');
+  });
+
+  test('preserves normalized edge endpoints across uniformly scaled square viewports', async ({ page }) => {
+    await loadEntry(page);
+    const fixture = await addFixture(page, `
+      <nodel-app>
+        <nodel-page min-height="viewport" bleed>
+          <nodel-control-grid fill columns="1">
+            <nodel-readout label="Level" type="percent" visual="ring" ring-layout="edge" value="50"></nodel-readout>
+          </nodel-control-grid>
+        </nodel-page>
+      </nodel-app>`);
+    const normalized = async () => {
+      const geometry = await edgeGeometry(page, '[data-viewport-fixture] nodel-readout');
+      return { scale: geometry.drawnSide, points: geometry.screen.map((point) => ({
+        x: (point.x - geometry.center.x) / geometry.drawnSide,
+        y: (point.y - geometry.center.y) / geometry.drawnSide
+      })) };
+    };
+    await page.setViewportSize({ width: 240, height: 240 });
+    await fixture.evaluate((root) => { root.style.width = '100vw'; });
+    const nominal = await normalized();
+    await page.setViewportSize({ width: 360, height: 360 });
+    const alternate = await normalized();
+    expect(alternate.scale).toBeGreaterThan(nominal.scale);
+    for (const index of [0, 1, 2, 3]) {
+      expect(alternate.points[index]!.x).toBeCloseTo(nominal.points[index]!.x, 2);
+      expect(alternate.points[index]!.y).toBeCloseTo(nominal.points[index]!.y, 2);
+    }
   });
 });

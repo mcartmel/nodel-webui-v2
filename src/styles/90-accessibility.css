@@ -55,6 +55,25 @@
     .nodel-list > li > .nodel-list-item:focus-visible {
       outline-offset: -3px !important;
     }
+
+    nodel-readout[data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-track {
+      stroke: rgb(var(--nodel-fg)) !important;
+      stroke-width: 6 !important;
+      stroke-dasharray: 0.08 0.04 !important;
+    }
+
+    nodel-readout[data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-progress {
+      stroke: rgb(var(--nodel-touch-fill-rgb)) !important;
+      stroke-width: 12 !important;
+    }
+
+    nodel-readout[data-zone='warning'][data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-progress {
+      stroke: rgb(var(--nodel-warning-fill)) !important;
+    }
+
+    nodel-readout[data-zone='danger'][data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-progress {
+      stroke: rgb(var(--nodel-danger-fill)) !important;
+    }
   }
 
   @media (forced-colors: active) {
@@ -144,6 +163,19 @@
       forced-color-adjust: none;
       background: Highlight !important;
       border-color: HighlightText !important;
+    }
+
+    nodel-readout[data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-track {
+      stroke: CanvasText !important;
+      stroke-width: 10 !important;
+      stroke-dasharray: none !important;
+      forced-color-adjust: none;
+    }
+
+    nodel-readout[data-visual='ring'][data-ring-layout='edge'] .nodel-readout-edge-progress {
+      stroke: Highlight !important;
+      stroke-width: 10 !important;
+      forced-color-adjust: none;
     }
   }
 }

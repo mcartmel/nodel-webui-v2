@@ -6,6 +6,11 @@
 
 - Project tooling now requires Node.js `24.15.0` and npm `11.12.1`.
 
+### Edge Readout And Display Pages
+
+- Added the opt-in `nodel-readout` edge-ring layout with named notch positions and percentage depth. Existing compact rings and ordinary pages are unchanged, so the addition is migration-free.
+- Added the opt-in `nodel-page bleed` leaf-page containment override for edge-to-edge display compositions. It is migration-free and does not change viewport allocation or fill defaults; use it with `min-height="viewport"` and a direct `nodel-control-grid fill` when required.
+
 ### Icon Catalogue And Local Builds
 
 - The public `components.html` catalogue now demonstrates canonical Free `tv`,
@@ -46,6 +51,8 @@
   existing tested-`dist` inventory and release evidence.
 
 ### Performance And Review Impact
+
+- `STAGE7_APPROVED_EDGE_READOUT_DISPLAY_PAGE_BASELINE_2026-08-28` records the reviewed edge-readout/display-page baseline. Edge-readout/display-page baselines reflect deterministic CSS and public catalogue growth; each maximum retains reviewed five percent headroom without automatic ratcheting.
 
 - `STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20` records the measured Free icon artifact raw/gzip, total `v2/` inventory, stable-entry closure, and expanded `components.html` catalogue baselines. Stage 6 baselines are measured from the deterministic public build; each maximum retains reviewed five percent headroom without automatic ratcheting. The increase is intentional: the complete offline Free catalogue, official searchable metadata, and public examples are shipped while Pro-local output remains isolated and separately reported.
 

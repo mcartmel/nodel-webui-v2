@@ -12,6 +12,7 @@ const representativeViews: Array<{ pageId: string; selector: string; openReferen
   { pageId: 'Buttons', selector: '[data-catalogue-example="buttons-variants"]' },
   { pageId: 'Buttons', selector: '[data-catalogue-reference-for="nodel-button"]', openReference: true },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },
+  { pageId: 'PickersPrecision', selector: '[data-catalogue-example="readouts-edge"]' },
   { pageId: 'PickersPrecision', selector: '[data-catalogue-example="palette-native"]' },
   { pageId: 'FadersMeters', selector: '[data-catalogue-example="faders-compound-fader"]' },
   { pageId: 'Media', selector: '[data-catalogue-example="media-status-blocks"]' },
@@ -26,6 +27,11 @@ async function openCatalogue(page: Page, pageId: string) {
   await page.evaluate(async () => {
     await document.fonts?.ready;
   });
+}
+
+async function setMediaFeature(page: Page, name: string, value: string) {
+  const client = await page.context().newCDPSession(page);
+  await client.send('Emulation.setEmulatedMedia', { features: [{ name, value }] });
 }
 
 function isDesktopThemeProject(testInfo: TestInfo) {
@@ -192,6 +198,102 @@ test.describe('catalogue accessibility', () => {
         const renderedBorder = composite(border, surface);
         expect(contrastRatio(renderedBorder, surface), `${control.name} on ${surfaceValue}`).toBeGreaterThanOrEqual(3);
       }
+    }
+  });
+
+  test('keeps edge-ring decoration out of the tree and progress distinguishable', async ({ page }, testInfo) => {
+    test.skip(!isAxeProject(testInfo), 'Edge-ring accessibility checks run in desktop and forced-colours projects.');
+
+    await openCatalogue(page, 'PickersPrecision');
+    if (isDesktopThemeProject(testInfo)) {
+      await setMediaFeature(page, 'prefers-contrast', 'more');
+      expect(await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches)).toBe(true);
+    }
+    const ring = page.locator('[data-catalogue-example="readouts-edge"] nodel-readout').first();
+    await expect(ring).toHaveAttribute('role', 'meter');
+    await expect(ring).toHaveAttribute('aria-label', 'Brightness: 72%');
+    await expect(ring.locator('.nodel-readout-edge-visual')).toHaveAttribute('aria-hidden', 'true');
+    await expect(ring.locator('.nodel-readout-value')).toHaveText('72%');
+
+    const styles = await ring.evaluate((element) => {
+      const track = element.querySelector<SVGPathElement>('.nodel-readout-edge-track');
+      const progress = element.querySelector<SVGPathElement>('.nodel-readout-edge-progress');
+      const trackStyle = track ? getComputedStyle(track) : null;
+      const progressStyle = progress ? getComputedStyle(progress) : null;
+      const rootStyle = getComputedStyle(document.documentElement);
+      let background = '';
+      let ancestor: Element | null = element;
+      while (ancestor) {
+        const colour = getComputedStyle(ancestor).backgroundColor;
+        const alpha = colour.match(/rgba?\([^)]*[,/]\s*([\d.]+)%?\s*\)$/)?.[1];
+        if (colour !== 'transparent' && (alpha === undefined || Number(alpha) > 0)) {
+          background = colour;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      if (!background) background = `rgb(${rootStyle.getPropertyValue('--nodel-body-background').trim()})`;
+      const colourReference = (colour: string) => {
+        const reference = document.createElement('span');
+        reference.style.cssText = `position:fixed;color:${colour};visibility:hidden`;
+        document.body.append(reference);
+        const value = getComputedStyle(reference).color;
+        reference.remove();
+        return value;
+      };
+      return {
+        background,
+        trackStroke: trackStyle?.stroke,
+        progressStroke: progressStyle?.stroke,
+        trackWidth: Number.parseFloat(trackStyle?.strokeWidth ?? '0'),
+        progressWidth: Number.parseFloat(progressStyle?.strokeWidth ?? '0'),
+        trackDasharray: trackStyle?.strokeDasharray,
+        progressDasharray: progress?.style.strokeDasharray.replace(',', ' ').replace(/\s+/g, ' ').trim(),
+        warningToken: `rgb(${rootStyle.getPropertyValue('--nodel-warning-fill').trim()})`,
+        dangerToken: `rgb(${rootStyle.getPropertyValue('--nodel-danger-fill').trim()})`,
+        forcedColours: matchMedia('(forced-colors: active)').matches,
+        canvasText: colourReference('CanvasText'),
+        highlight: colourReference('Highlight')
+      };
+    });
+    expect(styles.trackStroke).not.toBe('none');
+    expect(styles.progressStroke).not.toBe('none');
+    if (isDesktopThemeProject(testInfo)) {
+      expect(contrastRatio(parseRgb(styles.trackStroke!), parseRgb(styles.background))).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(parseRgb(styles.progressStroke!), parseRgb(styles.background))).toBeGreaterThanOrEqual(3);
+      expect(styles.trackWidth).toBeLessThan(styles.progressWidth);
+      expect(styles.trackDasharray).not.toBe('none');
+      const progressDasharray = styles.progressDasharray?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+      expect(progressDasharray[0]).toBeCloseTo(0.72, 5);
+      expect(progressDasharray[1]).toBeCloseTo(1, 5);
+      const thresholdColours = await page.evaluate(() => {
+        const fixture = document.createElement('div');
+        fixture.innerHTML = `
+          <nodel-readout label="Warning" type="percent" visual="ring" ring-layout="edge" warn="50" value="75"></nodel-readout>
+          <nodel-readout label="Danger" type="percent" visual="ring" ring-layout="edge" danger="50" value="75"></nodel-readout>`;
+        document.body.append(fixture);
+        const progress = Array.from(fixture.querySelectorAll<SVGPathElement>('.nodel-readout-edge-progress'))
+          .map((element) => getComputedStyle(element).stroke);
+        fixture.remove();
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          progress,
+          warning: `rgb(${rootStyle.getPropertyValue('--nodel-warning-fill').trim()})`,
+          danger: `rgb(${rootStyle.getPropertyValue('--nodel-danger-fill').trim()})`
+        };
+      });
+      expect(parseRgb(thresholdColours.progress[0]!)).toEqual(parseRgb(thresholdColours.warning));
+      expect(parseRgb(thresholdColours.progress[1]!)).toEqual(parseRgb(thresholdColours.danger));
+      expect(contrastRatio(parseRgb(thresholdColours.progress[0]!), parseRgb(styles.background))).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(parseRgb(thresholdColours.progress[1]!), parseRgb(styles.background))).toBeGreaterThanOrEqual(3);
+    }
+    if (styles.forcedColours) {
+      expect(styles.trackStroke).toBe(styles.canvasText);
+      expect(styles.progressStroke).toBe(styles.highlight);
+      const progressDasharray = styles.progressDasharray?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+      expect(progressDasharray[0]).toBeCloseTo(0.72, 5);
+      expect(progressDasharray[1]).toBeCloseTo(1, 5);
+      expect(styles.progressStroke).not.toBe('none');
     }
   });
 

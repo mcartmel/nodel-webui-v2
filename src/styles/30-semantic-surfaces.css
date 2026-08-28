@@ -553,7 +553,29 @@
   }
 
   .nodel-connectivity-dialog {
-    @apply relative flex w-[min(30rem,100%)] items-start gap-4 rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover outline-none;
+    @apply relative flex min-h-0 w-[min(30rem,100%)] items-start gap-4 overflow-y-auto rounded-panel border border-nodel-border bg-nodel-surfaceRaised p-5 shadow-nodel-popover outline-none;
+    max-block-size: calc(100vh - 2rem);
+    max-block-size: calc(100dvh - 2rem);
+  }
+
+  .nodel-connectivity-dialog > div {
+    min-width: 0;
+  }
+
+  @media (max-width: 24rem), (max-height: 24rem) {
+    .nodel-connectivity-host.is-modal {
+      @apply p-2;
+    }
+
+    .nodel-connectivity-dialog {
+      @apply gap-2 p-3;
+      max-block-size: calc(100vh - 1rem);
+      max-block-size: calc(100dvh - 1rem);
+    }
+
+    .nodel-connectivity-message {
+      @apply leading-5;
+    }
   }
 
   .nodel-connectivity-banner {

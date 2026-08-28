@@ -3,6 +3,18 @@
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
+  /* Bleed is an opt-in leaf-page override; groups keep their contents wrapper. */
+  nodel-page[data-nav-group-page='false'][data-bleed='true'] > [data-page-content] {
+    max-width: none;
+    padding-block: 0;
+    padding-inline: 0;
+  }
+
+  nodel-page[data-nav-group-page='false'][data-bleed='true'] > [data-page-content] > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-block-start: 0;
+  }
+
   nodel-toolbar {
     position: static;
     border-bottom: 1px solid var(--nodel-toolbar-border, rgb(var(--nodel-border)));
