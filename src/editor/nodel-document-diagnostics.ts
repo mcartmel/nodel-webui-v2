@@ -5,6 +5,7 @@ import type { EditorState, Extension } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import { componentContractCommonAttributes, findComponentContract } from '../component-contract';
 import { loadIconCatalogue, loadIconIndex, type IconCatalogue, type IconIndex } from '../icons/catalogue-loader';
+import { isStrictActionBindingList } from '../utils/action-binding-validation';
 
 export const NODEL_DIAGNOSTIC_LIMITS = Object.freeze({ maxDocumentLength: 100_000, maxNodes: 3_000, maxDiagnostics: 100, maxMessageLength: 160 });
 
@@ -243,6 +244,7 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
   let truncated = state.doc.length > NODEL_DIAGNOSTIC_LIMITS.maxDocumentLength;
   if (truncated) return { diagnostics: [], summary: { enabled: true, errors: 0, warnings: 0, truncated: true } };
   const elements: Array<{ node: SyntaxNode; name: string; tag: SyntaxNode; attrs: SyntaxNode[] }> = [];
+  const shortcutChords = new Map<string, number>();
   const cursor = tree.cursor();
   let done = false;
   while (!done) {
@@ -288,7 +290,7 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
         else if (numeric.warning) add(diagnostics, 'warning', attr.from, attr.to, 'Numeric value is normalized or outside its contract range.');
       }
       const action = definition?.syntax?.includes('ActionName') ? contract.actionBindings.find((binding) => binding.attribute === name) : undefined;
-      if (action && !parseActions(value, action.phases)) add(diagnostics, 'error', attr.from, attr.to, 'Action binding list is malformed or uses an unsupported phase.');
+      if (action && item.name !== 'nodel-shortcut' && !parseActions(value, action.phases)) add(diagnostics, 'error', attr.from, attr.to, 'Action binding list is malformed or uses an unsupported phase.');
       const signal = name === 'signal' || name === 'signals' ? contract.signalBindings.find((binding) => binding.attribute === name) ?? (name === 'signals' ? { attribute: name, targets: [{ name: 'visibility', aggregations: ['any', 'all'] as const }] } : undefined) : undefined;
       if (signal && !parseSignals(value, signal.targets, signal.defaultTarget)) add(diagnostics, 'error', attr.from, attr.to, 'Signal binding is malformed or targets an unsupported aggregation.');
       if (name === 'options-signal' && (!signalExpressionIsValid(value) || /[;,():]/.test(value))) add(diagnostics, 'error', attr.from, attr.to, 'Signal binding is malformed.');
@@ -311,6 +313,34 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
       const childNames = new Set<string>();
       for (const directChild of item.node.getChildren('Element')) { const tag = child(directChild, 'OpenTag') ?? child(directChild, 'SelfClosingTag'); const name = tag ? child(tag, 'TagName') : null; if (name) childNames.add(state.sliceDoc(name.from, name.to)); }
       if (contract.composition.requiredDirectChildren.some((required) => !childNames.has(required))) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Component is missing a required direct child.');
+    }
+    if (item.name === 'nodel-shortcut') {
+      const key = values.get('key');
+      const action = values.get('action');
+      const actions = values.get('actions');
+      if (key === undefined) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Nodel shortcut requires a key.');
+      else if (key.length === 0) {
+        const keyAttr = item.attrs.find((attr) => attrName(attr, state) === 'key');
+        add(diagnostics, 'error', keyAttr?.from ?? item.tag.from, keyAttr?.to ?? item.tag.to, 'Nodel shortcut key must be nonempty.');
+      }
+      if (action === undefined && actions === undefined) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Nodel shortcut requires action or actions.');
+      for (const [name, value] of [['action', action], ['actions', actions]] as const) {
+        if (value !== undefined && !isPlaceholder(value) && !isStrictActionBindingList(value)) {
+          const actionAttr = item.attrs.find((attr) => attrName(attr, state) === name);
+          add(diagnostics, 'error', actionAttr?.from ?? item.tag.from, actionAttr?.to ?? item.tag.to, 'Shortcut action binding list is malformed or uses an unsupported phase.');
+        }
+      }
+      const staticallyEligible = parentName === 'nodel-app' && key !== undefined && key.length > 0
+        && !values.has('disabled') && !values.has('hidden')
+        && !isPlaceholder(key) && !isPlaceholder(action ?? '') && !isPlaceholder(actions ?? '')
+        && isStrictActionBindingList(action) && isStrictActionBindingList(actions)
+        && (Boolean(action?.trim()) || Boolean(actions?.trim()));
+      if (staticallyEligible) {
+        const chord = [key, ...['ctrl', 'alt', 'shift', 'meta'].map((modifier) => values.has(modifier) ? '1' : '0')].join('\u0000');
+        const count = shortcutChords.get(chord) ?? 0;
+        if (count === 1) add(diagnostics, 'error', item.tag.from, item.tag.to, 'Duplicate nodel shortcut chord.');
+        shortcutChords.set(chord, count + 1);
+      }
     }
     diagnoseFillPlacement(item, state, diagnostics);
     diagnosePageSizing(item, state, diagnostics);

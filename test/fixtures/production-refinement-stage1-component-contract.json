@@ -7476,6 +7476,283 @@
       "actionBindings": [],
       "signalBindings": [],
       "events": []
+    },
+    {
+      "name": "nodel-shortcut",
+      "catalogue": true,
+      "description": "Nonvisual app-global keyboard shortcut action binding.",
+      "attributes": [
+        {
+          "name": "key",
+          "description": "Exact case-sensitive KeyboardEvent.key value.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "ctrl",
+          "description": "Require the Control modifier.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "alt",
+          "description": "Require the Alt modifier.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "shift",
+          "description": "Require the Shift modifier.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "meta",
+          "description": "Require the Meta modifier.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "action",
+          "description": "Current-node action name to call on keydown.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "actions",
+          "description": "Ordered action bindings. Supported phase: trigger.",
+          "valueType": "string",
+          "syntax": "ActionName[:phase][; or , ActionName[:phase] ...]",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "arg",
+          "description": "Optional action argument value.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "string",
+          "name": "arg-type",
+          "description": "Parser for arg.",
+          "values": [
+            "string",
+            "number",
+            "boolean",
+            "json"
+          ],
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "label",
+          "description": "Optional human description for confirmation and errors.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "disabled",
+          "description": "Disable the shortcut.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm",
+          "description": "Enable confirmation when present, or provide confirmation body text as its value.",
+          "valueType": "presence-or-text",
+          "syntax": "confirm | confirm=\"Confirmation text\"",
+          "defaultValue": "false",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-mode",
+          "description": "Confirmation mode. Code mode requires the configured local signal value.",
+          "values": [
+            "standard",
+            "code"
+          ],
+          "defaultValue": "standard",
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-code-signal",
+          "description": "Exact local signal alias containing the expected operator code.",
+          "syntax": "LocalSignalAlias",
+          "defaultDescription": "Derived: ConfirmCode in code mode; unused in standard mode.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-title",
+          "description": "Confirmation dialog title.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-text",
+          "description": "Confirmation dialog body text.",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-label",
+          "description": "Confirmation button label.",
+          "defaultValue": "Confirm",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "cancel-label",
+          "description": "Cancellation button label.",
+          "defaultValue": "Cancel",
+          "valueType": "string",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "name": "confirm-tone",
+          "description": "Confirmation dialog tone.",
+          "values": [
+            "info",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        }
+      ],
+      "snippet": "<nodel-app>\n  <nodel-shortcut key=\"F2\" action=\"ActionName\"></nodel-shortcut>\n</nodel-app>",
+      "audience": "custom",
+      "registration": "eager",
+      "completion": "recommended",
+      "actionBindings": [
+        {
+          "attribute": "action",
+          "phases": [
+            "trigger"
+          ],
+          "defaultPhase": "trigger"
+        },
+        {
+          "attribute": "actions",
+          "phases": [
+            "trigger"
+          ],
+          "defaultPhase": "trigger"
+        }
+      ],
+      "signalBindings": [],
+      "events": [
+        {
+          "name": "nodel-shortcut-submitted",
+          "description": "Reports a completed shortcut action submission.",
+          "bubbles": true,
+          "composed": false,
+          "detailFields": [
+            "action",
+            "phase",
+            "phases",
+            "arg",
+            "payload",
+            "results",
+            "failures",
+            "committed",
+            "live",
+            "key",
+            "ctrl",
+            "alt",
+            "shift",
+            "meta"
+          ]
+        },
+        {
+          "name": "nodel-shortcut-error",
+          "description": "Reports a failed shortcut action.",
+          "bubbles": true,
+          "composed": false,
+          "detailFields": [
+            "action",
+            "phase",
+            "phases",
+            "value",
+            "arg",
+            "payload",
+            "results",
+            "failures",
+            "committed",
+            "live",
+            "error",
+            "key",
+            "ctrl",
+            "alt",
+            "shift",
+            "meta"
+          ]
+        },
+        {
+          "name": "nodel-shortcut-conflict",
+          "description": "Reports a conflicting shortcut chord.",
+          "bubbles": true,
+          "composed": false,
+          "detailFields": [
+            "key",
+            "ctrl",
+            "alt",
+            "shift",
+            "meta",
+            "count",
+            "ids"
+          ]
+        }
+      ],
+      "composition": {
+        "requiredParent": "nodel-app"
+      }
     }
   ],
   "styles": {

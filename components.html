@@ -31,6 +31,10 @@
   </head>
   <body>
     <nodel-app title="Nodel UI Components">
+      <!-- Catalogue declarations are disabled so browsing this page never claims author keys. -->
+      <nodel-shortcut key="F2" action="FirstAction" disabled></nodel-shortcut>
+      <nodel-shortcut key="F3" action="SecondAction" disabled></nodel-shortcut>
+      <nodel-shortcut key="K" ctrl shift action="OpenDiagnostics" disabled></nodel-shortcut>
       <nodel-toolbar show-host-icon icon-src="./v2/img/logo.png">
         <nodel-theme-toggle></nodel-theme-toggle>
       </nodel-toolbar>
@@ -124,6 +128,27 @@
             <div data-catalogue-reference="nodel-page"></div>
             <div data-catalogue-reference="nodel-theme-toggle"></div>
             <div data-catalogue-reference="nodel-footer"></div>
+          </section>
+
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">App-Global Keyboard Shortcuts</h2>
+              <p class="nodel-catalogue-description">
+                <code>nodel-shortcut</code> is nonvisual and must be a direct child of <code>nodel-app</code>. The disabled declarations at the top of this catalogue show the complete placement without claiming F2, F3, or Ctrl+Shift+K while you browse. Provide separate visible text, help, or accessible instructions when users need shortcut discoverability.
+              </p>
+            </header>
+            <pre class="nodel-catalogue-code"><code>&lt;nodel-app&gt;
+  &lt;nodel-shortcut key="F2" action="FirstAction" disabled&gt;&lt;/nodel-shortcut&gt;
+  &lt;nodel-shortcut key="F3" action="SecondAction" disabled&gt;&lt;/nodel-shortcut&gt;
+  &lt;nodel-shortcut key="K" ctrl shift action="OpenDiagnostics" disabled&gt;&lt;/nodel-shortcut&gt;
+  &lt;nodel-page title="Display"&gt;
+    &lt;nodel-text&gt;F2: first action; F3: second action; Ctrl+Shift+K: diagnostics.&lt;/nodel-text&gt;
+  &lt;/nodel-page&gt;
+&lt;/nodel-app&gt;</code></pre>
+            <p class="nodel-catalogue-description">
+              A literal Space uses <code>key=" "</code>. Matching is exact, case-sensitive <code>KeyboardEvent.key</code> text with exact Ctrl, Alt, Shift, and Meta presence. A keydown is handled once; repeat keydowns are consumed but do not run again. Ordered <code>actions="FirstAction; SecondAction:trigger"</code>, <code>arg="42" arg-type="number"</code>, <code>confirm</code>, <code>disabled</code>, and common <code>visibility</code> attributes use the same action and confirmation contract as other controls. Keys are layout-dependent character values, and browser- or OS-reserved keys cannot be guaranteed.
+            </p>
+            <div data-catalogue-reference="nodel-shortcut"></div>
           </section>
         </nodel-page>
 

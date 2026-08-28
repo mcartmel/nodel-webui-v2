@@ -34,7 +34,8 @@ const actionBindingMap: Record<string, Record<string, Omit<ComponentActionBindin
   'nodel-fader': { action: binding(['live', 'commit'], 'commit'), actions: binding(['live', 'commit'], 'commit'), join: binding(['commit'], 'commit') },
   'nodel-stepper': { action: binding(['live', 'commit', 'increase', 'decrease'], 'commit'), actions: binding(['live', 'commit', 'increase', 'decrease'], 'commit'), join: binding(['commit'], 'commit') },
   'nodel-pad': Object.fromEntries(['action', 'actions', ...['up', 'down', 'left', 'right', 'center'].flatMap((direction) => [`${direction}-action`, `${direction}-actions`])].map((attribute) => [attribute, binding(['click', 'press', 'release'])])),
-  'nodel-palette': { action: binding(['select', 'live', 'commit']), actions: binding(['select', 'live', 'commit']), join: binding(['select', 'commit']) }
+  'nodel-palette': { action: binding(['select', 'live', 'commit']), actions: binding(['select', 'live', 'commit']), join: binding(['select', 'commit']) },
+  'nodel-shortcut': { action: binding(['trigger'], 'trigger'), actions: binding(['trigger'], 'trigger') }
 };
 
 const compositionMap: Record<string, ComponentContract['composition']> = {
@@ -42,7 +43,8 @@ const compositionMap: Record<string, ComponentContract['composition']> = {
   'nodel-template': { advisoryDirectChildren: ['template'] },
   'nodel-segmented': { advisoryDirectChildren: ['nodel-button'] },
   'nodel-select': { advisoryDirectChildren: ['nodel-button'] },
-  'nodel-palette': { advisoryDirectChildren: ['nodel-button'] }
+  'nodel-palette': { advisoryDirectChildren: ['nodel-button'] },
+  'nodel-shortcut': { requiredParent: 'nodel-app' }
 };
 
 const signalTargetMap: Record<string, string[]> = {
@@ -131,7 +133,8 @@ const historicalContractOrder: string[] = [
   'nodel-editor',
   'nodel-toast-host',
   'nodel-confirm-host',
-  'nodel-connectivity-host'
+  'nodel-connectivity-host',
+  'nodel-shortcut'
 ];
 
 const historicalContractNameSet = new Set(historicalContractOrder);

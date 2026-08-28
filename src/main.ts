@@ -11,6 +11,7 @@ import './components/nodel-control-space';
 import './components/nodel-group';
 import './components/nodel-template';
 import './components/nodel-button';
+import './components/nodel-shortcut';
 import './components/nodel-toggle';
 import './components/nodel-segmented';
 import './components/nodel-select';

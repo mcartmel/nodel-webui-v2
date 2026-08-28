@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "STAGE7_APPROVED_EDGE_READOUT_DISPLAY_PAGE_BASELINE_2026-08-28",
-  "rationale": "Edge-readout/display-page baselines reflect deterministic CSS and public catalogue growth; each maximum retains reviewed five percent headroom without automatic ratcheting.",
+  "releaseNotesMarker": "STAGE8_APPROVED_SHORTCUT_EAGER_CATALOGUE_BASELINE_2026-08-28",
+  "rationale": "Shortcut eager-catalogue measurements raised only HTML/XML language baselines; each affected maximum is measured actual plus reviewed five percent headroom, with no automatic ratcheting elsewhere.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -22,8 +22,8 @@
     "stable-css": { "rawBaseline": 178790, "rawMax": 187730, "gzipBaseline": 22244, "gzipMax": 23357 },
     "codemirror-base": { "rawBaseline": 411183, "rawMax": 431743, "gzipBaseline": 133409, "gzipMax": 140080 },
     "codemirror-language-python": { "rawBaseline": 71704, "rawMax": 75290, "gzipBaseline": 27989, "gzipMax": 29389 },
-    "codemirror-language-html": { "rawBaseline": 256111, "rawMax": 268917, "gzipBaseline": 87809, "gzipMax": 92200 },
-    "codemirror-language-xml": { "rawBaseline": 136882, "rawMax": 143727, "gzipBaseline": 38317, "gzipMax": 40233 },
+    "codemirror-language-html": { "rawBaseline": 271633, "rawMax": 285215, "gzipBaseline": 92689, "gzipMax": 97324 },
+    "codemirror-language-xml": { "rawBaseline": 144439, "rawMax": 151661, "gzipBaseline": 40512, "gzipMax": 42538 },
     "codemirror-language-javascript": { "rawBaseline": 111238, "rawMax": 116800, "gzipBaseline": 42326, "gzipMax": 44443 },
     "codemirror-language-json": { "rawBaseline": 28617, "rawMax": 30048, "gzipBaseline": 10118, "gzipMax": 10624 },
     "codemirror-language-css": { "rawBaseline": 53800, "rawMax": 56490, "gzipBaseline": 21113, "gzipMax": 22169 },

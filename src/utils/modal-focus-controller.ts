@@ -265,16 +265,26 @@ export class ModalFocusController {
     }
 
     if (options.restoreFocus !== false && wasTop && layer.trigger instanceof HTMLElement && layer.trigger.isConnected) {
-      window.setTimeout(() => {
+      const restoreTrigger = () => {
         const activeElement = document.activeElement;
         if (
           layer.trigger instanceof HTMLElement
           && layer.trigger.isConnected
-          && (activeElement === document.body || activeElement === document.documentElement)
+          && (
+            activeElement === document.body
+            || activeElement === document.documentElement
+            || !(activeElement instanceof Element) || !activeElement.isConnected
+            || layer.container.contains(activeElement)
+          )
         ) {
           layer.trigger.focus();
         }
-      }, 0);
+      };
+      queueMicrotask(restoreTrigger);
+      window.setTimeout(restoreTrigger, 0);
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(restoreTrigger);
+      }
     }
   }
 

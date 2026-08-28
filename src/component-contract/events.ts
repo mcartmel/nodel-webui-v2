@@ -37,6 +37,11 @@ export const componentEventMap: Record<string, ComponentContract['events']> = {
   'nodel-stepper': controlEvents('stepper', 'nodel-stepper-change', 'Reports a live or committed stepper value.', [...actionFields, 'value', 'direction']),
   'nodel-pad': controlEvents('pad', 'nodel-pad-action', 'Reports a directional pad action phase.', [...actionFields, 'direction', 'value']),
   'nodel-palette': controlEvents('palette', 'nodel-palette-change', 'Reports a selected, live, or committed colour.', [...actionFields, 'value']),
+  'nodel-shortcut': [
+    event('nodel-shortcut-submitted', 'Reports a completed shortcut action submission.', [...actionFields, 'key', 'ctrl', 'alt', 'shift', 'meta']),
+    event('nodel-shortcut-error', 'Reports a failed shortcut action.', [...actionErrorFields, 'key', 'ctrl', 'alt', 'shift', 'meta']),
+    event('nodel-shortcut-conflict', 'Reports a conflicting shortcut chord.', ['key', 'ctrl', 'alt', 'shift', 'meta', 'count', 'ids'])
+  ],
   'nodel-qrcode': [event('nodel-qrcode-error', 'Reports an invalid or unrenderable QR payload.', ['message', 'reason'])],
   'nodel-collapse': [event('nodel-collapse-toggle', 'Reports a disclosure state change.', ['open'])],
   'nodel-add-node': [

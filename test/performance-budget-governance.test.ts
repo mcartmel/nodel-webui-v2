@@ -21,8 +21,8 @@ const expected = {
   'stable-css': [178790, 187730, 22244, 23357],
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
-  'codemirror-language-html': [256111, 268917, 87809, 92200],
-  'codemirror-language-xml': [136882, 143727, 38317, 40233],
+  'codemirror-language-html': [271633, 285215, 92689, 97324],
+  'codemirror-language-xml': [144439, 151661, 40512, 42538],
   'codemirror-language-javascript': [111238, 116800, 42326, 44443],
   'codemirror-language-json': [28617, 30048, 10118, 10624],
   'codemirror-language-css': [53800, 56490, 21113, 22169],
@@ -44,7 +44,7 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('STAGE7_APPROVED_EDGE_READOUT_DISPLAY_PAGE_BASELINE_2026-08-28');
+    expect(policy.releaseNotesMarker).toBe('STAGE8_APPROVED_SHORTCUT_EAGER_CATALOGUE_BASELINE_2026-08-28');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);

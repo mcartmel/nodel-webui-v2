@@ -55,6 +55,17 @@ describe('native Nodel document completions', () => {
     expect(result('<div signal="', nodelHtmlCompletionSource).options.map((option) => option.label)).not.toContain('signals');
   });
 
+  it('completes shortcut metadata, common attributes, and its direct-app snippet', () => {
+    const tag = result('<nodel-sh', nodelHtmlCompletionSource);
+    expect(tag.options.map((option) => option.label)).toContain('nodel-shortcut');
+    const attrs = result('<nodel-shortcut ', nodelHtmlCompletionSource).options.map((option) => option.label);
+    expect(attrs).toEqual(expect.arrayContaining(['key', 'ctrl', 'alt', 'shift', 'meta', 'action', 'actions', 'arg-type', 'confirm', 'confirm-mode', 'confirm-code-signal', 'signals', 'visibility']));
+    expect(result('<nodel-shortcut arg-type="', nodelHtmlCompletionSource).options.map((option) => option.label)).toEqual(expect.arrayContaining(['string', 'number', 'boolean', 'json']));
+    expect(result('<nodel-shortcut confirm-mode="', nodelHtmlCompletionSource).options.map((option) => option.label)).toEqual(expect.arrayContaining(['standard', 'code']));
+    expect(result('<nodel-shortcut ', nodelHtmlCompletionSource).options.find((option) => option.label === 'key')?.detail).toContain('KeyboardEvent.key');
+    expect(tag.options.find((option) => option.label === 'nodel-shortcut')?.info).toContain('<nodel-app>');
+  });
+
   it('uses syntax-tree ranges and metadata for multiline quoted attributes', () => {
     const completion = result('<nodel-button\n  va', nodelHtmlCompletionSource);
     expect(completion.from).toBe('<nodel-button\n  '.length);

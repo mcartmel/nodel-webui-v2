@@ -13,6 +13,7 @@ import '../src/components/nodel-segmented';
 import '../src/components/nodel-select';
 import '../src/components/nodel-stepper';
 import '../src/components/nodel-toggle';
+import '../src/components/nodel-shortcut';
 
 interface ConfirmCase {
   name: string;
@@ -66,6 +67,12 @@ describe('control action semantics', () => {
       trigger: () => document.querySelector('nodel-palette nodel-button button')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
     },
     {
+      name: 'shortcut',
+      markup: '<nodel-app><nodel-shortcut key="F9" action="Run" confirm></nodel-shortcut></nodel-app>',
+      host: 'nodel-shortcut',
+      trigger: () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F9', cancelable: true }))
+    },
+    {
       name: 'fader',
       markup: '<nodel-fader action="SetLevel" value="50" confirm></nodel-fader>',
       host: 'nodel-fader',
@@ -99,9 +106,10 @@ describe('control action semantics', () => {
     document.body.innerHTML = markup;
     await flush();
     const host = document.querySelector<HTMLElement>(hostSelector)!;
+    const originalParent = host.parentElement;
     const completion = vi.fn();
     const error = vi.fn();
-    host.addEventListener(`nodel-${name}-${name === 'button' ? 'submitted' : name === 'pad' ? 'action' : 'change'}`, completion);
+    host.addEventListener(`nodel-${name}-${name === 'button' || name === 'shortcut' ? 'submitted' : name === 'pad' ? 'action' : 'change'}`, completion);
     host.addEventListener(`nodel-${name}-error`, error);
     let resolveConfirmation: ((confirmed: boolean) => void) | undefined;
     const confirm = vi.fn((event: Event) => {
@@ -126,7 +134,7 @@ describe('control action semantics', () => {
     expect(completion).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
 
-    document.body.append(host);
+    (originalParent ?? document.body).append(host);
     await flush();
     trigger();
     await flush();

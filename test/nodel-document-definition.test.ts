@@ -127,7 +127,8 @@ describe('nodel document definition', () => {
       'nodel-control-grid',
       'nodel-control-space',
       'nodel-group',
-      'nodel-button',
+       'nodel-button',
+       'nodel-shortcut',
       'nodel-select',
       'nodel-stepper',
       'nodel-pad',
@@ -345,7 +346,7 @@ describe('nodel document definition', () => {
     for (const element of nodelDocumentElements.filter((definition) => definition.catalogue)) {
       const constructor = customElements.get(element.name) as (CustomElementConstructor & { observedAttributes?: string[] }) | undefined;
       expect(constructor, element.name).toBeDefined();
-      const documented = new Set(element.attributes.map((attribute) => attribute.name));
+      const documented = new Set([...element.attributes, ...commonNodelAttributes].map((attribute) => attribute.name));
       const observed = constructor?.observedAttributes ?? [];
       const missing = observed.filter((attribute) => !attribute.startsWith('data-nodel-native-') && !documented.has(attribute));
       expect(missing, element.name).toEqual([]);

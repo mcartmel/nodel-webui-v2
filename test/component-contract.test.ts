@@ -44,6 +44,29 @@ describe('component contract', () => {
     expect(Object.values(componentContractStyles).flat().map((style) => style.name)).toEqual(expect.arrayContaining(['nodel-button', 'nodel-alert-danger', 'text-nodel-muted', 'rounded-panel']));
   });
 
+  it('defines shortcut contract metadata exactly without signal targets', () => {
+    const shortcut = required(componentContracts.find((element) => element.name === 'nodel-shortcut'), 'shortcut contract');
+    expect(shortcut.attributes.map((attribute) => attribute.name)).toEqual([
+      'key', 'ctrl', 'alt', 'shift', 'meta', 'action', 'actions', 'arg', 'arg-type', 'label', 'disabled',
+      'confirm', 'confirm-mode', 'confirm-code-signal', 'confirm-title', 'confirm-text', 'confirm-label', 'cancel-label', 'confirm-tone'
+    ]);
+    expect(shortcut).toMatchObject({ catalogue: true, audience: 'custom', registration: 'eager', composition: { requiredParent: 'nodel-app' }, signalBindings: [] });
+    expect(shortcut.actionBindings).toEqual([
+      { attribute: 'action', phases: ['trigger'], defaultPhase: 'trigger' },
+      { attribute: 'actions', phases: ['trigger'], defaultPhase: 'trigger' }
+    ]);
+    for (const name of ['ctrl', 'alt', 'shift', 'meta']) expect(shortcut.attributes.find((attribute) => attribute.name === name)).toMatchObject({ valueType: 'boolean', defaultValue: 'false' });
+    expect(shortcut.attributes.find((attribute) => attribute.name === 'disabled')).toMatchObject({ valueType: 'boolean', defaultValue: 'false' });
+    expect(shortcut.attributes.find((attribute) => attribute.name === 'arg-type')).toMatchObject({ values: ['string', 'number', 'boolean', 'json'], defaultValue: 'string' });
+    expect(componentContracts.find((element) => element.name === 'nodel-image')?.attributes.find((attribute) => attribute.name === 'alt')?.valueType).toBe('string');
+    expect(componentContracts.find((element) => element.name === 'nodel-icon')?.attributes.find((attribute) => attribute.name === 'alt')?.valueType).toBe('string');
+    expect(shortcut.events).toEqual([
+      expect.objectContaining({ name: 'nodel-shortcut-submitted', detailFields: expect.arrayContaining(['key', 'ctrl', 'alt', 'shift', 'meta']) }),
+      expect.objectContaining({ name: 'nodel-shortcut-error', detailFields: expect.arrayContaining(['key', 'ctrl', 'alt', 'shift', 'meta']) }),
+      expect.objectContaining({ name: 'nodel-shortcut-conflict', detailFields: ['key', 'ctrl', 'alt', 'shift', 'meta', 'count', 'ids'] })
+    ]);
+  });
+
   it('publishes fill only as a dynamic parent-consumed boolean on group and control grid', () => {
     const supported = componentContracts.filter((element) => element.attributes.some((attribute) => attribute.name === 'fill'));
     expect(supported.map((element) => element.name)).toEqual(['nodel-control-grid', 'nodel-group']);

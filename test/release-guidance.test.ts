@@ -134,6 +134,18 @@ describe('V1 migration and release guidance', () => {
     expect(architecture).toContain('normal explicitly confirmed node-removal workflow');
   });
 
+  it('keeps the shortcut documentation example copyable and well formed', async () => {
+    const guidance = await readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8');
+    expect(guidance).toContain('<nodel-shortcut key=" " actions="FirstAction; SecondAction:trigger" arg="42" arg-type="number" label="run the sequence" confirm="Run this sequence?">\n</nodel-shortcut>');
+    expect(guidance).not.toContain('></n+</nodel-shortcut>');
+    const example = guidance.match(/<nodel-shortcut key=" " actions="FirstAction; SecondAction:trigger"[\s\S]*?<\/nodel-shortcut>/)?.[0];
+    expect(example).toBeDefined();
+    const template = document.createElement('template');
+    template.innerHTML = example ?? '';
+    expect(template.content.querySelector('nodel-shortcut')?.getAttribute('key')).toBe(' ');
+    expect(template.content.querySelector('nodel-shortcut')?.getAttribute('actions')).toContain(':trigger');
+  });
+
   it('documents Stage 7 contracts, recovery, coverage, and evidence', async () => {
     const guidance = await readFile(resolve(process.cwd(), 'docs/web-components.md'), 'utf8');
     const notes = await readFile(resolve(process.cwd(), 'RELEASE_NOTES.md'), 'utf8');

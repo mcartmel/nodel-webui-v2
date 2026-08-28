@@ -17,6 +17,9 @@ vi.mock('../src/data/node-activity-source', () => ({
 }));
 
 import { bootstrapSignalVisibilityBindings, normalizeSignalName, parseSignalBindings, subscribeSignalBindings } from '../src/data/signal-bindings';
+import { installControlRuntime } from '../src/data/control-runtime';
+import type { NodelActivityLogEntry } from '../src/api/nodel-types';
+import '../src/components/nodel-shortcut';
 import { flush } from './helpers';
 
 function emitSignalBatch(entries: Array<{ alias: string; arg: unknown; seq?: number }>) {
@@ -223,6 +226,44 @@ describe('signal bindings', () => {
     emitSignal('PanelVisible', 1);
     expect(row.hidden).toBe(false);
     expect(column.hidden).toBe(false);
+  });
+
+  it('gates shortcut matching through common visibility without treating offline as hidden', async () => {
+    const callAction = vi.fn().mockResolvedValue({});
+    const restoreRuntime = installControlRuntime({
+      callAction,
+      subscribeSignals: (_element, listener) => {
+        const sourceListener = (state: { batch: { items: Array<{ entry: unknown }> }; loading: boolean; connected: boolean; error: string }) => listener({
+          loading: state.loading,
+          connected: state.connected,
+          error: state.error,
+          entries: state.batch.items.map((item) => item.entry as NodelActivityLogEntry)
+        });
+        activityMock.listeners.push(sourceListener);
+        return { dispose: () => { const index = activityMock.listeners.indexOf(sourceListener); if (index >= 0) activityMock.listeners.splice(index, 1); } };
+      }
+    });
+    document.body.innerHTML = '<nodel-app><nodel-shortcut key="V" action="Visible" visibility="Mode" visible-value="on"></nodel-shortcut></nodel-app>';
+    bindingHost = bootstrapSignalVisibilityBindings();
+    const shortcut = document.querySelector<HTMLElement>('nodel-shortcut')!;
+    expect(shortcut.hidden).toBe(true);
+
+    emitSignal('Mode', 'on');
+    expect(shortcut.hidden).toBe(false);
+    const enabled = new KeyboardEvent('keydown', { key: 'V', cancelable: true });
+    window.dispatchEvent(enabled);
+    await flush();
+    expect(callAction).toHaveBeenCalledWith('Visible', {}, expect.anything());
+    expect(enabled.defaultPrevented).toBe(true);
+
+    emitSignal('Mode', 'off');
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const disabled = new KeyboardEvent('keydown', { key: 'V', cancelable: true });
+    window.dispatchEvent(disabled);
+    expect(shortcut.hidden).toBe(true);
+    expect(disabled.defaultPrevented).toBe(false);
+    online.mockRestore();
+    restoreRuntime();
   });
 
   it('binds visibility from signal paths', () => {
