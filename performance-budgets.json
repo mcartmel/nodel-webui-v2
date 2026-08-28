@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20",
-  "rationale": "Stage 6 baselines are measured from the deterministic public build; each maximum retains reviewed five percent headroom without automatic ratcheting.",
+  "releaseNotesMarker": "STAGE7_APPROVED_EDGE_READOUT_DISPLAY_PAGE_BASELINE_2026-08-28",
+  "rationale": "Edge-readout/display-page baselines reflect deterministic CSS and public catalogue growth; each maximum retains reviewed five percent headroom without automatic ratcheting.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -19,7 +19,7 @@
   ],
   "budgets": {
     "stable-entry-closure": { "rawBaseline": 386548, "rawMax": 405876, "gzipBaseline": 104552, "gzipMax": 109780 },
-    "stable-css": { "rawBaseline": 169854, "rawMax": 178347, "gzipBaseline": 21137, "gzipMax": 22194 },
+    "stable-css": { "rawBaseline": 178790, "rawMax": 187730, "gzipBaseline": 22244, "gzipMax": 23357 },
     "codemirror-base": { "rawBaseline": 411183, "rawMax": 431743, "gzipBaseline": 133409, "gzipMax": 140080 },
     "codemirror-language-python": { "rawBaseline": 71704, "rawMax": 75290, "gzipBaseline": 27989, "gzipMax": 29389 },
     "codemirror-language-html": { "rawBaseline": 256111, "rawMax": 268917, "gzipBaseline": 87809, "gzipMax": 92200 },
@@ -32,7 +32,7 @@
     "codemirror-language-groovy": { "rawBaseline": 4139, "rawMax": 4346, "gzipBaseline": 1765, "gzipMax": 1854 },
     "codemirror-language-sql": { "rawBaseline": 40595, "rawMax": 42625, "gzipBaseline": 14926, "gzipMax": 15673 },
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
-    "components-html": { "rawBaseline": 117949, "rawMax": 123847, "gzipBaseline": 14993, "gzipMax": 15743 },
+    "components-html": { "rawBaseline": 125904, "rawMax": 132200, "gzipBaseline": 16157, "gzipMax": 16965 },
     "free-icon-artifact": { "rawBaseline": 2758285, "rawMax": 2896200, "gzipBaseline": 666125, "gzipMax": 699432 },
     "dist-v2-inventory": { "rawBaseline": 5048766, "rawMax": 5301205, "gzipBaseline": 1323709, "gzipMax": 1389895 }
   }

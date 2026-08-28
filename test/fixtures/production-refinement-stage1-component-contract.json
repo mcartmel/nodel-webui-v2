@@ -303,6 +303,15 @@
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"
+        },
+        {
+          "defaultValue": "false",
+          "name": "bleed",
+          "description": "Remove page-owned containment for an opted-in leaf page. Presence-only; does not affect navigation groups or fill ownership.",
+          "valueType": "boolean",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
         }
       ],
       "snippet": "<nodel-page title=\"Page\">\n  ${}\n</nodel-page>",
@@ -4422,6 +4431,44 @@
           ],
           "defaultDescription": "Derived: status for boolean, none otherwise.",
           "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "compact",
+          "name": "ring-layout",
+          "description": "Ring layout. Edge is only applied to ring visuals; other visuals remain unchanged.",
+          "values": [
+            "compact",
+            "edge"
+          ],
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "bottom",
+          "name": "notch-position",
+          "description": "Edge-ring straight-mask position. Used only with ring-layout=\"edge\".",
+          "values": [
+            "bottom",
+            "left",
+            "top",
+            "right"
+          ],
+          "valueType": "enum",
+          "completion": "recommended",
+          "lifecycle": "dynamic",
+          "consumption": "observed"
+        },
+        {
+          "defaultValue": "15.4167%",
+          "name": "notch-depth",
+          "description": "Edge-ring mask depth as a percentage of the full square design side. Valid percentages clamp to 0%..50%; malformed values use 15.4167%. Used only with ring-layout=\"edge\".",
+          "valueType": "string",
+          "syntax": "percentage text",
           "completion": "recommended",
           "lifecycle": "dynamic",
           "consumption": "observed"

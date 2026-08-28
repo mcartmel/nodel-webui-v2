@@ -40,7 +40,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'actions', description: 'Activation action bindings. Supported phase: activate.' },
       { name: 'arg', description: 'Optional activation action argument.' },
       { name: 'arg-type', description: 'Parser for the activation argument.', values: ['string', 'number', 'boolean', 'json'] },
-      { name: 'min-height', description: 'Minimum page height mode. auto preserves natural document flow; viewport uses the dynamic available height left by normal-flow shell content and may grow for intrinsic content.', values: ['auto', 'viewport'] }
+      { name: 'min-height', description: 'Minimum page height mode. auto preserves natural document flow; viewport uses the dynamic available height left by normal-flow shell content and may grow for intrinsic content.', values: ['auto', 'viewport'] },
+      { name: 'bleed', description: 'Remove page-owned containment for an opted-in leaf page. Presence-only; does not affect navigation groups or fill ownership.', defaultValue: 'false' }
     ],
     snippet: '<nodel-page title="Page">\n  ${}\n</nodel-page>'
   },

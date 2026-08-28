@@ -11,7 +11,7 @@ function normalizeArgType(value: string | null): ControlArgType {
 }
 
 export class NodelPage extends HTMLElement {
-  static observedAttributes = ['action', 'actions', 'arg', 'arg-type', 'min-height'];
+  static observedAttributes = ['action', 'actions', 'arg', 'arg-type', 'min-height', 'bleed'];
 
   private shellReady = false;
   private actionController = new ControlActionController();
@@ -180,6 +180,7 @@ export class NodelPage extends HTMLElement {
 
     const requested = this.getAttribute('min-height');
     this.dataset.minHeight = !this.groupPage && requested === 'viewport' ? 'viewport' : 'auto';
+    this.dataset.bleed = String(!this.groupPage && this.hasAttribute('bleed'));
   }
 }
 

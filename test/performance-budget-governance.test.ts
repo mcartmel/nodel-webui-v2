@@ -18,7 +18,7 @@ const languageEntries = [
 ] as const;
 const expected = {
   'stable-entry-closure': [386548, 405876, 104552, 109780],
-  'stable-css': [169854, 178347, 21137, 22194],
+  'stable-css': [178790, 187730, 22244, 23357],
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
   'codemirror-language-html': [256111, 268917, 87809, 92200],
@@ -31,7 +31,7 @@ const expected = {
   'codemirror-language-groovy': [4139, 4346, 1765, 1854],
   'codemirror-language-sql': [40595, 42625, 14926, 15673],
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
-  'components-html': [117949, 123847, 14993, 15743],
+  'components-html': [125904, 132200, 16157, 16965],
   'free-icon-artifact': [2758285, 2896200, 666125, 699432],
   'dist-v2-inventory': [5048766, 5301205, 1323709, 1389895]
 } as const;
@@ -44,7 +44,7 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('STAGE6_APPROVED_FREE_ICON_BASELINE_2026-08-20');
+    expect(policy.releaseNotesMarker).toBe('STAGE7_APPROVED_EDGE_READOUT_DISPLAY_PAGE_BASELINE_2026-08-28');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);

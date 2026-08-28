@@ -25,7 +25,7 @@ describe('component contract', () => {
     const host = required(componentContracts.find((element) => element.name === 'nodel-toast-host'), 'toast host contract');
     expect(page.attributes.find((attribute) => attribute.name === 'title')).toMatchObject({ consumption: 'parent', lifecycle: 'initialization', consumer: 'nodel-app' });
     expect(page.attributes.find((attribute) => attribute.name === 'min-height')).toMatchObject({ values: ['auto', 'viewport'], defaultValue: 'auto', consumption: 'observed', lifecycle: 'dynamic' });
-    expect((NodelPage as typeof NodelPage & { observedAttributes?: string[] }).observedAttributes ?? []).toEqual(['action', 'actions', 'arg', 'arg-type', 'min-height']);
+    expect((NodelPage as typeof NodelPage & { observedAttributes?: string[] }).observedAttributes ?? []).toEqual(['action', 'actions', 'arg', 'arg-type', 'min-height', 'bleed']);
     expect(page.actionBindings).toEqual(expect.arrayContaining([{ attribute: 'action', phases: ['activate'], defaultPhase: 'activate' }, { attribute: 'actions', phases: ['activate'], defaultPhase: 'activate' }]));
     expect(button.actionBindings).toEqual(expect.arrayContaining([
       { attribute: 'action', phases: ['click', 'press', 'release'], defaultPhase: 'click' },
@@ -55,6 +55,25 @@ describe('component contract', () => {
         valueType: 'boolean', defaultValue: 'false', consumption: 'parent', consumer: 'nodel-column,nodel-page', lifecycle: 'dynamic', completion: 'recommended'
       });
     }
+  });
+
+  it('publishes additive readout and page contract metadata without changing fill ownership', () => {
+    const readout = required(componentContracts.find((element) => element.name === 'nodel-readout'), 'readout contract');
+    const page = required(componentContracts.find((element) => element.name === 'nodel-page'), 'page contract');
+    expect(readout.attributes.find((attribute) => attribute.name === 'ring-layout')).toMatchObject({
+      values: ['compact', 'edge'], defaultValue: 'compact', valueType: 'enum', consumption: 'observed', lifecycle: 'dynamic'
+    });
+    expect(readout.attributes.find((attribute) => attribute.name === 'notch-position')).toMatchObject({
+      values: ['bottom', 'left', 'top', 'right'], defaultValue: 'bottom', valueType: 'enum', consumption: 'observed', lifecycle: 'dynamic'
+    });
+    expect(readout.attributes.find((attribute) => attribute.name === 'notch-depth')).toMatchObject({
+      defaultValue: '15.4167%', valueType: 'string', syntax: 'percentage text', consumption: 'observed', lifecycle: 'dynamic'
+    });
+    expect(page.attributes.find((attribute) => attribute.name === 'bleed')).toMatchObject({
+      defaultValue: 'false', valueType: 'boolean', consumption: 'observed', lifecycle: 'dynamic'
+    });
+    expect(readout.attributes.some((attribute) => attribute.name === 'fill')).toBe(false);
+    expect(page.attributes.some((attribute) => attribute.name === 'fill')).toBe(false);
   });
 
   it('serializes a deterministic, JSON-safe schema document', () => {

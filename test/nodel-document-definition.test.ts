@@ -167,7 +167,7 @@ describe('nodel document definition', () => {
     expect(app?.attributes.find((attribute) => attribute.name === 'offline-mode')?.values).toEqual(['modal', 'overlay']);
     expect(app?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['signal', 'signals']));
     const page = nodelDocumentElements.find((element) => element.name === 'nodel-page');
-    expect(page?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['action', 'actions', 'arg', 'arg-type', 'min-height']));
+    expect(page?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['action', 'actions', 'arg', 'arg-type', 'min-height', 'bleed']));
     expect(page?.attributes.find((attribute) => attribute.name === 'min-height')?.values).toEqual(['auto', 'viewport']);
     const link = nodelDocumentElements.find((element) => element.name === 'nodel-link');
     expect(link?.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['href', 'node', 'event-binding', 'target', 'rel']));
@@ -203,6 +203,10 @@ describe('nodel document definition', () => {
     const completions = nodelHtmlCompletionSource(fakeCompletionContext('<nodel-node-list scope="'));
     expect(completions?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['local', 'network']));
     expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-page min-height="'))?.options.map((option) => option.label)).toEqual(expect.arrayContaining(['auto', 'viewport']));
+    const readout = nodelDocumentElements.find((element) => element.name === 'nodel-readout');
+    expect(readout?.attributes.find((attribute) => attribute.name === 'ring-layout')?.values).toEqual(['compact', 'edge']);
+    expect(readout?.attributes.find((attribute) => attribute.name === 'notch-position')?.values).toEqual(['bottom', 'left', 'top', 'right']);
+    expect(readout?.attributes.find((attribute) => attribute.name === 'notch-depth')?.syntax).toBe('percentage text');
 
     const elementCompletions = nodelHtmlCompletionSource(fakeCompletionContext('<'))?.options.map((option) => option.label) ?? [];
     expect(elementCompletions).toContain('nodel-link');

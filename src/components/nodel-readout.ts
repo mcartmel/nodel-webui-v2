@@ -5,6 +5,8 @@ import { falsey, formatPlainNumber, normalizeTone, normalizeVariant, truthy } fr
 
 type ReadoutType = 'text' | 'number' | 'percent' | 'db' | 'boolean' | 'duration';
 type ReadoutVisual = 'none' | 'bar' | 'ring' | 'status';
+type RingLayout = 'compact' | 'edge';
+type NotchPosition = 'bottom' | 'left' | 'top' | 'right';
 
 const readoutTypes: ReadoutType[] = ['text', 'number', 'percent', 'db', 'boolean', 'duration'];
 const visuals: ReadoutVisual[] = ['none', 'bar', 'ring', 'status'];
@@ -52,12 +54,46 @@ function zoneFor(value: number, warn: number, danger: number) {
   return 'normal';
 }
 
+const defaultNotchDepth = 15.4167;
+
+function normalizeRingLayout(value: string | null): RingLayout {
+  return value === 'edge' ? 'edge' : 'compact';
+}
+
+function normalizeNotchPosition(value: string | null): NotchPosition {
+  return value === 'left' || value === 'top' || value === 'right' ? value : 'bottom';
+}
+
+function normalizeNotchDepth(value: string | null) {
+  if (value === null || !/^\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)%\s*$/.test(value)) {
+    return defaultNotchDepth;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(50, parsed)) : defaultNotchDepth;
+}
+
+function edgePath(depthPercent: number) {
+  const radius = 115;
+  const depth = 240 * depthPercent / 100;
+  const offset = Math.max(0, Math.min(radius, 120 - depth));
+  if (depthPercent === 0 || offset >= radius) {
+    return 'M 120 5 A 115 115 0 1 1 120 235 A 115 115 0 1 1 120 5';
+  }
+  const x = Math.sqrt(Math.max(0, radius * radius - offset * offset));
+  const y = 240 - depth;
+  return `M ${120 - x} ${y} A 115 115 0 1 1 ${120 + x} ${y}`;
+}
+
 export class NodelReadout extends HTMLElement {
-  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'type', 'visual', 'min', 'max', 'unit', 'prefix', 'suffix', 'precision', 'on-value', 'off-value', 'on-label', 'off-label', 'warn', 'danger', 'empty', 'variant', 'tone', 'signal', 'signals'];
+  static observedAttributes = ['label', 'aria-label', 'aria-labelledby', 'value', 'type', 'visual', 'ring-layout', 'notch-position', 'notch-depth', 'min', 'max', 'unit', 'prefix', 'suffix', 'precision', 'on-value', 'off-value', 'on-label', 'off-label', 'warn', 'danger', 'empty', 'variant', 'tone', 'signal', 'signals'];
 
   private shellReady = false;
   private valueNode: HTMLElement | null = null;
   private visualNode: HTMLElement | null = null;
+  private edgeSvg: SVGSVGElement | null = null;
+  private edgeGroup: SVGGElement | null = null;
+  private edgeTrack: SVGPathElement | null = null;
+  private edgeProgress: SVGPathElement | null = null;
   private signalBindings = createSignalBindingController(this);
 
   connectedCallback() {
@@ -88,6 +124,7 @@ export class NodelReadout extends HTMLElement {
     this.innerHTML = `
       <div class="nodel-readout-shell">
         <div class="nodel-readout-visual" aria-hidden="true"><span class="nodel-readout-visual-inner"></span></div>
+        <svg class="nodel-readout-edge-visual" aria-hidden="true" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet"><g><path class="nodel-readout-edge-track"></path><path class="nodel-readout-edge-progress"></path></g></svg>
         <div class="nodel-readout-content">
           <div class="nodel-readout-value"></div>
         </div>
@@ -95,6 +132,16 @@ export class NodelReadout extends HTMLElement {
     `;
     this.valueNode = this.querySelector('.nodel-readout-value');
     this.visualNode = this.querySelector('.nodel-readout-visual');
+    this.edgeSvg = this.querySelector('.nodel-readout-edge-visual');
+    this.edgeGroup = this.querySelector('svg > g');
+    this.edgeTrack = this.querySelector('.nodel-readout-edge-track');
+    this.edgeProgress = this.querySelector('.nodel-readout-edge-progress');
+    for (const path of [this.edgeTrack!, this.edgeProgress!]) {
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-width', '10');
+    }
+    this.edgeTrack!.setAttribute('pathLength', '1');
+    this.edgeProgress!.setAttribute('pathLength', '1');
     this.shellReady = true;
   }
 
@@ -151,6 +198,9 @@ export class NodelReadout extends HTMLElement {
     this.ensureShell();
     const type = normalizeType(this.getAttribute('type'));
     const visual = normalizeVisual(this.getAttribute('visual'), type);
+    const ringLayout = normalizeRingLayout(this.getAttribute('ring-layout'));
+    const notchPosition = normalizeNotchPosition(this.getAttribute('notch-position'));
+    const notchDepth = normalizeNotchDepth(this.getAttribute('notch-depth'));
     const variant = normalizeVariant(this.getAttribute('variant'));
     const tone = normalizeTone(this.getAttribute('tone'));
     const unit = type === 'db' ? 'db' : type === 'percent' ? 'percent' : normalizeLevelUnit(this.getAttribute('unit'));
@@ -168,12 +218,31 @@ export class NodelReadout extends HTMLElement {
 
     this.dataset.type = type;
     this.dataset.visual = visual;
+    this.dataset.ringLayout = ringLayout;
     this.dataset.variant = variant;
     this.dataset.tone = tone;
     this.dataset.zone = zone;
     this.style.setProperty('--nodel-readout-fraction', String(fraction));
     this.valueNode!.textContent = formatted.text;
     this.visualNode!.hidden = visual === 'none';
+    const edge = visual === 'ring' && ringLayout === 'edge';
+    if (edge) {
+      this.dataset.notchPosition = notchPosition;
+      this.dataset.notchDepth = `${notchDepth}%`;
+    } else {
+      delete this.dataset.notchPosition;
+      delete this.dataset.notchDepth;
+    }
+    (this.edgeSvg as unknown as HTMLElement).hidden = !edge;
+    if (edge) {
+      const rotations: Record<NotchPosition, number> = { bottom: 0, left: 90, top: 180, right: 270 };
+      const path = edgePath(notchDepth);
+      this.edgeGroup!.setAttribute('transform', `rotate(${rotations[notchPosition]} 120 120)`);
+      this.edgeTrack!.setAttribute('d', path);
+      this.edgeProgress!.setAttribute('d', path);
+      this.edgeProgress!.style.strokeDasharray = `${fraction} 1`;
+      this.edgeProgress!.style.display = fraction === 0 ? 'none' : '';
+    }
 
     if ((visual === 'bar' || visual === 'ring') && hasAccessibleName) {
       this.setAttribute('role', 'meter');

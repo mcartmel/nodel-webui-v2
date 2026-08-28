@@ -845,6 +845,16 @@ v1 migration examples:
 </nodel-group>
 ```
 
+### Edge Ring Readout
+
+`ring-layout` is `compact` by default and preserves the existing compact ring. Set it to `edge` only with `visual="ring"` to render the opt-in SVG edge ring; it is inert for other visuals and for compact rings. In edge mode, `notch-position` defaults to `bottom` and accepts only `bottom`, `left`, `top`, or `right`. `notch-depth` is percentage text, defaults to `15.4167%` (`37 / 240`), falls back to that value when malformed, and clamps valid values to `0%..50%`. `0%` is a full circle. The geometry assumes a straight chord mask and a circular ring.
+
+The bottom geometry starts at the lower-left notch endpoint and fills clockwise through the left, top, and right perimeter to the lower-right endpoint. Named positions rotate the SVG group only: bottom `0deg`, left `90deg`, top `180deg`, and right `270deg`; the formatted HTML value remains upright. Progress at `100%` still leaves the chord gap open.
+
+Edge-ring sizing remains parent-controlled. Do not add a readout size attribute or force a square host: the SVG uniformly inscribes its circle in the largest square available in the allocated host. The centre contains the existing formatted value, including prefixes, suffixes, duration text, empty values, and wrapped long values, with responsive typography bounded to the safe region. The host retains its existing meter name/value semantics; the decorative SVG is `aria-hidden` and does not duplicate the visible value. Compact ring fallback and styling remain unchanged.
+
+For a full-viewport display, these layout concerns are separate. `nodel-page bleed` is an opt-in leaf-page setting that removes page-owned containment; it does not allocate height. `min-height="viewport"` performs the dynamic viewport allocation, and a direct `nodel-control-grid fill` consumes the allocation. Do not add `fill` to `nodel-page`, structural rows/columns, or `nodel-readout`. The physical mask is a visual input to the edge ring only: standard app modals and other overlays remain centred in the nominal viewport and may overlap the physical mask.
+
 `nodel-palette` is a swatch-first simple colour picker. Direct `nodel-button` children become swatches from `color` or colour-like `value`; labels can be shown, hidden, or automatic while remaining accessible. Set `picker="native"` to include a touch-sized native picker and colour-value feedback. The value field has no visual caption and defaults to `value-field="readonly"`, avoiding the on-screen keyboard while remaining focusable and copyable. Use `value-field="editable"` for manual hex, RGB, HSL, or HSV entry, or `value-field="hidden"` to omit the feedback field while retaining the native picker and Select button. Invalid editable values are marked without replacing the last valid colour.
 
 The palette keeps a canonical RGBA colour and converts only its action payload. `format="hex|rgb|hsl|hsv"` defaults to `hex`; for example, the same green selection emits `#00ff00`, `rgb(0, 255, 0)`, `hsl(120, 100%, 50%)`, or `hsv(120, 100%, 100%)`. The reflected selected `value` remains normalized hex so swatches and signals compare consistently.
