@@ -228,6 +228,11 @@
     filter: none;
   }
 
+  .nodel-segmented > nodel-button .nodel-button-touch:focus-visible {
+    @apply outline-none ring-2 ring-nodel-focus;
+    box-shadow: 0 0 0 2px rgb(var(--nodel-focus));
+  }
+
   nodel-select,
   nodel-stepper,
   nodel-pad,

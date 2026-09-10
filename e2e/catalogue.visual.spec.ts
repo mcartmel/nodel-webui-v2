@@ -96,6 +96,44 @@ test.describe('catalogue visual regressions', () => {
     await captureCatalogueExample(page, testInfo, 'ControlGrid', 'feedback-states', 'feedback-states.png');
   });
 
+  test('captures paired disclosure and field states for theme review', async ({ page }, testInfo) => {
+    test.skip(isForcedColoursProject(testInfo), 'Forced-colours uses assertions instead of review captures.');
+
+    await openCatalogue(page, 'Collapse');
+    await page.evaluate(() => {
+      const fixture = document.createElement('section');
+      fixture.dataset.catalogueExample = 'theme-state-review';
+      fixture.className = 'nodel-panel space-y-4 p-4';
+      fixture.innerHTML = `
+        <h2 class="text-base font-semibold text-nodel-fg">Theme state review</h2>
+        <div class="grid gap-3 md:grid-cols-2">
+          <details class="nodel-collapse nodel-card" open>
+            <summary class="nodel-collapse-summary"><span class="nodel-collapse-label">Open populated section</span><span class="nodel-collapse-preview">Open preview</span></summary>
+            <div class="nodel-collapse-content space-y-2 p-3"><p class="text-sm text-nodel-fg">Expanded content remains on the owning surface.</p><input class="nodel-field w-full" value="Enabled value" /></div>
+          </details>
+          <details class="nodel-collapse nodel-card">
+            <summary class="nodel-collapse-summary"><span class="nodel-collapse-label">Closed section</span><span class="nodel-collapse-preview">Closed preview</span></summary>
+            <div class="nodel-collapse-content p-3">Hidden content</div>
+          </details>
+        </div>
+        <fieldset class="nodel-card grid gap-3 p-3" aria-label="Field states">
+          <label class="text-sm text-nodel-fg">Enabled<input class="nodel-field mt-1 w-full" value="Editable" /></label>
+          <label class="text-sm text-nodel-muted">Read only<input class="nodel-field mt-1 w-full" value="Read only" readonly /></label>
+          <label class="text-sm text-nodel-muted">Disabled<input class="nodel-field mt-1 w-full" value="Disabled" disabled /></label>
+        </fieldset>`;
+      document.querySelector('nodel-page[active]')?.append(fixture);
+    });
+    const fixture = page.locator('[data-catalogue-example="theme-state-review"]');
+    await expect(fixture).toBeVisible();
+    await expect(fixture.locator('details[open] .nodel-collapse-content')).toContainText('Expanded content');
+    await expect(fixture.locator('details:not([open]) .nodel-collapse-preview')).toBeVisible();
+    await expect(fixture.getByRole('textbox', { name: 'Enabled' })).toHaveValue('Editable');
+    await expect(fixture.locator('input[readonly]')).toHaveValue('Read only');
+    await expect(fixture.locator('input:disabled')).toHaveValue('Disabled');
+    await page.mouse.move(0, 0);
+    await expect(fixture).toHaveScreenshot('theme-state-review.png', catalogueScreenshotOptions(testInfo));
+  });
+
   test('keeps the mobile toolbar in view and captures its open group menu', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to the narrow viewport.');
 

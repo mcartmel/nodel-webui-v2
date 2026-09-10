@@ -38,6 +38,12 @@ function isDesktopThemeProject(testInfo: TestInfo) {
   return testInfo.project.name === 'chromium-light-desktop' || testInfo.project.name === 'chromium-dark-desktop';
 }
 
+function isDarkThemeEngineProject(testInfo: TestInfo) {
+  return isDesktopThemeProject(testInfo)
+    || testInfo.project.name === 'firefox-light-desktop'
+    || testInfo.project.name === 'webkit-light-desktop';
+}
+
 function isAxeProject(testInfo: TestInfo) {
   return isDesktopThemeProject(testInfo) || testInfo.project.name === 'chromium-forced-colors';
 }
@@ -53,6 +59,15 @@ function parseRgb(value: string): Rgb {
     throw new Error(`Expected an RGB colour, received ${value}`);
   }
   return { red, green, blue, alpha: parts[3] ?? 1 };
+}
+
+function applyBrightness(colour: Rgb, filter: string): Rgb {
+  const factor = Number(filter.match(/brightness\(([^)]+)\)/)?.[1] ?? 1);
+  return {
+    red: Math.min(255, colour.red * factor),
+    green: Math.min(255, colour.green * factor),
+    blue: Math.min(255, colour.blue * factor)
+  };
 }
 
 function composite(foreground: Rgb, background: Rgb): Rgb {
@@ -404,6 +419,142 @@ test.describe('catalogue accessibility', () => {
     for (const status of fixture.statuses) {
       const { mark, surface } = sampleStatusMark(png, status.box);
       expect(contrastRatio(mark, surface), `${status.name} inactive mark on ${status.surface}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  test('keeps neutral text, placeholder, preview, and status colours readable', async ({ page }, testInfo) => {
+    test.skip(!isDarkThemeEngineProject(testInfo), 'Neutral text checks run once for each desktop colour theme and engine.');
+    await openCatalogue(page, 'Media');
+    if (testInfo.project.name.includes('firefox') || testInfo.project.name.includes('webkit')) {
+      await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    }
+    const colours = await page.evaluate(async () => {
+      const fixture = document.createElement('div');
+       fixture.innerHTML = `
+        <div class="nodel-panel" data-colour-surface>
+          <span data-colour-text>Readable text</span>
+          <input class="nodel-field" placeholder="Placeholder" data-colour-field />
+          <a class="nodel-link" href="#colour">Link</a>
+          <details class="nodel-collapse"><summary class="nodel-collapse-summary"><span class="nodel-collapse-preview">Preview</span></summary></details>
+          ${['accent', 'info', 'success', 'warning', 'danger'].map((tone) => `<button class="nodel-button nodel-button-${tone === 'accent' ? 'primary' : tone}" data-colour-fill="${tone}">${tone} fill</button>`).join('')}
+          ${['success', 'info', 'warning', 'danger'].map((state) => `<nodel-status state="${state}" label="${state}" message="${state} status"></nodel-status>`).join('')}
+          <nodel-status-indicator data-colour-indicator state="on" value="on" show-state-label></nodel-status-indicator>
+        </div>`;
+        document.body.append(fixture);
+      await customElements.whenDefined('nodel-status');
+      await customElements.whenDefined('nodel-status-indicator');
+      const surface = fixture.querySelector<HTMLElement>('[data-colour-surface]');
+      const read = (element: Element, pseudo?: string) => {
+        const style = getComputedStyle(element, pseudo);
+        let background = style.backgroundColor;
+        if (background === 'transparent' || background === 'rgba(0, 0, 0, 0)') {
+          let ancestor = element.parentElement;
+          while (ancestor && (background === 'transparent' || background === 'rgba(0, 0, 0, 0)')) {
+            background = getComputedStyle(ancestor).backgroundColor;
+            ancestor = ancestor.parentElement;
+          }
+        }
+        return { color: style.color, background, opacity: Number(style.opacity) };
+      };
+      if (!surface) throw new Error('Missing colour fixture surface.');
+      const surfaceStyle = getComputedStyle(surface);
+      const field = fixture.querySelector('[data-colour-field]');
+      const preview = fixture.querySelector('.nodel-collapse-preview');
+      const text = fixture.querySelector('[data-colour-text]');
+      const link = fixture.querySelector('.nodel-link');
+      const fills = Array.from(fixture.querySelectorAll('[data-colour-fill]'));
+      const indicatorLabels = Array.from(fixture.querySelectorAll('[data-colour-indicator] .nodel-status-indicator-label'));
+      const statusShells = Array.from(fixture.querySelectorAll('.nodel-status-shell'));
+      if (!field || !preview || !text || !link || fills.length !== 5 || statusShells.length !== 4 || indicatorLabels.length !== 1) {
+        throw new Error(`Missing colour fixture node: fills=${fills.length}, statuses=${statusShells.length}, indicators=${indicatorLabels.length}.`);
+      }
+      const tokenShape = ['--nodel-bg', '--nodel-fg', '--nodel-surface', '--nodel-surface-raised', '--nodel-muted', '--nodel-border', '--nodel-status-off', '--nodel-status-track-background', '--nodel-status-track-border', '--nodel-backdrop']
+        .map((name) => [name, getComputedStyle(document.documentElement).getPropertyValue(name).trim()]);
+      const values = {
+        background: surfaceStyle.backgroundColor,
+        field: read(field, '::placeholder'),
+        fills: fills.map((fill) => ({ name: fill.getAttribute('data-colour-fill'), ...read(fill) })),
+        indicator: read(indicatorLabels[0]!),
+        link: read(link),
+        preview: read(preview),
+        statusFills: statusShells.map((shell) => {
+          const state = shell.closest('nodel-status')?.getAttribute('state') ?? '';
+          const fill = shell.querySelector(`[data-status-step="${state}"]`);
+          if (!fill) throw new Error(`Missing active ${state} status mark.`);
+          const base = document.createElement('span');
+          base.style.background = 'var(--nodel-status-base-background)';
+          shell.append(base);
+          const result = { name: state, mark: read(fill).background, background: read(base).background };
+          base.remove();
+          return result;
+        }),
+        text: read(text),
+        tokenShape
+      };
+      fixture.remove();
+      return values;
+    });
+    for (const item of [colours.text, colours.field, colours.link, colours.preview, colours.indicator]) {
+      const foreground = parseRgb(item.color);
+      foreground.alpha = (foreground.alpha ?? 1) * item.opacity;
+      const itemBackground = /rgb|rgba/.test(item.background) ? parseRgb(item.background) : parseRgb(colours.background);
+      expect(contrastRatio(composite(foreground, itemBackground), itemBackground), `${item.color} on ${item.background}`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const item of colours.fills) {
+      const foreground = parseRgb(item.color);
+      const itemBackground = parseRgb(item.background);
+      expect(contrastRatio(composite(foreground, itemBackground), itemBackground), `${item.name} fill`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const item of colours.statusFills) {
+      expect(contrastRatio(parseRgb(item.mark), parseRgb(item.background)), `${item.name} status mark`).toBeGreaterThanOrEqual(3);
+    }
+    for (const [name, value] of colours.tokenShape) {
+      expect(value, `${name} must remain a channel triplet`).toMatch(/^\d+\s+\d+\s+\d+$/);
+    }
+  });
+
+  test('keeps rendered solid semantic button states readable through filters', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Solid button state checks run once per desktop colour theme.');
+    await openCatalogue(page, 'Buttons');
+    if (testInfo.project.name === 'chromium-dark-desktop') {
+      await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    }
+    const fixture = page.locator('[data-catalogue-example="buttons-variants"]').first();
+    await fixture.evaluate((container) => {
+      const sample = document.createElement('div');
+      sample.dataset.solidStateFixture = '';
+      sample.style.cssText = 'display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px';
+      for (const tone of ['primary', 'info', 'success', 'warning', 'danger']) {
+        const button = document.createElement('button');
+        button.className = `nodel-button nodel-button-${tone}`;
+        button.dataset.tone = tone;
+        button.textContent = tone;
+        sample.append(button);
+      }
+      container.append(sample);
+    });
+    const buttons = page.locator('[data-solid-state-fixture] button');
+    const states = ['rest', 'hover', 'pressed'] as const;
+    for (const button of await buttons.all()) {
+      for (const state of states) {
+        if (state === 'hover') await button.hover();
+        const box = await button.boundingBox();
+        if (!box) throw new Error('Missing solid button box.');
+        if (state === 'pressed') {
+          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+          await page.mouse.down();
+        }
+        await page.waitForTimeout(250);
+        const rendered = await page.screenshot({ scale: 'css' });
+        const png = PNG.sync.read(rendered);
+        const buttonBackground = readPixel(png, box.x + box.width - 6, box.y + box.height / 2);
+        const surrounding = readPixel(png, box.x - 4, box.y + box.height / 2);
+        const styles = await button.evaluate((element) => ({ color: getComputedStyle(element).color, filter: getComputedStyle(element).filter }));
+        const text = applyBrightness(parseRgb(styles.color), styles.filter);
+        expect(contrastRatio(buttonBackground, surrounding), `${await button.getAttribute('data-tone')} ${state} background`).toBeGreaterThanOrEqual(3);
+        expect(contrastRatio(text, buttonBackground), `${await button.getAttribute('data-tone')} ${state} text`).toBeGreaterThanOrEqual(4.5);
+        if (state === 'pressed') await page.mouse.up();
+      }
     }
   });
 });

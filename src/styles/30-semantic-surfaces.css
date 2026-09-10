@@ -7,7 +7,7 @@
   }
 
   .nodel-field::placeholder {
-    @apply text-nodel-muted opacity-muted italic;
+    @apply text-nodel-muted italic;
   }
 
   select.nodel-field:not(:disabled),
@@ -601,6 +601,8 @@
 
   .nodel-collapse-summary {
     @apply flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-semibold leading-5 text-nodel-fg;
+    background: var(--nodel-subtle-background);
+    border-radius: inherit;
     list-style: none;
     touch-action: manipulation;
     translate: 0 0;
@@ -612,11 +614,27 @@
 
   .nodel-collapse-summary:hover {
     @apply text-nodel-accent;
+    background: var(--nodel-subtle-hover-background);
+  }
+
+  .nodel-collapse[open] > .nodel-collapse-summary {
+    background: transparent;
+    border-radius: inherit;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .nodel-collapse[open] > .nodel-collapse-summary:hover {
+    background: transparent;
   }
 
   .nodel-collapse-summary:active {
     background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
     color: rgb(var(--nodel-accent));
+  }
+
+  .nodel-collapse[open] > .nodel-collapse-summary:active {
+    background: var(--nodel-control-active-background, rgb(var(--nodel-accent) / 0.1));
   }
 
   .nodel-collapse-summary:focus-visible {
@@ -632,7 +650,7 @@
     @apply min-w-0 flex-auto overflow-hidden text-ellipsis whitespace-nowrap text-right text-13 font-normal text-nodel-muted;
   }
 
-  .nodel-collapse[open] .nodel-collapse-preview {
+  .nodel-collapse[open] > .nodel-collapse-summary > .nodel-collapse-preview {
     display: none;
   }
 

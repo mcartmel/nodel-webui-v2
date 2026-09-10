@@ -66,7 +66,7 @@ test.describe('catalogue Quickstart', () => {
     expect(await page.evaluate(() => performance.getEntriesByType('resource').some((entry) => entry.name.includes('/src/')))).toBe(false);
   });
 
-  test('paints the fixed theme before the runtime upgrades the scaffold', async ({ page }) => {
+  test('paints the fixed theme before the runtime upgrades the scaffold', async ({ page }, testInfo) => {
     await page.goto('/components.html', { waitUntil: 'domcontentloaded' });
     const scaffold = await page.locator('[data-catalogue-quickstart-code] code').textContent();
     if (!scaffold) {
@@ -83,13 +83,13 @@ test.describe('catalogue Quickstart', () => {
 
     await expect(page.locator('nodel-app[data-nodel-app]')).toHaveCount(0);
     await expect(page.locator('html')).not.toHaveAttribute('data-theme');
-    await expect.poll(() => page.evaluate(() => {
+    await expect.poll(() => page.evaluate((forcedColours) => {
       const styles = getComputedStyle(document.documentElement);
-      return styles.colorScheme.split(/\s+/).includes('dark') && styles.getPropertyValue('--nodel-bg').trim() === '2 6 23';
-    })).toBe(true);
+      return { scheme: styles.colorScheme, bg: styles.getPropertyValue('--nodel-bg').trim(), body: getComputedStyle(document.body).backgroundColor, forcedColours };
+    }, testInfo.project.name === 'chromium-forced-colors')).toMatchObject({ scheme: /dark/, bg: '23 23 23', body: testInfo.project.name === 'chromium-forced-colors' ? 'rgb(255, 255, 255)' : 'rgb(23, 23, 23)' });
   });
 
-  test('paints an explicit light app ahead of a contradictory dark root', async ({ page }) => {
+  test('paints an explicit light app ahead of a contradictory dark root', async ({ page }, testInfo) => {
     await page.goto('/components.html', { waitUntil: 'domcontentloaded' });
     const scaffold = await page.locator('[data-catalogue-quickstart-code] code').textContent();
     if (!scaffold) {
@@ -109,10 +109,10 @@ test.describe('catalogue Quickstart', () => {
 
     await expect(page.locator('nodel-app[data-nodel-app]')).toHaveCount(0);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect.poll(() => page.evaluate(() => {
+    await expect.poll(() => page.evaluate((forcedColours) => {
       const styles = getComputedStyle(document.documentElement);
-      return styles.colorScheme.split(/\s+/).includes('light') && styles.getPropertyValue('--nodel-bg').trim() === '241 245 249';
-    })).toBe(true);
+      return { scheme: styles.colorScheme, bg: styles.getPropertyValue('--nodel-bg').trim(), body: getComputedStyle(document.body).backgroundColor, forcedColours };
+    }, testInfo.project.name === 'chromium-forced-colors')).toMatchObject({ scheme: /light/, bg: '250 250 250', body: testInfo.project.name === 'chromium-forced-colors' ? 'rgb(255, 255, 255)' : 'rgb(250, 250, 250)' });
   });
 
   test('keeps the Quickstart code surface inside a narrow viewport', async ({ page }) => {
