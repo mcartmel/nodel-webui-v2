@@ -13,6 +13,15 @@ interface CiActionManifest {
   actions: CiActionManifestEntry[];
 }
 
+interface BrowserTestEnvironment {
+  schemaVersion: number;
+  image: string;
+  platform: string;
+  playwrightVersion: string;
+  fontFamily: string;
+  fontconfigFile: string;
+}
+
 async function readWorkflowContents(root: string) {
   const workflowDirectory = resolve(root, '.github/workflows');
   const entries = await readdir(workflowDirectory, { withFileTypes: true });
@@ -76,6 +85,35 @@ function validateCiActionsManifest(value: unknown, workflows: string[]) {
   }
   for (const name of approved.keys()) if (!used.has(name)) throw new Error(`Unused CI action approval: ${name}`);
   return value as CiActionManifest;
+}
+
+function validateBrowserTestEnvironment(value: unknown, workflows: string[], playwrightDependency: string) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Browser test environment must be an object');
+  const policy = value as Record<string, unknown>;
+  if (Object.keys(policy).sort().join('\0') !== 'fontFamily\0fontconfigFile\0image\0platform\0playwrightVersion\0schemaVersion') {
+    throw new Error('Browser test environment has unexpected fields');
+  }
+  if (policy.schemaVersion !== 1) throw new Error('Browser test environment schema is invalid');
+  if (typeof policy.image !== 'string' || !/^mcr\.microsoft\.com\/playwright:v\d+\.\d+\.\d+-noble@sha256:[0-9a-f]{64}$/.test(policy.image)) {
+    throw new Error('Browser test image must use an exact Noble tag and digest');
+  }
+  if (policy.platform !== 'linux/amd64') throw new Error('Browser test platform must be linux/amd64');
+  if (typeof policy.playwrightVersion !== 'string' || playwrightDependency.replace(/^[~^]/, '') !== policy.playwrightVersion) {
+    throw new Error('Browser test Playwright version does not match package.json');
+  }
+  if (policy.image !== `mcr.microsoft.com/playwright:v${policy.playwrightVersion}-noble@${policy.image.split('@')[1]}`) {
+    throw new Error('Browser test image tag does not match Playwright version');
+  }
+  if (policy.fontFamily !== 'DejaVu Sans' || policy.fontconfigFile !== 'e2e/playwright-fontconfig.conf') {
+    throw new Error('Browser test font policy is invalid');
+  }
+  for (const workflow of workflows.filter((candidate) => candidate.includes('npm run test:browser:dist'))) {
+    const browserTest = workflow.indexOf('npm run test:browser:dist');
+    const preflight = workflow.indexOf('npm run test:browser:preflight');
+    if (preflight < 0 || preflight > browserTest) throw new Error('Browser workflow must preflight the pinned environment');
+    if (workflow.includes('playwright install')) throw new Error('Browser workflow must not install browsers outside the pinned image');
+  }
+  return value as BrowserTestEnvironment;
 }
 
 describe('V1 migration and release guidance', () => {
@@ -189,7 +227,7 @@ describe('V1 migration and release guidance', () => {
     const buildWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/build.yml'), 'utf8');
     const releaseWorkflow = await readFile(resolve(process.cwd(), '.github/workflows/release.yml'), 'utf8');
 
-    expect(buildWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
+    expect(buildWorkflow).toContain('npm run test:browser:preflight');
     expect(buildWorkflow).toContain('npm run build:preview');
     expect(buildWorkflow).toContain('npm run lint');
     expect(buildWorkflow).toContain('npm run typecheck');
@@ -206,7 +244,7 @@ describe('V1 migration and release guidance', () => {
     const buildBrowserJob = buildWorkflow.slice(buildWorkflow.indexOf('Download exact tested dist and inventory'));
     expect(buildBrowserJob).toContain('npm run generate:icons:free');
     expect(buildBrowserJob.indexOf('npm run generate:icons:free')).toBeLessThan(buildBrowserJob.indexOf('npm run test:browser:dist'));
-    expect(releaseWorkflow).toContain('playwright install --with-deps chromium firefox webkit');
+    expect(releaseWorkflow).toContain('npm run test:browser:preflight');
     expect(releaseWorkflow).toContain('node scripts/verify-release-gate.mjs --icon-profile free');
     expect(releaseWorkflow).toContain('npm run test:browser:dist');
     expect(releaseWorkflow).toContain('npm run test:deployment:smoke');
@@ -258,6 +296,31 @@ describe('V1 migration and release guidance', () => {
     expect(releaseJob).not.toContain('npm run build:preview');
     expect(releaseJob).not.toContain('npm run verify:dependencies');
     expect(releaseJob).not.toContain('npm run verify:dist -- --write');
+  });
+
+  it('pins one browser and font environment across local and CI execution', async () => {
+    const root = resolve(process.cwd());
+    const workflows = await readWorkflowContents(root);
+    const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const policy = JSON.parse(await readFile(resolve(root, 'browser-test-environment.json'), 'utf8')) as unknown;
+    const deploymentSmoke = await readFile(resolve(root, 'scripts/run-deployment-smoke.mjs'), 'utf8');
+    const fontconfig = await readFile(resolve(root, 'e2e/playwright-fontconfig.conf'), 'utf8');
+    const architecture = await readFile(resolve(root, 'docs/architecture.md'), 'utf8');
+
+    expect(validateBrowserTestEnvironment(policy, workflows, packageJson.devDependencies['@playwright/test'] ?? '')).toBe(policy);
+    expect(packageJson.scripts['test:browser']).toBe('npm run build:preview && npm run test:browser:dist --');
+    expect(packageJson.scripts['test:browser:dist']).toBe('node ./scripts/run-browser-tests.mjs');
+    expect(packageJson.scripts['test:browser:preflight']).toContain('--preflight-only');
+    expect(packageJson.scripts['test:visual-baselines']).toContain('audit-visual-baselines.mjs');
+    expect(deploymentSmoke).toContain("['scripts/run-browser-tests.mjs', '--config', 'playwright.deployment.config.ts']");
+    expect(fontconfig).toContain('<family>system-ui</family>');
+    expect(fontconfig).toContain('<dir>/work/node_modules/dejavu-fonts-ttf/ttf</dir>');
+    expect(fontconfig).toContain('<family>DejaVu Sans</family>');
+    expect(architecture).toContain('does not install dependencies or rebuild `dist/`');
+    expect(architecture).toContain('deliberately limits the wrapper to Linux x64');
   });
 
   it('rejects malformed, duplicate, missing, stale, mutable, and unapproved CI action trust data', async () => {
@@ -314,6 +377,14 @@ describe('V1 migration and release guidance', () => {
       const checkout = manifest.actions.find((entry) => entry.name === 'actions/checkout');
       if (!checkout) throw new Error('Checkout approval is missing');
       await expectDiscoveredWorkflowFailure(`  uses: actions/checkout@${checkout.sha} # v0.0.0`, /approval mismatch/);
+      await writeFile(futureWorkflowPath, '  run: npm run test:browser:dist');
+      const browserWorkflows = await readWorkflowContents(temporaryRoot);
+      const browserPolicy = JSON.parse(await readFile(resolve(root, 'browser-test-environment.json'), 'utf8'));
+      expect(() => validateBrowserTestEnvironment(
+        browserPolicy,
+        browserWorkflows,
+        '^1.62.1'
+      )).toThrow(/preflight/);
     } finally {
       await rm(temporaryRoot, { recursive: true, force: true });
     }
@@ -547,8 +618,8 @@ describe('V1 migration and release guidance', () => {
     expect(packageJson.scripts['deploy:catalog:test']).toContain('--support-root');
     expect(packageJson.scripts['deploy:catalog:preview']).toContain('--support-root');
     expect(packageJson.scripts['verify:java-handoff']).toContain('verify-java-handoff.mjs');
-    expect(packageJson.scripts['test:browser']).toBe('npm run build:preview && playwright test');
-    expect(packageJson.scripts['test:browser:dist']).toBe('playwright test');
+    expect(packageJson.scripts['test:browser']).toBe('npm run build:preview && npm run test:browser:dist --');
+    expect(packageJson.scripts['test:browser:dist']).toBe('node ./scripts/run-browser-tests.mjs');
     expect(packageJson.scripts['test:deployment:smoke']).toBe('node ./scripts/run-deployment-smoke.mjs');
     expect(packageJson.scripts['verify:dist']).toBe('node ./scripts/verify-deployment-inventory.mjs');
     expect(packageJson.scripts['release:prepare']).toBe('node ./scripts/prepare-release.mjs');

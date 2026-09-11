@@ -70,7 +70,7 @@ export async function runDeploymentSmoke(options) {
   const [preview, managed] = await Promise.all([serve(previewDeployment.root), serve(managedDeployment.root)]);
   try {
     await new Promise((resolveProcess, rejectProcess) => {
-      const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['playwright', 'test', '--config', 'playwright.deployment.config.ts'], {
+      const child = spawn(process.execPath, ['scripts/run-browser-tests.mjs', '--config', 'playwright.deployment.config.ts'], {
         cwd: projectRoot,
         env: {
           ...process.env,

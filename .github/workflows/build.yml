@@ -175,8 +175,8 @@ jobs:
       - name: Verify downloaded dist inventory
         run: npm run verify:dist -- --check --json --icon-profile free
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Verify pinned browser and font environment
+        run: npm run test:browser:preflight
 
       - name: Generate Free icon assets for Vite preview
         run: npm run generate:icons:free

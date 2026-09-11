@@ -394,7 +394,7 @@
   .nodel-button-primary:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-accentFill bg-nodel-accentFill text-nodel-onAccent;
     background: rgb(var(--nodel-accent-fill));
-    filter: brightness(0.95);
+    filter: var(--nodel-solid-button-hover-filter);
   }
 
   .nodel-button-success {
@@ -406,7 +406,7 @@
   .nodel-button-success:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-successFill bg-nodel-successFill text-nodel-onSuccess;
     background: rgb(var(--nodel-success-fill));
-    filter: brightness(0.95);
+    filter: var(--nodel-solid-button-hover-filter);
   }
 
   .nodel-button-info {
@@ -418,7 +418,7 @@
   .nodel-button-info:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-infoFill bg-nodel-infoFill text-nodel-onInfo;
     background: rgb(var(--nodel-info-fill));
-    filter: brightness(0.95);
+    filter: var(--nodel-solid-button-hover-filter);
   }
 
   .nodel-button-warning {
@@ -430,7 +430,7 @@
   .nodel-button-warning:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-warningFill bg-nodel-warningFill text-nodel-onWarning;
     background: rgb(var(--nodel-warning-fill));
-    filter: brightness(0.95);
+    filter: var(--nodel-solid-button-hover-filter);
   }
 
   .nodel-button-danger {
@@ -442,7 +442,7 @@
   .nodel-button-danger:hover:not(:disabled):not(.is-disabled) {
     @apply border-nodel-dangerFill bg-nodel-dangerFill text-nodel-onDanger;
     background: rgb(var(--nodel-danger-fill));
-    filter: brightness(0.95);
+    filter: var(--nodel-solid-button-hover-filter);
   }
 
   .nodel-button-ghost {
@@ -528,7 +528,7 @@
   .nodel-button-info:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
   .nodel-button-warning:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline),
   .nodel-button-danger:active:not(:disabled):not(.is-disabled):not(.nodel-button-soft):not(.nodel-button-outline) {
-    filter: brightness(0.9);
+    filter: var(--nodel-solid-button-active-filter);
   }
 
   .nodel-button-ghost:active:not(:disabled):not(.is-disabled) {

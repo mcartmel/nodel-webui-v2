@@ -160,7 +160,7 @@ Use the shared semantic classes from `src/styles.css` for repeated controls, sur
 - `.nodel-panel` for larger section containers.
 - `.nodel-popover` for dropdowns, autocomplete panels, and floating menus.
 - `.nodel-list` for one card-level collection surface around dense related navigation rows.
-- `.nodel-list-item` for linked or selectable rows; standalone items are raised, while items inside `.nodel-list` are flat and divided.
+- `.nodel-list-item` for linked or selectable rows; standalone items are bordered tappable rows, while items inside `.nodel-list` are flat and divided within the bordered collection.
 - `.nodel-menu-item` for menu and autocomplete result buttons.
 - `.nodel-menu-item-active` for the active menu item.
 - `.nodel-section-heading` for small uppercase section/table headings.
@@ -173,7 +173,7 @@ Prefer semantic state classes over raw visual utility classes when state or publ
 
 Semantic button sizing is touch-first: native `.nodel-button` controls use a 44px standard minimum height, and `.nodel-button-compact` is the intentional 36px dense-context exception. The `nodel-button` custom element defaults to a 56px touch minimum and exposes the same ladder explicitly with `size="sm"` at 36px, `size="md"` at 44px, and `size="lg"` at 56px. Use compact sizing only when the surrounding dense layout requires it, not as the default for touch controls.
 
-The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. For dense navigation, combine a visible trailing affordance with the grouped list structure so the collection has one raised boundary and each row retains a clear touch target. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
+The default styling is touch-first: interactive controls communicate tappability in their resting state and use pressed states instead of depending on hover. For dense navigation, combine a visible trailing affordance with the grouped list structure so the collection has one bordered boundary and each row retains a clear touch target. Use `.nodel-card`, `nodel-text surface="card"`, `nodel-readout`, or other read-only components for non-interactive display. Avoid using inert buttons as passive status cards unless custom scripting will make them genuinely interactive.
 
 One-off Tailwind utilities are appropriate for layout and component-specific structure, such as `flex`, `grid`, `gap-3`, `w-full`, `min-w-0`, `text-nodel-muted`, `bg-nodel-surface`, or responsive column classes.
 
@@ -192,9 +192,9 @@ One-off Tailwind utilities are appropriate for layout and component-specific str
 </ul>
 ```
 
-Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, solid surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
+Shared styling is backed by theme tokens such as `--nodel-bg`, `--nodel-fg`, `--nodel-surface`, `--nodel-border`, `--nodel-accent`, `--nodel-danger`, solid surface tokens such as `--nodel-card-background`, `--nodel-panel-background`, `--nodel-popover-background`, interactive control tokens such as `--nodel-control-background`, `--nodel-control-border`, `--nodel-control-active-background`, and `--nodel-control-active-border`, and radius tokens such as `--nodel-radius-control`, `--nodel-radius-card`, `--nodel-radius-panel`, and `--nodel-radius-popover`. RGB channel tokens use values such as `--nodel-bg: 250 250 250` and `rgb(var(--nodel-bg))`; complete colour tokens use values such as `--nodel-control-background: #303030` directly. Project-wide visual tokens should be added to `tailwind.config.ts` so component templates can use named utilities rather than repeated arbitrary values.
 
-Cards are passive surfaces, grouped lists use the card surface as one collection boundary, panels add stronger grouping, and popovers/dialogs carry the strongest elevation. The default font uses the native system stack. Theme styles include reduced-motion, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours.
+Cards are passive neutral surfaces, grouped lists use the card surface as one collection boundary, and panels provide a charcoal or near-white grouping step without routine elevation. Closed disclosure headers use the subtle theme surface; open headers match the background of their owning panel or schema card. Popovers, dialogs, drawers, and genuine editor-status overlays are the places where dedicated shadows distinguish floating UI. Enabled light fields remain white and dark controls use a separate charcoal control surface, so neither should be made to look disabled through a global opacity rule. The default font uses the native system stack. Theme styles include reduced-motion, increased-contrast, and forced-colours fallbacks, so use these semantic primitives rather than hard-coded gradients, shadows, or native-choice colours. CSS overrides should target documented semantic classes or custom-property tokens, preserve channel-triplet token formats, and avoid forcing a background onto an open disclosure summary when the owner may be a custom-styled container.
 
 ## Links
 
