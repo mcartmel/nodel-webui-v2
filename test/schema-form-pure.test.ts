@@ -5,8 +5,8 @@ import {
 } from '../src/schema/schema-model';
 import { decodeSchema } from '../src/api/codecs/nodel-codecs';
 import type { NodelJsonSchema } from '../src/api/nodel-types';
-import { hydrateSchemaFormModel, serializeSchemaFormModel, setSchemaFieldPresence, setSchemaFieldValue } from '../src/schema/schema-values';
-import { validateSchemaForm } from '../src/schema/schema-validation';
+import { hydrateSchemaFieldModel, hydrateSchemaFormModel, markSchemaFieldDirty, resetSchemaFormDirty, serializeSchemaFormModel, setSchemaFieldPresence, setSchemaFieldValue } from '../src/schema/schema-values';
+import { validateSchemaForm, validateValueAgainstSchema } from '../src/schema/schema-validation';
 import { syncSchemaFormControls } from '../src/schema/schema-form';
 
 function field(form: ReturnType<typeof createSchemaForm>, key: string) {
@@ -347,6 +347,12 @@ describe('schema form pure layers', () => {
     expect(malformed.unsupported).toBe(true);
     expect(malformed.controlsDisabled).toBe(true);
 
+    expect(createSchemaForm({ type: 'string', minItems: 1 }).unsupportedReason).toContain('item-count constraints');
+    expect(createSchemaForm({ type: 'object', minItems: 1 }).unsupportedReason).toContain('array schema');
+    expect(createSchemaForm({ type: 'array', items: { type: 'string', pattern: '.*' } }).unsupportedReason).toContain('pattern');
+    expect(createSchemaForm({ type: 'number', min: 10, max: 1 }).unsupportedReason).toContain('minimum');
+    expect(createSchemaForm({ type: 'object', properties: { broken: { type: 'string', pattern: '.*' } } }).unsupportedReason).toContain('pattern');
+
     const unsupportedKeyword = createSchemaForm({ type: 'string', pattern: '.*' });
     expect(unsupportedKeyword.unsupported).toBe(true);
     expect(unsupportedKeyword.fields).toHaveLength(0);
@@ -407,6 +413,13 @@ describe('schema form pure layers', () => {
     value.value = '{ invalid';
     expect(serializeSchemaFormModel(form)).toBeUndefined();
     expect(validateSchemaForm(form)).toContainEqual(expect.objectContaining({ message: 'Enter a valid JSON value.' }));
+
+    const undefinedJson = createSchemaForm({ type: 'object', properties: { value: {} } as never });
+    hydrateSchemaFormModel(undefinedJson, { value: undefined });
+    expect(field(undefinedJson, 'value').typeMismatch).toBe(true);
+    const missingJson = createSchemaForm(decodeSchema({}, 'GET REST/params/schema'));
+    hydrateSchemaFormModel(missingJson, undefined);
+    expect(missingJson.fields[0]!.value).toBe('');
   });
 
   it('bounds generic JSON editors and preserves prototype-named keys as data', () => {
@@ -454,6 +467,60 @@ describe('schema form pure layers', () => {
     const invalidPayload = serializeSchemaFormModel(form) as Record<string, unknown>;
     expect(invalidPayload.amount).toBeUndefined();
     expect(invalidPayload.items).toBeUndefined();
+  });
+
+  it('covers raw object and array type mismatches and nested map state', () => {
+    expect(validateValueAgainstSchema('wrong', { type: 'object' })).toEqual([
+      expect.objectContaining({ message: 'Value must be an object.' })
+    ]);
+    expect(validateValueAgainstSchema({}, { type: 'array', items: { type: 'string' } })).toEqual([
+      expect.objectContaining({ message: 'Value must be an array.' })
+    ]);
+
+    const form = createSchemaForm({ type: 'object', properties: { values: { type: 'object', items: { type: 'string' } } } });
+    hydrateSchemaFormModel(form, { values: { first: 'one', second: 'two' } });
+    const values = field(form, 'values');
+    expect(values.mapEntries).toHaveLength(2);
+    hydrateSchemaFormModel(form, { values: { first: 'updated' } });
+    expect(serializeSchemaFormModel(form)).toEqual({ values: { first: 'updated' } });
+    resetSchemaFormDirty(form);
+
+    const dirty = createSchemaForm({ type: 'object', properties: { child: { type: 'string' } } });
+    hydrateSchemaFormModel(dirty, { child: 'before' });
+    const child = field(dirty, 'child');
+    markSchemaFieldDirty(dirty, child.id);
+    hydrateSchemaFormModel(dirty, { child: 'after' }, { preserveDirty: true });
+    expect(serializeSchemaFormModel(dirty)).toEqual({ child: 'before' });
+
+    const nestedDirty = createSchemaForm({ type: 'array', items: { type: 'object', properties: { child: { type: 'string' } } } });
+    hydrateSchemaFormModel(nestedDirty, [{ child: 'before' }]);
+    const nestedChild = nestedDirty.fields[0]!.entries[0]!.fields[0]!;
+    markSchemaFieldDirty(nestedDirty, nestedChild.id);
+    hydrateSchemaFormModel(nestedDirty, [{ child: 'after' }], { preserveDirty: true });
+    expect(serializeSchemaFormModel(nestedDirty)).toEqual([{ child: 'before' }]);
+    resetSchemaFormDirty(nestedDirty);
+    expect(nestedDirty.dirty).toBe(false);
+    const sourceForm = createSchemaForm({ type: 'object', properties: { child: { type: 'string' } } });
+    const targetForm = createSchemaForm({ type: 'object', properties: { child: { type: 'string' } } });
+    hydrateSchemaFormModel(sourceForm, { child: 'source' });
+    hydrateSchemaFormModel(targetForm, { child: 'target' });
+    const sourceChild = field(sourceForm, 'child');
+    const targetChild = field(targetForm, 'child');
+    markSchemaFieldDirty(sourceForm, sourceChild.id);
+    hydrateSchemaFieldModel(targetChild, { child: 'new' }, 'child', true, sourceChild, { preserveDirty: true });
+    expect(targetChild.value).toBe('source');
+    const nestedSource = createSchemaForm({ type: 'object', properties: { group: { type: 'object', properties: { child: { type: 'string' } } } } });
+    const nestedTarget = createSchemaForm({ type: 'object', properties: { group: { type: 'object', properties: { child: { type: 'string' } } } } });
+    hydrateSchemaFormModel(nestedSource, { group: { child: 'source' } });
+    hydrateSchemaFormModel(nestedTarget, { group: { child: 'target' } });
+    const sourceGroup = field(nestedSource, 'group');
+    const targetGroup = field(nestedTarget, 'group');
+    markSchemaFieldDirty(nestedSource, sourceGroup.id);
+    hydrateSchemaFieldModel(targetGroup, { group: { child: 'new' } }, 'group', true, sourceGroup, { preserveDirty: true });
+    expect(targetGroup.children[0]!.value).toBe('source');
+    const nestedArrays = createSchemaForm({ type: 'array', items: { type: 'array', items: { type: 'string' } } });
+    hydrateSchemaFormModel(nestedArrays, [['same']]);
+    hydrateSchemaFormModel(nestedArrays, [['same']]);
   });
 
   it('reports and blocks below-min, above-max, maxItems, and non-finite values independently', () => {

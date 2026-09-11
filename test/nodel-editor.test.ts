@@ -59,6 +59,7 @@ import '../src/components/nodel-editor';
 
 describe('nodel-editor', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     document.body.innerHTML = '';
     editorApiMock.files = [
       { path: 'content/index.html' },

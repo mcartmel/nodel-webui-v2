@@ -247,7 +247,7 @@ describe('nodel-node-list', () => {
       return new Promise<Response>((resolve) => {
         init?.signal?.addEventListener('abort', () => {
           activeProbes -= 1;
-          resolve(new Response('', { status: 204 }));
+          resolve(new Response(null, { status: 204 }));
         }, { once: true });
       }) as never;
     }) as unknown as typeof fetch;

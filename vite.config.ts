@@ -171,7 +171,6 @@ export function createViteConfig(mode = 'public'): UserConfig {
       include: [
         'src/**/*.ts'
       ],
-      all: true,
       exclude: ['src/**/*.d.ts', 'src/**/generated/**', 'src/**/fixtures/**'],
       thresholds: {
         perFile: true,

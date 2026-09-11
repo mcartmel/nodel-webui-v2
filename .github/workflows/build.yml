@@ -85,7 +85,7 @@ jobs:
         run: npm run report:bundle-budget
 
       - name: Run full per-file coverage tests
-        run: npm run test:coverage -- --coverage.all
+        run: npm run test:coverage
 
       - name: Verify dependency evidence and audit
         run: npm run verify:dependencies
