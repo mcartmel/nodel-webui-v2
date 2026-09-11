@@ -8,6 +8,7 @@ The project is under active development. It remains Nodel-specific: host pages c
 
 - Node.js `24.15.0`
 - npm `11.12.1`
+- A Linux x64 host with Docker for browser tests
 - A Nodel host for testing host and node API behavior
 
 ## Development
@@ -34,6 +35,20 @@ Classic Solid, Classic Regular, and Brands definitions under `dist/v2/`, while
 the searchable catalogue and definitions remain lazy at runtime. Public
 validation rejects Pro packages, private registry configuration, and non-Free
 icon artifacts.
+
+Browser tests run in the digest-pinned Playwright environment declared by
+`browser-test-environment.json`. `npm run test:browser` builds a preview first;
+`npm run test:browser:dist` tests the existing `dist/` without rebuilding it.
+Both commands use the same container and the pinned DejaVu Sans test font as
+CI, while production pages retain their native system-font stack. Additional
+Playwright arguments are passed as ordinary npm arguments, for example
+`npm run test:browser:dist -- --project=chromium-light-desktop`.
+The wrapper bind-mounts the selected Node `24.15.0` executable to preserve the
+project toolchain exactly, so macOS, Windows, and ARM hosts must use the Ubuntu
+CI job or a Linux x64 VM. Deployment smoke also requires Linux host networking.
+`npm run test:visual-baselines` remains a manual transition diagnostic: it
+reports repeated opaque pixels matching removed theme colours as review
+candidates, not as proof that a snapshot is stale.
 
 For a licensed local Pro build, use one isolated source mode only:
 

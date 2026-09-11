@@ -588,12 +588,14 @@
     grid-area: 1 / 1;
     inline-size: min(72%, 14rem);
     max-inline-size: 100%;
+    padding-block: 1px;
   }
 
   nodel-readout[data-visual='ring'][data-ring-layout='edge'] .nodel-readout-value {
     font-size: 1.25rem;
-    line-height: 1.15;
+    line-height: 1.1;
     overflow-wrap: anywhere;
+    padding-block: 1px;
   }
 
   @supports (width: 1cqmin) {

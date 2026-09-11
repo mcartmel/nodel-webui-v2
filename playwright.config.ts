@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
+const nodeExecutable = process.env.NODEL_PLAYWRIGHT_CONTAINER === '1' ? '/opt/nodel-node' : 'node';
 
 export default defineConfig({
   testDir: './e2e',
@@ -16,8 +17,9 @@ export default defineConfig({
     toHaveScreenshot: {
       animations: 'disabled',
       caret: 'hide',
-      // Native system font rasterization differs slightly between Linux images.
+      // The pinned browser and font environment supports a stricter perceptual threshold.
       maxDiffPixels: 150,
+      threshold: 0.1,
       scale: 'css'
     }
   },
@@ -38,7 +40,7 @@ export default defineConfig({
     video: 'retain-on-failure'
   },
   webServer: {
-    command: 'npm run preview -- --port 4173',
+    command: `${nodeExecutable} node_modules/vite/bin/vite.js preview --port 4173`,
     url: 'http://127.0.0.1:4173/components.html',
     reuseExistingServer: false,
     timeout: 30_000

@@ -236,8 +236,8 @@ jobs:
           name: java-handoff-master
           path: build/java-handoff
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Verify pinned browser and font environment
+        run: npm run test:browser:preflight
 
       - name: Validate release version
         id: version
