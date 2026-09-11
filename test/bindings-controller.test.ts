@@ -147,6 +147,11 @@ describe('BindingsController', () => {
     instance.controller.applyBulkNode();
     expect(alpha).toMatchObject({ node: 'Projector', nodeAddress: 'http://host/nodes/Projector/', target: 'dim', showNodeOptions: false, showTargetOptions: false });
     expect(beta!.node).toBe('');
+    instance.controller.applyBulkOption(99, { value: 'Fallback', label: 'Fallback', address: '', detail: '' });
+    expect(instance.controller.state.bulkNode).toBe('Fallback');
+    instance.controller.applyNodeOption(alpha!, 99, { value: 'FallbackNode', label: 'FallbackNode', address: '', detail: '' });
+    instance.controller.applyTargetOption(alpha!, 99, { value: 'fallback-target', label: 'Fallback', detail: '' });
+    expect(alpha).toMatchObject({ node: 'FallbackNode', target: 'fallback-target' });
   });
 
   it('filters exact searchable fields and maintains section and toolbar counts', async () => {
@@ -159,6 +164,16 @@ describe('BindingsController', () => {
     expect(instance.controller.state.sections[0]!.selectedCount).toBe(1);
     instance.controller.selectRows('unbound');
     expect(instance.controller.state.unboundCount).toBe(3);
+    instance.controller.clearFilter();
+    expect(instance.controller.state.visibleCount).toBe(3);
+    instance.controller.setFilter('no such binding');
+    expect(instance.controller.state.visibleCount).toBe(0);
+    instance.controller.setBulkNode('', context());
+    expect(instance.controller.state.bulkNodeAddress).toBe('');
+    instance.controller.selectRows('clear');
+    expect(instance.controller.state.selectedCount).toBe(0);
+    instance.controller.closeLookup(null, 'node');
+    instance.controller.closeLookup(null, 'bulk-node');
   });
 
   it('closes a row lookup and ignores its abort-insensitive completion', async () => {

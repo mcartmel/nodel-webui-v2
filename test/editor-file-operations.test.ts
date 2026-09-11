@@ -1,6 +1,7 @@
 import { EditorFileOperations } from '../src/editor/editor-file-operations';
 import { EditorDocumentSession } from '../src/editor/editor-document-session';
 import type { NodelFileEntry } from '../src/api/nodel-types';
+import { NodeFileTooLargeError } from '../src/utils/node-file-limits';
 
 function api(files: NodelFileEntry[] = [{ path: 'a.txt', modified: '1', size: 3 }]) {
   return { list: vi.fn(async () => files), read: vi.fn(async () => 'old'), save: vi.fn(async (..._args: unknown[]) => undefined), delete: vi.fn(async (..._args: unknown[]) => undefined) };
@@ -66,5 +67,72 @@ describe('EditorFileOperations', () => {
     expect(port.save).toHaveBeenCalledWith('a.txt', 'new', signal);
     await operations.checkAndDelete(session.snapshot(), { signal, isCurrent: current });
     expect(port.delete).toHaveBeenCalledWith('a.txt', signal);
+  });
+
+  it('refreshes the selected file and reports stale or missing sessions', async () => {
+    const port = api([{ path: 'a.txt' }]);
+    const operations = new EditorFileOperations(port, () => true);
+    const session = new EditorDocumentSession();
+    session.open('a.txt', 'old', { modified: '1', size: 3 });
+
+    await expect(operations.refresh(session.snapshot(), { isCurrent: current })).resolves.toMatchObject({ kind: 'present', selected: { path: 'a.txt' } });
+    port.list.mockResolvedValueOnce([{ path: 'other.txt' }]);
+    await expect(operations.refresh(session.snapshot(), { isCurrent: current })).resolves.toMatchObject({ kind: 'missing' });
+    await expect(operations.refresh(session.snapshot(), { isCurrent: () => false })).resolves.toEqual({ kind: 'stale' });
+  });
+
+  it('opens editable content, preserves stale results, and translates oversized reads', async () => {
+    const port = api();
+    const operations = new EditorFileOperations(port, () => true);
+    await expect(operations.open('a.txt', [{ path: 'a.txt' }], { isCurrent: current })).resolves.toMatchObject({ kind: 'editable', content: 'old' });
+    await expect(operations.open('a.txt', [{ path: 'a.txt' }], { isCurrent: () => false })).resolves.toEqual({ kind: 'stale' });
+    port.read.mockRejectedValueOnce(new Error('read failed'));
+    await expect(operations.open('a.txt', [{ path: 'a.txt' }], { isCurrent: current })).rejects.toThrow('read failed');
+    port.read.mockRejectedValueOnce(new NodeFileTooLargeError('a.txt', 1024 * 1024));
+    await expect(operations.open('a.txt', [{ path: 'a.txt' }], { isCurrent: current })).resolves.toMatchObject({ kind: 'readonly', binary: true });
+  });
+
+  it('sorts and suppresses stale list and read results', async () => {
+    const port = api([{ path: 'z.txt' }, { path: 'a.txt' }, { path: 'image.png' }]);
+    const operations = new EditorFileOperations(port, (file) => !file.path.endsWith('.png'));
+    await expect(operations.list({ isCurrent: current })).resolves.toEqual([{ path: 'a.txt' }, { path: 'z.txt' }]);
+    await expect(operations.list({ isCurrent: () => false })).resolves.toBeNull();
+    await expect(operations.read('a.txt', { isCurrent: current })).resolves.toBe('old');
+    await expect(operations.read('a.txt', { isCurrent: () => false })).resolves.toBeNull();
+  });
+
+  it('returns cancelled and missing workflow outcomes before transport writes', async () => {
+    const port = api([]);
+    const operations = new EditorFileOperations(port, () => true);
+    const session = new EditorDocumentSession();
+    session.open('missing.txt', 'local');
+    await expect(operations.checkAndSave(session.snapshot(), 'local', { isCurrent: current }, { confirm: vi.fn().mockResolvedValue(false) })).resolves.toEqual({ kind: 'cancelled' });
+    await expect(operations.checkAndDelete(session.snapshot(), { isCurrent: current })).rejects.toThrow('no longer exists');
+    expect(port.save).not.toHaveBeenCalled();
+  });
+
+  it('suppresses a stale create after the payload is decoded', async () => {
+    const port = api([]);
+    const operations = new EditorFileOperations(port, () => true);
+    let currentState = true;
+    await expect(operations.createOrUpload('new.txt', async () => {
+      currentState = false;
+      return 'new';
+    }, { isCurrent: () => currentState }, { confirm: vi.fn() })).resolves.toEqual({ kind: 'stale' });
+    expect(port.save).not.toHaveBeenCalled();
+  });
+
+  it('suppresses delete completion when the operation becomes stale after reading', async () => {
+    const port = api();
+    const operations = new EditorFileOperations(port, () => true);
+    const session = new EditorDocumentSession();
+    session.open('a.txt', 'old', { modified: '1', size: 3 });
+    let currentState = true;
+    port.read.mockImplementationOnce(async () => {
+      currentState = false;
+      return 'old';
+    });
+    await expect(operations.checkAndDelete(session.snapshot(), { isCurrent: () => currentState })).resolves.toEqual({ kind: 'stale' });
+    expect(port.delete).not.toHaveBeenCalled();
   });
 });

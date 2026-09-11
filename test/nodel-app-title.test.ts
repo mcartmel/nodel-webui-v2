@@ -6,7 +6,7 @@ import { flush } from './helpers';
 
 describe('nodel-app signal title', () => {
   const signalListener: { value: ((state: NodelControlSignalState) => void) | null } = { value: null };
-  let dispose: ReturnType<typeof vi.fn>;
+  let dispose: () => void;
   let restoreRuntime: (() => void) | null = null;
 
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('nodel-app signal title', () => {
     document.title = 'Initial';
     window.history.replaceState(undefined, '', '/');
     signalListener.value = null;
-    dispose = vi.fn();
+    dispose = vi.fn<() => void>();
     restoreRuntime = installControlRuntime({
       callAction: vi.fn(),
       subscribeSignals: (_element, listener) => {

@@ -278,9 +278,10 @@ describe('Stage 11 deployment tools', () => {
   });
 
   it('accepts Vite production modulepreload dependency maps', async () => {
-    await execFileAsync('npx', ['vite', 'build'], { cwd: projectRoot });
+    const viteDist = join(fixtureRoot, 'vite-dist');
+    await execFileAsync('npx', ['vite', 'build', '--outDir', viteDist], { cwd: projectRoot });
     const manifestData = await loadDeploymentManifest(manifestPath);
-    const inventory = await createDeploymentInventory(join(projectRoot, 'dist'), manifestData.manifest);
+    const inventory = await createDeploymentInventory(viteDist, manifestData.manifest);
     expect(inventory.files.some((file: string) => file.startsWith('v2/chunks/main-'))).toBe(true);
   }, 15_000);
 

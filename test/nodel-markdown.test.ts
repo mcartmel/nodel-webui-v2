@@ -10,12 +10,12 @@ function required<T>(value: T | undefined): T {
 
 describe('nodel-markdown', () => {
   let listener: ((state: NodelControlSignalState) => void) | null = null;
-  let dispose: ReturnType<typeof vi.fn>;
+  let dispose: () => void;
   let restoreRuntime: (() => void) | null = null;
 
   beforeEach(() => {
     document.body.innerHTML = '';
-    dispose = vi.fn();
+    dispose = vi.fn<() => void>();
     listener = null;
     restoreRuntime = installControlRuntime({
       callAction: vi.fn(),
