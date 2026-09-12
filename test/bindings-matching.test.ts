@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { bindingSimilarity, buildSuggestion, definitionsToOptions, mergeTargetDefinitions, normalizeDefinitions } from '../src/features/bindings-matching';
 
 describe('bindings matching helpers', () => {

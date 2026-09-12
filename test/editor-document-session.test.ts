@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { EditorDocumentSession } from '../src/editor/editor-document-session';
 
 describe('EditorDocumentSession', () => {

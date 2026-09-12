@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { generateHostIconDataUri } from '../src/icons/host-identicon';
 
 describe('host identicon', () => {

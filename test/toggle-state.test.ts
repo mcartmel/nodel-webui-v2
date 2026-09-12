@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { isToggleOnish, resolveToggleState, toggleAriaChecked } from '../src/utils/toggle-state';
 import { truthy } from '../src/utils/control-values';
 
