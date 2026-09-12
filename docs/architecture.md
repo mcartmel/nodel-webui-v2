@@ -53,7 +53,9 @@ Typed lint, TypeScript, and JsViews checks are required. V8 reports broad produc
 
 ### Testing
 
-The main Playwright suite uses four workers locally and one worker in CI pending temporary CI qualification; the native `--workers=1` or `--workers=4` command-line override remains available. Focused `test:watch` and focused `test:browser:dist` runs are development aids for fast feedback, not substitutes for the full unit, coverage, browser, deployment-smoke, release, and artifact-continuity gates. Rebuild the application and assets before browser tests whenever source or generated assets change, then run the full gates against the exact tested `dist/`; retain complete logs, reports, traces, videos, screenshots, and inventories for failures and qualification runs.
+The main Playwright suite runs with four local workers and one CI worker intentionally. Four-worker qualification exceeded the existing test timeouts on the smaller CI runner, so CI remains at one worker without weakening any checks. The native `--workers=1` or `--workers=4` command-line override remains available.
+
+For focused unit feedback, use `npm run test:watch -- <spec-or-path>`. For focused browser feedback against an existing build, use `npm run test:browser:dist -- <spec-or-path> --workers=1`. These are development aids, not substitutes for the full unit, coverage, browser, deployment-smoke, release, and artifact-continuity gates. Rebuild before browser tests when application source or generated assets change, then run the full suite against the exact tested `dist/` and retain failure diagnostics.
 
 ### Decomposition Boundaries
 

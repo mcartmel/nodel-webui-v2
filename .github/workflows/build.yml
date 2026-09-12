@@ -129,7 +129,7 @@ jobs:
   browser-deployment:
     needs: [quality, java-handoff]
     runs-on: ubuntu-latest
-    timeout-minutes: 90 # Temporary CI qualification; remove after two clean four-worker runs.
+    timeout-minutes: 50
 
     steps:
       - name: Checkout source for test scripts
@@ -182,53 +182,7 @@ jobs:
         run: npm run generate:icons:free
 
       - name: Run browser visual and accessibility tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          qualification_root="build/test-speedups/temporary-ci-qualification"
-          mkdir -p "$qualification_root"
-          {
-            printf 'Runner resources:\n'
-            nproc
-            free -h
-            printf 'Node.js: '
-            node --version
-            printf 'npm: '
-            npm --version
-          } > "$qualification_root/runner-environment.txt" 2>&1
-          run_browser() {
-            local run_name="$1"
-            local workers="$2"
-            local run_root="$qualification_root/$run_name"
-            local started elapsed status npm_status tee_status
-            local -a pipeline_status
-            mkdir -p "$run_root/playwright-report" "$run_root/test-results"
-            started="$(date +%s)"
-            set +e
-            npm run test:browser:dist -- --workers="$workers" --retries=0 2>&1 | tee "$run_root/output.log"
-            pipeline_status=("${PIPESTATUS[@]}")
-            npm_status="${pipeline_status[0]}"
-            tee_status="${pipeline_status[1]}"
-            set -e
-            status="$npm_status"
-            if [[ "$status" -eq 0 && "$tee_status" -ne 0 ]]; then status="$tee_status"; fi
-            elapsed="$(( $(date +%s) - started ))"
-            printf 'workers=%s\nnpmStatus=%s\nteeStatus=%s\nstatus=%s\nactualElapsedSeconds=%s\n' "$workers" "$npm_status" "$tee_status" "$status" "$elapsed" > "$run_root/summary.txt"
-            if [[ -d playwright-report ]]; then cp -a playwright-report/. "$run_root/playwright-report/"; fi
-            if [[ -d test-results ]]; then cp -a test-results/. "$run_root/test-results/"; fi
-            return "$status"
-          }
-          run_browser run-01-w1 1
-          run_browser run-02-w4 4
-          run_browser run-03-w4 4
-
-      - name: Upload temporary CI qualification artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: temporary-ci-browser-qualification
-          path: build/test-speedups/temporary-ci-qualification/
-          if-no-files-found: warn
+        run: npm run test:browser:dist
 
       - name: Create deployment smoke roots from downloaded dist
         run: |
