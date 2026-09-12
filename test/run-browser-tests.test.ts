@@ -57,4 +57,33 @@ describe('run-browser-tests convenience forwarding contract', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it.each(['--workers=1', '--workers=4'])('forwards %s through test:browser', async (workerArg) => {
+    const root = await mkdtemp(join(tmpdir(), 'nodel-browser-forwarding-'));
+    const scripts = join(root, 'scripts');
+    const recordPath = join(root, 'command-record.json');
+    try {
+      const packageJson = {
+        name: 'browser-command-fixture',
+        private: true,
+        scripts: {
+          'build:preview': 'node ./scripts/record-call.mjs build:preview',
+          'test:browser:dist': 'node ./scripts/record-call.mjs test:browser:dist',
+          'test:browser': 'npm run build:preview && npm run test:browser:dist --'
+        }
+      };
+      const recordScript = `import { readFileSync, writeFileSync } from 'node:fs';\nimport { join } from 'node:path';\n\nconst target = join(process.cwd(), 'command-record.json');\nconst script = process.argv[2] ?? 'unknown';\nconst args = process.argv.slice(3);\nlet calls = [];\ntry {\n  calls = JSON.parse(readFileSync(target, 'utf8'));\n} catch {}\ncalls.push({ script, args });\nwriteFileSync(target, JSON.stringify(calls));\n`;
+
+      await mkdir(scripts, { recursive: true });
+      await writeFile(join(root, 'package.json'), JSON.stringify(packageJson));
+      await writeFile(join(scripts, 'record-call.mjs'), recordScript);
+
+      runNpm(root, ['run', 'test:browser', '--', workerArg]);
+
+      const entries = JSON.parse(await readFile(recordPath, 'utf8')) as Invocation[];
+      expect(entries[1]).toEqual({ script: 'test:browser:dist', args: [workerArg] });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

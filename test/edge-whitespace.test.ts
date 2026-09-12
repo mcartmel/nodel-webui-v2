@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { trimPointReference } from '../src/utils/edge-whitespace';
 
 describe('trimPointReference', () => {

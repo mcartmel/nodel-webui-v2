@@ -45,7 +45,7 @@
     "test:browser:dist": "node ./scripts/run-browser-tests.mjs",
     "test:browser:preflight": "node ./scripts/run-browser-tests.mjs --preflight-only",
     "test:visual-baselines": "node ./scripts/audit-visual-baselines.mjs",
-    "build": "npm run lint && npm run typecheck && npm run check:jsviews && npm run test && npm run generate:icons:free && vite build --mode public && node ./scripts/verify-release-gate.mjs && npm run verify:review-impact",
+    "build": "npm run lint && npm run typecheck && npm run check:jsviews && npm run test && vite build --mode public && node ./scripts/verify-release-gate.mjs && npm run verify:review-impact",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:local": "npm run build:preview && rsync -a --delete dist/ /opt/nodel/custom/content/",
     "deploy:local:pro": "npm run build:pro:preview && rsync -a --delete build/pro-dist/ /opt/nodel/custom/content/",

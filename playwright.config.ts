@@ -9,7 +9,7 @@ export default defineConfig({
   outputDir: 'test-results',
   forbidOnly: isCI,
   fullyParallel: false,
-  workers: 1,
+  workers: isCI ? 1 : 4,
   retries: isCI ? 2 : 0,
   timeout: 30_000,
   expect: {

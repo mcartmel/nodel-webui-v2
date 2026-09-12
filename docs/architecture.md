@@ -51,6 +51,10 @@ The allowlisted loader maintains a single-flight load state. A failure preserves
 
 Typed lint, TypeScript, and JsViews checks are required. V8 reports broad production TypeScript coverage, including components and DOM adapters, without a global floor; per-file gates apply only to selected boundary/domain modules at 90% lines, statements, and functions and 85% branches. Property tests cover bounded and grammar-heavy policies. Dependency advisories, deterministic SBOM and license evidence, and pinned CI actions are release gates. Repository policy permits only GitHub-owned actions at full commit SHAs; `security/ci-actions.json` is the canonical maintainer approval record, and action updates remain unmergeable until official tags are independently resolved and the workflows plus manifest change together. Bundle and contract review reports do not auto-ratchet budgets.
 
+### Testing
+
+The main Playwright suite uses four workers locally and one worker in CI pending temporary CI qualification; the native `--workers=1` or `--workers=4` command-line override remains available. Focused `test:watch` and focused `test:browser:dist` runs are development aids for fast feedback, not substitutes for the full unit, coverage, browser, deployment-smoke, release, and artifact-continuity gates. Rebuild the application and assets before browser tests whenever source or generated assets change, then run the full gates against the exact tested `dist/`; retain complete logs, reports, traces, videos, screenshots, and inventories for failures and qualification runs.
+
 ### Decomposition Boundaries
 
 The Stage 6 behavior-preserving boundaries are explicit: editor session, file, restart, and upload logic versus the editor component; bindings controller, model, and lookup logic versus its JsViews adapter; app navigation, restart, and connectivity versus the composition root, theme, and hosts; and actsig model/controller versus timers, DOM, clipboard, and events. Component-contract modules form the fifth hotspot boundary, separating contract data from catalogue, editor, reports, and serialization consumers.

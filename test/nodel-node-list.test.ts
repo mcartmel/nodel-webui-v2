@@ -1,4 +1,4 @@
-import { delay, flush, waitFor } from './helpers';
+import { flush, flushMicrotasks, waitFor } from './helpers';
 import '../src/components/nodel-node-list';
 import '../src/components/nodel-text';
 import { generateHostIconDataUri } from '../src/icons/host-identicon';
@@ -6,6 +6,13 @@ import { generateHostIconDataUri } from '../src/icons/host-identicon';
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('Expected test fixture value');
   return value;
+}
+
+async function advanceFilterDebounce() {
+  await vi.advanceTimersByTimeAsync(200);
+  for (let i = 0; i < 5; i += 1) {
+    await flushMicrotasks();
+  }
 }
 
 describe('nodel-node-list', () => {
@@ -16,6 +23,7 @@ describe('nodel-node-list', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -60,13 +68,12 @@ describe('nodel-node-list', () => {
     expect(filter.placeholder).toBe('Filter nodes');
     expect(document.querySelector('.nodel-node-list-show')?.getAttribute('aria-label')).toBe('Rows per page');
     expect(document.querySelector('.nodel-node-list-total')?.textContent).toContain('2 nodes');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     filter.value = 'beta';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     expect(document.body.textContent).not.toContain('Loading...');
     expect(document.querySelectorAll('nodel-node-list a.nodel-list-item').length).toBe(2);
-    await delay(250);
-    await flush();
-    await flush();
+    await advanceFilterDebounce();
 
     expect(document.querySelectorAll('nodel-node-list a.nodel-list-item').length).toBe(1);
     expect(document.body.textContent).not.toContain('Loading...');
@@ -74,9 +81,7 @@ describe('nodel-node-list', () => {
 
     filter.value = 'missing';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
-    await delay(250);
-    await flush();
-    await flush();
+    await advanceFilterDebounce();
 
     expect(document.querySelectorAll('nodel-node-list a.nodel-list-item')).toHaveLength(0);
     expect(document.querySelector('nodel-node-list .nodel-list')).toBeNull();
@@ -302,11 +307,12 @@ describe('nodel-node-list', () => {
     expect(maxActiveProbes).toBe(4);
 
     const filter = document.querySelector<HTMLInputElement>('.nodel-node-list-filter')!;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     filter.value = 'new';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
-    await delay(250);
-    await waitFor(() => searches.includes('new'));
-    await waitFor(() => document.body.textContent?.includes('new 0') === true);
+    await advanceFilterDebounce();
+    expect(searches).toContain('new');
+    expect(document.body.textContent).toContain('new 0');
 
     expect(abortedSignals.every((signal) => signal.aborted)).toBe(true);
     expect(document.querySelector('nodel-node-list a.nodel-list-item')?.getAttribute('data-reachability')).toBe('unknown');
@@ -316,7 +322,8 @@ describe('nodel-node-list', () => {
     for (const resolve of [...pending.values()]) {
       resolve();
     }
-    await waitFor(() => pending.has('new-0:8085'));
+    await advanceFilterDebounce();
+    expect(pending.has('new-0:8085')).toBe(true);
 
     expect(maxActiveProbes).toBeLessThanOrEqual(4);
     expect(document.body.textContent).not.toContain('old 0');
@@ -518,10 +525,11 @@ describe('nodel-node-list', () => {
     expect(filters[0]).toBe('Display Ünit');
 
     filter.value = 'Manual edit';
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     document.querySelector('nodel-node-list')?.setAttribute('page-size', '10');
-    await delay(250);
-    await waitFor(() => filters.includes('Manual edit'));
+    await advanceFilterDebounce();
+    expect(filters).toContain('Manual edit');
 
     expect(filter.value).toBe('Manual edit');
     expect(filters).not.toContain('Ignored');
@@ -606,10 +614,11 @@ describe('nodel-node-list', () => {
     document.body.append(list);
     await waitFor(() => list.querySelectorAll('.nodel-node-list-item').length === 2);
     const filter = list.querySelector<HTMLInputElement>('.nodel-node-list-filter')!;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     filter.value = 'Beta';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
-    await delay(250);
-    await waitFor(() => list.querySelectorAll('.nodel-node-list-item').length === 1);
+    await advanceFilterDebounce();
+    expect(list.querySelectorAll('.nodel-node-list-item')).toHaveLength(1);
 
     expect(list.textContent).toContain('Beta Node');
     expect(list.textContent).not.toContain('Alpha Node');

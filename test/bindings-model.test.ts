@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { bindingStatusLinkProperties, createBindingSections, hasBindingSchema, serializeBindingPayload, validateBindingRow } from '../src/features/bindings-model';
 import type { NodelJsonSchema } from '../src/api/nodel-types';
 

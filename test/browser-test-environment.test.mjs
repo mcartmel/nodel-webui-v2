@@ -38,6 +38,11 @@ describe('browser test environment wrapper', () => {
     expect(args).not.toContain('-c');
   });
 
+  it.each(['--workers=1', '--workers=4'])('forwards %s to Playwright', (workerArg) => {
+    const args = buildDockerArgs({ ...baseOptions, args: [workerArg] });
+    expect(args.at(-1)).toBe(workerArg);
+  });
+
   it('enables host networking only for allowlisted deployment smoke variables', () => {
     const unrelated = buildDockerArgs({ ...baseOptions, environment: { UNRELATED_SECRET: 'hidden' } });
     expect(unrelated).not.toContain('--network=host');

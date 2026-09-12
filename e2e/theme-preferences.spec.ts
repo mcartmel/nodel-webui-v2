@@ -75,6 +75,12 @@ async function expectFocusIsNotClipped(control: Locator) {
   expect(result.clippingFailures).toEqual([]);
 }
 
+async function expectHighContrastFocus(control: Locator) {
+  await tabTo(control.page(), control);
+  await expect(control).toHaveCSS('outline-width', '3px');
+  await expectFocusIsNotClipped(control);
+}
+
 test.describe('theme first paint and preferences', () => {
   for (const scenario of [
     { name: 'stored dark overrides a light system theme', stored: 'dark', system: 'light', expected: 'dark' },
@@ -379,22 +385,24 @@ test.describe('theme first paint and preferences', () => {
     }
   });
 
-  test('uses stronger control boundaries and focus outlines for increased contrast', async ({ page }, testInfo) => {
+  test('uses stronger focus outlines for the default button in increased contrast', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
 
     await setMediaFeature(page, 'prefers-contrast', 'more');
     const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
     test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
-    const expectHighContrastFocus = async (control: Locator) => {
-      await tabTo(page, control);
-      await expect(control).toHaveCSS('outline-width', '3px');
-      await expectFocusIsNotClipped(control);
-    };
-
     await openCatalogue(page, 'Buttons');
     const defaultButton = page.locator('[data-catalogue-example="buttons-variants"]').getByRole('button', { name: 'Default' });
     await expectHighContrastFocus(defaultButton);
+  });
+
+  test('uses stronger focus outlines for ControlGrid controls in increased contrast', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
+
+    await setMediaFeature(page, 'prefers-contrast', 'more');
+    const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
+    test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
     await openCatalogue(page, 'ControlGrid');
     const field = page.locator('[data-catalogue-example="links-native-choices"] .nodel-field');
@@ -405,14 +413,38 @@ test.describe('theme first paint and preferences', () => {
     await expectHighContrastFocus(choice);
     await page.locator('[data-nav-group-id="Controls"]').click();
     await expectHighContrastFocus(page.locator('#nodel-menu-Controls .nodel-menu-item').first());
+  });
+
+  test('uses stronger focus outlines for the segmented option in increased contrast', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
+
+    await setMediaFeature(page, 'prefers-contrast', 'more');
+    const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
+    test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
     await openCatalogue(page, 'TogglesSegmented');
     const segmentedOption = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-segmented').first().locator('button').first();
     await expectHighContrastFocus(segmentedOption);
+  });
+
+  test('uses stronger focus outlines for the vertical fader in increased contrast', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
+
+    await setMediaFeature(page, 'prefers-contrast', 'more');
+    const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
+    test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
     await openCatalogue(page, 'FadersMeters');
     const fader = page.locator('[data-catalogue-example="faders-vertical"] .nodel-fader-track').nth(1);
     await expectHighContrastFocus(fader);
+  });
+
+  test('uses stronger focus outlines for the disclosure in increased contrast', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
+
+    await setMediaFeature(page, 'prefers-contrast', 'more');
+    const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
+    test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
     await openCatalogue(page, 'Collapse');
     const disclosure = page.locator('[data-catalogue-example="layout-collapse"] .nodel-collapse-summary').first();

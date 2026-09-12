@@ -1,4 +1,4 @@
-import { flush, waitFor } from './helpers';
+import { flush, flushMicrotasks, waitFor } from './helpers';
 import { deferred } from './lifecycle-helpers';
 import type { NodeRestartRefreshResult } from '../src/data/node-restart-source';
 import type {
@@ -652,11 +652,23 @@ describe('nodel-bindings', () => {
 
     await mountBindings();
     const firstAction = rowAt('actions', 0, 'first');
-    await setInputValue(rowInputs(firstAction).target, 'Dim');
+    const targetInput = rowInputs(firstAction).target;
+    await flushMicrotasks();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    targetInput.value = 'Dim';
+    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+    for (let i = 0; i < 20; i += 1) {
+      await flushMicrotasks();
+    }
     expect(targetSignal).not.toBeNull();
 
-    await new Promise((resolve) => window.setTimeout(resolve, 3100));
-    await flush();
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(requireAbortSignal(targetSignal, 'Expected target request signal to be set').aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushMicrotasks();
+    await flushMicrotasks();
 
     const targetRequestSignal = requireAbortSignal(targetSignal, 'Expected target request signal to be set');
     expect(targetRequestSignal.aborted).toBe(true);

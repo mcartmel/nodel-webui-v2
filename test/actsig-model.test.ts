@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { ACTSIG_MATERIALIZE_CHUNK_SIZE, areActSigDefinitionSetsEqual, createActSigSections, createActSigViewModel, formsInSection, hasConcreteArgument, materializeActSigForm, normalizeActSigDefinitionSet } from '../src/features/actsig-model';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
