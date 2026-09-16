@@ -232,7 +232,7 @@ test.describe('no-build authored administration contract', () => {
     for (const chunk of ['nodel-params-', 'nodel-bindings-', 'nodel-editor-']) {
       expect(requests.filter((url) => new RegExp(`/v2/chunks/${chunk}[^/]+\\.js$`).test(new URL(url).pathname))).toHaveLength(1);
     }
-    expect(requests.filter((url) => /\/v2\/chunks\/jsviews-[^/]+\.js$/.test(new URL(url).pathname))).toHaveLength(1);
+    expect(requests.filter((url) => /\/v2\/chunks\/jsviews-(?!runtime-)[^/]+\.js$/.test(new URL(url).pathname))).toHaveLength(1);
     expect(requests.filter((url) => /\/v2\/chunks\/codemirror-editor-[^/]+\.js$/.test(new URL(url).pathname))).toHaveLength(1);
     expect(requests.some((url) => /\/v2\/chunks\/auto-[^/]+\.js$/.test(new URL(url).pathname))).toBe(false);
     expect(requestFailures.filter((url) => new URL(url).pathname.includes('/v2/'))).toEqual([]);

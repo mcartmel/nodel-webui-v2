@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Performance Budget Evidence
+
+- `APPROVED_BACKGROUND_ASSETS_2026-09-16`: measured increase from preserving four detailed background SVG assets is approved only for `dist-v2-inventory`, rebased to raw `5448589` / max `5560000` and gzip `1442562` / max `1475000`. The reviewed budget is approximately two percent headroom with rounding; all other metric baselines and limits remain unchanged, and no production JavaScript or CSS roles are ratcheted.
+- Rationale: Measured increase from preserving four detailed background SVG assets is approved only for dist-v2-inventory: baseline 5448589 raw / 1442562 gzip bytes, with reviewed two percent rounded budgets of 5560000 raw / 1475000 gzip bytes. All other metric baselines and limits remain unchanged; no production JavaScript or CSS roles are ratcheted.
+
 ## 0.2.0
 
 ### Toolchain

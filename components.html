@@ -28,6 +28,7 @@
     <!-- The catalogue marker installs the page-only in-memory action/signal runtime before components upgrade. Do not copy it to node pages. -->
     <script type="module" src="/src/main.ts" data-nodel-runtime="memory"></script>
     <script type="module" src="/src/catalogue/component-reference.ts"></script>
+    <script type="module" src="/src/catalogue/backgrounds.ts"></script>
   </head>
   <body>
     <nodel-app title="Nodel UI Components">
@@ -94,6 +95,15 @@
               Components for the application shell, navigation, toolbar actions, themes, and footer around authored pages.
             </p>
           </header>
+
+          <section class="nodel-catalogue-section" data-background-catalogue-section>
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Backgrounds</h2>
+              <p class="nodel-catalogue-description">Select a neutral texture over an RGB colour or image, preview it here, and copy authored markup.</p>
+            </header>
+            <div class="nodel-catalogue-examples" data-background-catalogue="backgrounds"></div>
+            <div data-background-catalogue-markup></div>
+          </section>
 
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">

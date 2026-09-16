@@ -19,10 +19,26 @@
       "elements.nodel-node-list.attributes.show-total: removed"
     ],
     "additive": [
+      "elements.nodel-app.attributes.background-brightness: added",
+      "elements.nodel-app.attributes.background-color: added",
+      "elements.nodel-app.attributes.background-image-fit: added",
+      "elements.nodel-app.attributes.background-image-position: added",
+      "elements.nodel-app.attributes.background-image: added",
+      "elements.nodel-app.attributes.background-pattern-scale: added",
+      "elements.nodel-app.attributes.background-pattern-strength: added",
+      "elements.nodel-app.attributes.background-pattern: added",
       "elements.nodel-control-grid.attributes.fill: added",
       "elements.nodel-group.attributes.fill: added",
       "elements.nodel-icon.attributes.family: added",
       "elements.nodel-icon.attributes.style: added",
+      "elements.nodel-page.attributes.background-brightness: added",
+      "elements.nodel-page.attributes.background-color: added",
+      "elements.nodel-page.attributes.background-image-fit: added",
+      "elements.nodel-page.attributes.background-image-position: added",
+      "elements.nodel-page.attributes.background-image: added",
+      "elements.nodel-page.attributes.background-pattern-scale: added",
+      "elements.nodel-page.attributes.background-pattern-strength: added",
+      "elements.nodel-page.attributes.background-pattern: added",
       "elements.nodel-page.attributes.bleed: added",
       "elements.nodel-page.attributes.min-height: added",
       "elements.nodel-readout.attributes.notch-depth: added",
@@ -41,7 +57,7 @@
   },
   "contractAnnotations": {
     "elements": 51,
-    "attributes": 470,
+    "attributes": 486,
     "audiences": {
       "custom": 33,
       "core": 15,
@@ -58,9 +74,9 @@
       "hidden": 3
     },
     "consumption": {
-      "observed": 460,
+      "observed": 468,
       "initialization": 0,
-      "parent": 5,
+      "parent": 13,
       "contextual-child": 4,
       "wildcard": 1
     },

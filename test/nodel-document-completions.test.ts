@@ -6,6 +6,7 @@ import { EditorView } from '@codemirror/view';
 import { authoredPageHead, authoredPageScaffold, completeNodelDocument } from '../src/editor/nodel-document-definition';
 import { nodelHtmlCompletionSource } from '../src/editor/nodel-html-document-support';
 import { nodelXmlCompletionSource } from '../src/editor/nodel-xml-document-support';
+import { diagnoseNodelDocument } from '../src/editor/nodel-document-diagnostics';
 
 function context(text: string, language: typeof htmlLanguage | typeof xmlLanguage = htmlLanguage, explicit = true) {
   const state = EditorState.create({ doc: text, extensions: [language] });
@@ -101,6 +102,32 @@ describe('native Nodel document completions', () => {
     expect(pageValues).toEqual(expect.arrayContaining(['auto', 'viewport']));
     for (const tagName of ['nodel-page', 'nodel-row', 'nodel-column']) {
       expect(result(`<${tagName} `, nodelHtmlCompletionSource).options.map((option) => option.label)).not.toContain('fill');
+    }
+  });
+
+  it('offers background attributes and shared enum values on both owners', () => {
+    for (const tagName of ['nodel-app', 'nodel-page']) {
+      const attributes = result(`<${tagName} background-`, nodelHtmlCompletionSource).options.map((option) => option.label);
+      expect(attributes).toEqual(expect.arrayContaining(['background-color', 'background-image', 'background-pattern', 'background-brightness', 'background-image-fit', 'background-image-position']));
+    }
+    expect(result('<nodel-app background-pattern="', nodelHtmlCompletionSource).options.map((option) => option.label)).toEqual(expect.arrayContaining(['carbon-fibre', 'concentric-waves', 'none']));
+    expect(result('<nodel-page background-image-fit="', nodelXmlCompletionSource, xmlLanguage).options.map((option) => option.label)).toEqual(expect.arrayContaining(['"cover"', '"contain"', '"tile"']));
+  });
+
+  it('diagnoses background values with the runtime grammar, including RGB and positions', () => {
+    const valid = EditorState.create({ doc: '<nodel-app background-pattern-strength="+12.5" background-brightness="200" background-pattern-scale="25" background-color="rgb(1, 2.5, 255)" background-image-position="50% 30%"></nodel-app>', extensions: [htmlLanguage] });
+    expect(diagnoseNodelDocument(valid).diagnostics).toEqual([]);
+    for (const value of ['1e2', '12%', '12junk']) {
+      const state = EditorState.create({ doc: `<nodel-app background-pattern-strength="${value}"></nodel-app>`, extensions: [htmlLanguage] });
+      expect(diagnoseNodelDocument(state).diagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
+    }
+    for (const value of ['101% 30%', '50%', 'center 20%']) {
+      const state = EditorState.create({ doc: `<nodel-page background-image-position="${value}"></nodel-page>`, extensions: [htmlLanguage] });
+      expect(diagnoseNodelDocument(state).diagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
+    }
+    for (const value of ['rgb(1 2 3 / .5)', 'rgb(var(--x))', '#12345']) {
+      const state = EditorState.create({ doc: `<nodel-app background-color="${value}"></nodel-app>`, extensions: [htmlLanguage] });
+      expect(diagnoseNodelDocument(state).diagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
     }
   });
 

@@ -9,6 +9,10 @@ interface SignalListener {
 const busyDelayMs = 1000;
 
 const initialSignals: Record<string, unknown> = {
+  CatalogueBackgroundPattern: 'carbon-fibre',
+  CatalogueBackgroundColor: '#202b38',
+  CatalogueBackgroundFit: 'cover',
+  CatalogueBackgroundPosition: 'center',
   PanelVisible: true,
   ConfirmCode: '0420',
   AvailableSources: [

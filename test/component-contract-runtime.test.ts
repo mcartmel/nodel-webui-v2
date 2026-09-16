@@ -14,7 +14,8 @@ const nonReactiveAttributes = new Set([
   'nodel-button.value',
   'nodel-console.collapse-preview',
   'nodel-control-grid.fill',
-  'nodel-group.fill'
+  'nodel-group.fill',
+  ...['background-color', 'background-image', 'background-pattern', 'background-pattern-strength', 'background-brightness', 'background-pattern-scale', 'background-image-fit', 'background-image-position'].map((name) => `nodel-page.${name}`)
 ]);
 
 const internalComponentEvents = new Set([

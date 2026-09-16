@@ -6,6 +6,8 @@ import type { SyntaxNode } from '@lezer/common';
 import { componentContractCommonAttributes, findComponentContract } from '../component-contract';
 import { loadIconCatalogue, loadIconIndex, type IconCatalogue, type IconIndex } from '../icons/catalogue-loader';
 import { isStrictActionBindingList } from '../utils/action-binding-validation';
+import { safeImageSrc } from '../utils/urls';
+import { normalizeBackgroundColor, normalizeBackgroundNumber, normalizeBackgroundPosition } from '../backgrounds/contract';
 
 export const NODEL_DIAGNOSTIC_LIMITS = Object.freeze({ maxDocumentLength: 100_000, maxNodes: 3_000, maxDiagnostics: 100, maxMessageLength: 160 });
 
@@ -238,6 +240,16 @@ function checkNumeric(value: string, numeric: NonNullable<ReturnType<typeof find
   return { valid: true, warning: normalized || below || above };
 }
 
+function checkBackgroundValue(name: string, value: string): boolean | undefined {
+  if (name === 'background-color') return normalizeBackgroundColor(value) !== null;
+  if (name === 'background-image') return value === 'none' || safeImageSrc(value) !== null;
+  if (name === 'background-image-position') return normalizeBackgroundPosition(value) !== null;
+  if (name === 'background-pattern-strength') return normalizeBackgroundNumber(value, 0, 100) !== null;
+  if (name === 'background-brightness') return normalizeBackgroundNumber(value, 0, 200) !== null;
+  if (name === 'background-pattern-scale') return normalizeBackgroundNumber(value, 25, 400) !== null;
+  return undefined;
+}
+
 export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(state)): NodelDocumentDiagnosticsResult {
   const diagnostics: Diagnostic[] = [];
   let nodes = 0;
@@ -275,16 +287,20 @@ export function diagnoseNodelDocument(state: EditorState, tree = syntaxTree(stat
     for (const attr of item.attrs) {
       if (diagnostics.length >= NODEL_DIAGNOSTIC_LIMITS.maxDiagnostics) { truncated = true; break; }
       const name = attrName(attr, state);
-      const value = attrValue(attr, state);
+      const rawValue = attrValue(attr, state);
+      const value = name.startsWith('background-') ? rawValue.trim() : rawValue;
       values.set(name, value);
       const definition = definitions.get(name);
       const allowed = Boolean(definition) || name.startsWith('data-') || name.startsWith('aria-') || standardAttributes.has(name) || standardEventAttributes.has(name) || name.startsWith('xmlns:');
       if (!allowed) { const range = attrRange(attr); add(diagnostics, 'warning', range.from, range.to, 'Unknown attribute on Nodel element.'); continue; }
+      if (definition && name.startsWith('background-') && !value) continue;
       if (definition?.completion === 'hidden') add(diagnostics, 'warning', attr.from, attr.to, 'Internal or hidden attribute authored directly.');
       if (definition?.legacy) add(diagnostics, 'warning', attr.from, attr.to, 'Legacy or deprecated attribute.');
       if (isPlaceholder(value)) continue;
       if (definition?.valueType === 'enum' && definition.values && !definition.values.includes(value)) add(diagnostics, 'error', attr.from, attr.to, 'Enum value is not supported.');
-      if (definition?.numeric) {
+      const backgroundValid = checkBackgroundValue(name, value);
+      if (backgroundValid === false) add(diagnostics, 'error', attr.from, attr.to, 'Background value is malformed or outside its supported grammar.');
+      if (definition?.numeric && backgroundValid === undefined) {
         const numeric = checkNumeric(value, definition.numeric, definition.valueType === 'integer');
         if (!numeric.valid) add(diagnostics, 'error', attr.from, attr.to, 'Numeric value is malformed.');
         else if (numeric.warning) add(diagnostics, 'warning', attr.from, attr.to, 'Numeric value is normalized or outside its contract range.');

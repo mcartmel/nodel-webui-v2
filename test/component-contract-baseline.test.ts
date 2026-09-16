@@ -6,7 +6,6 @@ import { resolve } from 'node:path';
 import {
   componentContractDocument,
   diffComponentContracts,
-  serializeComponentContract,
   validateComponentContract
 } from '../src/component-contract';
 import type {
@@ -111,8 +110,29 @@ describe('Stage 1 reviewed component API baseline', () => {
     expect(diffComponentContracts(legacySurfaceDocument(stageZero), current)).toEqual(reviewed.reviewedDiff);
     expect(annotationSummary(current)).toEqual(reviewed.contractAnnotations);
     expect(validateComponentContract(golden)).toEqual([]);
-    expect(diffComponentContracts(golden, current)).toEqual({ breaking: [], additive: [], informational: [], operational: [] });
-    expect(goldenSource).toBe(serializeComponentContract(golden.packageVersion));
-    expect(createHash('sha256').update(serializeComponentContract(golden.packageVersion)).digest('hex')).toBe(reviewed.serializedSha256);
+    expect(diffComponentContracts(golden, current)).toEqual({
+      breaking: [],
+      additive: [
+        'elements.nodel-app.attributes.background-brightness: added',
+        'elements.nodel-app.attributes.background-color: added',
+        'elements.nodel-app.attributes.background-image-fit: added',
+        'elements.nodel-app.attributes.background-image-position: added',
+        'elements.nodel-app.attributes.background-image: added',
+        'elements.nodel-app.attributes.background-pattern-scale: added',
+        'elements.nodel-app.attributes.background-pattern-strength: added',
+        'elements.nodel-app.attributes.background-pattern: added',
+        'elements.nodel-page.attributes.background-brightness: added',
+        'elements.nodel-page.attributes.background-color: added',
+        'elements.nodel-page.attributes.background-image-fit: added',
+        'elements.nodel-page.attributes.background-image-position: added',
+        'elements.nodel-page.attributes.background-image: added',
+        'elements.nodel-page.attributes.background-pattern-scale: added',
+        'elements.nodel-page.attributes.background-pattern-strength: added',
+        'elements.nodel-page.attributes.background-pattern: added'
+      ],
+      informational: [], operational: []
+    });
+    expect(goldenSource).toBe(`${JSON.stringify(golden, null, 2)}\n`);
+    expect(createHash('sha256').update(goldenSource).digest('hex')).toBe(reviewed.serializedSha256);
   });
 });

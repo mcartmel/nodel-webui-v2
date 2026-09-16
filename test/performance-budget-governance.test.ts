@@ -33,7 +33,7 @@ const expected = {
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
   'components-html': [125904, 132200, 16157, 16965],
   'free-icon-artifact': [2758285, 2896200, 666125, 699432],
-  'dist-v2-inventory': [5048766, 5301205, 1323709, 1389895]
+  'dist-v2-inventory': [5448589, 5560000, 1442562, 1475000]
 } as const;
 
 describe('Stage 5 performance budget governance', () => {
@@ -44,7 +44,7 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('STAGE8_APPROVED_SHORTCUT_EAGER_CATALOGUE_BASELINE_2026-08-28');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_BACKGROUND_ASSETS_2026-09-16');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
@@ -55,8 +55,13 @@ describe('Stage 5 performance budget governance', () => {
       const budget = policy.budgets[name];
       if (!budget) throw new Error(`Missing budget ${name}`);
       expect([budget.rawBaseline, budget.rawMax, budget.gzipBaseline, budget.gzipMax]).toEqual(values);
-      expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.05));
-      expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.05));
+      if (name === 'dist-v2-inventory') {
+        expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.02 / 10000) * 10000);
+        expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.02 / 5000) * 5000);
+      } else {
+        expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.05));
+        expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.05));
+      }
     }
   });
 });

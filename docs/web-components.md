@@ -77,6 +77,25 @@ The JSON contract describes supported syntax and behavior. It does not query a r
 - `nodel-host-icon`: generated host identicon with an optional link.
 - `nodel-theme-toggle`: persistent light/dark theme control for the nearest app.
 
+### App Backgrounds
+
+`nodel-app` owns an optional fixed backdrop for the viewport. The eight `background-*` attributes are also accepted on `nodel-page`, but are consumed by the owning app: app defaults are overridden by the active navigation group and then the active leaf page. Omitted or empty values inherit; removing an attribute restores inheritance. Use `background-pattern="none"`, `background-image="none"`, or `background-color="theme"` for explicit clears/resets.
+
+```html
+<nodel-app background-color="rgb(32, 43, 56)" background-pattern="carbon-fibre" background-pattern-strength="25">
+  <nodel-page title="Home">...</nodel-page>
+  <nodel-page title="Gallery" background-image="./images/gallery.jpg" background-brightness="65" background-pattern="none">
+    ...
+  </nodel-page>
+</nodel-app>
+```
+
+The nine neutral choices are `carbon-fibre`, `checkerplate`, `brushed-metal`, `woven-fabric`, `diagonal-grain`, `dotted-grid`, `hexagonal-mesh`, `ripples`, and `concentric-waves`; `none` disables a pattern. The defaults are `theme`, `none`, `none`, `25`, `100`, `100`, `cover`, and `center` for colour, image, pattern, strength, brightness, scale, fit, and position. Strength, brightness, and scale are independent numeric percentages clamped to `0..100`, `0..200` (`100` unchanged), and `25..400` (`100` designed tile size). Fit is `cover`, `contain`, or repeating `tile`; position accepts standard keywords or two percentages such as `50% 30%`.
+
+Colours accept opaque `rgb(...)` channels in comma- or space-separated form, `#RGB`, `#RRGGBB`, or `theme`. Image paths and URLs are validated with the shared safe image policy and resolved against the authored document base URI, so a nested no-build page can use `./images/gallery.jpg`; arbitrary CSS expressions, gradients, alpha colours, unsafe schemes, and credentials are rejected. Transparent image pixels, contain margins, loading, and failures reveal the configured colour underneath.
+
+The backdrop remains fixed while page content scrolls. Brightness applies only to the colour/image layer; texture strength and scale remain independent, and foreground colours, controls, and surfaces are never filtered. Authors must check contrast themselves. With no effective customization, the existing body background contract is unchanged; forced-colours mode removes decorative layers in favour of system Canvas. The catalogue Backgrounds example uses `nodel-palette` and `nodel-select` with the existing in-memory runtime to drive a contained preview and generated markup. Copied markup contains only attributes and needs neither those demo bindings nor a runtime script.
+
 ### Core Nodel Components
 
 - `nodel-description`: current-node description rendered from Markdown.

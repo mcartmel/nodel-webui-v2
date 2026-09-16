@@ -122,6 +122,52 @@ describe('Nodel document diagnostics', () => {
     expect(result.diagnostics.every((diagnostic) => diagnostic.source === 'Nodel')).toBe(true);
   });
 
+  it('treats whitespace-only background attributes as inherited in HTML and XML', async () => {
+    const attributes = 'background-color=" \t" background-image="  " background-pattern="\n" background-pattern-strength=" \t" background-brightness=" " background-pattern-scale="\n" background-image-fit=" " background-image-position="  "';
+    expect((await diagnose(`<nodel-app ${attributes} />`)).summary.errors).toBe(0);
+    expect((await diagnose(`<nodel-app ${attributes} />`, 'xml')).summary.errors).toBe(0);
+  });
+
+  it('checks background attribute ownership before accepting empty inheritance values', async () => {
+    for (const kind of ['html', 'xml'] as const) {
+      const supported = await diagnose('<nodel-app background-color="" background-pattern="" />', kind);
+      expect(supported.diagnostics, kind).toEqual([]);
+
+      const misspelled = await diagnose('<nodel-app background-colour="" />', kind);
+      expect(misspelled.diagnostics, kind).toEqual([
+        expect.objectContaining({ severity: 'warning', message: 'Unknown attribute on Nodel element.' })
+      ]);
+
+      const misplaced = await diagnose('<nodel-button background-color="" />', kind);
+      expect(misplaced.diagnostics, kind).toEqual([
+        expect.objectContaining({ severity: 'warning', message: 'Unknown attribute on Nodel element.' })
+      ]);
+    }
+  });
+
+  it('uses the shared safe image policy for literal background images', async () => {
+    expect((await diagnose('<nodel-app background-image="./images/background.png" />')).summary.errors).toBe(0);
+    expect((await diagnose('<nodel-app background-image="none" />')).summary.errors).toBe(0);
+    for (const value of [
+      'javascript:alert(1)',
+      'JaVaScRiPt:alert(1)',
+      'data:text/html;base64,PHNjcmlwdD4=',
+      'https://user:secret@example.test/background.png',
+      'http://[invalid'
+    ]) {
+      const result = await diagnose(`<nodel-app background-image="${value}" />`);
+      expect(result.summary.errors, value).toBe(1);
+      expect(result.diagnostics[0]?.message).toContain('Background value is malformed');
+    }
+    for (const value of [
+      'blob:https://example.test/image-id',
+      'data:image/png;base64,iVBORw0KGgo=',
+      'https://example.test/background.png'
+    ]) {
+      expect((await diagnose(`<nodel-app background-image="${value}" />`)).summary.errors, value).toBe(0);
+    }
+  });
+
   it('stops at the node bound instead of traversing later invalid content', async () => {
     const nestedElements = NODEL_DIAGNOSTIC_LIMITS.maxNodes + 100;
     const prefix = `${'<i>'.repeat(nestedElements)}x${'</i>'.repeat(nestedElements)}`;

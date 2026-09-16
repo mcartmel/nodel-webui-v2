@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240" viewBox="0 0 720 480" shape-rendering="geometricPrecision">
+  <defs>
+    <path id="contour" d="M80-480C80-400-80-320-80-240S80-80 80 0S-80 160-80 240S80 400 80 480S-80 640-80 720S80 880 80 960"/>
+    <g id="contours">
+      <use href="#contour" x="-160"/><use href="#contour" x="-120"/><use href="#contour" x="-80"/><use href="#contour" x="-40"/>
+      <use href="#contour"/><use href="#contour" x="40"/><use href="#contour" x="80"/><use href="#contour" x="120"/><use href="#contour" x="160"/><use href="#contour" x="200"/><use href="#contour" x="240"/><use href="#contour" x="280"/><use href="#contour" x="320"/><use href="#contour" x="360"/><use href="#contour" x="400"/><use href="#contour" x="440"/><use href="#contour" x="480"/><use href="#contour" x="520"/><use href="#contour" x="560"/><use href="#contour" x="600"/><use href="#contour" x="640"/><use href="#contour" x="680"/><use href="#contour" x="720"/><use href="#contour" x="760"/><use href="#contour" x="800"/><use href="#contour" x="840"/><use href="#contour" x="880"/>
+    </g>
+  </defs>
+  <g fill="none">
+    <use href="#contours" stroke="#000" stroke-opacity=".2" stroke-width="2"/>
+    <use href="#contours" transform="translate(2)" stroke="#fff" stroke-opacity=".16" stroke-width="1.5"/>
+  </g>
+</svg>

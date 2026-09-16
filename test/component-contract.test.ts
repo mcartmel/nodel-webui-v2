@@ -99,6 +99,24 @@ describe('component contract', () => {
     expect(page.attributes.some((attribute) => attribute.name === 'fill')).toBe(false);
   });
 
+  it('publishes the shared background contract on app and parent-consumed page overrides', () => {
+    const app = required(componentContracts.find((element) => element.name === 'nodel-app'), 'app contract');
+    const page = required(componentContracts.find((element) => element.name === 'nodel-page'), 'page contract');
+    const names = ['background-color', 'background-image', 'background-pattern', 'background-pattern-strength', 'background-brightness', 'background-pattern-scale', 'background-image-fit', 'background-image-position'];
+    expect(app.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(names));
+    expect(page.attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(names));
+    for (const name of names) {
+      expect(app.attributes.find((attribute) => attribute.name === name)).toMatchObject({ consumption: 'observed', lifecycle: 'dynamic' });
+      expect(page.attributes.find((attribute) => attribute.name === name)).toMatchObject({ consumption: 'parent', consumer: 'nodel-app', lifecycle: 'dynamic' });
+    }
+    expect(app.attributes.find((attribute) => attribute.name === 'background-pattern')).toMatchObject({ values: expect.arrayContaining(['none', 'carbon-fibre', 'concentric-waves']), defaultValue: 'none' });
+    expect(app.attributes.find((attribute) => attribute.name === 'background-pattern-strength')).toMatchObject({ valueType: 'number', numeric: { min: 0, max: 100, clamp: true }, defaultValue: '25' });
+    expect(app.attributes.find((attribute) => attribute.name === 'background-brightness')).toMatchObject({ numeric: { min: 0, max: 200, clamp: true }, defaultValue: '100' });
+    expect(app.attributes.find((attribute) => attribute.name === 'background-pattern-scale')).toMatchObject({ numeric: { min: 25, max: 400, clamp: true }, defaultValue: '100' });
+    expect(app.attributes.find((attribute) => attribute.name === 'background-color')?.syntax).toContain('#RRGGBB');
+    expect(app.attributes.find((attribute) => attribute.name === 'background-image-position')?.syntax).toContain('two percentages');
+  });
+
   it('serializes a deterministic, JSON-safe schema document', () => {
     const first = serializeComponentContract('1.2.3');
     expect(first).toBe(serializeComponentContract('1.2.3'));
