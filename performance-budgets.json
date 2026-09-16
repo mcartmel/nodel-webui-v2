@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "STAGE8_APPROVED_SHORTCUT_EAGER_CATALOGUE_BASELINE_2026-08-28",
-  "rationale": "Shortcut eager-catalogue measurements raised only HTML/XML language baselines; each affected maximum is measured actual plus reviewed five percent headroom, with no automatic ratcheting elsewhere.",
+  "releaseNotesMarker": "APPROVED_BACKGROUND_ASSETS_2026-09-16",
+  "rationale": "Measured increase from preserving four detailed background SVG assets is approved only for dist-v2-inventory: baseline 5448589 raw / 1442562 gzip bytes, with reviewed two percent rounded budgets of 5560000 raw / 1475000 gzip bytes. All other metric baselines and limits remain unchanged; no production JavaScript or CSS roles are ratcheted.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -34,6 +34,6 @@
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
     "components-html": { "rawBaseline": 125904, "rawMax": 132200, "gzipBaseline": 16157, "gzipMax": 16965 },
     "free-icon-artifact": { "rawBaseline": 2758285, "rawMax": 2896200, "gzipBaseline": 666125, "gzipMax": 699432 },
-    "dist-v2-inventory": { "rawBaseline": 5048766, "rawMax": 5301205, "gzipBaseline": 1323709, "gzipMax": 1389895 }
+    "dist-v2-inventory": { "rawBaseline": 5448589, "rawMax": 5560000, "gzipBaseline": 1442562, "gzipMax": 1475000 }
   }
 }

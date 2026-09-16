@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="h-face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".24"/><stop offset=".18" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity=".31"/><stop offset=".78" stop-color="#fff" stop-opacity=".13"/><stop offset="1" stop-color="#000" stop-opacity=".27"/>
+    </linearGradient>
+    <linearGradient id="v-face" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity=".36"/><stop offset=".24" stop-color="#fff" stop-opacity=".055"/><stop offset=".5" stop-color="#fff" stop-opacity=".12"/><stop offset=".76" stop-color="#000" stop-opacity=".16"/><stop offset="1" stop-color="#000" stop-opacity=".42"/>
+    </linearGradient>
+    <linearGradient id="h-end" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#000" stop-opacity=".34"/><stop offset=".09" stop-color="#000" stop-opacity="0"/><stop offset=".91" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".34"/>
+    </linearGradient>
+    <linearGradient id="v-end" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#000" stop-opacity=".4"/><stop offset=".09" stop-color="#000" stop-opacity="0"/><stop offset=".91" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/>
+    </linearGradient>
+    <g id="h">
+      <rect x=".38" y=".44" width="11.48" height="5.42" rx=".38" fill="#000" fill-opacity=".3"/>
+      <rect x=".18" y=".17" width="11.64" height="5.5" rx=".38" fill="url(#h-face)"/>
+      <rect x=".18" y=".17" width="11.64" height="5.5" rx=".38" fill="url(#h-end)"/>
+      <path d="M.55 1.15h10.9M.48 2.5h11.04M.58 4.02h10.84" fill="none" stroke="#fff" stroke-opacity=".17" stroke-width=".32"/>
+      <path d="M.62 1.62h10.76M.54 3.2h10.92M.68 4.65h10.64" fill="none" stroke="#000" stroke-opacity=".2" stroke-width=".3"/>
+      <path d="M.32.55h11.36" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".28"/>
+    </g>
+    <g id="v">
+      <rect x=".44" y=".38" width="5.42" height="11.48" rx=".38" fill="#000" fill-opacity=".34"/>
+      <rect x=".17" y=".18" width="5.5" height="11.64" rx=".38" fill="url(#v-face)"/>
+      <rect x=".17" y=".18" width="5.5" height="11.64" rx=".38" fill="url(#v-end)"/>
+      <path d="M1.14.55v10.9M2.48.48v11.04M4.02.58v10.84" fill="none" stroke="#fff" stroke-opacity=".09" stroke-width=".32"/>
+      <path d="M1.62.62v10.76M3.18.54v10.92M4.64.68v10.64" fill="none" stroke="#000" stroke-opacity=".24" stroke-width=".3"/>
+      <path d="M.54.32v11.36" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width=".28"/>
+    </g>
+    <pattern id="twill" width="24" height="24" patternUnits="userSpaceOnUse">
+      <g>
+        <use href="#v" x="0" y="12"/><use href="#v" x="6" y="6"/><use href="#v" x="12" y="0"/>
+        <use href="#v" x="18" y="18"/><use href="#v" x="18" y="-6"/>
+        <use href="#h" x="0" y="0"/><use href="#h" x="18" y="6"/><use href="#h" x="-6" y="6"/>
+        <use href="#h" x="12" y="12"/><use href="#h" x="6" y="18"/>
+      </g>
+    </pattern>
+  </defs>
+  <rect width="48" height="48" fill="url(#twill)"/>
+</svg>

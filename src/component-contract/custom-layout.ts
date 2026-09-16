@@ -1,5 +1,43 @@
-import type { NodelElementDefinition } from './types';
+import type { NodelAttributeDefinition, NodelElementDefinition } from './types';
 import { signalBindingDescription, signalsBindingDescription } from './values';
+import { BACKGROUND_ATTRIBUTE_NAMES, BACKGROUND_DEFAULTS, BACKGROUND_PATTERN_IDS } from '../backgrounds/contract';
+import { BACKGROUND_FIT_VALUES, BACKGROUND_POSITION_KEYWORD_VALUES } from '../backgrounds/metadata';
+
+const backgroundPatternValues = [...BACKGROUND_PATTERN_IDS, 'none'];
+const backgroundAttributes: NodelAttributeDefinition[] = [
+  { name: 'background-color', description: 'Theme, opaque rgb(...) or hex backdrop colour; no alpha or arbitrary CSS.', syntax: 'theme | rgb(R G B) | rgb(R, G, B) | #RGB | #RRGGBB' },
+  { name: 'background-image', description: 'Validated image URL/path; none clears an inherited image.', syntax: 'image path or URL | none' },
+  { name: 'background-pattern', description: 'Neutral texture; none clears an inherited pattern.', values: backgroundPatternValues },
+  { name: 'background-pattern-strength', description: 'Texture opacity, clamped 0..100; 0 disables it.', numeric: { min: 0, max: 100, clamp: true } },
+  { name: 'background-brightness', description: 'Colour/image brightness, clamped 0..200; 100 is unchanged.', numeric: { min: 0, max: 200, clamp: true } },
+  { name: 'background-pattern-scale', description: 'Texture scale, clamped 25..400; 100 is designed size.', numeric: { min: 25, max: 400, clamp: true } },
+  { name: 'background-image-fit', description: 'Image sizing; cover/contain do not repeat, tile does.', values: [...BACKGROUND_FIT_VALUES] },
+  { name: 'background-image-position', description: 'Standard position keywords or two percentages (0%..100%).', values: [...BACKGROUND_POSITION_KEYWORD_VALUES], valueType: 'enum-or-string', syntax: 'keyword or two percentages, e.g. center, left top, 50% 30%' }
+];
+
+const appBackgroundAttributes = backgroundAttributes.map((attribute) => ({ ...attribute }));
+const pageBackgroundAttributes = backgroundAttributes.map((attribute) => ({ ...attribute }));
+
+const backgroundDefaultValues: Record<string, string> = {
+  'background-color': BACKGROUND_DEFAULTS.color,
+  'background-image': 'none',
+  'background-pattern': BACKGROUND_DEFAULTS.pattern,
+  'background-pattern-strength': String(BACKGROUND_DEFAULTS.patternStrength),
+  'background-brightness': String(BACKGROUND_DEFAULTS.brightness),
+  'background-pattern-scale': String(BACKGROUND_DEFAULTS.patternScale),
+  'background-image-fit': BACKGROUND_DEFAULTS.imageFit,
+  'background-image-position': BACKGROUND_DEFAULTS.imagePosition
+};
+
+for (const attribute of appBackgroundAttributes) {
+  attribute.defaultValue = backgroundDefaultValues[attribute.name]!;
+}
+for (const attribute of pageBackgroundAttributes) {
+  attribute.defaultDescription = 'Omitted/empty inherits from the app or active ancestors; use explicit resets where supported.';
+}
+
+// Keep the shared list referenced here so contract and runtime cannot drift.
+if (appBackgroundAttributes.length !== BACKGROUND_ATTRIBUTE_NAMES.length) throw new Error('Background contract is incomplete');
 
 export const customLayoutElements: NodelElementDefinition[] = [
   {
@@ -12,7 +50,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'theme', description: 'Theme selection. Omit the attribute for the stored/system preference; default is a compatibility reset alias.', values: ['default', 'light', 'dark'] },
       { name: 'offline-mode', description: 'Host-offline presentation. Modal blocks controls; overlay leaves them available.', values: ['modal', 'overlay'] },
       { name: 'signal', description: signalBindingDescription('title') },
-      { name: 'signals', description: signalsBindingDescription('title') }
+      { name: 'signals', description: signalsBindingDescription('title') },
+      ...appBackgroundAttributes
     ],
     snippet: '<nodel-app title="Nodel">\n  ${}\n</nodel-app>'
   },
@@ -41,7 +80,8 @@ export const customLayoutElements: NodelElementDefinition[] = [
       { name: 'arg', description: 'Optional activation action argument.' },
       { name: 'arg-type', description: 'Parser for the activation argument.', values: ['string', 'number', 'boolean', 'json'] },
       { name: 'min-height', description: 'Minimum page height mode. auto preserves natural document flow; viewport uses the dynamic available height left by normal-flow shell content and may grow for intrinsic content.', values: ['auto', 'viewport'] },
-      { name: 'bleed', description: 'Remove page-owned containment for an opted-in leaf page. Presence-only; does not affect navigation groups or fill ownership.', defaultValue: 'false' }
+      { name: 'bleed', description: 'Remove page-owned containment for an opted-in leaf page. Presence-only; does not affect navigation groups or fill ownership.', defaultValue: 'false' },
+      ...pageBackgroundAttributes
     ],
     snippet: '<nodel-page title="Page">\n  ${}\n</nodel-page>'
   },

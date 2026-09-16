@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <pattern id="grain" width="8" height="8" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke-linecap="square">
+        <path stroke="#000" stroke-opacity=".22" stroke-width="1" d="M-4 4 4-4M-4 12 12-4M4 12 12 4"/>
+        <path stroke="#fff" stroke-opacity=".14" stroke-width=".55" d="M-3.3 4.7 4.7-3.3M-3.3 12.7 12.7-3.3M4.7 12.7 12.7 4.7"/>
+      </g>
+    </pattern>
+  </defs>
+  <rect width="32" height="32" fill="url(#grain)"/>
+</svg>

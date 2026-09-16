@@ -71,8 +71,12 @@ export async function writeBundleGraph(graph, reportPath = resolve(process.cwd()
 
 export function bundleGraphPlugin(projectRoot, outputRoot = resolve(projectRoot, 'dist'), reportPath = resolve(projectRoot, 'build/bundle-graph.json')) {
   let graph;
+  let effectiveOutputRoot = outputRoot;
   return {
     name: 'nodel-bundle-graph',
+    configResolved(config) {
+      effectiveOutputRoot = resolve(config.root, config.build.outDir);
+    },
     generateBundle(_options, bundle) {
       graph = normalizeRollupBundle(bundle, projectRoot);
     },
@@ -80,13 +84,13 @@ export function bundleGraphPlugin(projectRoot, outputRoot = resolve(projectRoot,
       const presentPaths = new Set();
       for (const output of graph.outputs) {
         if (/^v2\/entries\/(?:nodel|nodes|toolkit)\.js$/.test(output.path)) continue;
-        const source = await readFile(resolve(outputRoot, output.path));
+        const source = await readFile(resolve(effectiveOutputRoot, output.path));
         presentPaths.add(output.path);
         output.bytes = source.byteLength;
       }
       const cssPath = 'v2/nodel-webui.css';
       try {
-        const source = await readFile(resolve(outputRoot, cssPath));
+        const source = await readFile(resolve(effectiveOutputRoot, cssPath));
         presentPaths.add(cssPath);
         if (!graph.outputs.some((output) => output.path === cssPath)) graph.outputs.push({ path: cssPath, type: 'asset', bytes: source.byteLength, facadeModuleId: null, modules: [], imports: [], dynamicImports: [] });
       } catch (error) {

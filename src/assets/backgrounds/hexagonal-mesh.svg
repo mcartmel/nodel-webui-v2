@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="52" viewBox="0 0 60 52">
+  <defs>
+    <pattern id="mesh" width="30" height="52" patternUnits="userSpaceOnUse">
+      <path fill="none" stroke="#000" stroke-opacity=".2" stroke-width="1" d="M0 8 15 0l15 8v17L15 34 0 25Zm30 0L45 0l15 8v17L45 34 30 25ZM15 34l15-9 15 9v17l-15 9-15-9Z"/>
+      <path fill="none" stroke="#fff" stroke-opacity=".17" stroke-width="1" d="M0 6 15-2l15 8v17L15 32 0 23Zm30 0L45-2l15 8v17L45 32 30 23ZM15 32l15-9 15 9v17l-15 9-15-9Z"/>
+    </pattern>
+  </defs>
+  <rect width="60" height="52" fill="url(#mesh)"/>
+</svg>

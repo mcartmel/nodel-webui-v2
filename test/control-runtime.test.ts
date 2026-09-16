@@ -105,6 +105,22 @@ describe('catalogue runtime', () => {
     expect(states[0].entries.map((entry: NodelActivityLogEntry) => entry.alias)).toEqual(Object.keys(initialSignals));
   });
 
+  it('feeds catalogue background setters back through their narrowly scoped signals', async () => {
+    const runtime = createCatalogueRuntime();
+    const updates: Array<[string, unknown]> = [];
+    runtime.subscribeSignals(document.createElement('div'), (state) => {
+      for (const entry of state.entries) if (entry.alias.startsWith('CatalogueBackground')) updates.push([entry.alias, entry.arg]);
+    });
+
+    await runtime.callAction('SetCatalogueBackgroundPattern', { arg: 'ripples' });
+    await runtime.callAction('SetCatalogueBackgroundColor', { arg: 'theme' });
+
+    expect(updates.slice(-2)).toEqual([
+      ['CatalogueBackgroundPattern', 'ripples'],
+      ['CatalogueBackgroundColor', 'theme']
+    ]);
+  });
+
   it('keeps source and current-source signals synchronized', async () => {
     const runtime = createCatalogueRuntime();
     const aliases: string[] = [];

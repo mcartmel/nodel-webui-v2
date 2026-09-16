@@ -25,6 +25,10 @@ The complete `v2/` directory is one indivisible release asset. The stable JavaSc
 
 Focused modules under `src/component-contract/` provide the typed source of truth. An aggregate feeds the catalogue, editor assistance, reports, and the public deterministic JSON artifact; development middleware and production builds generate the same artifact without a runtime dependency. Schema 1 consumers must remain compatible with additive fields. Golden diffs classify breaking, additive, informational, and operational changes, and the release manifest binds the artifact hash.
 
+### Background Ownership Boundary
+
+`nodel-app` owns the optional viewport backdrop and resolves each background attribute independently across app defaults, the active navigation group, and the active leaf page. Page background attributes are parent-consumed inputs, not a standalone page-painting API, and only the active page chain can affect the app. The colour/image layer is brightness-filtered separately from the transparent neutral pattern layer; content, controls, surfaces, focus, and scrolling are not filtered or moved. Authored image paths are safe-validated and resolved against the authored document base URI, allowing no-build pages to use stable `v2/` assets and adjacent page-relative assets without a page-specific build. `nodel-image` remains an ordinary content-image component and is unrelated to backdrop ownership. The catalogue's local in-memory actions/signals are only a configurator wiring boundary for its preview and are not public background signals; its controls and runtime are not dependencies of ordinary authored pages.
+
 ### Shortcut Runtime Boundary
 
 `nodel-shortcut` has one module-global registry and one `window` capture-phase `keydown` listener for the document. Direct-child placement under `nodel-app` is validated at eligibility time, while exact key/modifier matching, visibility opt-outs, duplicate conflict handling, event consumption, and repeat suppression stay in the registry boundary. Multiple apps therefore share one document-global chord namespace.

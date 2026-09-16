@@ -41,6 +41,13 @@ import {
   isNodelComponentTag,
   type NodelComponentLoadErrorDetail
 } from '../nodel-component-loader';
+import {
+  BACKGROUND_ATTRIBUTE_NAMES,
+  clearBackground,
+  isBackgroundElementOwnedBy,
+  renderBackground,
+  resolveBackgroundSettings
+} from '../backgrounds/backgrounds';
 
 function setRootTheme(theme: string) {
   document.documentElement.dataset.theme = theme;
@@ -102,22 +109,28 @@ function containsNodelPage(nodes: NodeList) {
 function classifyAppMutations(records: MutationRecord[], app: HTMLElement) {
   let directChildMutation = false;
   let pageStructureMutation = false;
+  let backgroundMutation = false;
   for (const record of records) {
-    if (record.type !== 'childList') {
+    if (record.type === 'attributes') {
+      if (record.target instanceof Element && record.target.localName === 'nodel-page'
+        && isBackgroundElementOwnedBy(record.target, app)) {
+        backgroundMutation = true;
+      }
       continue;
     }
     if (record.target === app) {
       directChildMutation = true;
     }
-    if (containsNodelPage(record.addedNodes) || containsNodelPage(record.removedNodes)) {
+    if (record.target instanceof Element && isBackgroundElementOwnedBy(record.target, app)
+      && (containsNodelPage(record.addedNodes) || containsNodelPage(record.removedNodes))) {
       pageStructureMutation = true;
     }
   }
-  return { directChildMutation, pageStructureMutation };
+  return { directChildMutation, pageStructureMutation, backgroundMutation };
 }
 
 export class NodelApp extends HTMLElement implements NodelNavigationHost {
-  static observedAttributes = ['theme', 'title', 'offline-mode', 'signal', 'signals'];
+  static observedAttributes = ['theme', 'title', 'offline-mode', 'signal', 'signals', ...BACKGROUND_ATTRIBUTE_NAMES];
 
   private navigation = new AppNavigationController<HTMLElement>();
   private mutationObserver: MutationObserver | null = null;
@@ -143,6 +156,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     updateHostFavicon();
     this.connectivitySubscription = subscribeConnectivity(this.handleConnectivityChange);
     this.syncTheme();
+    renderBackground(this, resolveBackgroundSettings(this));
     this.startThemeSynchronization();
     this.syncTitle();
     this.syncSignalSubscription();
@@ -159,15 +173,21 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     window.addEventListener('hashchange', this.handleHashChange);
     window.addEventListener(NODEL_COMPONENT_LOAD_ERROR, this.handleComponentLoadError as EventListener);
     this.mutationObserver = new MutationObserver((records) => {
-      const { directChildMutation, pageStructureMutation } = classifyAppMutations(records, this);
+      const { directChildMutation, pageStructureMutation, backgroundMutation } = classifyAppMutations(records, this);
       if (directChildMutation || pageStructureMutation) {
         this.queueNavigationSync();
       }
       if (directChildMutation) {
         this.syncConnectivityPresentation();
       }
+      if (backgroundMutation) this.syncBackground();
     });
-    this.mutationObserver.observe(this, { childList: true, subtree: true });
+    this.mutationObserver.observe(this, {
+      attributes: true,
+      attributeFilter: [...BACKGROUND_ATTRIBUTE_NAMES],
+      childList: true,
+      subtree: true
+    });
     this.queueNavigationSync();
     if (isNodePage()) {
       this.restartPageOwner = acquireNodeRestartPageOwner();
@@ -209,6 +229,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     this.stopThemeSynchronization();
     this.signalBindings.dispose();
     this.clearPageClaims();
+    clearBackground(this);
   }
 
   attributeChangedCallback(name: string) {
@@ -226,6 +247,8 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
       this.syncSignalSubscription();
     } else if (name === 'offline-mode') {
       this.syncConnectivityPresentation();
+    } else if ((BACKGROUND_ATTRIBUTE_NAMES as readonly string[]).includes(name)) {
+      this.syncBackground();
     }
   }
 
@@ -582,6 +605,7 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
         claimNodelPageActive(state.page, this);
       }
     }
+    this.syncBackground(transition.visibility.filter((state) => state.active).map((state) => state.page));
     if (transition.hashWrite) {
       history.replaceState(undefined, '', transition.hashWrite);
     }
@@ -593,6 +617,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
     if (transition.pageToActivate) {
       void (transition.pageToActivate as ActivatablePage).activate?.();
     }
+  }
+
+  private syncBackground(pages?: readonly HTMLElement[]) {
+    const activePages = pages ?? Array.from(this.querySelectorAll<HTMLElement>('nodel-page[active]'));
+    renderBackground(this, resolveBackgroundSettings(this, activePages));
   }
 
   private clearPageClaims() {

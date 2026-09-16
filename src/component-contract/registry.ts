@@ -6,6 +6,7 @@ import { customContentElements } from './custom-content';
 import { customLayoutElements } from './custom-layout';
 import { coreElements } from './core-elements';
 import { internalHostElements } from './internal-hosts';
+import { BACKGROUND_ATTRIBUTE_NAMES } from '../backgrounds/contract';
 import { componentEventMap } from './events';
 import type {
   AttributeConsumption,
@@ -195,13 +196,14 @@ function numericMetadataFor(elementName: string, attribute: NodelAttributeDefini
 function consumptionFor(elementName: string, name: string): { consumption: AttributeConsumption; consumer?: string } {
   if (['visibility', 'visible-value', 'visible-values'].includes(name)) return { consumption: 'observed', consumer: 'signal-visibility-bindings' };
   if (name === 'signals') return { consumption: 'observed' };
-  if (elementName === 'nodel-page' && ['title', 'nav-label', 'nav-id'].includes(name)) return { consumption: 'parent', consumer: 'nodel-app' };
+  if (elementName === 'nodel-page' && ['title', 'nav-label', 'nav-id', ...BACKGROUND_ATTRIBUTE_NAMES].includes(name)) return { consumption: 'parent', consumer: 'nodel-app' };
   if (elementName === 'nodel-template' && name === 'data-*') return { consumption: 'wildcard' };
   if (elementName === 'nodel-button' && ['value', 'color', 'border'].includes(name)) return { consumption: 'contextual-child', consumer: 'nodel-segmented,nodel-select,nodel-palette' };
   if (elementName === 'nodel-console' && name === 'collapse-preview') return { consumption: 'contextual-child', consumer: 'nodel-collapse' };
   if (['nodel-group', 'nodel-control-grid'].includes(elementName) && name === 'fill') return { consumption: 'parent', consumer: 'nodel-column,nodel-page' };
   return { consumption: 'observed' };
 }
+
 
 function actionBindingsFor(element: NodelElementDefinition): ComponentActionBindingContract[] {
   const bindings = actionBindingMap[element.name] ?? {};

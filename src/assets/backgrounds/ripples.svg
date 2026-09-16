@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="96" viewBox="0 0 240 96">
+  <defs>
+    <path id="wave" d="M0 0C40-4 80-4 120 0s80 4 120 0"/>
+  </defs>
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#000" stroke-opacity=".2" stroke-width="1.1">
+      <use href="#wave" y="4"/><use href="#wave" y="12"/><use href="#wave" y="20"/><use href="#wave" y="28"/>
+      <use href="#wave" y="36"/><use href="#wave" y="44"/><use href="#wave" y="52"/><use href="#wave" y="60"/>
+      <use href="#wave" y="68"/><use href="#wave" y="76"/><use href="#wave" y="84"/><use href="#wave" y="92"/>
+    </g>
+    <g stroke="#fff" stroke-opacity=".14" stroke-width=".65">
+      <use href="#wave" y="5.4"/><use href="#wave" y="21.4"/><use href="#wave" y="37.4"/>
+      <use href="#wave" y="53.4"/><use href="#wave" y="69.4"/><use href="#wave" y="85.4"/>
+    </g>
+  </g>
+</svg>

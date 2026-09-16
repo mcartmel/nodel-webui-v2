@@ -1,0 +1,58 @@
+@layer components {
+  :root {
+    --nodel-background-pattern-carbon-fibre: url('../assets/backgrounds/carbon-fibre.svg?url&no-inline');
+    --nodel-background-pattern-checkerplate: url('../assets/backgrounds/checkerplate.svg?url&no-inline');
+    --nodel-background-pattern-brushed-metal: url('../assets/backgrounds/brushed-metal.svg?url&no-inline');
+    --nodel-background-pattern-woven-fabric: url('../assets/backgrounds/woven-fabric.svg?url&no-inline');
+    --nodel-background-pattern-diagonal-grain: url('../assets/backgrounds/diagonal-grain.svg?url&no-inline');
+    --nodel-background-pattern-dotted-grid: url('../assets/backgrounds/dotted-grid.svg?url&no-inline');
+    --nodel-background-pattern-hexagonal-mesh: url('../assets/backgrounds/hexagonal-mesh.svg?url&no-inline');
+    --nodel-background-pattern-ripples: url('../assets/backgrounds/ripples.svg?url&no-inline');
+    --nodel-background-pattern-concentric-waves: url('../assets/backgrounds/concentric-waves.svg?url&no-inline');
+  }
+
+  nodel-app[data-background-active='true'] {
+    isolation: isolate;
+    position: relative;
+  }
+
+  nodel-app[data-background-active='true']::before,
+  nodel-app[data-background-active='true']::after {
+    content: '';
+    position: fixed;
+    z-index: -2;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  nodel-app[data-background-active='true']::before {
+    background-color: var(--nodel-background-color);
+    background-image: var(--nodel-background-image);
+    background-position: var(--nodel-background-image-position);
+    background-repeat: var(--nodel-background-image-repeat);
+    background-size: var(--nodel-background-image-size);
+    filter: brightness(var(--nodel-background-brightness));
+  }
+
+  nodel-app[data-background-active='true']::after {
+    z-index: -1;
+    background-image: var(--nodel-background-pattern);
+    background-position: center;
+    background-repeat: repeat;
+    background-size: var(--nodel-background-pattern-size);
+    opacity: var(--nodel-background-pattern-opacity);
+  }
+
+  @media (forced-colors: active) {
+    nodel-app[data-background-active='true']::before {
+      background-color: Canvas !important;
+      background-image: none;
+      filter: none;
+    }
+
+    nodel-app[data-background-active='true']::after {
+      background-image: none;
+      opacity: 0;
+    }
+  }
+}

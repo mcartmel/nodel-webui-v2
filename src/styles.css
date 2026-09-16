@@ -1,6 +1,7 @@
 @import './styles/00-tokens-base.css';
 @import './styles/10-semantic-foundation.css';
 @import './styles/20-public-controls.css';
+@import './styles/25-backgrounds.css';
 @import './styles/30-semantic-surfaces.css';
 @import './styles/40-core-administration.css';
 @import './styles/50-editor-third-party.css';
