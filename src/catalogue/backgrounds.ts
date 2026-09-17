@@ -16,7 +16,6 @@ import { getControlRuntime } from '../data/control-runtime';
 import type { NodelControlSignalState } from '../data/control-runtime';
 import { catalogueRuntimeRequested } from './runtime-bootstrap';
 import { bootstrapJsViews } from '../jsviews/jsviews-runtime';
-import { copyTextToClipboard } from '../utils/clipboard';
 import './backgrounds.css';
 
 const patternIds = [...BACKGROUND_PATTERN_IDS, 'none' as const];
@@ -73,13 +72,12 @@ const template = `
   </div>`;
 
 const authoredMarkupTemplate = `
-  <div class="mt-6 grid gap-3">
+   <div class="mt-6 grid gap-3">
     <h3 class="nodel-catalogue-subtitle">Copyable authored markup</h3>
-    <div class="flex items-center justify-between gap-3"><span>App</span><button class="nodel-button nodel-button-ghost" data-background-copy="app">Copy app</button></div>
-    <pre class="nodel-catalogue-code" data-background-markup="app" tabindex="0"><code></code></pre>
-    <div class="flex items-center justify-between gap-3"><span>Page override</span><button class="nodel-button nodel-button-ghost" data-background-copy="page">Copy page</button></div>
-    <pre class="nodel-catalogue-code" data-background-markup="page" tabindex="0"><code></code></pre>
-    <p class="min-h-6" role="status" aria-live="polite" data-background-copy-status></p>
+   <div class="flex items-center justify-between gap-3"><span>App</span></div>
+   <pre class="nodel-catalogue-code" data-background-markup="app" data-catalogue-copy-label="App" data-catalogue-copy-disabled tabindex="0"><code></code></pre>
+   <div class="flex items-center justify-between gap-3"><span>Page override</span></div>
+   <pre class="nodel-catalogue-code" data-background-markup="page" data-catalogue-copy-label="Page override" data-catalogue-copy-disabled tabindex="0"><code></code></pre>
   </div>`;
 
 interface CatalogueState {
@@ -262,12 +260,13 @@ export async function mountBackgroundCatalogue(root: ParentNode = document, owne
   }
   const appCode = section.querySelector<HTMLElement>('[data-background-markup="app"] code');
   const pageCode = section.querySelector<HTMLElement>('[data-background-markup="page"] code');
-  const status = section.querySelector<HTMLElement>('[data-background-copy-status]');
-  if (!appCode || !pageCode || !status) {
+  if (!appCode || !pageCode) {
     jq.unlink(jq(host));
     releaseOwnership();
     return unmountedDispose();
   }
+  const mountedAppCode = appCode;
+  const mountedPageCode = pageCode;
 
   let disposed = false;
   let pendingColorSignal: string | null = null;
@@ -300,11 +299,11 @@ export async function mountBackgroundCatalogue(root: ParentNode = document, owne
       if (error) error.textContent = valid === null ? `Enter a number from ${limits[0]} to ${limits[1]}.` : '';
     }
     const values = backgroundCatalogueMarkup(state);
-    appCode.textContent = values.app;
-    pageCode.textContent = values.page;
+    mountedAppCode.textContent = values.app;
+    mountedPageCode.textContent = values.page;
     renderBackground(preview, { settings: normalizedState(state), customized: true });
     const disabled = invalidFields.size > 0 || !colorNormalized;
-    for (const button of section.querySelectorAll<HTMLButtonElement>('[data-background-copy]')) button.disabled = disabled;
+    for (const pre of [mountedAppCode.parentElement, mountedPageCode.parentElement]) pre?.toggleAttribute('data-catalogue-copy-disabled', disabled);
   };
   const publishColor = (value: string) => {
     const normalized = normalizeBackgroundColor(value);
@@ -370,16 +369,14 @@ export async function mountBackgroundCatalogue(root: ParentNode = document, owne
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') commitDraft(event.target as HTMLInputElement);
   };
-  const onClick = (event: Event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-background-copy]');
-    if (!button || disposed) return;
+  const onBeforeCopy = (event: Event) => {
+    if (disposed) return;
+    const target = event.target instanceof HTMLPreElement ? event.target : null;
+    if (!target || !mountedSection.contains(target)) return;
     const active = document.activeElement;
     if (active instanceof HTMLInputElement && host.contains(active)) commitDraft(active);
-    const code = button.dataset.backgroundCopy === 'app' ? appCode.textContent ?? '' : pageCode.textContent ?? '';
-    void copyTextToClipboard(code).then(
-      () => { if (!disposed && section.isConnected) status.textContent = 'Markup copied to the clipboard.'; },
-      () => { if (!disposed && section.isConnected) status.textContent = 'Clipboard access failed. Select the markup above and copy it manually.'; }
-    );
+    refresh();
+    if (target.hasAttribute('data-catalogue-copy-disabled')) event.preventDefault();
   };
   const onSignal = ({ entries }: NodelControlSignalState) => {
     let changed = false;
@@ -409,7 +406,7 @@ export async function mountBackgroundCatalogue(root: ParentNode = document, owne
   mountedHost.addEventListener('change', onChange);
   mountedHost.addEventListener('focusout', onFocusOut);
   mountedHost.addEventListener('keydown', onKeyDown);
-  mountedSection.addEventListener('click', onClick);
+   mountedSection.addEventListener('nodel-catalogue-before-copy', onBeforeCopy);
   refresh();
 
   function dispose() {
@@ -420,7 +417,9 @@ export async function mountBackgroundCatalogue(root: ParentNode = document, owne
     mountedHost.removeEventListener('change', onChange);
     mountedHost.removeEventListener('focusout', onFocusOut);
     mountedHost.removeEventListener('keydown', onKeyDown);
-    mountedSection.removeEventListener('click', onClick);
+    mountedSection.removeEventListener('nodel-catalogue-before-copy', onBeforeCopy);
+    mountedAppCode.parentElement?.toggleAttribute('data-catalogue-copy-disabled', true);
+    mountedPageCode.parentElement?.toggleAttribute('data-catalogue-copy-disabled', true);
     jq.unlink(jq(mountedHost));
     releaseOwnership();
   }
@@ -505,5 +504,3 @@ export function startCatalogueMounting() {
     }
   };
 }
-
-startCatalogueMounting();

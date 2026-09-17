@@ -451,13 +451,16 @@ test.describe('theme first paint and preferences', () => {
     await expectHighContrastFocus(disclosure);
   });
 
-  test('keeps representative catalogue controls reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+  test('keeps the default button reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
     await openCatalogue(page, 'Buttons');
     const buttons = page.locator('[data-catalogue-example="buttons-variants"] button');
     await tabTo(page, buttons.nth(0));
     await expectFocusIsNotClipped(buttons.nth(0));
+  });
 
+  test('keeps ControlGrid controls reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
     await openCatalogue(page, 'ControlGrid');
     const link = page.locator('[data-catalogue-example="links-native-choices"] .nodel-link');
     const choice = page.locator('.nodel-choice');
@@ -472,17 +475,26 @@ test.describe('theme first paint and preferences', () => {
     const menuItems = page.locator('#nodel-menu-Controls .nodel-menu-item');
     await tabTo(page, menuItems.nth(0));
     await expectFocusIsNotClipped(menuItems.nth(0));
+  });
 
+  test('keeps the segmented option reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
     await openCatalogue(page, 'TogglesSegmented');
     const segmentedOptions = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-segmented').first().locator('button');
     await tabTo(page, segmentedOptions.nth(0));
     await expectFocusIsNotClipped(segmentedOptions.nth(0));
+  });
 
+  test('keeps the vertical fader reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
     await openCatalogue(page, 'FadersMeters');
     const faderTracks = page.locator('[data-catalogue-example="faders-vertical"] .nodel-fader-track');
     await tabTo(page, faderTracks.nth(1));
     await expectFocusIsNotClipped(faderTracks.nth(1));
+  });
 
+  test('keeps the disclosure reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+    test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
     await openCatalogue(page, 'Collapse');
     const disclosures = page.locator('[data-catalogue-example="layout-collapse"] .nodel-collapse-summary');
     await tabTo(page, disclosures.nth(0));

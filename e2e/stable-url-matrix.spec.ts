@@ -97,6 +97,10 @@ async function serveMinimalNodeRest(page: Page) {
 }
 
 test.describe('stable authored URL matrix', () => {
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'wait' });
+  });
+
   for (const builtPage of builtPages) {
     test(`serves ${builtPage}.html below a node URL with stable assets`, async ({ page }, testInfo) => {
       skipOutsideReleaseMatrix(testInfo);
