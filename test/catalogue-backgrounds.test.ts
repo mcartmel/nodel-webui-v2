@@ -6,6 +6,13 @@ import '../src/components/nodel-select';
 import '../src/components/nodel-palette';
 import { createCatalogueRuntime } from '../src/catalogue/runtime';
 import { installControlRuntime } from '../src/data/control-runtime';
+import { enhanceCatalogueCodeCopy } from '../src/catalogue/code-copy';
+
+function copyButton(section: ParentNode, kind: 'app' | 'page') {
+  return section.querySelector<HTMLButtonElement>(`[data-background-markup="${kind}"]`)?.previousElementSibling?.querySelector<HTMLButtonElement>('button');
+}
+
+let disposeCodeCopy: (() => void) | undefined;
 
 function sectionMarkup() {
   return '<section data-background-catalogue-section><div data-background-catalogue="backgrounds"></div><div data-background-catalogue-markup></div></section>';
@@ -23,7 +30,9 @@ describe('catalogue background integration', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.history.replaceState(undefined, '', '/components.html');
+    disposeCodeCopy = enhanceCatalogueCodeCopy();
   });
+  afterEach(() => disposeCodeCopy?.());
 
   it('does not bind controls when the memory marker is absent', async () => {
     const subscribe = vi.fn(() => ({ dispose: vi.fn() }));
@@ -100,7 +109,7 @@ describe('catalogue background integration', () => {
     expect(color.getAttribute('aria-invalid')).toBe('true');
     expect(number.getAttribute('aria-invalid')).toBe('true');
     expect(section.querySelector('[data-background-markup="app"] code')?.textContent).toBe(original);
-    expect(section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.disabled).toBe(true);
+    expect(copyButton(section, 'app')?.disabled).toBe(true);
     restore();
   });
 
@@ -143,7 +152,9 @@ describe('catalogue background integration', () => {
     color.focus();
     color.value = '#abc';
     color.dispatchEvent(new Event('input', { bubbles: true }));
-    section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.click();
+    await waitFor(() => copyButton(section, 'app')?.disabled === false);
+    copyButton(section, 'app')?.click();
+    await flush();
     expect(color.value).toBe('rgb(170 187 204)');
     expect(section.querySelector('[data-background-markup="app"] code')?.textContent).toContain('background-color="rgb(170 187 204)"');
     restore();
@@ -159,7 +170,7 @@ describe('catalogue background integration', () => {
     const section = document.querySelector<HTMLElement>('[data-background-catalogue-section]')!;
     const color = host.querySelector<HTMLInputElement>('[data-background-field="color"]')!;
     const error = host.querySelector<HTMLElement>('[data-background-color-error]')!;
-    const copy = section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')!;
+    const copy = copyButton(section, 'app')!;
 
     color.focus();
     color.value = '#abc';
@@ -186,7 +197,7 @@ describe('catalogue background integration', () => {
     expect(color.value).toBe('rgb(171 205 239)');
     expect(color.getAttribute('aria-invalid')).toBe('false');
     expect(error.textContent).toBe('');
-    expect(copy.disabled).toBe(false);
+    await waitFor(() => copy.disabled === false);
     expect(section.querySelector('[data-background-markup="app"] code')?.textContent).toContain('background-color="rgb(171 205 239)"');
     restore();
   });
@@ -209,7 +220,7 @@ describe('catalogue background integration', () => {
 
     expect(color.value).toBe('rgb(240 243 245)');
     expect(color.getAttribute('aria-invalid')).toBe('false');
-    expect(section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.disabled).toBe(false);
+    await waitFor(() => copyButton(section, 'app')?.disabled === false);
     expect(callAction.mock.calls.filter(([name]) => name === 'SetCatalogueBackgroundColor')).toHaveLength(1);
 
     color.value = 'invalid';
@@ -219,7 +230,7 @@ describe('catalogue background integration', () => {
 
     expect(color.value).toBe('theme');
     expect(color.getAttribute('aria-invalid')).toBe('false');
-    expect(section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.disabled).toBe(false);
+    await waitFor(() => copyButton(section, 'app')?.disabled === false);
     expect(callAction.mock.calls.filter(([name]) => name === 'SetCatalogueBackgroundColor')).toHaveLength(2);
     restore();
   });
@@ -244,7 +255,7 @@ describe('catalogue background integration', () => {
     expect(strength.value).toBe('');
     expect(strength.getAttribute('aria-invalid')).toBe('true');
     expect(host.querySelector('[data-background-number-error="patternStrength"]')?.textContent).toContain('Enter a number');
-    expect(section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.disabled).toBe(true);
+    expect(copyButton(section, 'app')?.disabled).toBe(true);
 
     strength.focus();
     strength.value = '150';
@@ -255,7 +266,8 @@ describe('catalogue background integration', () => {
     expect(host.querySelector<HTMLInputElement>('#background-strength-range')?.value).toBe('100');
     expect(strength.getAttribute('aria-invalid')).toBe('false');
     expect(section.querySelector('[data-background-markup="app"] code')?.textContent).toContain('background-pattern-strength="100"');
-    expect(section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.disabled).toBe(false);
+    await flush();
+    expect(copyButton(section, 'app')?.disabled).toBe(false);
     strength.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
     expect(strength.value).toBe('100');
     restore();
@@ -499,8 +511,9 @@ describe('catalogue background integration', () => {
     const stop = startCatalogueMounting();
     const section = document.querySelector<HTMLElement>('[data-background-catalogue-section]')!;
     await waitFor(() => Boolean(section.querySelector('[data-background-preview]')));
-    const status = section.querySelector<HTMLElement>('[data-background-copy-status]')!;
-    section.querySelector<HTMLButtonElement>('[data-background-copy="app"]')?.click();
+    const status = section.querySelector<HTMLElement>('[data-catalogue-copy-status]')!;
+    await waitFor(() => copyButton(section, 'app')?.disabled === false);
+    copyButton(section, 'app')?.click();
     section.remove();
     await flush();
 

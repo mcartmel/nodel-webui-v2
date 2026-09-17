@@ -29,6 +29,10 @@ Focused modules under `src/component-contract/` provide the typed source of trut
 
 `nodel-app` owns the optional viewport backdrop and resolves each background attribute independently across app defaults, the active navigation group, and the active leaf page. Page background attributes are parent-consumed inputs, not a standalone page-painting API, and only the active page chain can affect the app. The colour/image layer is brightness-filtered separately from the transparent neutral pattern layer; content, controls, surfaces, focus, and scrolling are not filtered or moved. Authored image paths are safe-validated and resolved against the authored document base URI, allowing no-build pages to use stable `v2/` assets and adjacent page-relative assets without a page-specific build. `nodel-image` remains an ordinary content-image component and is unrelated to backdrop ownership. The catalogue's local in-memory actions/signals are only a configurator wiring boundary for its preview and are not public background signals; its controls and runtime are not dependencies of ordinary authored pages.
 
+### Catalogue Code Copy Boundary
+
+The Components catalogue loads its private `code-copy` enhancement from `components.html` only. Authored `pre.nodel-catalogue-code` blocks receive one progressive-enhancement Copy control, while generated blocks may provide a private label and disabled-state flag. These hooks and the synchronous before-copy event are catalogue integration details, not public component APIs.
+
 ### Shortcut Runtime Boundary
 
 `nodel-shortcut` has one module-global registry and one `window` capture-phase `keydown` listener for the document. Direct-child placement under `nodel-app` is validated at eligibility time, while exact key/modifier matching, visibility opt-outs, duplicate conflict handling, event consumption, and repeat suppression stay in the registry boundary. Multiple apps therefore share one document-global chord namespace.

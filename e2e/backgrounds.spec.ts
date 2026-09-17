@@ -26,6 +26,14 @@ async function openBackgroundCatalogue(page: Page) {
   return host;
 }
 
+function backgroundCopyButton(section: ReturnType<Page['locator']>, kind: 'app' | 'page') {
+  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=preceding-sibling::*[1]//button');
+}
+
+function backgroundCopyStatus(section: ReturnType<Page['locator']>, kind: 'app' | 'page') {
+  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=preceding-sibling::*[1]').locator('[data-catalogue-copy-status]');
+}
+
 async function chooseCatalogueOption(catalogue: ReturnType<Page['locator']>, action: string, value: string) {
   const select = catalogue.locator(`nodel-select[action="${action}"]`);
   await select.locator('.nodel-select-trigger').click();
@@ -328,9 +336,13 @@ test.describe('authored background rendering', () => {
     await expect(example.locator('[data-background-field="patternScale"]').first()).toHaveValue('100');
     await expect(example.locator('[data-background-field="patternScale"]').nth(1)).toHaveValue('100');
     if (['chromium-light-desktop', 'chromium-dark-desktop', 'chromium-light-mobile', 'chromium-dark-mobile'].includes(testInfo.project.name)) {
-      await section.screenshot({ path: `/work/build/background-refinement/catalogue/${testInfo.project.name}-normal.png` });
+      const normalArtifact = testInfo.outputPath('backgrounds-normal.png');
+      await section.screenshot({ path: normalArtifact });
+      await testInfo.attach('backgrounds-normal', { path: normalArtifact, contentType: 'image/png' });
       await example.locator('nodel-select').first().locator('.nodel-select-trigger').click();
-      await section.screenshot({ path: `/work/build/background-refinement/catalogue/${testInfo.project.name}-pattern-open.png` });
+      const openArtifact = testInfo.outputPath('backgrounds-pattern-open.png');
+      await section.screenshot({ path: openArtifact });
+      await testInfo.attach('backgrounds-pattern-open', { path: openArtifact, contentType: 'image/png' });
       await page.keyboard.press('Escape');
     }
 
@@ -360,21 +372,21 @@ test.describe('authored background rendering', () => {
     await expect(color).toHaveAttribute('aria-invalid', 'true');
     await expect.poll(() => color.evaluate((input) => !(input as HTMLInputElement).checkValidity())).toBe(true);
     await expect(example.locator('[data-background-color-error]')).toContainText('Enter an opaque RGB');
-    await expect(section.locator('[data-background-copy="app"]')).toBeDisabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeDisabled();
     await example.locator('nodel-palette nodel-button[value="#f0f3f5"] button').click();
     await expect(color).toHaveValue('rgb(240 243 245)');
     await expect(color).toHaveAttribute('aria-invalid', 'false');
-    await expect(section.locator('[data-background-copy="app"]')).toBeEnabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeEnabled();
     await color.fill('invalid');
     await example.locator('nodel-button[arg="theme"] button').click();
     await expect(color).toHaveValue('theme');
     await expect(color).toHaveAttribute('aria-invalid', 'false');
     await expect(section.locator('[data-background-markup="page"]')).toContainText('background-color="theme"');
-    await expect(section.locator('[data-background-copy="app"]')).toBeEnabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeEnabled();
     await color.fill('#010203');
     await expect(color).toHaveAttribute('aria-invalid', 'false');
     await expect.poll(() => color.evaluate((input) => (input as HTMLInputElement).checkValidity())).toBe(true);
-    await expect(section.locator('[data-background-copy="app"]')).toBeEnabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeEnabled();
     await expect(example.locator('nodel-palette .nodel-palette-value-input')).toHaveValue('#010203');
     await example.locator('nodel-palette .nodel-palette-custom-input').fill('#a1b2c3');
     await example.locator('nodel-palette .nodel-palette-custom-button').click();
@@ -386,12 +398,12 @@ test.describe('authored background rendering', () => {
     await expect(strengthNumber).toHaveValue('');
     await expect(strengthNumber).toHaveAttribute('aria-invalid', 'true');
     await expect(example.locator('[data-background-number-error="patternStrength"]')).toContainText('Enter a number');
-    await expect(section.locator('[data-background-copy="app"]')).toBeDisabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeDisabled();
     await strengthNumber.fill('150');
     await expect(strengthNumber).toHaveValue('150');
     await expect(example.locator('#background-strength-range')).toHaveValue('100');
     await expect(section.locator('[data-background-markup="app"]')).toContainText('background-pattern-strength="100"');
-    await expect(section.locator('[data-background-copy="app"]')).toBeEnabled();
+    await expect(backgroundCopyButton(section, 'app')).toBeEnabled();
     await strengthNumber.press('Enter');
     await expect(strengthNumber).toHaveValue('100');
     const scaleNumber = example.locator('#background-scale-number');
@@ -411,8 +423,9 @@ test.describe('authored background rendering', () => {
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('blocked')) } });
       Object.defineProperty(document, 'execCommand', { configurable: true, value: () => false });
     });
-    await section.locator('[data-background-copy="app"]').click();
-    await expect(section.locator('[data-background-copy-status]')).toContainText('Clipboard access failed');
+    await backgroundCopyButton(section, 'app').click();
+    await expect(backgroundCopyStatus(section, 'app')).toContainText('Clipboard access failed');
+    await expect(backgroundCopyStatus(section, 'page')).toHaveText('');
     expect(requests.some((url) => /REST\/(actions|activity)/i.test(url))).toBe(false);
     expect(websockets).toEqual([]);
   });
@@ -420,6 +433,13 @@ test.describe('authored background rendering', () => {
   test('keeps generated blocks in-section and remounts after actual catalogue replacement', async ({ page }) => {
     const example = await openBackgroundCatalogue(page);
     const section = page.locator('[data-background-catalogue-section]');
+    await page.evaluate(() => {
+      (window as Window & { __backgroundReplacementCopies?: string[] }).__backgroundReplacementCopies = [];
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: (text: string) => { (window as Window & { __backgroundReplacementCopies?: string[] }).__backgroundReplacementCopies?.push(text); return Promise.resolve(); } }
+      });
+    });
     const structure = await section.evaluate((element) => {
       const examples = element.querySelector('[data-background-catalogue="backgrounds"]')!;
       const blocks = Array.from(element.querySelectorAll<HTMLElement>('[data-background-markup]'));
@@ -452,6 +472,17 @@ test.describe('authored background rendering', () => {
     await expect(replacementHost).toHaveAttribute('data-background-catalogue-mounted', 'pending');
     expect(await page.evaluate(() => (window as Window & { __removedBackgroundHost?: HTMLElement }).__removedBackgroundHost?.dataset.backgroundCatalogueMounted)).toBeUndefined();
     await expect(replacement.locator('[data-background-markup="app"]')).toContainText('background-color="rgb(52 86 120)"');
+    await expect.poll(() => replacement.locator('[data-background-markup]').evaluateAll((blocks) => blocks.every((block) => {
+      const toolbar = block.previousElementSibling;
+      return toolbar?.hasAttribute('data-catalogue-copy-toolbar') && toolbar.querySelectorAll('button').length === 1 && toolbar.querySelectorAll('[data-catalogue-copy-status]').length === 1;
+    }))).toBe(true);
+    for (const kind of ['app', 'page'] as const) {
+      const pre = replacement.locator(`[data-background-markup="${kind}"]`);
+      const expected = await pre.locator('code').textContent();
+      await backgroundCopyButton(replacement, kind).click();
+      await expect.poll(() => page.evaluate(() => (window as Window & { __backgroundReplacementCopies?: string[] }).__backgroundReplacementCopies?.at(-1))).toBe(expected);
+      await expect(backgroundCopyStatus(replacement, kind)).toHaveText('Code copied to the clipboard.');
+    }
   });
 
   test('preserves an explicit RGB page colour over a conflicting app colour', async ({ page }, testInfo) => {
@@ -723,18 +754,32 @@ test.describe('authored background rendering', () => {
   });
 
   test('supports keyboard selection, successful clipboard copy, and selectable generated markup', async ({ page }, testInfo) => {
-    test.skip(!testInfo.project.name.startsWith('chromium-'), 'The pinned Firefox/WebKit engines do not expose the clipboard permission names used for this success-path test.');
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    const nativeClipboard = testInfo.project.name.startsWith('chromium');
+    if (nativeClipboard) await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    else {
+      await page.addInitScript(() => {
+        (window as Window & { __backgroundCopies?: string[] }).__backgroundCopies = [];
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: { writeText: (text: string) => { (window as Window & { __backgroundCopies?: string[] }).__backgroundCopies?.push(text); return Promise.resolve(); } }
+        });
+      });
+    }
     const catalogue = await openBackgroundCatalogue(page);
     const section = page.locator('[data-background-catalogue-section]');
+    await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(56);
+    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(56);
     const patternSelect = catalogue.locator('nodel-select[action="SetCatalogueBackgroundPattern"]');
     await patternSelect.locator('.nodel-select-trigger').focus();
     await page.keyboard.press('Enter');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
     await expect(patternSelect).toHaveAttribute('value', 'checkerplate');
-    await section.locator('[data-background-copy="app"]').click();
-    await expect(section.locator('[data-background-copy-status]')).toContainText('Markup copied');
+    const expected = await section.locator('[data-background-markup="app"] code').textContent();
+    await backgroundCopyButton(section, 'app').click();
+    await expect(backgroundCopyStatus(section, 'app')).toContainText('Code copied');
+    if (nativeClipboard) await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+    else await expect.poll(() => page.evaluate(() => (window as Window & { __backgroundCopies?: string[] }).__backgroundCopies?.at(-1))).toBe(expected);
     const markup = section.locator('[data-background-markup="app"]');
     await expect(markup).toContainText('<nodel-app');
     await expect(markup).toHaveAttribute('tabindex', '0');
