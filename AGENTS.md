@@ -5,6 +5,19 @@
 - This guidance applies to the `nodel-webui-v2` project.
 - Treat `docs/architecture.md` and `docs/web-components.md` as the canonical human-facing design guidance.
 
+## Testing and Verification
+
+- During implementation, prefer focused tests for changed behavior and affected integration points. Use `npm test -- <test-file-or-path-filter>`; add `-t "<test-name-pattern>"` when narrower coverage is appropriate.
+- Validate each meaningful change with relevant checks: `npm run typecheck`, linting, `npm run check:jsviews` for template changes, and diff review. Use `npx eslint <changed-files>` for focused lint checks.
+- Reserve the full Vitest suite (`npm test`) for final verification, after implementation is complete and focused tests and relevant checks pass. Do not run it after every edit or intermediate implementation stage.
+- `npm run build` and `npm run build:pro` include the full Vitest suite. Reserve these gated builds for final verification; use `npm run build:preview` or `npm run build:pro:preview` for intermediate build checks. Preview builds do not replace final verification.
+- Avoid duplicate full-suite runs on unchanged code. A successful final gated build satisfies the full Vitest suite requirement.
+- When delegating implementation, keep each task's validation focused and coordinate a single final full-suite run for the integrated changes.
+- Run browser, visual, deployment, and release checks when relevant to the affected behavior or required by the delivery workflow. Passing Vitest alone does not establish that these checks passed.
+- If final verification fails, fix the issue and rerun focused checks first, then repeat the affected final gate after substantive fixes.
+- Documentation-only changes do not require the full suite unless they affect executable examples, configuration, or behavior.
+- Report the checks run and their results, including any skipped or blocked verification. Never imply that unrun checks passed.
+
 ## Web Component Markup
 
 - Prefer safe defaults over explicit attributes in page markup.
