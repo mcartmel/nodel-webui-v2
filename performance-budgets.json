@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "APPROVED_BACKGROUND_ASSETS_2026-09-16",
-  "rationale": "Measured increase from preserving four detailed background SVG assets is approved only for dist-v2-inventory: baseline 5448589 raw / 1442562 gzip bytes, with reviewed two percent rounded budgets of 5560000 raw / 1475000 gzip bytes. All other metric baselines and limits remain unchanged; no production JavaScript or CSS roles are ratcheted.",
+  "releaseNotesMarker": "APPROVED_CATALOGUE_STRUCTURE_2026-09-18",
+  "rationale": "Catalogue reorganization covers 39 pages, 59 paired examples, and 67 copy blocks; only components-html is rebaselined to reviewed actual raw 175483 / gzip 20145 with five percent headroom. All other metrics and budgets remain unchanged.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -32,7 +32,7 @@
     "codemirror-language-groovy": { "rawBaseline": 4139, "rawMax": 4346, "gzipBaseline": 1765, "gzipMax": 1854 },
     "codemirror-language-sql": { "rawBaseline": 40595, "rawMax": 42625, "gzipBaseline": 14926, "gzipMax": 15673 },
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
-    "components-html": { "rawBaseline": 125904, "rawMax": 132200, "gzipBaseline": 16157, "gzipMax": 16965 },
+    "components-html": { "rawBaseline": 175483, "rawMax": 184258, "gzipBaseline": 20145, "gzipMax": 21153 },
     "free-icon-artifact": { "rawBaseline": 2758285, "rawMax": 2896200, "gzipBaseline": 666125, "gzipMax": 699432 },
     "dist-v2-inventory": { "rawBaseline": 5448589, "rawMax": 5560000, "gzipBaseline": 1442562, "gzipMax": 1475000 }
   }

@@ -7,8 +7,8 @@ async function openCatalogue(page: Page, pageId: string) {
 
 test.describe('catalogue in-memory runtime', () => {
   test('catalogue uses canonical public Free examples and preserves the Nodel alias', async ({ page }) => {
-    await openCatalogue(page, 'Media');
-    const examples = page.locator('[data-catalogue-example="media-standalone-media"] nodel-icon');
+    await openCatalogue(page, 'Icons');
+    const examples = page.locator('[data-catalogue-example="icons-standalone"] nodel-icon');
     await expect(examples).toHaveCount(4);
     await expect(examples.nth(0)).toHaveAttribute('data-name', 'tv');
     await expect(examples.nth(0)).toHaveAttribute('data-family', 'classic');
@@ -19,6 +19,21 @@ test.describe('catalogue in-memory runtime', () => {
     await expect(examples.nth(2)).toHaveAttribute('data-family', 'brands');
     await expect(examples.nth(3)).toHaveAttribute('data-name', 'power');
     await expect(page.locator('nodel-icon[family="duotone"], nodel-icon[family="sharp"], nodel-icon[family="sharp-duotone"]')).toHaveCount(0);
+    await openCatalogue(page, 'Images');
+    await expect(page.locator('[data-catalogue-example="images-standalone"] nodel-image')).toHaveCount(1);
+    const imageOptions = page.locator('[data-catalogue-example="images-options"]');
+    await expect(imageOptions.locator('nodel-image')).toHaveCount(2);
+    await expect(imageOptions.locator('nodel-image').nth(0)).toHaveAttribute('data-fit', 'contain');
+    await expect(imageOptions.locator('nodel-image').nth(0)).toHaveAttribute('data-shape', 'rounded');
+    await expect(imageOptions.locator('nodel-image').nth(1)).toHaveAttribute('data-fit', 'cover');
+    await expect(imageOptions.locator('nodel-image').nth(1)).toHaveAttribute('data-shape', 'circle');
+    await expect(imageOptions.locator('nodel-group')).toHaveCount(2);
+    await openCatalogue(page, 'Icons');
+    const iconOptions = page.locator('[data-catalogue-example="icons-options"]');
+    await expect(iconOptions.locator('nodel-icon')).toHaveCount(2);
+    await expect(iconOptions.locator('nodel-icon').nth(0)).toHaveAttribute('data-tone', 'info');
+    await expect(iconOptions.locator('nodel-icon').nth(1)).toHaveAttribute('data-tone', 'danger');
+    await expect(iconOptions.locator('nodel-group')).toHaveCount(2);
   });
 
   test('loads catalogue icons from an authored page without remote Font Awesome requests', async ({ page }) => {
@@ -76,7 +91,7 @@ test.describe('catalogue in-memory runtime', () => {
     page.on('request', (request) => requests.push(request.url()));
     page.on('websocket', (websocket) => websockets.push(websocket.url()));
 
-    await openCatalogue(page, 'ControlGrid');
+    await openCatalogue(page, 'DynamicOptions');
     await expect(page.locator('script[data-nodel-runtime="memory"]')).toHaveCount(1);
 
     await expect(page.locator('[data-catalogue-example="dynamic-options"] nodel-select')).toHaveAttribute('data-options-state', 'ready');
@@ -88,10 +103,10 @@ test.describe('catalogue in-memory runtime', () => {
     await dynamicSelect.locator('nodel-button[value="TV"] button').click();
 
     await expect(dynamicSelect.locator('.nodel-select-value')).toHaveText('TV');
-    await openCatalogue(page, 'PickersPrecision');
-    await expect(page.locator('[data-catalogue-example="select-stepper"] nodel-select .nodel-select-value')).toHaveText('TV');
+    await openCatalogue(page, 'Select');
+    await expect(page.locator('[data-catalogue-example="select-options"] nodel-select .nodel-select-value')).toHaveText('TV');
 
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'Toggles');
     const power = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-toggle').first();
     await expect(power).toHaveAttribute('data-state', 'off');
     await power.locator('button').click();
@@ -102,7 +117,7 @@ test.describe('catalogue in-memory runtime', () => {
     await generatedButton.locator('button').click();
     await expect(generatedButton).toHaveAttribute('data-active', 'true');
 
-    await openCatalogue(page, 'Media');
+    await openCatalogue(page, 'StatusBlocks');
     const network = page.locator('[data-catalogue-example="media-status-blocks"] nodel-status').filter({ hasText: 'Network' });
     await expect(network).toHaveAttribute('data-state', 'warning');
     await network.locator('nodel-button').click();
@@ -111,6 +126,24 @@ test.describe('catalogue in-memory runtime', () => {
 
     expect(requests.some((url) => /REST\/(actions|activity)/.test(url))).toBe(false);
     expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
+  });
+
+  test('fresh-load Actions & Signals join control follows the seeded Power signal', async ({ page }) => {
+    await openCatalogue(page, 'ActionsSignals');
+
+    const power = page.locator('[data-catalogue-example="buttons-actions-signals"] nodel-button').filter({ hasText: 'Toggle power' });
+    const button = power.locator('button');
+
+    await expect(power).toHaveAttribute('data-active', 'false');
+    await expect(button).not.toHaveAttribute('aria-pressed', 'true');
+
+    await button.click();
+    await expect(power).toHaveAttribute('data-active', 'true');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    await button.click();
+    await expect(power).toHaveAttribute('data-active', 'false');
+    await expect(button).not.toHaveAttribute('aria-pressed', 'true');
   });
 
   test('keeps the memory override active when the catalogue is served below a node path', async ({ page }) => {
@@ -130,8 +163,8 @@ test.describe('catalogue in-memory runtime', () => {
     const websockets: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
     page.on('websocket', (websocket) => websockets.push(websocket.url()));
-    await page.goto('/nodes/Demo/components.html#TogglesSegmented', { waitUntil: 'domcontentloaded' });
-    await page.locator('nodel-page[data-page-id="TogglesSegmented"][active]').waitFor();
+    await page.goto('/nodes/Demo/components.html#Toggles', { waitUntil: 'domcontentloaded' });
+    await page.locator('nodel-page[data-page-id="Toggles"][active]').waitFor();
 
     const power = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-toggle').first();
     await power.locator('button').click();
@@ -183,7 +216,7 @@ test.describe('catalogue in-memory runtime', () => {
     const websockets: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
     page.on('websocket', (websocket) => websockets.push(websocket.url()));
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'Toggles');
 
     const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' }).locator('nodel-toggle');
     const trigger = shutdown.locator('button');

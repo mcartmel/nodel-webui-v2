@@ -68,7 +68,7 @@ test.describe('catalogue code copy', () => {
   });
 
   test('inventories all authored blocks and excludes preview and reference code', async ({ page }, testInfo) => {
-    await openCatalogue(page, 'AppShell');
+    await openCatalogue(page, 'App');
     await expect.poll(() => page.locator('[data-background-markup] code').evaluateAll((codes) => codes.every((code) => Boolean(code.textContent?.trim())))).toBe(true);
     const inventory = await page.locator('pre.nodel-catalogue-code > code').evaluateAll((codes) => {
       const pres = codes.map((code) => code.parentElement!).filter((pre) => !pre.closest('[data-catalogue-example]'));
@@ -91,8 +91,8 @@ test.describe('catalogue code copy', () => {
         duplicateIds: [...document.querySelectorAll('[id]')].map((element) => element.id).filter((id, index, ids) => ids.indexOf(id) !== index)
       };
     });
-    expect(inventory).toEqual({ blocks: 56, toolbars: 56, buttons: 56, statuses: 56, uniqueButtons: 56, uniqueStatuses: 56, toolbarAbovePre: true, meaningfulLabels: true, quickstartLabel: 'Copy code: Quickstart', backgroundLabels: ['Copy code: Backgrounds, App', 'Copy code: Backgrounds, Page override'], insideExamples: 0, referenceCells: 0, duplicateIds: [] });
-    await saveCapture(page.locator('nodel-page[data-page-id="AppShell"][active]'), testInfo, 'catalogue-inventory.png');
+    expect(inventory).toEqual({ blocks: 69, toolbars: 69, buttons: 69, statuses: 69, uniqueButtons: 69, uniqueStatuses: 69, toolbarAbovePre: true, meaningfulLabels: true, quickstartLabel: 'Copy code: Quickstart', backgroundLabels: ['Copy code: Backgrounds, App', 'Copy code: Backgrounds, Page override'], insideExamples: 0, referenceCells: 0, duplicateIds: [] });
+    await saveCapture(page.locator('nodel-page[data-page-id="App"][active]'), testInfo, 'catalogue-inventory.png');
   });
 
   test('writes exact displayed text for Quickstart, nested templates, paired, and unpaired blocks', async ({ page }, testInfo) => {
@@ -100,7 +100,9 @@ test.describe('catalogue code copy', () => {
       { pageId: 'Quickstart', selector: '[data-catalogue-quickstart-code]' },
       { pageId: 'Templates', selector: '[data-catalogue-code-for="templates-shared"]' },
       { pageId: 'Buttons', selector: '[data-catalogue-code-for="buttons-variants"]' },
-      { pageId: 'AppShell', selector: 'pre.nodel-catalogue-code:not([data-catalogue-code-for]):has-text("<nodel-shortcut")' }
+      { pageId: 'Readouts', selector: '[data-catalogue-purpose="single-display-composition"]' },
+      { pageId: 'PageSizing', selector: '[data-catalogue-purpose="viewport-page-layout"]' },
+      { pageId: 'KeyboardShortcuts', selector: 'pre.nodel-catalogue-code:not([data-catalogue-code-for]):has-text("<nodel-shortcut")' }
     ];
     for (const current of cases) {
       await openCatalogue(page, current.pageId);
@@ -114,8 +116,28 @@ test.describe('catalogue code copy', () => {
     await saveCapture(page.locator('[data-catalogue-code-for="templates-shared"]').locator('xpath=..'), testInfo, 'catalogue-copy-representatives.png');
   });
 
+  test('keeps reported snippets readable and copies their exact source', async ({ page }, testInfo) => {
+    for (const current of [
+      { pageId: 'Icons', selector: '[data-catalogue-code-for="icons-options"]', root: '<nodel-control-grid' },
+      { pageId: 'Faders', selector: '[data-catalogue-code-for="faders-horizontal"]', root: '<nodel-control-grid' }
+    ]) {
+      await openCatalogue(page, current.pageId);
+      const pre = page.locator(current.selector);
+      const code = await pre.locator('code').textContent();
+      const lines = code?.split('\n') ?? [];
+      expect(lines[0]).toContain(current.root);
+      expect(lines[0]).not.toMatch(/^\s/);
+      expect(lines[1]).toMatch(/^ {2}<nodel-/);
+      expect(lines.at(-1)).toMatch(/^<\//);
+      if (current.pageId === 'Faders') expect(code).toContain('increment=""');
+      await copyButton(pre).click();
+      await expect.poll(() => capture(page).then((result) => result.writes.at(-1))).toBe(code);
+      await saveCapture(pre, testInfo, `catalogue-code-formatting-${current.pageId}.png`);
+    }
+  });
+
   test('keeps both generated Backgrounds snippets independently valid and exact after recovery', async ({ page }, testInfo) => {
-    await openCatalogue(page, 'AppShell');
+    await openCatalogue(page, 'App');
     const section = page.locator('[data-background-catalogue-section]');
     const app = page.locator('[data-background-catalogue="backgrounds"]');
     const appPre = section.locator('[data-background-markup="app"]');
@@ -256,7 +278,7 @@ test.describe('catalogue code copy', () => {
   });
 
   test('releases a disabled producer after a deferred copy settles', async ({ page }) => {
-    await openCatalogue(page, 'AppShell');
+    await openCatalogue(page, 'App');
     const pre = page.locator('[data-background-markup="app"]');
     const button = copyButton(pre);
     await page.evaluate(() => (window as unknown as Window & { __catalogueCopyCapture: CopyCapture }).__catalogueCopyCapture.defer = true);
@@ -324,7 +346,7 @@ test.describe('catalogue code copy', () => {
     await openCatalogue(page, 'Quickstart');
     const quickstart = await new AxeBuilder({ page }).include('[data-catalogue-quickstart]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(quickstart.violations).toEqual([]);
-    await openCatalogue(page, 'AppShell');
+    await openCatalogue(page, 'App');
     const backgrounds = await new AxeBuilder({ page }).include('[data-background-catalogue-section]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(backgrounds.violations).toEqual([]);
   });

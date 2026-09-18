@@ -78,8 +78,8 @@ async function openNodeBackedCatalogue(page: Page, activityEntries: ActivityEntr
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(responseEntries) });
   });
 
-  await page.goto('/nodes/Demo/components.html#PickersPrecision', { waitUntil: 'domcontentloaded' });
-  await page.locator('nodel-page[data-page-id="PickersPrecision"][active]').waitFor();
+  await page.goto('/nodes/Demo/components.html#DynamicOptions', { waitUntil: 'domcontentloaded' });
+  await page.locator('nodel-page[data-page-id="DynamicOptions"][active]').waitFor();
   await page.addStyleTag({ content: animationReset });
 }
 
@@ -104,7 +104,7 @@ test.describe('dynamic options', () => {
       { seq: 3, alias: 'AvailableModes', arg: ['Auto', { key: 'manual', value: 'Manual' }] },
       { seq: 4, alias: 'CurrentMode', arg: 'Auto' }
     ]);
-    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+    await page.locator('nodel-page[data-page-id="DynamicOptions"][active] [data-page-content]').evaluate((pageContent) => {
       const fixture = document.createElement('section');
       fixture.dataset.dynamicOptionsFixture = '';
       fixture.innerHTML = `
@@ -160,7 +160,7 @@ test.describe('dynamic options', () => {
       { seq: 1, alias: 'AvailableModes', arg: ['Auto', 'Manual'] },
       { seq: 2, alias: 'CurrentMode', arg: 'Auto' }
     ]);
-    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+    await page.locator('nodel-page[data-page-id="DynamicOptions"][active] [data-page-content]').evaluate((pageContent) => {
       const fixture = document.createElement('section');
       fixture.dataset.segmentedHoverFixture = '';
       fixture.innerHTML = '<nodel-segmented options-signal="AvailableModes" signal="CurrentMode"></nodel-segmented>';
@@ -193,7 +193,7 @@ test.describe('dynamic options', () => {
       { seq: 5, alias: 'EmptyModes', arg: [] },
       { seq: 6, alias: 'BadModes', arg: ['Auto', 'Auto'] }
     ]);
-    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+    await page.locator('nodel-page[data-page-id="DynamicOptions"][active] [data-page-content]').evaluate((pageContent) => {
       const fixture = document.createElement('section');
       fixture.dataset.dynamicOptionsStateFixture = '';
       fixture.innerHTML = `
@@ -261,7 +261,7 @@ test.describe('dynamic options', () => {
       { seq: 7, alias: 'AvailableModes', arg: [{ key: 'eco', value: 'Eco' }, { key: 'boost', value: 'Boost' }] },
       { seq: 8, alias: 'CurrentMode', arg: 'boost' }
     ]);
-    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+    await page.locator('nodel-page[data-page-id="DynamicOptions"][active] [data-page-content]').evaluate((pageContent) => {
       const fixture = document.createElement('section');
       fixture.dataset.dynamicOptionsReplaceFixture = '';
       fixture.innerHTML = `
@@ -292,7 +292,7 @@ test.describe('dynamic options', () => {
       { seq: 4, alias: 'EmptyModes', arg: [] },
       { seq: 5, alias: 'BadModes', arg: ['Auto', 'Auto'] }
     ]);
-    await page.locator('nodel-page[data-page-id="PickersPrecision"][active] [data-page-content]').evaluate((pageContent) => {
+    await page.locator('nodel-page[data-page-id="DynamicOptions"][active] [data-page-content]').evaluate((pageContent) => {
       const fixture = document.createElement('section');
       fixture.dataset.dynamicOptionsVisualFixture = '';
       fixture.className = 'nodel-panel p-4';

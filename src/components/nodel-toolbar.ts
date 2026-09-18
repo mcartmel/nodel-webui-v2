@@ -302,7 +302,7 @@ export class NodelToolbar extends HTMLElement {
   }
 
   private positionOpenGroupMenu = () => {
-    if (!this.openGroupId || window.innerWidth >= 640) {
+    if (!this.openGroupId) {
       return;
     }
 
@@ -317,8 +317,23 @@ export class NodelToolbar extends HTMLElement {
     }
 
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const top = Math.max(0, Math.min(groupButton.getBoundingClientRect().bottom + 8, Math.max(0, viewportHeight - 48)));
-    menu.style.setProperty('--nodel-toolbar-menu-top', `${top}px`);
+    const groupRect = groupButton.getBoundingClientRect();
+    const belowTop = groupRect.bottom + 8;
+    const belowSpace = Math.max(0, viewportHeight - belowTop - 16);
+    const aboveSpace = Math.max(0, groupRect.top - 8 - 16);
+
+    if (window.innerWidth < 640) {
+      const top = Math.max(0, Math.min(belowTop, Math.max(0, viewportHeight - 48)));
+      menu.dataset.menuPlacement = 'below';
+      menu.style.removeProperty('max-height');
+      menu.style.setProperty('--nodel-toolbar-menu-top', `${top}px`);
+      return;
+    }
+
+    const placeAbove = menu.scrollHeight > belowSpace && aboveSpace > belowSpace;
+    const availableSpace = placeAbove ? aboveSpace : belowSpace;
+    menu.dataset.menuPlacement = placeAbove ? 'above' : 'below';
+    menu.style.maxHeight = `${availableSpace}px`;
   };
 
   private renderNavigation() {

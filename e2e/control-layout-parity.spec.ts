@@ -122,7 +122,7 @@ test.describe('retained control and layout parity', () => {
     const screenshotOptions = { maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150 };
     const requests: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
-    await openCatalogue(page, 'PickersPrecision');
+    await openCatalogue(page, 'Palette');
     const palette = page.locator('[data-catalogue-example="palette-native"] nodel-palette');
     await expect(palette).toHaveAttribute('data-format', 'hsl');
     await expect(palette).toHaveAttribute('data-live', 'true');
@@ -146,7 +146,7 @@ test.describe('retained control and layout parity', () => {
     await expect.poll(() => page.evaluate(() => (window as typeof window & { paletteChange?: { arg?: unknown } }).paletteChange?.arg)).toBe('hsl(0, 100%, 50%)');
     await expect(palette.locator('.nodel-palette-custom')).toHaveScreenshot('palette-live-format.png', screenshotOptions);
 
-    await openCatalogue(page, 'Media');
+    await openCatalogue(page, 'StatusIndicators');
     const indicators = page.locator('[data-catalogue-example="media-status-indicators"] nodel-status-indicator');
     await expect(indicators.nth(4)).toHaveAttribute('data-state', 'partially-on');
     await expect(indicators.nth(5)).toHaveAttribute('data-state', 'partially-off');
@@ -159,8 +159,8 @@ test.describe('retained control and layout parity', () => {
 
   test('auto-places select panels without changing keyboard or source order', async ({ page }, testInfo) => {
     const screenshotOptions = { maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150 };
-    await openCatalogue(page, 'PickersPrecision');
-    const sourceSelect = page.locator('[data-catalogue-example="select-stepper"] nodel-select');
+    await openCatalogue(page, 'Select');
+    const sourceSelect = page.locator('[data-catalogue-example="select-options"] nodel-select');
     for (const value of ['HDMI 2', 'USB-C']) {
       await sourceSelect.locator('.nodel-select-trigger').click();
       await sourceSelect.locator(`nodel-button[value="${value}"] button`).click();
@@ -231,8 +231,9 @@ test.describe('retained control and layout parity', () => {
       }
     });
     await expect(growingSelect).toHaveAttribute('data-placement', 'top');
+    await page.locator('#growth-placement-fixture').evaluate((element) => element.remove());
 
-    await openCatalogue(page, 'Responsive');
+    await openCatalogue(page, 'RowsColumns');
     const columns = page.locator('[data-catalogue-example="layout-responsive"] nodel-row').first().locator('nodel-column');
     expect(await columns.evaluateAll((elements) => elements.map((element) => element.textContent?.trim()))).toEqual(['Primary content', 'Supporting content']);
     const orders = await columns.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).order));

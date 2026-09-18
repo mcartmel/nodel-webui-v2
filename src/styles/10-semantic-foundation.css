@@ -156,6 +156,19 @@
 
   .nodel-toolbar-group-menu {
     @apply absolute left-0 top-full z-20 mt-2 min-w-48 p-1;
+    max-height: calc(100vh - 1rem);
+    overflow-y: auto;
+  }
+
+  .nodel-popover.nodel-toolbar-group-menu {
+    overflow-y: auto;
+  }
+
+  .nodel-toolbar-group-menu[data-menu-placement='above'] {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
   }
 
   @media (max-width: 639px) {
@@ -190,6 +203,12 @@
       left: max(1rem, env(safe-area-inset-left));
       max-height: calc(100dvh - var(--nodel-toolbar-menu-top, 0px) - 1rem);
       overflow-y: auto;
+    }
+
+    .nodel-toolbar-group-menu[data-menu-placement='above'] {
+      top: var(--nodel-toolbar-menu-top, 0px);
+      bottom: auto;
+      margin-bottom: 0;
     }
   }
 

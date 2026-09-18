@@ -142,7 +142,7 @@ test.describe('theme first paint and preferences', () => {
   test('uses solid surfaces without transparency effects', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
 
-    await openCatalogue(page, 'ControlGrid');
+    await openCatalogue(page, 'Groups');
     await page.locator('[data-nav-group-id="Controls"]').click();
     const groupSurfaces = page.locator('[data-catalogue-example="control-grid-group-surfaces"]');
     const card = groupSurfaces.locator('.nodel-group-shell[data-surface="card"]');
@@ -154,6 +154,7 @@ test.describe('theme first paint and preferences', () => {
       await expect(surface).toHaveCSS('background-image', 'none');
     }
     await expect(popover).toHaveCSS('backdrop-filter', 'none');
+    await openCatalogue(page, 'ControlGridSpacer');
     await tabTo(page, control);
     await expectFocusIsNotClipped(control);
   });
@@ -397,20 +398,24 @@ test.describe('theme first paint and preferences', () => {
     await expectHighContrastFocus(defaultButton);
   });
 
-  test('uses stronger focus outlines for ControlGrid controls in increased contrast', async ({ page }, testInfo) => {
+  test('uses stronger focus outlines for Appearance controls in increased contrast', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Preference checks run once for each desktop colour theme.');
 
     await setMediaFeature(page, 'prefers-contrast', 'more');
     const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
     test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
-    await openCatalogue(page, 'ControlGrid');
-    const field = page.locator('[data-catalogue-example="links-native-choices"] .nodel-field');
-    const link = page.locator('[data-catalogue-example="links-native-choices"] .nodel-link');
-    const choice = page.locator('.nodel-choice').first();
-    await expectHighContrastFocus(field);
-    await expectHighContrastFocus(link);
+    await openCatalogue(page, 'Links');
+    const liveLink = page.locator('[data-catalogue-example="links"] nodel-link a').first();
+    await expectHighContrastFocus(liveLink);
+
+    await openCatalogue(page, 'Appearance');
+    const choice = page.locator('[data-catalogue-example="native-choices"] .nodel-choice');
+    const field = page.locator('[data-catalogue-example="native-choices"] .nodel-field');
     await expectHighContrastFocus(choice);
+    await expectHighContrastFocus(field);
+    await openCatalogue(page, 'Links');
+    await expectHighContrastFocus(page.locator('[data-catalogue-example="links"] nodel-link a').first());
     await page.locator('[data-nav-group-id="Controls"]').click();
     await expectHighContrastFocus(page.locator('#nodel-menu-Controls .nodel-menu-item').first());
   });
@@ -422,7 +427,7 @@ test.describe('theme first paint and preferences', () => {
     const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
     test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'SegmentedChoices');
     const segmentedOption = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-segmented').first().locator('button').first();
     await expectHighContrastFocus(segmentedOption);
   });
@@ -434,7 +439,7 @@ test.describe('theme first paint and preferences', () => {
     const supported = await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches);
     test.skip(!supported, 'This Chromium build cannot emulate prefers-contrast.');
 
-    await openCatalogue(page, 'FadersMeters');
+    await openCatalogue(page, 'Faders');
     const fader = page.locator('[data-catalogue-example="faders-vertical"] .nodel-fader-track').nth(1);
     await expectHighContrastFocus(fader);
   });
@@ -459,18 +464,23 @@ test.describe('theme first paint and preferences', () => {
     await expectFocusIsNotClipped(buttons.nth(0));
   });
 
-  test('keeps ControlGrid controls reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
+  test('keeps Appearance controls reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
-    await openCatalogue(page, 'ControlGrid');
-    const link = page.locator('[data-catalogue-example="links-native-choices"] .nodel-link');
-    const choice = page.locator('.nodel-choice');
-    const field = page.locator('[data-catalogue-example="links-native-choices"] .nodel-field');
-    await tabTo(page, link);
-    await expectFocusIsNotClipped(link);
+    await openCatalogue(page, 'Links');
+    const liveLink = page.locator('[data-catalogue-example="links"] nodel-link a').first();
+    await tabTo(page, liveLink);
+    await expectFocusIsNotClipped(liveLink);
+
+    await openCatalogue(page, 'Appearance');
+    const choice = page.locator('[data-catalogue-example="native-choices"] .nodel-choice');
+    const field = page.locator('[data-catalogue-example="native-choices"] .nodel-field');
     await tabTo(page, choice);
     await expectFocusIsNotClipped(choice);
     await tabTo(page, field);
     await expectFocusIsNotClipped(field);
+    await openCatalogue(page, 'Links');
+    await tabTo(page, liveLink);
+    await expectFocusIsNotClipped(liveLink);
     await page.locator('[data-nav-group-id="Controls"]').click();
     const menuItems = page.locator('#nodel-menu-Controls .nodel-menu-item');
     await tabTo(page, menuItems.nth(0));
@@ -479,7 +489,7 @@ test.describe('theme first paint and preferences', () => {
 
   test('keeps the segmented option reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'SegmentedChoices');
     const segmentedOptions = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-segmented').first().locator('button');
     await tabTo(page, segmentedOptions.nth(0));
     await expectFocusIsNotClipped(segmentedOptions.nth(0));
@@ -487,7 +497,7 @@ test.describe('theme first paint and preferences', () => {
 
   test('keeps the vertical fader reachable by Tab with unclipped focus', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Keyboard matrix runs once for each desktop colour theme.');
-    await openCatalogue(page, 'FadersMeters');
+    await openCatalogue(page, 'Faders');
     const faderTracks = page.locator('[data-catalogue-example="faders-vertical"] .nodel-fader-track');
     await tabTo(page, faderTracks.nth(1));
     await expectFocusIsNotClipped(faderTracks.nth(1));

@@ -42,7 +42,7 @@ test.describe('catalogue visual regressions', () => {
   test('captures standard and code confirmation dialogs', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Confirmation dialog baselines run once for each desktop colour theme.');
 
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'SegmentedChoices');
     const mode = page.locator('[data-catalogue-example="toggles-segmented-choices"] nodel-group').filter({ hasText: 'Mode' });
     await mode.locator('nodel-button[value="Manual"] button').click();
     const host = page.locator('nodel-confirm-host');
@@ -50,6 +50,7 @@ test.describe('catalogue visual regressions', () => {
     await expect(host.locator('.nodel-confirm-dialog')).toHaveScreenshot('confirm-standard-dialog.png');
     await host.locator('[data-confirm-action="cancel"]').last().click();
 
+    await openCatalogue(page, 'Toggles');
     const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' });
     await shutdown.locator('nodel-toggle button').click();
     await expect(host).toBeVisible();
@@ -60,7 +61,7 @@ test.describe('catalogue visual regressions', () => {
     test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to a short touch viewport.');
 
     await page.setViewportSize({ width: 568, height: 320 });
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'Toggles');
     const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' });
     await shutdown.locator('nodel-toggle button').click();
     const dialog = page.locator('.nodel-confirm-dialog');
@@ -85,15 +86,16 @@ test.describe('catalogue visual regressions', () => {
     test.skip(isForcedColoursProject(testInfo), 'Forced-colours uses assertions instead of pixel baselines.');
 
     await captureCatalogueExample(page, testInfo, 'Buttons', 'buttons-variants', 'buttons-variants.png');
-    await captureCatalogueExample(page, testInfo, 'TogglesSegmented', 'toggles-switch-states', 'toggle-states.png');
-    await captureCatalogueExample(page, testInfo, 'TogglesSegmented', 'toggles-segmented-choices', 'segmented-choices.png');
-    await captureCatalogueExample(page, testInfo, 'PickersPrecision', 'select-stepper', 'pickers-and-stepper.png');
-    await captureCatalogueExample(page, testInfo, 'PickersPrecision', 'readouts', 'readouts.png');
-    await captureCatalogueExample(page, testInfo, 'FadersMeters', 'faders-compound-fader', 'faders-and-meters.png');
-    await captureCatalogueExample(page, testInfo, 'Media', 'media-qr-codes', 'qr-codes.png');
-    await captureCatalogueExample(page, testInfo, 'Media', 'media-status-blocks', 'status-variants.png');
+    await captureCatalogueExample(page, testInfo, 'Toggles', 'toggles-switch-states', 'toggle-states.png');
+    await captureCatalogueExample(page, testInfo, 'SegmentedChoices', 'toggles-segmented-choices', 'segmented-choices.png');
+    await captureCatalogueExample(page, testInfo, 'Select', 'select-options', 'select-options.png');
+    await captureCatalogueExample(page, testInfo, 'Steppers', 'stepper-options', 'stepper-options.png');
+    await captureCatalogueExample(page, testInfo, 'Readouts', 'readouts', 'readouts.png');
+    await captureCatalogueExample(page, testInfo, 'Faders', 'faders-compound-fader', 'faders-and-meters.png');
+    await captureCatalogueExample(page, testInfo, 'QRCodes', 'media-qr-codes', 'qr-codes.png');
+    await captureCatalogueExample(page, testInfo, 'StatusBlocks', 'media-status-blocks', 'status-variants.png');
     await captureCatalogueExample(page, testInfo, 'Text', 'content-text-surface', 'content-surfaces.png');
-    await captureCatalogueExample(page, testInfo, 'ControlGrid', 'feedback-states', 'feedback-states.png');
+    await captureCatalogueExample(page, testInfo, 'Appearance', 'feedback-states', 'feedback-states.png');
   });
 
   test('captures paired disclosure and field states for theme review', async ({ page }, testInfo) => {
@@ -137,7 +139,7 @@ test.describe('catalogue visual regressions', () => {
   test('keeps the mobile toolbar in view and captures its open group menu', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to the narrow viewport.');
 
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'Toggles');
     const toolbar = page.locator('nodel-toolbar');
     await expect(toolbar).toBeVisible();
 
@@ -165,7 +167,7 @@ test.describe('catalogue visual regressions', () => {
     test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to narrow viewports.');
 
     await page.setViewportSize({ width: 320, height: 568 });
-    await openCatalogue(page, 'TogglesSegmented');
+    await openCatalogue(page, 'Toggles');
     const nav = page.locator('[data-toolbar-nav-list]');
     const documentOverflows = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(documentOverflows).toBe(false);
@@ -192,7 +194,7 @@ test.describe('catalogue visual regressions', () => {
   test('keeps QR codes square and responsive on mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes('mobile'), 'This geometry check is specific to narrow viewports.');
 
-    await openCatalogue(page, 'Media');
+    await openCatalogue(page, 'QRCodes');
     const example = page.locator('[data-catalogue-example="media-qr-codes"]');
     const metrics = await example.locator('nodel-qrcode').first().evaluate((element) => {
       const frame = element.querySelector<HTMLElement>('.nodel-qrcode-frame');
@@ -253,7 +255,7 @@ test.describe('catalogue visual regressions', () => {
   test('centres readout content and visuals consistently', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Readout geometry runs for the desktop themes.');
 
-    await openCatalogue(page, 'PickersPrecision');
+    await openCatalogue(page, 'Readouts');
     const readouts = page.locator('[data-catalogue-example="readouts"] nodel-readout');
     await expect(readouts).toHaveCount(3);
 
@@ -283,7 +285,7 @@ test.describe('catalogue visual regressions', () => {
   test('renders bounded edge-ring examples without changing page containment', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Edge-ring geometry runs for the desktop themes.');
 
-    await openCatalogue(page, 'PickersPrecision');
+    await openCatalogue(page, 'Readouts');
     const example = page.locator('[data-catalogue-example="readouts-edge"]');
     const rings = example.locator('nodel-readout');
     await expect(rings).toHaveCount(2);
@@ -336,7 +338,7 @@ test.describe('catalogue visual regressions', () => {
   test('renders the readout ring fallback without masks', async ({ page }, testInfo) => {
     test.skip(!isDesktopThemeProject(testInfo), 'Focused fallback baselines run for the desktop themes.');
 
-    await openCatalogue(page, 'PickersPrecision');
+    await openCatalogue(page, 'Readouts');
     await page.addStyleTag({ content: `
       nodel-readout[data-visual='ring'] .nodel-readout-visual { -webkit-mask: none !important; mask: none !important; }
       nodel-readout[data-visual='ring'] .nodel-readout-visual::after { display: block !important; }
@@ -390,8 +392,8 @@ test.describe('catalogue visual regressions', () => {
     );
     expect(primaryBackground).toBe(highlight);
 
-    await openCatalogue(page, 'TogglesSegmented');
-    const segmentedActive = page.locator('nodel-page[data-page-id="TogglesSegmented"][active] nodel-segmented nodel-button[active] button').first();
+    await openCatalogue(page, 'SegmentedChoices');
+    const segmentedActive = page.locator('nodel-page[data-page-id="SegmentedChoices"][active] nodel-segmented nodel-button[active] button').first();
     await expect(segmentedActive).toBeVisible();
     await expect(segmentedActive).toHaveCSS('background-color', highlight);
 
@@ -400,7 +402,7 @@ test.describe('catalogue visual regressions', () => {
     await expect(activeMenuItem).toBeVisible();
     await expect(activeMenuItem).toHaveCSS('background-color', highlight);
 
-    await openCatalogue(page, 'Media');
+    await openCatalogue(page, 'QRCodes');
     const qr = page.locator('[data-catalogue-example="media-qr-codes"] nodel-qrcode').first();
     await expect(qr.locator('svg')).toBeVisible();
     await expect(qr.locator('svg rect')).toHaveAttribute('fill', 'white');
