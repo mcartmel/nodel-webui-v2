@@ -20,7 +20,12 @@ test.describe('catalogue component references', () => {
     await expect(table.getByRole('columnheader')).toHaveText(['Attribute', 'Accepted value', 'Default', 'Description']);
     await expect(table.locator('[data-catalogue-reference-row="variant"]')).toContainText('primary');
     await expect(table.locator('[data-catalogue-reference-row="signals"]')).toHaveCount(1);
-    await expect(table.locator('[data-catalogue-reference-row="visibility"]')).toContainText('common');
+    await expect(table.locator('[data-catalogue-reference-row="visibility"]')).not.toContainText('common');
+    await expect(table.locator('[data-catalogue-reference-row="value"] [data-catalogue-reference-badge]')).toHaveText('Option attribute');
+    await expect(table.locator('[data-catalogue-reference-row="variant"] [data-catalogue-reference-badge]')).toHaveCount(0);
+    await expect(reference.locator('.nodel-collapse-preview')).toHaveText(/^\d+ attributes$/);
+    await expect(reference.locator('.nodel-catalogue-reference-classifications')).toHaveCount(0);
+    await expect(reference.locator('.nodel-catalogue-reference-visibility-note')).toContainText('shared visibility controls');
 
     const scrollRegion = page.getByRole('region', { name: 'nodel-button attribute table' });
     await scrollRegion.focus();
@@ -36,5 +41,14 @@ test.describe('catalogue component references', () => {
       };
     });
     expect(overflow).toEqual({ pageContained: true, tableScrollable: true });
+
+    await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
+    await page.locator('nodel-page[data-page-id="AppShell"][active]').waitFor();
+    const pageReference = page.locator('[data-catalogue-reference-for="nodel-page"]');
+    await pageReference.locator('.nodel-collapse-summary').click();
+    await expect(pageReference.locator('[data-catalogue-reference-row="title"] [data-catalogue-reference-badge="initialization"]')).toHaveText('Initial setup only');
+    await expect(pageReference.locator('[data-catalogue-reference-row="title"] [data-catalogue-reference-badge="parent"]')).toHaveText('Used by parent');
+    await expect(pageReference.locator('[data-catalogue-reference-row="background-color"] [data-catalogue-reference-badge="parent"]')).toHaveText('Used by parent');
+    await expect(pageReference.locator('[data-catalogue-reference-row="background-color"] [data-catalogue-reference-badge="initialization"]')).toHaveCount(0);
   });
 });

@@ -2,6 +2,7 @@ import {
   CatalogueReferenceError,
   renderCatalogueReferences
 } from '../src/catalogue/component-reference';
+import { componentContracts } from '../src/component-contract';
 
 describe('catalogue component reference renderer', () => {
   beforeEach(() => {
@@ -22,7 +23,9 @@ describe('catalogue component reference renderer', () => {
     expect(table.querySelector('[data-catalogue-reference-row="action-on"]')?.textContent).toContain('Legacy:');
     expect(table.querySelector('[data-catalogue-reference-row="signals"]')).toBeTruthy();
     expect(table.querySelectorAll('[data-catalogue-reference-row="signals"]')).toHaveLength(1);
-    expect(reference.querySelector('[data-catalogue-reference-badge]')?.textContent).toBe('common');
+    expect(reference.querySelector('[data-catalogue-reference-row="variant"] [data-catalogue-reference-badge]')).toBeNull();
+    expect(reference.querySelector('.nodel-catalogue-reference-visibility-note')?.textContent)
+      .toContain('visibility, visible-value, and visible-values are shared visibility controls');
   });
 
   it('describes bounded and unbounded numeric values without inventing bounds', () => {
@@ -108,7 +111,7 @@ describe('catalogue component reference renderer', () => {
     expect(document.querySelector('caption')?.textContent).toBe('nodel-status attributes');
   });
 
-  it('shows element classifications, including the core nodel-link reference', () => {
+  it('keeps the collapsed preview presentation-only and removes classifications', () => {
     document.body.innerHTML = '<div data-catalogue-reference="nodel-link"></div>';
     renderCatalogueReferences({ requiredElements: ['nodel-link'], strict: true });
 
@@ -116,27 +119,50 @@ describe('catalogue component reference renderer', () => {
     expect(reference.dataset.catalogueReferenceAudience).toBe('core');
     expect(reference.dataset.catalogueReferenceRegistration).toBe('lazy');
     expect(reference.dataset.catalogueReferenceCompletion).toBe('advanced');
-    expect(reference.querySelector('[data-catalogue-reference-classification="audience"]')?.textContent).toBe('core');
-    expect(reference.querySelector('.nodel-collapse-preview')?.textContent).toContain('audience: core');
-    expect(reference.querySelector('.nodel-collapse-preview')?.textContent).toContain('registration: lazy');
-    expect(reference.querySelector('.nodel-collapse-preview')?.textContent).toContain('completion: advanced');
+    expect(reference.querySelector('[data-catalogue-reference-classification]')).toBeNull();
+    expect(reference.querySelector('.nodel-catalogue-reference-classifications')).toBeNull();
+    expect(reference.querySelector('.nodel-collapse-preview')?.textContent).toBe('13 attributes');
   });
 
-  it('renders attribute consumption and completion without duplicate common rows', () => {
+  it('renders only the documented exception badges without duplicate common rows', () => {
     document.body.innerHTML = '<div data-catalogue-reference="nodel-button"></div>';
     renderCatalogueReferences({ requiredElements: ['nodel-button'], strict: true });
 
     const reference = document.querySelector<HTMLElement>('[data-catalogue-reference-for="nodel-button"]')!;
     const action = reference.querySelector('[data-catalogue-reference-row="action"]')!;
-    expect(action.querySelector('[data-catalogue-reference-consumption="observed"]')).toBeTruthy();
-    expect(action.querySelector('[data-catalogue-reference-completion="recommended"]')).toBeTruthy();
+    expect(action.querySelector('[data-catalogue-reference-badge]')).toBeNull();
 
     const value = reference.querySelector('[data-catalogue-reference-row="value"]')!;
-    expect(value.querySelector('[data-catalogue-reference-consumption="contextual-child"]')?.getAttribute('title'))
-      .toContain('nodel-segmented,nodel-select,nodel-palette');
+    expect(value.querySelector('[data-catalogue-reference-badge]')?.textContent).toBe('Option attribute');
+    expect(reference.querySelector('[data-catalogue-reference-row="color"] [data-catalogue-reference-badge]')?.textContent).toBe('Option attribute');
+    expect(reference.querySelector('[data-catalogue-reference-row="border"] [data-catalogue-reference-badge]')?.textContent).toBe('Option attribute');
     expect(reference.querySelectorAll('[data-catalogue-reference-row="signals"]')).toHaveLength(1);
     expect(reference.querySelectorAll('[data-catalogue-reference-row="visibility"]')).toHaveLength(1);
-    expect(reference.querySelector('[data-catalogue-reference-row="signals"] [data-catalogue-reference-badge="common"]')).toBeTruthy();
+    expect(reference.querySelector('[data-catalogue-reference-row="signals"] [data-catalogue-reference-badge]')).toBeNull();
+  });
+
+  it('keeps parent and initialization constraints visible in descriptions', () => {
+    document.body.innerHTML = `
+      <div data-catalogue-reference="nodel-page"></div>
+      <div data-catalogue-reference="nodel-group"></div>
+    `;
+    renderCatalogueReferences({ requiredElements: ['nodel-page', 'nodel-group'], strict: true });
+
+    const page = document.querySelector('[data-catalogue-reference-for="nodel-page"]')!;
+    const title = page.querySelector('[data-catalogue-reference-row="title"]')!;
+    expect(title.querySelector('[data-catalogue-reference-badge="initialization"]')?.textContent).toBe('Initial setup only');
+    expect(title.textContent).toContain('Must be set before connection');
+    expect(title.textContent).toContain('Used by parent nodel-app');
+    expect(page.querySelector('[data-catalogue-reference-row="background-color"] [data-catalogue-reference-badge]')?.textContent).toBe('Used by parent');
+    expect(page.querySelector('[data-catalogue-reference-row="background-color"] [data-catalogue-reference-badge]')?.textContent).not.toBe('Initial setup only');
+    expect(document.querySelector('[data-catalogue-reference-for="nodel-group"] [data-catalogue-reference-row="fill"] [data-catalogue-reference-badge]')?.textContent).toBe('Used by parent');
+  });
+
+  it('does not mutate canonical contract data while rendering', () => {
+    const before = JSON.stringify(componentContracts);
+    document.body.innerHTML = '<div data-catalogue-reference="nodel-button"></div>';
+    renderCatalogueReferences({ requiredElements: ['nodel-button'], strict: true });
+    expect(JSON.stringify(componentContracts)).toBe(before);
   });
 
   it('renders structured action and signal contract metadata', () => {
@@ -165,7 +191,7 @@ describe('catalogue component reference renderer', () => {
     renderCatalogueReferences({ requiredElements: ['nodel-page', 'nodel-segmented'], strict: true });
 
     const page = document.querySelector('[data-catalogue-reference-for="nodel-page"]')!;
-    expect(page.querySelector('[data-catalogue-reference-row="title"] [data-catalogue-reference-lifecycle="initialization"]')).toBeTruthy();
+    expect(page.querySelector('[data-catalogue-reference-row="title"] [data-catalogue-reference-badge="initialization"]')).toBeTruthy();
     expect(page.querySelector('[data-catalogue-reference-events] [data-catalogue-reference-event="nodel-page-action-error"]')?.textContent)
       .toContain('action');
 
@@ -185,7 +211,7 @@ describe('catalogue component reference renderer', () => {
     expect(reference.querySelector('[data-catalogue-reference-row="key"]')?.textContent).toContain('KeyboardEvent.key');
     expect(reference.querySelector('[data-catalogue-reference-row="actions"]')?.textContent).toContain('trigger');
     expect(reference.querySelector('[data-catalogue-reference-composition]')?.textContent).toContain('nodel-app');
-    expect(reference.querySelector('[data-catalogue-reference-row="signals"] [data-catalogue-reference-badge="common"]')).toBeTruthy();
+    expect(reference.querySelector('[data-catalogue-reference-row="signals"] [data-catalogue-reference-badge]')).toBeNull();
   });
 
   it('does not render removed node-list attributes', () => {

@@ -7,8 +7,6 @@ import {
 } from '../component-contract';
 import '../components/nodel-collapse';
 
-const commonAttributeNames = new Set(['signals', 'visibility', 'visible-value', 'visible-values']);
-
 export interface CatalogueReferenceOptions {
   root?: ParentNode;
   strict?: boolean;
@@ -38,12 +36,11 @@ function code(text: string): HTMLElement {
   return node;
 }
 
-function appendBadge(cell: HTMLElement, kind: string, text: string, label: string, classification = false): HTMLSpanElement {
+function appendBadge(cell: HTMLElement, kind: string, text: string, label: string): HTMLSpanElement {
   const badge = document.createElement('span');
   badge.className = 'nodel-catalogue-reference-badge';
-  if (kind === 'common') badge.dataset.catalogueReferenceBadge = kind;
-  else badge.dataset.catalogueReferenceMetadata = kind;
-  if (classification) badge.dataset.catalogueReferenceClassification = kind;
+  badge.dataset.catalogueReferenceBadge = kind;
+  badge.dataset.catalogueReferenceMetadata = kind;
   badge.textContent = text;
   badge.setAttribute('aria-label', label);
   badge.title = label;
@@ -53,15 +50,16 @@ function appendBadge(cell: HTMLElement, kind: string, text: string, label: strin
 
 function appendLabel(cell: HTMLElement, name: string, attribute: ComponentAttributeContract) {
   cell.append(code(name));
-  if (attribute.common || commonAttributeNames.has(name)) {
-    appendBadge(cell, 'common', 'common', 'Common attribute');
+  if (attribute.lifecycle === 'initialization') {
+    appendBadge(cell, 'initialization', 'Initial setup only', 'Initial setup only: set before connection; subsequent changes are unsupported.');
   }
-  const consumptionBadge = appendBadge(cell, 'consumption', attribute.consumption, `Consumption: ${attribute.consumption}${attribute.consumer ? `; consumer: ${attribute.consumer}` : ''}`);
-  consumptionBadge.dataset.catalogueReferenceConsumption = attribute.consumption;
-  const completionBadge = appendBadge(cell, 'completion', attribute.completion, `Attribute completion: ${attribute.completion}`);
-  completionBadge.dataset.catalogueReferenceCompletion = attribute.completion;
-  const lifecycleBadge = appendBadge(cell, 'lifecycle', attribute.lifecycle, `Attribute lifecycle: ${attribute.lifecycle}`);
-  lifecycleBadge.dataset.catalogueReferenceLifecycle = attribute.lifecycle;
+  if (attribute.consumption === 'parent') {
+    appendBadge(cell, 'parent', 'Used by parent', `Used by parent${attribute.consumer ? `: ${attribute.consumer}` : ''}.`);
+  }
+  if (attribute.consumption === 'contextual-child' && attribute.consumer === 'nodel-segmented,nodel-select,nodel-palette'
+    && (name === 'value' || name === 'color' || name === 'border')) {
+    appendBadge(cell, 'option', 'Option attribute', 'Option attribute: used in its applicable picker context.');
+  }
 }
 
 function appendAcceptedValue(cell: HTMLElement, attribute: ComponentAttributeContract) {
@@ -140,16 +138,6 @@ function effectiveAttributes(element: ComponentContract): ComponentAttributeCont
     }
   }
   return attributes;
-}
-
-function makeClassificationSummary(element: ComponentContract): HTMLElement {
-  const summary = document.createElement('div');
-  summary.className = 'nodel-catalogue-reference-classifications';
-  summary.setAttribute('aria-label', `${element.name} classifications`);
-  for (const [kind, value] of [['audience', element.audience], ['registration', element.registration], ['completion', element.completion]] as const) {
-    appendBadge(summary, kind, value, `Element ${kind}: ${value}`, true);
-  }
-  return summary;
 }
 
 function appendSummaryHeading(parent: HTMLElement, text: string) {
@@ -306,6 +294,12 @@ function makeTable(element: ComponentContract): HTMLTableElement {
     const description = document.createElement('td');
     description.className = 'nodel-catalogue-reference-description';
     description.textContent = attribute.description;
+    if (attribute.consumption === 'parent' && attribute.consumer && !attribute.description.includes(attribute.consumer)) {
+      description.append(` Used by parent ${attribute.consumer}.`);
+    }
+    if (attribute.lifecycle === 'initialization') {
+      description.append(' Must be set before connection; subsequent changes are unsupported.');
+    }
     if (attribute.legacy) {
       const legacy = document.createElement('span');
       legacy.className = 'nodel-catalogue-reference-legacy';
@@ -323,7 +317,7 @@ function makeReference(element: ComponentContract): HTMLElement {
   const collapse = document.createElement('nodel-collapse');
   collapse.setAttribute('label', `${element.name} attributes`);
   const count = effectiveAttributes(element).length;
-  collapse.setAttribute('preview', `${count} attribute${count === 1 ? '' : 's'} · audience: ${element.audience} · registration: ${element.registration} · completion: ${element.completion}`);
+  collapse.setAttribute('preview', `${count} attribute${count === 1 ? '' : 's'}`);
   collapse.dataset.catalogueReferenceFor = element.name;
   collapse.dataset.catalogueReferenceAudience = element.audience;
   collapse.dataset.catalogueReferenceRegistration = element.registration;
@@ -334,9 +328,12 @@ function makeReference(element: ComponentContract): HTMLElement {
   wrapper.tabIndex = 0;
   wrapper.setAttribute('role', 'region');
   wrapper.setAttribute('aria-label', `${element.name} attribute table`);
-  collapse.append(makeClassificationSummary(element));
   const summaries = makeStructuredSummaries(element);
   if (summaries) collapse.append(summaries);
+  const visibilityNote = document.createElement('p');
+  visibilityNote.className = 'nodel-catalogue-reference-visibility-note';
+  visibilityNote.append(code('visibility'), ', ', code('visible-value'), ', and ', code('visible-values'), ' are shared visibility controls; ', code('signals'), ' also supports visibility bindings.');
+  collapse.append(visibilityNote);
   wrapper.append(makeTable(element));
   collapse.append(wrapper);
   return collapse;
