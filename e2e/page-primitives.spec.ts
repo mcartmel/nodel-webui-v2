@@ -9,28 +9,45 @@ test.describe('page authoring primitives', () => {
   test('renders memory-backed Markdown, clock, status links, and a semantic flow footer', async ({ page }, testInfo) => {
     const requests: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
-    await openCatalogue(page, 'PagePrimitives');
-    const example = page.locator('[data-catalogue-example="content-page-primitives"]');
+    await openCatalogue(page, 'Markdown');
+    const markdown = page.locator('[data-catalogue-example="markdown"] nodel-markdown');
+    await expect(markdown.locator('h2')).toHaveText('Live operations');
+    await expect(markdown.locator('li')).toHaveCount(2);
+    await expect(markdown).toHaveScreenshot('markdown.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
 
-    await expect(example.locator('nodel-markdown h2')).toHaveText('Live operations');
-    await expect(example.locator('nodel-markdown li')).toHaveCount(2);
-    await expect(example.locator('nodel-clock time')).toHaveAttribute('datetime', '2026-07-31T10:15:30.000Z');
-    await expect(example.locator('nodel-status nodel-link a')).toHaveAttribute('href', '#Text');
-    await expect(example.locator('nodel-status .nodel-status-shell')).not.toHaveAttribute('href', /.+/);
-    await expect(example.locator('nodel-footer footer')).toContainText('Normal-flow footer content');
-    await expect(example.locator('nodel-footer')).toHaveAttribute('data-fixed', 'false');
+    await openCatalogue(page, 'Clock');
+    const clock = page.locator('[data-catalogue-example="clock"] nodel-clock');
+    await expect(clock.locator('time')).toHaveAttribute('datetime', '2026-07-31T10:15:30.000Z');
+    await expect(clock).toHaveScreenshot('clock.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
 
-    const footerLink = example.locator('nodel-footer nodel-link a');
+    await openCatalogue(page, 'StatusBlocks');
+    const status = page.locator('[data-catalogue-example="status-links"] nodel-status');
+    await expect(status.locator('nodel-link a')).toHaveAttribute('href', '#Text');
+    await expect(status.locator('.nodel-status-shell')).not.toHaveAttribute('href', /.+/);
+    await expect(status).toHaveScreenshot('status-links.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
+
+    await openCatalogue(page, 'Footer');
+    const footer = page.locator('[data-catalogue-example="footer-flow"] nodel-footer');
+    await expect(footer.locator('footer')).toContainText('Normal-flow footer content');
+    await expect(footer).toHaveAttribute('data-fixed', 'false');
+    await expect(footer).toHaveScreenshot('footer-flow.png', {
+      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
+    });
+
+    const footerLink = footer.locator('nodel-link a');
     await footerLink.focus();
     await expect(footerLink).toBeFocused();
     expect(requests.some((url) => /REST\/(actions|events|activity)/.test(url))).toBe(false);
-    await expect(example).toHaveScreenshot('page-primitives.png', {
-      maxDiffPixels: testInfo.project.name === 'chromium-forced-colors' ? 1500 : 150
-    });
   });
 
   test('fixed footers wrap, reserve content space, preserve focus, and clean up', async ({ page }) => {
-    await openCatalogue(page, 'PagePrimitives');
+    await openCatalogue(page, 'Footer');
     const app = page.locator('nodel-app');
     await expect(app).not.toHaveAttribute('data-fixed-footer', 'true');
 

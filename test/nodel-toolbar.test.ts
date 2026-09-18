@@ -166,4 +166,81 @@ describe('nodel-toolbar', () => {
     expect(document.activeElement).toBe(document.querySelector('[data-nav-group-id="admin"]'));
     expect(document.querySelector<HTMLElement>('[data-nav-group-menu-id="admin"]')?.hidden).toBe(true);
   });
+
+  it('bounds a desktop group menu to the available viewport space', async () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(400);
+    document.body.innerHTML = '<nodel-app><nodel-toolbar title="Pages"></nodel-toolbar></nodel-app>';
+    await customElements.whenDefined('nodel-toolbar');
+    const app = document.querySelector('nodel-app')!;
+    app.dispatchEvent(new CustomEvent(NODEL_NAVIGATION_CHANGE, {
+      detail: {
+        activePageId: 'one',
+        items: [{
+          type: 'group', id: 'group', title: 'Group',
+          children: Array.from({ length: 13 }, (_, index) => ({ type: 'page' as const, id: `page-${index}`, title: `Page ${index}` }))
+        }]
+      }
+    }));
+    await flush();
+
+    document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!.click();
+    await flush();
+
+    const group = document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!;
+    const menu = document.querySelector<HTMLElement>('[data-nav-group-menu-id="group"]')!;
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue({ top: 300, bottom: 340 } as DOMRect);
+    window.dispatchEvent(new Event('resize'));
+    expect(menu.dataset.menuPlacement).toBe('below');
+    expect(menu.style.maxHeight).toBe('36px');
+    expect(menu.style.overflowY).toBe('');
+  });
+
+  it('places an oversized desktop group menu above the trigger when that side has more room', async () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(400);
+    document.body.innerHTML = '<nodel-app><nodel-toolbar title="Pages"></nodel-toolbar></nodel-app>';
+    await customElements.whenDefined('nodel-toolbar');
+    const app = document.querySelector('nodel-app')!;
+    app.dispatchEvent(new CustomEvent(NODEL_NAVIGATION_CHANGE, {
+      detail: { activePageId: 'page-0', items: [{ type: 'group', id: 'group', title: 'Group', children: [{ type: 'page', id: 'page-0', title: 'Page 0' }] }] }
+    }));
+    await flush();
+    document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!.click();
+    await flush();
+
+    const group = document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!;
+    const menu = document.querySelector<HTMLElement>('[data-nav-group-menu-id="group"]')!;
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue({ top: 300, bottom: 340 } as DOMRect);
+    Object.defineProperty(menu, 'scrollHeight', { configurable: true, value: 300 });
+    window.dispatchEvent(new Event('resize'));
+
+    expect(menu.dataset.menuPlacement).toBe('above');
+    expect(menu.style.maxHeight).toBe('276px');
+  });
+
+  it('resets desktop menu bounds when resized to mobile', async () => {
+    const viewportWidth = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(400);
+    document.body.innerHTML = '<nodel-app><nodel-toolbar title="Pages"></nodel-toolbar></nodel-app>';
+    await customElements.whenDefined('nodel-toolbar');
+    const app = document.querySelector('nodel-app')!;
+    app.dispatchEvent(new CustomEvent(NODEL_NAVIGATION_CHANGE, {
+      detail: { activePageId: 'page-0', items: [{ type: 'group', id: 'group', title: 'Group', children: [{ type: 'page', id: 'page-0', title: 'Page 0' }] }] }
+    }));
+    await flush();
+    document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!.click();
+    await flush();
+
+    const group = document.querySelector<HTMLElement>('[data-nav-group-id="group"]')!;
+    const menu = document.querySelector<HTMLElement>('[data-nav-group-menu-id="group"]')!;
+    vi.spyOn(group, 'getBoundingClientRect').mockReturnValue({ top: 100, bottom: 140 } as DOMRect);
+    window.dispatchEvent(new Event('resize'));
+    viewportWidth.mockReturnValue(500);
+    window.dispatchEvent(new Event('resize'));
+
+    expect(menu.dataset.menuPlacement).toBe('below');
+    expect(menu.style.maxHeight).toBe('');
+    expect(menu.style.getPropertyValue('--nodel-toolbar-menu-top')).toBe('148px');
+  });
 });

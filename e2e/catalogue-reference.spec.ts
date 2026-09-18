@@ -42,8 +42,8 @@ test.describe('catalogue component references', () => {
     });
     expect(overflow).toEqual({ pageContained: true, tableScrollable: true });
 
-    await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
-    await page.locator('nodel-page[data-page-id="AppShell"][active]').waitFor();
+    await page.goto('/components.html#Pages', { waitUntil: 'domcontentloaded' });
+    await page.locator('nodel-page[data-page-id="Pages"][active]').waitFor();
     const pageReference = page.locator('[data-catalogue-reference-for="nodel-page"]');
     await pageReference.locator('.nodel-collapse-summary').click();
     await expect(pageReference.locator('[data-catalogue-reference-row="title"] [data-catalogue-reference-badge="initialization"]')).toHaveText('Initial setup only');

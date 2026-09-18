@@ -20,7 +20,7 @@ test.describe('cross-browser release gate', () => {
     page.on('request', (request) => requests.push(request.url()));
     page.on('websocket', (websocket) => websockets.push(websocket.url()));
 
-    await openCatalogue(page, 'ControlGrid');
+    await openCatalogue(page, 'DynamicOptions');
     await expect(page.locator('script[data-nodel-runtime="memory"]')).toHaveCount(1);
     const select = page.locator('[data-catalogue-example="dynamic-options"] nodel-select');
     await expect(select).toHaveAttribute('data-options-state', 'ready');
@@ -28,24 +28,42 @@ test.describe('cross-browser release gate', () => {
     await select.locator('nodel-button[value="TV"] button').click();
     await expect(select.locator('.nodel-select-value')).toHaveText('TV');
 
-    await openCatalogue(page, 'PagePrimitives');
-    const example = page.locator('[data-catalogue-example="content-page-primitives"]');
-    await expect(example.locator('nodel-markdown h2')).toHaveText('Live operations');
-    await expect(example.locator('nodel-clock time')).toHaveAttribute('datetime', '2026-07-31T10:15:30.000Z');
-    await expect(example.locator('nodel-footer')).toHaveAttribute('data-fixed', 'false');
+    await openCatalogue(page, 'Markdown');
+    await expect(page.locator('nodel-page[data-page-id="Markdown"][active] nodel-markdown h2')).toHaveText('Live operations');
+    await openCatalogue(page, 'Clock');
+    await expect(page.locator('nodel-page[data-page-id="Clock"][active] nodel-clock time')).toHaveAttribute('datetime', '2026-07-31T10:15:30.000Z');
+    await openCatalogue(page, 'StatusBlocks');
+    await expect(page.locator('[data-catalogue-example="status-links"] nodel-status')).toBeVisible();
+    await openCatalogue(page, 'Footer');
+    await expect(page.locator('nodel-page[data-page-id="Footer"][active] nodel-footer')).toHaveAttribute('data-fixed', 'false');
     expect(requests.some((url) => /REST\/(actions|events|activity)/.test(url))).toBe(false);
     expect(websockets.some((url) => url.includes('/nodes/'))).toBe(false);
   });
 
   test('@cross-browser renders representative authored primitives', async ({ page }, testInfo) => {
     test.skip(!crossEngineVisualProjects.has(testInfo.project.name), 'Chromium visual coverage is provided by the exhaustive theme/device projects.');
-    await openCatalogue(page, 'PagePrimitives');
-    const example = page.locator('[data-catalogue-example="content-page-primitives"]');
+    await openCatalogue(page, 'Markdown');
+    const markdown = page.locator('[data-catalogue-example="markdown"] nodel-markdown');
     await page.evaluate(async () => {
       await document.fonts?.ready;
     });
     // Firefox and WebKit resolve system fonts differently across supported Linux distributions.
-    await expect(example).toHaveScreenshot('release-authored-primitives.png', {
+    await expect(markdown).toHaveScreenshot('markdown.png', {
+      maxDiffPixels: 6000,
+      maxDiffPixelRatio: 0.016
+    });
+    await openCatalogue(page, 'Clock');
+    await expect(page.locator('[data-catalogue-example="clock"] nodel-clock')).toHaveScreenshot('clock.png', {
+      maxDiffPixels: 6000,
+      maxDiffPixelRatio: 0.016
+    });
+    await openCatalogue(page, 'StatusBlocks');
+    await expect(page.locator('[data-catalogue-example="status-links"] nodel-status')).toHaveScreenshot('status-links.png', {
+      maxDiffPixels: 6000,
+      maxDiffPixelRatio: 0.016
+    });
+    await openCatalogue(page, 'Footer');
+    await expect(page.locator('[data-catalogue-example="footer-flow"] nodel-footer')).toHaveScreenshot('footer-flow.png', {
       maxDiffPixels: 6000,
       maxDiffPixelRatio: 0.016
     });

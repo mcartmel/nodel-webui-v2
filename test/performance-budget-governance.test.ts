@@ -31,7 +31,7 @@ const expected = {
   'codemirror-language-groovy': [4139, 4346, 1765, 1854],
   'codemirror-language-sql': [40595, 42625, 14926, 15673],
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
-  'components-html': [125904, 132200, 16157, 16965],
+  'components-html': [175483, 184258, 20145, 21153],
   'free-icon-artifact': [2758285, 2896200, 666125, 699432],
   'dist-v2-inventory': [5448589, 5560000, 1442562, 1475000]
 } as const;
@@ -44,13 +44,16 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('APPROVED_BACKGROUND_ASSETS_2026-09-16');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_CATALOGUE_STRUCTURE_2026-09-18');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
     expect(Object.keys(policy.budgets).sort()).toEqual(Object.keys(expected).sort());
     expect(notes).toContain(policy.releaseNotesMarker);
     expect(notes).toContain(policy.rationale);
+    expect(policy.rationale).toContain('39 pages, 59 paired examples, and 67 copy blocks');
+    expect(policy.rationale).toContain('only components-html');
+    expect(policy.rationale).toContain('All other metrics and budgets remain unchanged');
     for (const [name, values] of Object.entries(expected)) {
       const budget = policy.budgets[name];
       if (!budget) throw new Error(`Missing budget ${name}`);

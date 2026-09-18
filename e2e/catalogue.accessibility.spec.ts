@@ -11,13 +11,13 @@ const representativeViews: Array<{ pageId: string; selector: string; openReferen
   { pageId: 'Quickstart', selector: '[data-catalogue-quickstart]' },
   { pageId: 'Buttons', selector: '[data-catalogue-example="buttons-variants"]' },
   { pageId: 'Buttons', selector: '[data-catalogue-reference-for="nodel-button"]', openReference: true },
-  { pageId: 'PickersPrecision', selector: '[data-catalogue-example="select-stepper"]' },
-  { pageId: 'PickersPrecision', selector: '[data-catalogue-example="readouts-edge"]' },
-  { pageId: 'PickersPrecision', selector: '[data-catalogue-example="palette-native"]' },
-  { pageId: 'FadersMeters', selector: '[data-catalogue-example="faders-compound-fader"]' },
-  { pageId: 'Media', selector: '[data-catalogue-example="media-status-blocks"]' },
-  { pageId: 'Media', selector: '[data-catalogue-example="media-qr-codes"]' },
-  { pageId: 'Media', selector: '[data-catalogue-example="media-status-indicators"]' },
+  { pageId: 'Select', selector: '[data-catalogue-example="select-options"]' },
+  { pageId: 'Readouts', selector: '[data-catalogue-example="readouts-edge"]' },
+  { pageId: 'Palette', selector: '[data-catalogue-example="palette-native"]' },
+  { pageId: 'Faders', selector: '[data-catalogue-example="faders-compound-fader"]' },
+  { pageId: 'StatusBlocks', selector: '[data-catalogue-example="media-status-blocks"]' },
+  { pageId: 'QRCodes', selector: '[data-catalogue-example="media-qr-codes"]' },
+  { pageId: 'StatusIndicators', selector: '[data-catalogue-example="media-status-indicators"]' },
   { pageId: 'Text', selector: '[data-catalogue-example="content-text-surface"]' }
 ];
 
@@ -219,7 +219,7 @@ test.describe('catalogue accessibility', () => {
   test('keeps edge-ring decoration out of the tree and progress distinguishable', async ({ page }, testInfo) => {
     test.skip(!isAxeProject(testInfo), 'Edge-ring accessibility checks run in desktop and forced-colours projects.');
 
-    await openCatalogue(page, 'PickersPrecision');
+    await openCatalogue(page, 'Readouts');
     if (isDesktopThemeProject(testInfo)) {
       await setMediaFeature(page, 'prefers-contrast', 'more');
       expect(await page.evaluate(() => matchMedia('(prefers-contrast: more)').matches)).toBe(true);
@@ -424,7 +424,7 @@ test.describe('catalogue accessibility', () => {
 
   test('keeps neutral text, placeholder, preview, and status colours readable', async ({ page }, testInfo) => {
     test.skip(!isDarkThemeEngineProject(testInfo), 'Neutral text checks run once for each desktop colour theme and engine.');
-    await openCatalogue(page, 'Media');
+    await openCatalogue(page, 'StatusIndicators');
     if (testInfo.project.name.includes('firefox') || testInfo.project.name.includes('webkit')) {
       await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
     }
