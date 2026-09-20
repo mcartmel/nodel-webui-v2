@@ -19,8 +19,8 @@ type SeamBase = { css: string; rgb: readonly [number, number, number] };
 const releaseProjects = new Set(['chromium-light-desktop', 'firefox-light-desktop', 'webkit-light-desktop']);
 
 async function openBackgroundCatalogue(page: Page) {
-  await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
-  await page.locator('nodel-page[data-page-id="AppShell"][active]').waitFor();
+  await page.goto('/components.html#App', { waitUntil: 'domcontentloaded' });
+  await page.locator('nodel-page[data-page-id="App"][active]').waitFor();
   const host = page.locator('[data-background-catalogue="backgrounds"]');
   await host.locator('nodel-select').first().locator('.nodel-select-trigger').waitFor({ state: 'visible' });
   return host;
@@ -60,7 +60,7 @@ async function backgroundStyle(app: ReturnType<Page['locator']>) {
 }
 
 async function installNavigationFixture(page: Page) {
-  await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
+  await page.goto('/components.html#App', { waitUntil: 'domcontentloaded' });
   await page.locator('nodel-app').first().waitFor();
   const app = page.locator('nodel-app').first();
   await app.evaluate((element: HTMLElement) => {
@@ -84,10 +84,17 @@ async function renderedTileMetrics(page: Page, url: string, width: number, heigh
   await page.evaluate(({ base, image, w, h }) => {
     const element = document.createElement('div');
     element.dataset.backgroundSeamProbe = 'true';
-    element.style.cssText = `position:fixed;left:0;top:0;width:${w * 2}px;height:${h * 2}px;background:${base.css} url("${image}") repeat;background-size:${w}px ${h}px`;
+    element.style.cssText = `position:fixed;left:0;top:0;width:${w * 2}px;height:${h * 2}px;background:${base.css} url("${image}") repeat;background-size:${w}px ${h}px;z-index:2147483647`;
     document.body.append(element);
   }, { base, image: url, w: width, h: height });
   const probe = page.locator('[data-background-seam-probe]');
+  await page.evaluate(async (image) => {
+    const asset = new Image();
+    asset.src = image;
+    await asset.decode();
+  }, url);
+  // Force the oversized fixed probe into the compositor before measuring its pixels.
+  await probe.screenshot();
   const png = PNG.sync.read(await probe.screenshot());
   const difference = (first: number, second: number) => {
     let total = 0;
@@ -324,7 +331,7 @@ test.describe('authored background rendering', () => {
     const websockets: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
     page.on('websocket', (websocket) => websockets.push(websocket.url()));
-    await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
+    await page.goto('/components.html#App', { waitUntil: 'domcontentloaded' });
     const example = page.locator('[data-background-catalogue="backgrounds"]');
     const section = page.locator('[data-background-catalogue-section]');
     await expect(example.locator('nodel-select').first().locator('nodel-button')).toHaveCount(10);
@@ -487,7 +494,7 @@ test.describe('authored background rendering', () => {
 
   test('preserves an explicit RGB page colour over a conflicting app colour', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'chromium-forced-colors', 'Forced-colours intentionally replaces authored background colours with Canvas.');
-    await page.goto('/components.html#AppShell', { waitUntil: 'domcontentloaded' });
+    await page.goto('/components.html#App', { waitUntil: 'domcontentloaded' });
     const section = page.locator('[data-background-catalogue-section]');
     await expect(section.locator('[data-background-markup="app"]')).toContainText('background-color="rgb(32 43 56)"');
     const markup = await section.locator('[data-background-markup="page"]').textContent();
@@ -767,8 +774,8 @@ test.describe('authored background rendering', () => {
     }
     const catalogue = await openBackgroundCatalogue(page);
     const section = page.locator('[data-background-catalogue-section]');
-    await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(56);
-    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(56);
+    await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(69);
+    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(69);
     const patternSelect = catalogue.locator('nodel-select[action="SetCatalogueBackgroundPattern"]');
     await patternSelect.locator('.nodel-select-trigger').focus();
     await page.keyboard.press('Enter');

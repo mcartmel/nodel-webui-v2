@@ -9,8 +9,8 @@ test.describe('remote-aware links and filtered navigation', () => {
   test('keeps static catalogue links native, nested, and keyboard accessible', async ({ page }) => {
     const requests: string[] = [];
     page.on('request', (request) => requests.push(request.url()));
-    await openCatalogue(page, 'ControlGrid');
-    const link = page.locator('[data-catalogue-example="links-native-choices"] nodel-link');
+    await openCatalogue(page, 'Links');
+    const link = page.locator('[data-catalogue-example="links"] nodel-link');
     const anchor = link.locator('[data-nodel-link-anchor]');
 
     await expect(anchor).toHaveAttribute('href', '#Text');
@@ -41,7 +41,7 @@ test.describe('remote-aware links and filtered navigation', () => {
         : [{ node: 'Bound Display', address: 'https://bound.example/nodes/BoundDisplay/' }];
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify(entries) });
     });
-    await openCatalogue(page, 'ControlGrid');
+    await openCatalogue(page, 'Links');
     await page.evaluate(() => {
       const fixture = document.createElement('section');
       fixture.id = 'resolved-link-fixture';
@@ -90,7 +90,7 @@ test.describe('remote-aware links and filtered navigation', () => {
       await gate;
       await route.fulfill({ contentType: 'application/json', body: '[]' });
     });
-    await openCatalogue(page, 'ControlGrid');
+    await openCatalogue(page, 'Links');
     await page.evaluate(() => {
       const fixture = document.createElement('section');
       fixture.id = 'link-state-fixture';
