@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin control density fixture</title>
+    <link rel="stylesheet" href="/v2/nodel-webui.css">
+  </head>
+  <body>
+    <main>
+      <nodel-console style="visibility: visible">
+        <label>Console <input class="nodel-field" value="command"></label>
+        <button class="nodel-button nodel-button-compact" type="button">Run</button>
+      </nodel-console>
+      <nodel-actsig style="visibility: visible">
+        <label>Action <input class="nodel-field nodel-field-compact" value="action"></label>
+        <select class="nodel-field nodel-field-compact"><option>Default</option></select>
+      </nodel-actsig>
+      <nodel-log style="visibility: visible">
+        <label>Filter <input class="nodel-field" value="filter"></label>
+        <select class="nodel-field"><option>Rows</option></select>
+      </nodel-log>
+      <nodel-params style="visibility: visible">
+        <label>Parameter <input class="nodel-field" value="value"></label>
+        <button class="nodel-button" type="button">Save</button>
+      </nodel-params>
+      <nodel-bindings style="visibility: visible">
+        <label>Binding <input class="nodel-field" value="binding"></label>
+        <button class="nodel-button nodel-button-compact" type="button">Apply</button>
+      </nodel-bindings>
+
+      <section aria-label="Explicit density modes">
+        <nodel-params class="nodel-controls-compact" style="visibility: visible">
+          <input class="nodel-field" aria-label="Explicit compact" value="compact">
+        </nodel-params>
+        <nodel-bindings class="nodel-controls-touch" style="visibility: visible">
+          <input class="nodel-field nodel-field-compact" aria-label="Explicit touch" value="touch">
+          <select class="nodel-field" aria-label="Touch dropdown"><option>Touch</option></select>
+          <button class="nodel-button nodel-button-compact" type="button">Touch action</button>
+        </nodel-bindings>
+      </section>
+
+      <section aria-label="Unscoped public controls">
+        <input class="nodel-field" aria-label="Public field" value="public">
+        <button class="nodel-button" type="button">Public button</button>
+      </section>
+    </main>
+  </body>
+</html>

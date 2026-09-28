@@ -116,6 +116,7 @@ describe('nodel-editor import lifecycle', () => {
     await waitFor(() => document.querySelector('[data-editor-retry-import]') !== null);
 
     expect(document.querySelector('nodel-editor')?.textContent).toContain('Editor chunk unavailable');
+    expect(document.querySelector('[data-editor-retry-import]')?.classList.contains('nodel-editor-control')).toBe(true);
     document.querySelector<HTMLButtonElement>('[data-editor-retry-import]')?.click();
 
     await waitFor(() => editorImportMock.create.mock.calls.length === 1);

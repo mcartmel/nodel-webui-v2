@@ -131,6 +131,60 @@ describe('nodel-page viewport layout state', () => {
     expect(page.dataset.minHeight).toBe('viewport');
   });
 
+  it('prevents inherited page titles from becoming tooltips without changing authored titles', async () => {
+    document.body.innerHTML = `
+      <nodel-page title="Config">
+        <nodel-row><button>Untitled</button><button title="Open node details">Open</button></nodel-row>
+        <nodel-group title="Group help"><button>Group control</button></nodel-group>
+      </nodel-page>
+    `;
+    const page = document.querySelector('nodel-page') as HTMLElement;
+    const content = () => page.querySelector('[data-page-content]') as HTMLElement;
+    const untitledButton = page.querySelector('nodel-row button') as HTMLButtonElement;
+    const titledButton = page.querySelector('button[title]') as HTMLButtonElement;
+    const groupButton = page.querySelector('nodel-group button') as HTMLButtonElement;
+    const group = page.querySelector('nodel-group') as HTMLElement;
+
+    expect(untitledButton.closest('[title]')).toBe(content());
+    expect(content().getAttribute('title')).toBe('');
+    expect(titledButton.closest('[title]')?.getAttribute('title')).toBe('Open node details');
+    expect(groupButton.closest('[title]')).toBe(group);
+    expect(group.getAttribute('title')).toBe('Group help');
+    expect(page.getAttribute('title')).toBe('Config');
+
+    const childPage = document.createElement('nodel-page');
+    childPage.setAttribute('title', 'Child');
+    childPage.innerHTML = '<button>Child control</button>';
+    content().append(childPage);
+    await flush();
+    expect(page.dataset.navGroupPage).toBe('true');
+    const childButton = childPage.querySelector('button') as HTMLButtonElement;
+    const childContent = childPage.querySelector('[data-page-content]') as HTMLElement;
+    expect(untitledButton.closest('[title]')).toBe(content());
+    expect(childButton.closest('[title]')).toBe(childContent);
+    expect(childContent.getAttribute('title')).toBe('');
+    expect(page.getAttribute('title')).toBe('Config');
+    expect(childPage.getAttribute('title')).toBe('Child');
+
+    page.setAttribute('title', 'Settings');
+    expect(untitledButton.closest('[title]')).toBe(content());
+    expect(content().getAttribute('title')).toBe('');
+    expect(page.getAttribute('title')).toBe('Settings');
+
+    childPage.remove();
+    await flush();
+    expect(page.dataset.navGroupPage).toBe('false');
+    expect(untitledButton.closest('[title]')).toBe(content());
+    expect(content().getAttribute('title')).toBe('');
+    expect(page.getAttribute('title')).toBe('Settings');
+
+    page.remove();
+    document.body.append(page);
+    expect(untitledButton.closest('[title]')).toBe(content());
+    expect(content().getAttribute('title')).toBe('');
+    expect(page.getAttribute('title')).toBe('Settings');
+  });
+
   it('does not treat nested page ownership as a direct group transition', async () => {
     document.body.innerHTML = '<nodel-page min-height="viewport"><nodel-group><nodel-page></nodel-page></nodel-group></nodel-page>';
     const page = document.querySelector('nodel-page') as HTMLElement;
