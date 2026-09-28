@@ -93,7 +93,7 @@ test.describe('theme acceptance captures', () => {
     await expect(page.locator('nodel-bindings [data-bindings-row-id]')).toHaveCount(2);
     await expect(page.locator('nodel-bindings')).toContainText('Start binding');
     await expect(page.locator('nodel-params')).toContainText('Nested settings');
-    await page.locator('nodel-page[title="Config"] nodel-collapse > details > summary').click();
+    await page.locator('nodel-page[title="Config"] nodel-collapse[label="Parameters"] > details > summary').click();
     await expect(page.locator('nodel-params .nodel-field')).toHaveCount(1);
     await page.getByText('Nested settings', { exact: true }).click();
     await expect(page.locator('nodel-params .nodel-field')).toHaveCount(2);
