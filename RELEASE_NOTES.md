@@ -4,6 +4,8 @@
 
 ### Performance Budget Evidence
 
+- `APPROVED_BINDINGS_UI_CSS_2026-09-28`: the user approved preserving the refined bindings layout. Only the `stable-css` gzip budget changes, from baseline `22244` / max `23357` to reviewed baseline `23434` / max `23903`; all raw limits and other metric limits are unchanged. The final no-help build measured `23344` gzip bytes, within the approved allowance.
+- Rationale: Reviewed bindings UI refinements set only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes, with two percent headroom. The stable-css raw baseline and maximum, and all other metrics and budgets, remain unchanged.
 - `APPROVED_CATALOGUE_STRUCTURE_2026-09-18`: Catalogue reorganization covers 39 pages, 59 paired examples, and 67 copy blocks; only `components-html` is rebaselined to reviewed actual raw `175483` / max `184258` and gzip `20145` / max `21153`, with five percent headroom. All other metrics and budgets remain unchanged.
 - Rationale: Catalogue reorganization covers 39 pages, 59 paired examples, and 67 copy blocks; only components-html is rebaselined to reviewed actual raw 175483 / gzip 20145 with five percent headroom. All other metrics and budgets remain unchanged.
 - Catalogue reorganization is an HTML-only structural change; no other performance budget role is ratcheted.

@@ -149,7 +149,7 @@ describe('script save and reload cross-layer integration', () => {
     await waitFor(() => integrationMock.restartPollPending());
     integrationMock.confirmRestart();
     integrationMock.releaseSave();
-    await waitFor(() => app.textContent?.includes('unsaved editor changes were preserved.') ?? false);
+    await waitFor(() => app.textContent?.includes('Unsaved changes were preserved.') ?? false);
 
     expect(integrationMock.saveCalls).toHaveLength(1);
     expect(editor.editor.getDocument()).toBe('print("typed immediately")');

@@ -149,7 +149,7 @@ export class NodeRestartRefreshController {
       : conflict
         ? { status: 'conflict', detail: refreshOutcomes.find((outcome) => outcome.result.status === 'conflict')?.result.detail ?? 'A node-backed view could not reconcile its remote content.' }
         : dirtyPreserved
-          ? { status: 'dirty-preserved', detail: 'Unsaved editor changes were preserved.' }
+          ? { status: 'dirty-preserved', detail: formatIssues(refreshOutcomes.filter((outcome) => outcome.result.status === 'dirty-preserved')) }
           : { status: 'verified' };
     this.clearRefresh(controller);
     return { result, failed: failures.length > 0, conflict, dirtyPreserved, failureDetail, diagnosticDetail, diagnosticIssues: diagnostics.length > 0, expectation };

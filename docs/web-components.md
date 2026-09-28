@@ -1526,11 +1526,18 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 
 - Reads current-node remote binding schema from relative `REST/remote/schema` and values from relative `REST/remote`.
 - Renders action and event bindings as grouped rows with status, target node, target action/event, and suggestion state.
-- Renders a wired status as a link to the dedicated Network page prefiltered for that row's target node.
+- Separates saved binding status from the editable draft. `Unset` means the saved node or action/event target is missing; a complete binding starts `Unknown` until runtime evidence is available. `Wired` and `Unwired` describe last-known runtime state, not validation of an unsaved edit or proof that the destination's web UI is reachable.
+- Uses compact controls and an `Open node` shortcut icon inside each node field, without adding another line to binding rows. The keyboard-accessible link follows the displayed node name, including unsaved values. Exact-name discovery prefers a safe same-origin address and falls back to the dedicated Network page prefiltered for that name. Navigation never saves a draft.
 - Uses `/REST/nodeURLs` for node lookup and target-node `REST/actions` or `REST/events` for action/event lookup.
+- Text search and saved-status filters define the working set. `Select all` / `Select filtered` replaces selection; `Select Unset` replaces it with rows whose saved status is Unset in that working set. Runtime `Unwired` remains a separate saved-status filter and can be selected with `Select filtered`. Individual checkboxes add/remove rows. Applying filters deselects excluded rows without discarding edits, and clearing filters does not restore old selections.
+- Keeps result membership stable during editing, saving, and live status updates. `Refresh results` reapplies the current filters locally; it does not reload configuration from the node. A notice identifies when the current values would produce a different result set.
+- Opens matching Actions/Events disclosures when a filter is applied, without moving focus or scrolling. Manual collapse remains available and does not change selection. Clearing all filters restores earlier expansion preferences, respecting manual toggles made during filtering.
+- Shows changed-row counts, including edits outside the working set. `Save changes` saves all pending changes, not just selected or filtered rows. Successful saves advance the local baseline; failures retain the draft. `Revert changes` confirms and restores the last successful load/save baseline for all rows, including hidden ones, without reloading or writing configuration.
+- Validation errors remain discoverable outside the working set through a global summary. `Show invalid bindings` clears filters, opens affected sections, and focuses the first invalid control. Unset or partial bindings are not themselves validation errors.
+- Preserves dirty drafts automatically during node-restart refresh using the shared `dirty-preserved` outcome; clean bindings reload normally. A retained draft is not reconciled with server changes, local Revert still restores only the retained baseline, and ordinary Save remains an unconditional backend write. This does not provide browser-reload persistence or cross-client conflict detection, and does not alter the editor's file-specific conflict safeguards.
 - Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
 - Posts raw remote binding payloads to relative `REST/remote/save`, matching the v1 backend shape.
-- Empty, node-only, target-only, and complete binding rows are valid to save; incomplete rows remain inactive and unwired. Supplied invalid typed or enum values still block saving, and complete replacement preserves unknown metadata.
+- Empty, node-only, target-only, and complete binding rows are valid to save; incomplete saved rows remain inactive and are displayed as Unset. Supplied invalid typed or enum values still block saving, and complete replacement preserves unknown metadata.
 
 `nodel-editor` behavior:
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "APPROVED_CATALOGUE_STRUCTURE_2026-09-18",
-  "rationale": "Catalogue reorganization covers 39 pages, 59 paired examples, and 67 copy blocks; only components-html is rebaselined to reviewed actual raw 175483 / gzip 20145 with five percent headroom. All other metrics and budgets remain unchanged.",
+  "releaseNotesMarker": "APPROVED_BINDINGS_UI_CSS_2026-09-28",
+  "rationale": "Reviewed bindings UI refinements set only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes, with two percent headroom. The stable-css raw baseline and maximum, and all other metrics and budgets, remain unchanged.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -19,7 +19,7 @@
   ],
   "budgets": {
     "stable-entry-closure": { "rawBaseline": 386548, "rawMax": 405876, "gzipBaseline": 104552, "gzipMax": 109780 },
-    "stable-css": { "rawBaseline": 178790, "rawMax": 187730, "gzipBaseline": 22244, "gzipMax": 23357 },
+    "stable-css": { "rawBaseline": 178790, "rawMax": 187730, "gzipBaseline": 23434, "gzipMax": 23903 },
     "codemirror-base": { "rawBaseline": 411183, "rawMax": 431743, "gzipBaseline": 133409, "gzipMax": 140080 },
     "codemirror-language-python": { "rawBaseline": 71704, "rawMax": 75290, "gzipBaseline": 27989, "gzipMax": 29389 },
     "codemirror-language-html": { "rawBaseline": 271633, "rawMax": 285215, "gzipBaseline": 92689, "gzipMax": 97324 },

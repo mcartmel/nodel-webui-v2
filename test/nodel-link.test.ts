@@ -10,6 +10,7 @@ vi.mock('../src/api/nodel-host-client', () => ({
 
 import '../src/components/nodel-icon';
 import '../src/components/nodel-link';
+import { NodeAddressResolver, preferredNodeAddress } from '../src/navigation/node-links';
 import { flush, waitFor } from './helpers';
 
 function deferred<T>() {
@@ -268,5 +269,132 @@ describe('nodel-link', () => {
     pending.resolve([{ address: 'https://detached.example/' }]);
     await flush();
     expect(link.getAttribute('data-state')).toBe('loading');
+  });
+});
+
+describe('node link resolution policy', () => {
+  it('shares same-origin-first safe address selection with nodel-link', () => {
+    expect(preferredNodeAddress([
+      { address: 'javascript:alert(1)' },
+      { address: 'https://remote.example/node' },
+      { address: `${window.location.origin}/node` }
+    ])?.href).toBe(`${window.location.origin}/node`);
+    expect(preferredNodeAddress([{ address: 'javascript:alert(1)' }])).toBeNull();
+  });
+
+  it('deduplicates exact names and lets one consumer abort without aborting another', async () => {
+    const pending = deferred<Array<{ address: string }>>();
+    const discover = vi.fn((_name: string, _init?: RequestInit) => pending.promise);
+    const resolver = new NodeAddressResolver(discover);
+    const controller = new AbortController();
+    const abandoned = resolver.resolve('Display Ünit', { signal: controller.signal });
+    const retained = resolver.resolve('Display Ünit');
+    controller.abort();
+
+    expect(await abandoned).toBeNull();
+    expect(discover).toHaveBeenCalledTimes(1);
+    expect(discover).toHaveBeenCalledWith('Display Ünit', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(discover.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+
+    pending.resolve([{ address: 'https://display.example/node' }]);
+    await expect(retained).resolves.toBe('https://display.example/node');
+    await expect(resolver.resolve('Display Ünit')).resolves.toBe('https://display.example/node');
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
+
+  it('queues overflow and preserves the unresolved-request bound across clear', async () => {
+    const first = deferred<Array<{ address: string }>>();
+    const second = deferred<Array<{ address: string }>>();
+    const discover = vi.fn((name: string) => name === 'First' ? first.promise : second.promise);
+    const resolver = new NodeAddressResolver(discover, 1);
+    const oldResult = resolver.resolve('First');
+    const nextResult = resolver.resolve('Second');
+    resolver.clear();
+    await expect(oldResult).resolves.toBeNull();
+    await expect(nextResult).resolves.toBeNull();
+
+    expect(discover).toHaveBeenCalledTimes(1);
+    first.resolve([{ address: 'https://first.example/node' }]);
+    await flush();
+    expect(discover).toHaveBeenCalledTimes(1);
+    resolver.dispose();
+    await expect(resolver.resolve('Third')).resolves.toBeNull();
+  });
+
+  it('automatically resolves queued distinct names as active slots settle', async () => {
+    const deferreds = Array.from({ length: 7 }, () => deferred<Array<{ address: string }>>());
+    const discover = vi.fn((name: string) => deferreds[Number(name.slice(4))]?.promise ?? Promise.resolve([]));
+    const resolver = new NodeAddressResolver(discover, 4);
+    const results = Array.from({ length: 7 }, (_, index) => resolver.resolve(`Node${index}`));
+
+    await flush();
+    expect(discover).toHaveBeenCalledTimes(4);
+    for (let index = 0; index < 7; index += 1) {
+      deferreds[index]?.resolve([{ address: `https://node${index}.example/` }]);
+      await flush();
+    }
+
+    await expect(Promise.all(results)).resolves.toEqual(
+      Array.from({ length: 7 }, (_, index) => `https://node${index}.example/`)
+    );
+    expect(discover).toHaveBeenCalledTimes(7);
+  });
+
+  it('settles queued work on dispose and safely handles synchronous discovery throws', async () => {
+    const pending = deferred<Array<{ address: string }>>();
+    const resolver = new NodeAddressResolver(vi.fn(() => pending.promise), 1);
+    const active = resolver.resolve('Active');
+    const queued = resolver.resolve('Queued');
+    resolver.dispose();
+    await expect(active).resolves.toBeNull();
+    await expect(queued).resolves.toBeNull();
+
+    const throwingDiscover = vi.fn(() => {
+      throw new TypeError('sync failure');
+    });
+    const throwing = new NodeAddressResolver(throwingDiscover, 1);
+    await expect(throwing.resolve('Retry')).resolves.toBeNull();
+    await expect(throwing.resolve('Next')).resolves.toBeNull();
+    expect(throwingDiscover).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds successful cached addresses and refreshes least-recently-used entries', async () => {
+    const discover = vi.fn(async (name: string) => [{ address: `https://node.example/${name}` }]);
+    const resolver = new NodeAddressResolver(discover, 4, 2);
+    await resolver.resolve('First');
+    await resolver.resolve('Second');
+    await resolver.resolve('First');
+    await resolver.resolve('Third');
+    await resolver.resolve('First');
+    expect(discover).toHaveBeenCalledTimes(3);
+    await resolver.resolve('Second');
+    expect(discover).toHaveBeenCalledTimes(4);
+    resolver.dispose();
+  });
+
+  it('bounds queued distinct names and settles excess consumers with fallback', async () => {
+    const pending = deferred<Array<{ address: string }>>();
+    const discover = vi.fn(() => pending.promise);
+    const resolver = new NodeAddressResolver(discover, 1);
+    const results = Array.from({ length: 129 }, (_, index) => resolver.resolve(`Node${index}`));
+    await expect(resolver.resolve('Overflow')).resolves.toBeNull();
+    expect(discover).toHaveBeenCalledTimes(1);
+    resolver.dispose();
+    await expect(Promise.all(results)).resolves.toEqual(Array.from({ length: 129 }, () => null));
+    pending.resolve([]);
+    await flush();
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache failures and accepts exact well-formed names only', async () => {
+    const discover = vi.fn().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce([
+      { address: 'https://display.example/node' }
+    ]);
+    const resolver = new NodeAddressResolver(discover);
+
+    await expect(resolver.resolve('Node\ufffd')).resolves.toBeNull();
+    await expect(resolver.resolve('Node\ud800')).resolves.toBeNull();
+    await expect(resolver.resolve('Node\ufffd')).resolves.toBe('https://display.example/node');
+    expect(discover).toHaveBeenCalledTimes(2);
   });
 });
