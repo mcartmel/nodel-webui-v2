@@ -176,6 +176,8 @@ export class NodelPage extends HTMLElement {
   private syncPageState() {
     if (!this.shellReady || !this.contentNode) return;
 
+    // Stop the page's navigation title from becoming native tooltips on descendants.
+    this.contentNode.title = '';
     this.dataset.navGroupPage = String(this.groupPage);
 
     const requested = this.getAttribute('min-height');

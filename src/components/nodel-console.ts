@@ -45,7 +45,7 @@ const template = `
       </div>
     </div>
     <div class="space-y-2">
-      <input id="nodel-console-input" data-console-input class="nodel-console-input nodel-field min-h-10 w-full font-mono" type="text" spellcheck="false" aria-label="Console input" data-link="commandText trigger=true" />
+      <input id="nodel-console-input" data-console-input class="nodel-console-input nodel-field w-full font-mono" type="text" spellcheck="false" aria-label="Console input" data-link="commandText trigger=true" />
     </div>
   </div>
 `;

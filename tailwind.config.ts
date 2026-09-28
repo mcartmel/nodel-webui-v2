@@ -2,6 +2,7 @@ import type { Config } from 'tailwindcss';
 
 export default {
   content: ['./*.html', './src/**/*.{ts,html}'],
+  safelist: ['nodel-controls-compact', 'nodel-controls-touch'],
   theme: {
     extend: {
       borderRadius: {

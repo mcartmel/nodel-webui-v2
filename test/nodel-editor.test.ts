@@ -411,6 +411,24 @@ describe('nodel-editor', () => {
     expect(codeEditorMock.instance.focus).toHaveBeenCalled();
   });
 
+  it('marks editor-owned controls for density styling without marking the native file input', async () => {
+    await mountEditor();
+    const toolbarControls = document.querySelectorAll<HTMLElement>([
+      '[data-editor-file-picker]', '[data-editor-refresh]', '[data-editor-toggle-add]',
+      '.nodel-editor-toolbar > label:has([data-editor-upload])', '[data-editor-default]',
+      '[data-editor-save]', '[data-editor-delete]'
+    ].join(','));
+    expect(toolbarControls).toHaveLength(7);
+    for (const control of toolbarControls) expect(control.classList.contains('nodel-editor-control')).toBe(true);
+    expect(document.querySelector('[data-editor-upload]')?.classList.contains('nodel-editor-control')).toBe(false);
+
+    document.querySelector<HTMLButtonElement>('[data-editor-toggle-add]')?.click();
+    await waitFor(() => Boolean(document.querySelector('[data-editor-add-path]')));
+    for (const selector of ['[data-editor-add-path]', '[data-editor-create-empty]', '[data-editor-cancel-add]']) {
+      expect(document.querySelector(selector)?.classList.contains('nodel-editor-control')).toBe(true);
+    }
+  });
+
   it('stages one dropped text file for path editing before using the existing create flow', async () => {
     const element = await mountEditor();
     const file = textFile('<nodel-app></nodel-app>', 'panel.html', 'text/html');

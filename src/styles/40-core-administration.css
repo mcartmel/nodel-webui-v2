@@ -578,14 +578,103 @@
     background: var(--nodel-subtle-background, rgb(var(--nodel-bg) / 0.35));
   }
 
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings, nodel-editor),
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings).nodel-controls-compact {
+    --nodel-admin-control-min-height: 2.25rem;
+    --nodel-admin-control-font-size: 0.875rem;
+    --nodel-admin-control-line-height: 1.25rem;
+    --nodel-admin-control-padding-inline: 0.5rem;
+    --nodel-admin-textarea-padding-block: 0.5rem;
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings, nodel-editor).nodel-controls-touch {
+    --nodel-admin-control-min-height: 3.5rem;
+    --nodel-admin-control-font-size: 1rem;
+    --nodel-admin-control-line-height: 1.5rem;
+    --nodel-admin-control-padding-inline: 0.75rem;
+    --nodel-admin-textarea-padding-block: 0.75rem;
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) :is(
+    button:not(.nodel-menu-item),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+    select
+  ),
+  nodel-editor .nodel-editor-control {
+    box-sizing: border-box;
+    min-block-size: var(--nodel-admin-control-min-height);
+    padding-inline: var(--nodel-admin-control-padding-inline);
+    padding-inline-end: var(--nodel-admin-control-padding-inline-end, var(--nodel-admin-control-padding-inline));
+    padding-block: 0;
+    font-size: var(--nodel-admin-control-font-size);
+    line-height: var(--nodel-admin-control-line-height);
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) input[type='color'] {
+    box-sizing: border-box;
+    min-block-size: var(--nodel-admin-control-min-height);
+    padding: 0;
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) input[type='range'] {
+    min-block-size: var(--nodel-admin-control-min-height);
+    padding-block: 0;
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) textarea.nodel-field {
+    font-size: var(--nodel-admin-control-font-size);
+    line-height: var(--nodel-admin-control-line-height);
+    padding-block: var(--nodel-admin-textarea-padding-block);
+    padding-inline: var(--nodel-admin-control-padding-inline);
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) .nodel-schema-check {
+    min-block-size: var(--nodel-admin-control-min-height);
+    align-items: flex-start;
+  }
+
+  :is(nodel-console, nodel-actsig, nodel-log, nodel-params, nodel-bindings) .nodel-schema-check > .nodel-choice {
+    margin-top: 0.375rem;
+  }
+
+  :is(nodel-log label:has(>[data-log-hold]), nodel-actsig label:has(>[data-actsig-override])) {
+    min-block-size: var(--nodel-admin-control-min-height);
+  }
+
+  .nodel-bindings {
+    --nodel-bindings-select-column: 2rem;
+  }
+
+  nodel-bindings.nodel-controls-touch .nodel-bindings {
+    --nodel-bindings-select-column: 2.75rem;
+  }
+
   .nodel-bindings .nodel-bindings-header,
   .nodel-bindings .nodel-bindings-row {
-    grid-template-columns: 2rem 5rem minmax(8rem, 1.25fr) minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(7rem, 0.8fr);
+    grid-template-columns: var(--nodel-bindings-select-column) 5rem minmax(8rem, 1.25fr) minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(7rem, 0.8fr);
+  }
+
+  .nodel-bindings .nodel-bindings-row > label[role='cell'] {
+    box-sizing: border-box;
+    inline-size: var(--nodel-bindings-select-column);
+    min-block-size: calc(var(--nodel-admin-control-min-height) - 0.75rem);
+  }
+
+  .nodel-bindings .nodel-bindings-node-field > [data-bindings-node] {
+    --nodel-admin-control-padding-inline-end: calc(var(--nodel-admin-control-min-height) + 0.25rem);
+  }
+
+  .nodel-bindings .nodel-bindings-open-node {
+    box-sizing: border-box;
+    inline-size: calc(var(--nodel-admin-control-min-height) - 2px);
+    block-size: calc(var(--nodel-admin-control-min-height) - 2px);
+    min-block-size: 0;
+    padding: 0;
   }
 
   @media (max-width: 900px) {
     .nodel-bindings .nodel-bindings-row {
-      grid-template-columns: 2rem minmax(0, 1fr);
+      grid-template-columns: var(--nodel-bindings-select-column) minmax(0, 1fr);
     }
   }
 }

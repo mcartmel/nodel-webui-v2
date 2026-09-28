@@ -119,6 +119,23 @@ The backdrop remains fixed while page content scrolls. Brightness applies only t
 - `nodel-connectivity-host`: app-level host-connectivity presentation, created automatically by `nodel-app`.
 - `nodel-link`: safe static, node-discovered, or event-binding-derived link.
 
+### Admin Control Density
+
+The six eligible hosts are `nodel-console`, `nodel-actsig`, `nodel-log`, `nodel-params`, `nodel-bindings`, and `nodel-editor`. Each defaults to compact 36px controls. Add `class="nodel-controls-compact"` to explicitly select that same 36px size, or `class="nodel-controls-touch"` for 56px controls. Put the class on each supported component host; classes on arbitrary wrappers do not change nested component controls. If both classes are present, touch sizing wins. Prefer specifying only one class. There is no density attribute, persistence, or automatic device/viewport switching.
+
+```html
+<!-- Compact administration controls by default -->
+<nodel-params></nodel-params>
+
+<!-- Explicit compact sizing (36px) -->
+<nodel-params class="nodel-controls-compact"></nodel-params>
+
+<!-- Larger controls for touch use (56px) -->
+<nodel-params class="nodel-controls-touch"></nodel-params>
+```
+
+Inside the five administration hosts, density applies to eligible single-line inputs, closed selects, and buttons, including schema-generated and later-created controls. Multiline and JSON textareas retain their editing minimums, checkboxes keep their glyph size with a larger hit area, and range/native picker controls retain browser affordances. Inside `nodel-editor`, density applies only to its owned toolbar controls, Upload label, new-file path/Create/Cancel controls, and failed-import Retry action. The visually hidden native file input remains hidden and functional. CodeMirror editing content, font and line height, search/replace panels, and other editor internals are excluded; toggling density does not resize them. This host styling does not change headings, output typography, unrelated public controls, or public `nodel-button`/`nodel-select` sizing.
+
 ## V1 Migration
 
 V2 keeps the legacy V1 loader available for pages that have not migrated. New and migrated pages should use the explicit V2 components and attributes below rather than relying on V1 XML/XSL inference or magic aliases.
@@ -1529,13 +1546,13 @@ The add-node panel is intentionally native HTML and does not depend on Bootstrap
 - Separates saved binding status from the editable draft. `Unset` means the saved node or action/event target is missing; a complete binding starts `Unknown` until runtime evidence is available. `Wired` and `Unwired` describe last-known runtime state, not validation of an unsaved edit or proof that the destination's web UI is reachable.
 - Uses compact controls and an `Open node` shortcut icon inside each node field, without adding another line to binding rows. The keyboard-accessible link follows the displayed node name, including unsaved values. Exact-name discovery prefers a safe same-origin address and falls back to the dedicated Network page prefiltered for that name. Navigation never saves a draft.
 - Uses `/REST/nodeURLs` for node lookup and target-node `REST/actions` or `REST/events` for action/event lookup.
+- Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
 - Text search and saved-status filters define the working set. `Select all` / `Select filtered` replaces selection; `Select Unset` replaces it with rows whose saved status is Unset in that working set. Runtime `Unwired` remains a separate saved-status filter and can be selected with `Select filtered`. Individual checkboxes add/remove rows. Applying filters deselects excluded rows without discarding edits, and clearing filters does not restore old selections.
 - Keeps result membership stable during editing, saving, and live status updates. `Refresh results` reapplies the current filters locally; it does not reload configuration from the node. A notice identifies when the current values would produce a different result set.
 - Opens matching Actions/Events disclosures when a filter is applied, without moving focus or scrolling. Manual collapse remains available and does not change selection. Clearing all filters restores earlier expansion preferences, respecting manual toggles made during filtering.
 - Shows changed-row counts, including edits outside the working set. `Save changes` saves all pending changes, not just selected or filtered rows. Successful saves advance the local baseline; failures retain the draft. `Revert changes` confirms and restores the last successful load/save baseline for all rows, including hidden ones, without reloading or writing configuration.
 - Validation errors remain discoverable outside the working set through a global summary. `Show invalid bindings` clears filters, opens affected sections, and focuses the first invalid control. Unset or partial bindings are not themselves validation errors.
 - Preserves dirty drafts automatically during node-restart refresh using the shared `dirty-preserved` outcome; clean bindings reload normally. A retained draft is not reconciled with server changes, local Revert still restores only the retained baseline, and ordinary Save remains an unconditional backend write. This does not provide browser-reload persistence or cross-client conflict detection, and does not alter the editor's file-specific conflict safeguards.
-- Supports selected-row bulk node assignment, fuzzy match suggestions, and applying high/medium confidence suggestions.
 - Posts raw remote binding payloads to relative `REST/remote/save`, matching the v1 backend shape.
 - Empty, node-only, target-only, and complete binding rows are valid to save; incomplete saved rows remain inactive and are displayed as Unset. Supplied invalid typed or enum values still block saving, and complete replacement preserves unknown metadata.
 

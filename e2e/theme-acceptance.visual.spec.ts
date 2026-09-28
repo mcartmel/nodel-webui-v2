@@ -42,6 +42,7 @@ async function routeNodeFixture(page: Page) {
   await page.route('**/nodes/Demo/REST/files', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ path: 'script.py', size: 48 }]) }));
   await page.route('**/nodes/Demo/REST/files/contents?path=*', (route) => route.fulfill({ contentType: 'text/plain', body: '# Ready\nprint("demo")\nvalue = 42' }));
   await page.route('**/nodes/Demo/REST/hasRestarted*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ timestamp: null }) }));
+  await page.route('**/REST/nodeURLsForNode', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ node: 'Demo', address: 'http://127.0.0.1:4173/nodes/Demo/', host: '127.0.0.1' }]) }));
   await page.route('**/nodes/Demo/nodel.html', async (route) => {
     const response = await page.request.get(new URL('/nodel.html', route.request().url()).toString());
     await route.fulfill({ response });
@@ -86,7 +87,7 @@ test.describe('theme acceptance captures', () => {
     await expect(page.locator('nodel-actsig details.nodel-actsig-section:not([open])')).toHaveCount(1);
     await page.evaluate(async () => { await document.fonts?.ready; });
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot('activity-populated.png', { fullPage: true, maxDiffPixels: 150 });
+    await expect.soft(page).toHaveScreenshot('activity-populated.png', { fullPage: true, maxDiffPixels: 150 });
 
     await page.locator('[data-nav-page-id="Config"]').click();
     await expect(page.locator('nodel-page[title="Config"][active]')).toBeVisible();
@@ -100,6 +101,6 @@ test.describe('theme acceptance captures', () => {
     await expect(page.locator('nodel-params .nodel-field').nth(1)).toHaveValue('42');
     await page.evaluate(async () => { await document.fonts?.ready; });
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot('config-populated.png', { fullPage: true, maxDiffPixels: 150 });
+    await expect.soft(page).toHaveScreenshot('config-populated.png', { fullPage: true, maxDiffPixels: 150 });
   });
 });

@@ -103,7 +103,7 @@ const schemaFieldTemplate = `
           <div class="nodel-collapse-content nodel-schema-nested-content nodel-schema-stack">
             {^{for entries}}
               <div class="nodel-schema-array-entry nodel-card p-3" data-link="data-schema-array-entry{:id}">
-                <div class="mb-3 flex items-center justify-between gap-2">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <span class="nodel-section-heading">Item {^{:index + 1}}</span>
                   {^{if nullable}}
                     <label class="nodel-schema-presence inline-flex items-center gap-2 text-xs text-nodel-muted">

@@ -76,22 +76,22 @@ const editorFileApi = {
 const template = `
   <div class="nodel-editor space-y-3" data-link="class{:error ? 'nodel-editor space-y-3 is-error' : 'nodel-editor space-y-3'}">
     <div class="nodel-editor-toolbar flex flex-wrap items-center gap-2">
-      <div class="nodel-editor-picker-wrap min-w-0 flex-1">
-        <select data-editor-file-picker aria-label="File" class="nodel-editor-picker nodel-field w-full" data-link="{:~fileOptionToken(pickerPath)} disabled{:loading || saving || deleting}">
+      <div class="nodel-editor-picker-wrap min-w-0 basis-48 flex-1">
+        <select data-editor-file-picker aria-label="File" class="nodel-editor-control nodel-editor-picker nodel-field w-full" data-link="{:~fileOptionToken(pickerPath)} disabled{:loading || saving || deleting}">
           {^{for files}}
             <option value="{{:~fileOptionToken(path)}}">{^{>displayPath}}{^{if legacy}} (legacy, read-only){{else missing}} (local buffer){{else sizeLabel}} ({^{>sizeLabel}}){{/if}}{^{if dirty}} *{{/if}}</option>
           {{/for}}
         </select>
       </div>
-      <button data-editor-refresh type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Refresh</button>
-      <button data-editor-toggle-add type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">New file</button>
-      <label class="nodel-button cursor-pointer" data-link="class{:loading || saving || deleting ? 'nodel-button is-disabled cursor-not-allowed' : 'nodel-button cursor-pointer'}">
+      <button data-editor-refresh type="button" class="nodel-editor-control nodel-button" data-link="disabled{:loading || saving || deleting}">Refresh</button>
+      <button data-editor-toggle-add type="button" class="nodel-editor-control nodel-button" data-link="disabled{:loading || saving || deleting}">New file</button>
+      <label class="nodel-editor-control nodel-button cursor-pointer" data-link="class{:loading || saving || deleting ? 'nodel-editor-control nodel-button is-disabled cursor-not-allowed' : 'nodel-editor-control nodel-button cursor-pointer'}">
         Upload
         <input data-editor-upload class="sr-only" type="file" data-link="disabled{:loading || saving || deleting}" />
       </label>
-      <button data-editor-default type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Edit script.py</button>
-      <button data-editor-save type="button" class="nodel-button nodel-button-primary" data-link="disabled{:!canSave}">Save</button>
-      <button data-editor-delete type="button" class="nodel-button nodel-button-danger" data-link="disabled{:!canDelete}">Delete</button>
+      <button data-editor-default type="button" class="nodel-editor-control nodel-button" data-link="disabled{:loading || saving || deleting}">Edit script.py</button>
+      <button data-editor-save type="button" class="nodel-editor-control nodel-button nodel-button-primary" data-link="disabled{:!canSave}">Save</button>
+      <button data-editor-delete type="button" class="nodel-editor-control nodel-button nodel-button-danger" data-link="disabled{:!canDelete}">Delete</button>
     </div>
 
     {^{if legacy}}
@@ -103,10 +103,10 @@ const template = `
         <form data-editor-add-form class="nodel-editor-add nodel-card grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
           <label class="block min-w-0 text-sm font-medium text-nodel-fg">
             File path
-            <input data-editor-add-path class="nodel-field mt-1 w-full" type="text" placeholder="e.g. content/index.html" data-link="addFilePath trigger=true" />
+            <input data-editor-add-path class="nodel-editor-control nodel-field mt-1 w-full" type="text" placeholder="e.g. content/index.html" data-link="addFilePath trigger=true" />
           </label>
-          <button data-editor-create-empty type="submit" class="nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">{^{if uploadFileName}}Upload{{else}}Create{{/if}}</button>
-          <button data-editor-cancel-add type="button" class="nodel-button" data-link="disabled{:loading || saving || deleting}">Cancel</button>
+          <button data-editor-create-empty type="submit" class="nodel-editor-control nodel-button nodel-button-primary" data-link="disabled{:loading || saving || deleting}">{^{if uploadFileName}}Upload{{else}}Create{{/if}}</button>
+          <button data-editor-cancel-add type="button" class="nodel-editor-control nodel-button" data-link="disabled{:loading || saving || deleting}">Cancel</button>
           {^{if uploadFileName}}<p class="text-xs text-nodel-muted md:col-span-3">Selected local file: {^{>uploadFileName}}</p>{{/if}}
         </form>
       </div>
@@ -117,7 +117,7 @@ const template = `
         {^{if error}}
           {^{>error}}
           {^{if editorImportError}}
-            <button data-editor-retry-import type="button" class="nodel-button nodel-button-compact ml-2">Retry editor</button>
+            <button data-editor-retry-import type="button" class="nodel-editor-control nodel-button nodel-button-compact ml-2">Retry editor</button>
           {{/if}}
         {{else}}
           {^{>status}}

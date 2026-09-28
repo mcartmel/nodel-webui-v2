@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin control density integration fixture</title>
+    <link rel="stylesheet" href="./v2/nodel-webui.css">
+    <script type="module" src="./v2/nodel-webui.js"></script>
+  </head>
+  <body>
+    <nodel-app title="Admin control density integration fixture">
+      <nodel-page title="Admin control density">
+        <section data-density-case="default">
+          <nodel-console></nodel-console>
+          <nodel-actsig></nodel-actsig>
+          <nodel-log></nodel-log>
+          <nodel-params></nodel-params>
+          <nodel-bindings></nodel-bindings>
+        </section>
+        <section data-density-case="compact">
+          <nodel-console class="nodel-controls-compact"></nodel-console>
+          <nodel-actsig class="nodel-controls-compact"></nodel-actsig>
+          <nodel-log class="nodel-controls-compact"></nodel-log>
+          <nodel-params class="nodel-controls-compact"></nodel-params>
+          <nodel-bindings class="nodel-controls-compact"></nodel-bindings>
+        </section>
+        <section data-density-case="touch">
+          <nodel-console class="nodel-controls-touch"></nodel-console>
+          <nodel-actsig class="nodel-controls-touch"></nodel-actsig>
+          <nodel-log class="nodel-controls-touch"></nodel-log>
+          <nodel-params class="nodel-controls-touch"></nodel-params>
+          <nodel-bindings class="nodel-controls-touch"></nodel-bindings>
+        </section>
+      </nodel-page>
+    </nodel-app>
+  </body>
+</html>
