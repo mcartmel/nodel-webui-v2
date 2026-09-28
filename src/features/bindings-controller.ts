@@ -7,10 +7,12 @@ import type { BindingLookupService } from './bindings-lookup';
 import {
   bindingStatusClass,
   bindingStatusLinkProperties,
+  bindingRowChanged,
   bindingSuggestionClass,
   createBindingSections,
   hasBindingSchema,
   normalizeBindingStatus,
+  savedBindingStatus,
   serializeBindingPayload,
   validateBindingRow,
   type BindingKind,
@@ -29,6 +31,11 @@ export interface BindingsViewModel {
   empty: boolean;
   sections: BindingSection[];
   filter: string;
+  statusFilter: 'All' | 'Unset' | 'Unwired' | 'Wired' | 'Unknown';
+  resultsChanged: boolean;
+  changedCount: number;
+  changedOutsideResultsCount: number;
+  suggestionCount: number;
   bulkNode: string;
   bulkNodeAddress: string;
   bulkNodeOptions: BindingOption[];
@@ -39,8 +46,10 @@ export interface BindingsViewModel {
   unboundCount: number;
   busy: boolean;
   message: string;
+  restartNotice: string;
   toolbarError: string;
   invalid: boolean;
+  invalidCount: number;
 }
 
 export interface BindingsMutationAdapter {
@@ -90,6 +99,16 @@ interface SuggestionSnapshot {
   targetGeneration: number;
 }
 
+function newerActivityEntry(entry: NodelActivityLogEntry, previous: NodelActivityLogEntry) {
+  const time = typeof entry.timestamp === 'string' ? Date.parse(entry.timestamp) : NaN;
+  const previousTime = typeof previous.timestamp === 'string' ? Date.parse(previous.timestamp) : NaN;
+  if (Number.isFinite(time) && Number.isFinite(previousTime)) {
+    return time > previousTime || (time === previousTime && entry.seq > previous.seq);
+  }
+  if (Number.isFinite(time) && !Number.isFinite(previousTime)) return true;
+  return entry.seq > previous.seq;
+}
+
 export function createBindingsViewModel(): BindingsViewModel {
   return {
     loading: true,
@@ -100,6 +119,11 @@ export function createBindingsViewModel(): BindingsViewModel {
     empty: false,
     sections: [],
     filter: '',
+    statusFilter: 'All',
+    resultsChanged: false,
+    changedCount: 0,
+    changedOutsideResultsCount: 0,
+    suggestionCount: 0,
     bulkNode: '',
     bulkNodeAddress: '',
     bulkNodeOptions: [],
@@ -110,19 +134,27 @@ export function createBindingsViewModel(): BindingsViewModel {
     unboundCount: 0,
     busy: false,
     message: '',
+    restartNotice: '',
     toolbarError: '',
-    invalid: false
+    invalid: false,
+    invalidCount: 0
   };
 }
 
 export class BindingsController {
   readonly state: BindingsViewModel;
   private sourceBindings: Record<string, unknown> = {};
+  private revision = 0;
+  private retainedRows = new Map<string, Set<string>>();
+  private resultRows = new Map<string, Set<string>>();
   private readonly loadOperations = new LatestOperationCoordinator<'load'>();
   private readonly saveOperations = new LatestOperationCoordinator<'save'>();
   private readonly lookupOperations = new LatestOperationCoordinator<string>();
   private readonly suggestionOperations = new LatestOperationCoordinator<'suggestions'>();
   private readonly targetGenerations = new Map<string, number>();
+  private readonly observedActivity = new Map<string, NodelActivityLogEntry>();
+  // Activity has no destination identity; these are observation watermarks, not save acknowledgements.
+  private readonly savedActivityWatermarks = new Map<string, NodelActivityLogEntry | null>();
 
   constructor(private readonly options: BindingsControllerOptions) {
     this.state = options.state;
@@ -165,16 +197,56 @@ export class BindingsController {
 
   setFilter(filter: string) {
     this.setState({ filter });
-    const query = filter.trim().toLocaleLowerCase();
-    for (const section of this.state.sections) {
-      const rows = query
-        ? section.rows.filter((row) => [row.alias, row.title, row.description, row.node, row.target]
-          .some((value) => value.toLocaleLowerCase().includes(query)))
-        : section.rows;
-      this.options.adapter.replaceVisibleRows(section, rows);
-      this.updateSectionSummary(section);
+    this.applyResults();
+  }
+
+  setStatusFilter(statusFilter: BindingsViewModel['statusFilter']) {
+    if (this.state.statusFilter === statusFilter) return;
+    this.setState({ statusFilter });
+    this.applyResults();
+  }
+
+  refreshResults() {
+    this.applyResults();
+  }
+
+  getRevision() { return this.revision; }
+
+  revert(expectedRevision: number) {
+    if (expectedRevision !== this.revision || this.state.saving) return false;
+    this.revision += 1;
+    this.invalidateAsyncWork();
+    for (const row of this.allRows()) {
+      const value = row.originalValue;
+      const node = typeof value.node === 'string' ? value.node : '';
+      this.setRow(row, {
+        node,
+        nodeAddress: '',
+        ...bindingStatusLinkProperties(node),
+        target: typeof value[row.targetKey] === 'string' ? value[row.targetKey] as string : '',
+        nodePresent: Object.prototype.hasOwnProperty.call(value, 'node'),
+        targetPresent: Object.prototype.hasOwnProperty.call(value, row.targetKey),
+        dirty: false, nodeDirty: false, targetDirty: false, changed: false,
+        selected: false, nodeError: '', targetError: '', suggestionValue: '', suggestionLabel: '',
+        suggestionConfidence: '', suggestionClass: bindingSuggestionClass(''), nodeOptions: [], targetOptions: []
+      });
     }
-    this.updateToolbarSummary();
+    this.setState({ saveMessage: '', saveError: '' });
+    this.applyResults();
+    this.validate();
+    return true;
+  }
+
+  preserveAfterRestart() {
+    if (!this.state.changedCount) return null;
+    this.revision += 1;
+    this.invalidateAsyncWork();
+    for (const row of this.allRows()) {
+      const status = savedBindingStatus(typeof row.originalValue.node === 'string' ? row.originalValue.node : '', typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '');
+      this.setRow(row, { status, statusClass: bindingStatusClass(status), statusEvidence: this.savedActivityWatermarks.has(row.id) ? 'save-invalidated' : 'source-invalidated' });
+    }
+    this.setState({ restartNotice: 'Node restarted. Unsaved binding changes were preserved; bindings were not reloaded.', saveMessage: '' });
+    return { status: 'dirty-preserved' as const, detail: 'Unsaved binding changes were preserved; bindings were not reloaded.' };
   }
 
   clearFilter() {
@@ -188,30 +260,43 @@ export class BindingsController {
   }
 
   editNode(row: BindingRow, value: string) {
+    if (this.state.saving) return;
+    this.revision += 1;
+    this.setState({ saveMessage: '' });
     this.invalidateSuggestionWork();
     this.options.lookup.clear();
     this.invalidateRowLookup(row, 'target');
     this.invalidateTarget(row);
+    const nodeDirty = value !== (typeof row.originalValue.node === 'string' ? row.originalValue.node : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, 'node');
+    const changed = nodeDirty || row.targetDirty;
     this.setRow(row, {
       node: value,
       nodeAddress: '',
       nodePresent: true,
-      dirty: true,
-      nodeDirty: true,
+      nodeDirty,
+      dirty: changed,
+      changed,
+      suggestionValue: '', suggestionLabel: '', suggestionConfidence: '', suggestionClass: bindingSuggestionClass(''),
       ...bindingStatusLinkProperties(value)
     });
     this.validate();
   }
 
   editTarget(row: BindingRow, value: string) {
+    if (this.state.saving) return;
+    this.revision += 1;
+    this.setState({ saveMessage: '' });
     this.invalidateSuggestionWork();
     this.invalidateRowLookup(row, 'target');
     this.invalidateTarget(row);
+    const targetDirty = value !== (typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, row.targetKey);
+    const changed = row.nodeDirty || targetDirty;
     this.setRow(row, {
       target: value,
       targetPresent: true,
-      dirty: true,
-      targetDirty: true,
+      targetDirty,
+      dirty: changed,
+      changed,
       suggestionValue: '',
       suggestionLabel: '',
       suggestionConfidence: '',
@@ -238,18 +323,22 @@ export class BindingsController {
   }
 
   applyNodeOption(row: BindingRow, index: number, fallback: BindingOption) {
+    if (this.state.saving) return;
     const option = row.nodeOptions[index] ?? fallback;
     this.invalidateSuggestionWork();
     this.options.lookup.clear();
     this.invalidateRowLookup(row, 'node');
     this.invalidateRowLookup(row, 'target');
     this.invalidateTarget(row);
+    this.revision += 1;
+    const nodeDirty = option.value !== (typeof row.originalValue.node === 'string' ? row.originalValue.node : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, 'node');
     this.setRow(row, {
       node: option.value,
       nodeAddress: option.address,
       nodePresent: true,
-      dirty: true,
-      nodeDirty: true,
+      dirty: nodeDirty || row.targetDirty,
+      changed: nodeDirty || row.targetDirty,
+      nodeDirty,
       ...bindingStatusLinkProperties(option.value),
       nodeOptions: [],
       showNodeOptions: false
@@ -258,15 +347,19 @@ export class BindingsController {
   }
 
   applyTargetOption(row: BindingRow, index: number, fallback: TargetOption) {
+    if (this.state.saving) return;
     const option = row.targetOptions[index] ?? fallback;
     this.invalidateSuggestionWork();
     this.invalidateRowLookup(row, 'target');
     this.invalidateTarget(row);
+    this.revision += 1;
+    const targetDirty = option.value !== (typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, row.targetKey);
     this.setRow(row, {
       target: option.value,
       targetPresent: true,
-      dirty: true,
-      targetDirty: true,
+      dirty: row.nodeDirty || targetDirty,
+      changed: row.nodeDirty || targetDirty,
+      targetDirty,
       targetOptions: [],
       showTargetOptions: false,
       suggestionValue: '',
@@ -293,37 +386,41 @@ export class BindingsController {
     void this.searchTargets(row, value, context);
   }
 
-  selectRows(mode: 'visible' | 'unbound' | 'clear') {
+  selectRows(mode: 'visible' | 'unset' | 'clear') {
     this.invalidateSuggestionWork();
-    const rows = mode === 'visible'
+    const eligible = new Set((mode === 'visible'
       ? this.state.sections.flatMap((section) => section.visibleRows)
-      : mode === 'unbound'
-        ? this.allRows().filter((row) => row.status !== 'Wired')
-        : this.allRows();
-    for (const row of rows) {
-      this.setRow(row, { selected: mode !== 'clear' });
+      : mode === 'unset'
+        ? this.state.sections.flatMap((section) => section.visibleRows).filter((row) => row.status === 'Unset')
+        : []).map((row) => row.id));
+    for (const row of this.allRows()) {
+      this.setRow(row, { selected: mode !== 'clear' && eligible.has(row.id) });
     }
     this.updateAllSummaries();
   }
 
   applyBulkNode() {
-    if (!this.state.bulkNode) {
+    if (this.state.saving || !this.state.bulkNode) {
       return;
     }
     this.invalidateSuggestionWork();
     this.options.lookup.clear();
+    this.revision += 1;
+    this.setState({ saveMessage: '' });
     for (const row of this.allRows()) {
       if (!row.selected) {
         continue;
       }
       this.invalidateRowLookup(row, 'target');
       this.invalidateTarget(row);
+      const nodeDirty = this.state.bulkNode !== (typeof row.originalValue.node === 'string' ? row.originalValue.node : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, 'node');
       this.setRow(row, {
         node: this.state.bulkNode,
         nodeAddress: this.state.bulkNodeAddress,
         nodePresent: true,
-        dirty: true,
-        nodeDirty: true,
+        dirty: nodeDirty || row.targetDirty,
+        changed: nodeDirty || row.targetDirty,
+        nodeDirty,
         ...bindingStatusLinkProperties(this.state.bulkNode),
         suggestionValue: '',
         suggestionLabel: '',
@@ -335,9 +432,12 @@ export class BindingsController {
   }
 
   validate(revealAll = false) {
-    const issues = this.allRows().flatMap(validateBindingRow);
-    for (const row of this.allRows()) {
-      const rowIssues = issues.filter((issue) => issue.fieldId === row.id || issue.fieldId.startsWith(`${row.id}/`));
+    const rows = this.allRows();
+    const issuesByRow = new Map(rows.map((row) => [row.id, validateBindingRow(row)]));
+    const issues = [...issuesByRow.values()].flat();
+    const invalidRows = new Set(rows.filter((row) => (issuesByRow.get(row.id)?.length ?? 0) > 0).map((row) => row.id));
+    for (const row of rows) {
+      const rowIssues = issuesByRow.get(row.id) ?? [];
       const nodeIssue = rowIssues.find((issue) => issue.pointer.endsWith('/node'));
       const targetIssue = rowIssues.find((issue) => issue.pointer.endsWith(`/${row.targetKey}`));
       this.setRow(row, {
@@ -347,11 +447,20 @@ export class BindingsController {
         targetError: revealAll || row.targetDirty || Boolean(row.targetError) ? targetIssue?.message ?? '' : ''
       });
     }
-    this.setState({ invalid: issues.length > 0 });
+    for (const section of this.state.sections) {
+      this.setSection(section, {
+        invalidCount: section.rows.filter((row) => invalidRows.has(row.id)).length,
+        changedCount: section.rows.filter((row) => row.dirty).length
+      });
+    }
+    this.setState({ invalid: issues.length > 0, invalidCount: invalidRows.size });
+    this.updateToolbarSummary();
+    this.checkResultsChanged();
     return issues;
   }
 
   async suggest(context: BindingsLifecycleContext) {
+    if (this.state.saving) return;
     const snapshots = this.allRows()
       .filter((row) => row.selected && row.node)
       .map((row): SuggestionSnapshot => ({
@@ -403,6 +512,7 @@ export class BindingsController {
           suggestionConfidence: result.confidence,
           suggestionClass: bindingSuggestionClass(result.confidence)
         });
+        this.updateToolbarSummary();
       }
       if (context.isCurrent() && ticket.isCurrent()) {
         this.setState({ message: `${count} suggestion${count === 1 ? '' : 's'} ready.` });
@@ -421,14 +531,18 @@ export class BindingsController {
   }
 
   applySuggestions() {
+    if (this.state.saving) return;
     this.invalidateSuggestionWork();
     let count = 0;
     for (const row of this.allRows()) {
       if (!row.selected || !row.suggestionValue || (row.suggestionConfidence !== 'high' && row.suggestionConfidence !== 'medium')) {
         continue;
       }
+      if (row.target === row.suggestionValue) continue;
       this.invalidateTarget(row);
-      this.setRow(row, { target: row.suggestionValue, targetPresent: true, dirty: true, targetDirty: true });
+      this.revision += 1;
+      const targetDirty = row.suggestionValue !== (typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '') || !Object.prototype.hasOwnProperty.call(row.originalValue, row.targetKey);
+      this.setRow(row, { target: row.suggestionValue, targetPresent: true, dirty: row.nodeDirty || targetDirty, changed: row.nodeDirty || targetDirty, targetDirty });
       count += 1;
     }
     this.setState({ message: `${count} suggestion${count === 1 ? '' : 's'} applied.`, toolbarError: '' });
@@ -436,6 +550,7 @@ export class BindingsController {
   }
 
   async load(context: BindingsLifecycleContext): Promise<BindingsLoadOutcome> {
+    this.revision += 1;
     const ticket = this.loadOperations.begin('load', context.signal);
     this.saveOperations.invalidate('save');
     this.lookupOperations.invalidateAll();
@@ -443,6 +558,8 @@ export class BindingsController {
     this.clearAutocompleteState();
     this.options.lookup.clear();
     this.targetGenerations.clear();
+    this.observedActivity.clear();
+    this.savedActivityWatermarks.clear();
     this.sourceBindings = {};
     this.setState({ ...createBindingsViewModel() });
 
@@ -469,6 +586,7 @@ export class BindingsController {
       this.sourceBindings = cloneSchemaValue(values);
       const sections = createBindingSections(normalized.schema, values);
       this.setState({ loading: false, empty: sections.every((section) => !section.rows.length), sections, invalid: false });
+      this.applyResults();
       for (const section of sections) {
         this.updateSectionSummary(section);
       }
@@ -503,13 +621,52 @@ export class BindingsController {
       return null;
     }
     const payload = serializeBindingPayload(this.sourceBindings, this.state.sections);
+    const submitted = new Map(this.allRows().map((row) => [row.id, {
+      node: row.node, target: row.target, nodePresent: row.nodePresent, targetPresent: row.targetPresent,
+      nodeDirty: row.nodeDirty, targetDirty: row.targetDirty
+    }]));
     const ticket = this.saveOperations.begin('save', context.signal);
+    this.invalidateSuggestionWork();
     this.setState({ saving: true, saveError: '', saveMessage: '' });
     try {
       await this.options.api.save(payload, { signal: ticket.signal });
       if (!context.isCurrent() || !ticket.isCurrent()) {
         return { status: 'stale', payload };
       }
+      this.sourceBindings = cloneSchemaValue(payload);
+      for (const row of this.allRows()) {
+        const snapshot = submitted.get(row.id)!;
+        const destinationSaved = snapshot.nodeDirty || snapshot.targetDirty;
+        if (destinationSaved) {
+          this.savedActivityWatermarks.set(row.id, this.savedActivityWatermarks.get(row.id) ?? this.observedActivity.get(row.id) ?? null);
+        }
+        const baseline = cloneSchemaValue(row.originalValue);
+        if (snapshot.nodeDirty) {
+          if (snapshot.nodePresent) baseline.node = snapshot.node;
+          else delete baseline.node;
+        }
+        if (snapshot.targetDirty) {
+          if (snapshot.targetPresent) baseline[row.targetKey] = snapshot.target;
+          else delete baseline[row.targetKey];
+        }
+        row.originalValue = baseline;
+        row.rowPresent = Object.prototype.hasOwnProperty.call((payload[row.kind] as Record<string, unknown> | undefined) ?? {}, row.alias);
+        const status = destinationSaved
+          ? savedBindingStatus(typeof baseline.node === 'string' ? baseline.node : '', typeof baseline[row.targetKey] === 'string' ? baseline[row.targetKey] as string : '')
+          : row.status;
+        const changed = bindingRowChanged(row);
+        this.setRow(row, {
+          nodeDirty: row.nodePresent !== Object.prototype.hasOwnProperty.call(baseline, 'node') || row.node !== (typeof baseline.node === 'string' ? baseline.node : ''),
+          targetDirty: row.targetPresent !== Object.prototype.hasOwnProperty.call(baseline, row.targetKey) || row.target !== (typeof baseline[row.targetKey] === 'string' ? baseline[row.targetKey] as string : ''),
+          dirty: changed,
+          changed,
+          status,
+          statusEvidence: destinationSaved ? 'save-invalidated' : row.statusEvidence,
+          statusClass: bindingStatusClass(status)
+        });
+      }
+      this.revision += 1;
+      this.validate();
       this.setState({ saveMessage: 'Saved' });
       return { status: 'saved', payload };
     } catch (error) {
@@ -536,7 +693,7 @@ export class BindingsController {
     this.setState({ loading: false, error: apiErrorMessage(error, 'Failed to initialize bindings') });
   }
 
-  activityEntries(entries: NodelActivityLogEntry[]) {
+  activityEntries(entries: NodelActivityLogEntry[], freshBindings = new Set<string>()) {
     for (const entry of entries) {
       if (entry.source !== 'remote' || (entry.type !== 'actionBinding' && entry.type !== 'eventBinding')) {
         continue;
@@ -546,23 +703,52 @@ export class BindingsController {
       if (!row) {
         continue;
       }
-      const status = normalizeBindingStatus(entry.arg);
-      this.setRow(row, { status, statusClass: bindingStatusClass(status) });
+      const isFresh = freshBindings.has(`${kind}:${row.alias}`);
+      if (this.savedActivityWatermarks.has(row.id)) {
+        const watermark = this.savedActivityWatermarks.get(row.id);
+        const newer = watermark ? newerActivityEntry(entry, watermark) : false;
+        const sameEntry = watermark && entry.seq === watermark.seq && entry.timestamp === watermark.timestamp;
+        if (!newer && (!isFresh || sameEntry)) continue;
+        this.savedActivityWatermarks.delete(row.id);
+      }
+      const observed = this.observedActivity.get(row.id);
+      if (!observed || newerActivityEntry(entry, observed)) this.observedActivity.set(row.id, { ...entry });
+      const evidence = normalizeBindingStatus(entry.arg);
+      const status = row.status === 'Unset' ? 'Unset' : evidence;
+      this.setRow(row, { status, statusEvidence: evidence, statusClass: bindingStatusClass(status) });
       const section = this.state.sections.find((item) => item.kind === kind);
       if (section) {
         this.updateSectionSummary(section);
       }
     }
     this.updateToolbarSummary();
+    this.checkResultsChanged();
+  }
+
+  activityUnavailable() {
+    for (const row of this.allRows()) {
+      const status = savedBindingStatus(typeof row.originalValue.node === 'string' ? row.originalValue.node : '', typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '');
+      const saveInvalidated = this.savedActivityWatermarks.has(row.id);
+      this.setRow(row, {
+        status: saveInvalidated ? row.status : status,
+        statusEvidence: saveInvalidated ? 'save-invalidated' : 'source-invalidated',
+        statusClass: bindingStatusClass(saveInvalidated ? row.status : status)
+      });
+    }
+    this.updateAllSummaries();
+    this.checkResultsChanged();
   }
 
   clear() {
+    this.revision += 1;
     this.loadOperations.invalidateAll();
     this.saveOperations.invalidateAll();
     this.lookupOperations.invalidateAll();
     this.invalidateSuggestionWork();
     this.clearAutocompleteState();
     this.options.lookup.clear();
+    this.observedActivity.clear();
+    this.savedActivityWatermarks.clear();
     this.setState({ loading: false, saving: false, busy: false });
   }
 
@@ -664,6 +850,13 @@ export class BindingsController {
     }
   }
 
+  private invalidateAsyncWork() {
+    this.lookupOperations.invalidateAll();
+    this.invalidateSuggestionWork();
+    this.clearAutocompleteState();
+    this.options.lookup.clear();
+  }
+
   private clearAutocompleteState() {
     this.setState({ bulkNodeOptions: [], showBulkNodeOptions: false, searchingBulkNode: false });
     for (const row of this.allRows()) {
@@ -679,20 +872,56 @@ export class BindingsController {
   }
 
   private updateSectionSummary(section: BindingSection) {
+    const rows = section.rows;
     this.setSection(section, {
-      selectedCount: section.rows.filter((row) => row.selected).length,
+      selectedCount: rows.filter((row) => row.selected).length,
       visibleCount: section.visibleRows.length,
-      unboundCount: section.rows.filter((row) => row.status !== 'Wired').length
+      unboundCount: rows.filter((row) => row.status === 'Unwired').length,
+      changedCount: rows.filter((row) => row.dirty).length,
+      invalidCount: section.invalidCount
     });
   }
 
   private updateToolbarSummary() {
     const rows = this.allRows();
+    const changedRows = rows.filter((row) => row.dirty);
+    const retained = new Set([...this.retainedRows.values()].flatMap((ids) => [...ids]));
     this.setState({
       selectedCount: rows.filter((row) => row.selected).length,
       visibleCount: this.state.sections.reduce((count, section) => count + section.visibleRows.length, 0),
-      unboundCount: rows.filter((row) => row.status !== 'Wired').length
+      unboundCount: rows.filter((row) => row.status === 'Unwired').length,
+      changedCount: changedRows.length,
+      changedOutsideResultsCount: changedRows.filter((row) => !retained.has(row.id)).length,
+      suggestionCount: rows.filter((row) => row.selected && (row.suggestionConfidence === 'high' || row.suggestionConfidence === 'medium') && row.suggestionValue !== row.target).length
     });
+  }
+
+  private applyResults() {
+    this.invalidateSuggestionWork();
+    const query = this.state.filter.trim().toLocaleLowerCase();
+    for (const section of this.state.sections) {
+      const matches = section.rows.filter((row) => (!query || [row.alias, row.title, row.description, row.node, row.target].some((value) => value.toLocaleLowerCase().includes(query)))
+        && (this.state.statusFilter === 'All' || row.status === this.state.statusFilter));
+      const ids = new Set(matches.map((row) => row.id));
+      this.resultRows.set(section.kind, ids);
+      for (const row of section.rows) if (!ids.has(row.id) && row.selected) this.setRow(row, { selected: false });
+      this.options.adapter.replaceVisibleRows(section, matches);
+      this.updateSectionSummary(section);
+    }
+    this.retainedRows = new Map([...this.resultRows].map(([kind, ids]) => [kind, new Set(ids)]));
+    this.setState({ resultsChanged: false });
+    this.updateAllSummaries();
+  }
+
+  private checkResultsChanged() {
+    const query = this.state.filter.trim().toLocaleLowerCase();
+    const changed = this.state.sections.some((section) => {
+      const candidate = section.rows.filter((row) => (!query || [row.alias, row.title, row.description, row.node, row.target].some((value) => value.toLocaleLowerCase().includes(query)))
+        && (this.state.statusFilter === 'All' || row.status === this.state.statusFilter));
+      const retained = this.retainedRows.get(section.kind) ?? new Set<string>();
+      return candidate.length !== retained.size || candidate.some((row) => !retained.has(row.id));
+    });
+    this.setState({ resultsChanged: changed });
   }
 
   private updateAllSummaries() {

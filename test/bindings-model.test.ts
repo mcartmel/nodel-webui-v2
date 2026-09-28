@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { bindingStatusLinkProperties, createBindingSections, hasBindingSchema, serializeBindingPayload, validateBindingRow } from '../src/features/bindings-model';
+import { bindingStatusLinkProperties, createBindingSections, hasBindingSchema, normalizeBindingStatus, serializeBindingPayload, validateBindingRow } from '../src/features/bindings-model';
 import type { NodelJsonSchema } from '../src/api/nodel-types';
 
 const schema: NodelJsonSchema = {
@@ -53,6 +53,21 @@ const requiredSchema: NodelJsonSchema = {
 };
 
 describe('bindings model', () => {
+  it.each([
+    ['Empty', 'Unwired'],
+    ['ResolutionFailure', 'Unwired'],
+    ['Resolved', 'Unwired'],
+    ['Wired', 'Wired'],
+    ['MissingActionPoint', 'Unwired'],
+    ['MissingEventPoint', 'Unwired'],
+    ['Unwired', 'Unknown'],
+    ['unexpected', 'Unknown'],
+    [null, 'Unknown'],
+    [{ state: 'Wired' }, 'Unknown']
+  ] as const)('normalizes pinned Java status %s to %s', (backendStatus, expected) => {
+    expect(normalizeBindingStatus(backendStatus)).toBe(expected);
+  });
+
   it('creates binding sections from schema and backend values', () => {
     const sections = createBindingSections(schema, {
       actions: { Power: { node: 'Display', action: 'PowerOn' } }
@@ -69,7 +84,7 @@ describe('bindings model', () => {
       node: 'Display',
       target: 'PowerOn',
       targetKey: 'action',
-      status: 'Unwired'
+      status: 'Unknown'
     }));
     expect(power?.statusHref).toContain('Display');
   });

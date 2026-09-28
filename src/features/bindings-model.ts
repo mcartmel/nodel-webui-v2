@@ -6,6 +6,7 @@ import { hasOwn, isRecord, setOwn } from '../utils/records';
 import type { SuggestionConfidence, TargetOption } from './bindings-matching';
 
 export type BindingKind = 'actions' | 'events';
+export type BindingStatus = 'Unset' | 'Unwired' | 'Wired' | 'Unknown';
 type BindingTargetKey = 'action' | 'event';
 
 export interface BindingOption {
@@ -28,6 +29,8 @@ export interface BindingRow {
   target: string;
   selected: boolean;
   status: string;
+  statusEvidence: string | null;
+  changed: boolean;
   statusClass: string;
   statusHref: string;
   statusLinkLabel: string;
@@ -63,6 +66,8 @@ export interface BindingSection {
   selectedCount: number;
   visibleCount: number;
   unboundCount: number;
+  changedCount: number;
+  invalidCount: number;
 }
 
 function nextBindingId(kind: BindingKind, alias: string) {
@@ -108,12 +113,29 @@ export function hasBindingSchema(schema: NodelJsonSchema | null | undefined) {
     || Boolean(properties.events?.properties && Object.keys(properties.events.properties).length > 0);
 }
 
-export function normalizeBindingStatus(status: unknown) {
-  return status === 'Wired' ? 'Wired' : 'Unwired';
+export function normalizeBindingStatus(status: unknown): BindingStatus {
+  if (status === 'Wired') return 'Wired';
+  // Values are from pinned Java BindingState.java at commit 19756071383d696682688ab436c77c0a1f80c783.
+  if (status === 'Empty' || status === 'ResolutionFailure' || status === 'Resolved'
+    || status === 'MissingActionPoint' || status === 'MissingEventPoint') return 'Unwired';
+  return 'Unknown';
 }
 
 export function bindingStatusClass(status: string) {
-  return status === 'Wired' ? 'nodel-bindings-status is-wired' : 'nodel-bindings-status is-unwired';
+  return `nodel-bindings-status is-${status.toLocaleLowerCase()}`;
+}
+
+export function savedBindingStatus(node: string, target: string) {
+  return node.trim() && target.trim() ? 'Unknown' as BindingStatus : 'Unset' as BindingStatus;
+}
+
+export function bindingRowChanged(row: BindingRow) {
+  const originalNode = typeof row.originalValue.node === 'string' ? row.originalValue.node : '';
+  const originalTarget = typeof row.originalValue[row.targetKey] === 'string' ? row.originalValue[row.targetKey] as string : '';
+  return row.nodePresent !== Object.prototype.hasOwnProperty.call(row.originalValue, 'node')
+    || row.targetPresent !== Object.prototype.hasOwnProperty.call(row.originalValue, row.targetKey)
+    || row.node !== originalNode
+    || row.target !== originalTarget;
 }
 
 export function bindingStatusLinkProperties(node: string) {
@@ -172,7 +194,7 @@ function createBindingSection(kind: BindingKind, schema: NodelJsonSchema | undef
     .map(([alias, rowSchema]) => {
       const value = objectValue(values[alias]);
       const node = stringValue(value.node);
-      const status = normalizeBindingStatus('');
+      const status = savedBindingStatus(node, stringValue(value[targetKey]));
       const row: BindingRow = {
         id: nextBindingId(kind, alias),
         kind,
@@ -196,6 +218,8 @@ function createBindingSection(kind: BindingKind, schema: NodelJsonSchema | undef
         targetError: '',
         selected: false,
         status,
+        statusEvidence: null,
+        changed: false,
         statusClass: bindingStatusClass(status),
         ...bindingStatusLinkProperties(node),
         nodeOptions: [],
@@ -221,7 +245,9 @@ function createBindingSection(kind: BindingKind, schema: NodelJsonSchema | undef
     visibleRows: rows.slice(),
     selectedCount: 0,
     visibleCount: rows.length,
-    unboundCount: rows.length
+    unboundCount: rows.length,
+    changedCount: 0,
+    invalidCount: 0
   };
 }
 

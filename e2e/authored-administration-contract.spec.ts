@@ -87,6 +87,11 @@ test.describe('no-build authored administration contract', () => {
       contentType: 'application/json',
       body: JSON.stringify([{ node: 'Demo', address: 'http://localhost/nodes/Demo/', host: 'localhost' }])
     }));
+    await page.route('**/REST/nodeURLsForNode', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{ node: 'Demo', address: 'http://localhost/nodes/Demo/', host: 'localhost' }])
+    }));
     await page.route('**/nodes/Demo/REST/params/schema', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',

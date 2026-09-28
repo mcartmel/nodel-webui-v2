@@ -37,6 +37,7 @@ const bindingsMock = vi.hoisted(() => ({
   getNodeRemoteSchema: vi.fn<(options?: RequestInit) => Promise<NodelJsonSchema>>(),
   getRemoteNodeActions: vi.fn<(nodeUrl: string, options?: RequestInit) => Promise<Record<string, NodelActionDefinition>>>(),
   getRemoteNodeSignals: vi.fn<(nodeUrl: string, options?: RequestInit) => Promise<Record<string, NodelSignalDefinition>>>(),
+  getNodeUrlsForNode: vi.fn<(name: string, options?: RequestInit) => Promise<NodelNodeUrlEntry[]>>(),
   saveNodeRemoteBindings: vi.fn<(payload: Record<string, unknown>, options?: RequestInit) => Promise<unknown>>(),
   searchNodeUrls: vi.fn<(filter: string, options?: RequestInit) => Promise<NodelNodeUrlEntry[]>>()
 }));
@@ -145,7 +146,8 @@ vi.mock('../src/api/nodel-host-client', () => ({
   getRemoteNodeActions: bindingsMock.getRemoteNodeActions,
   getRemoteNodeSignals: bindingsMock.getRemoteNodeSignals,
   saveNodeRemoteBindings: bindingsMock.saveNodeRemoteBindings,
-  searchNodeUrls: bindingsMock.searchNodeUrls
+  searchNodeUrls: bindingsMock.searchNodeUrls,
+  getNodeUrlsForNode: bindingsMock.getNodeUrlsForNode
 }));
 
 vi.mock('../src/data/node-activity-source', () => ({
@@ -206,6 +208,7 @@ async function selectRow(row: HTMLElement) {
   checkbox.checked = true;
   checkbox.dispatchEvent(new Event('change', { bubbles: true }));
   await flush();
+  expect(checkbox.checked).toBe(true);
 }
 
 describe('nodel-bindings', () => {
@@ -220,6 +223,7 @@ describe('nodel-bindings', () => {
     bindingsMock.getRemoteNodeSignals.mockReset().mockResolvedValue({});
     bindingsMock.saveNodeRemoteBindings.mockReset().mockResolvedValue({});
     bindingsMock.searchNodeUrls.mockReset().mockResolvedValue([]);
+    bindingsMock.getNodeUrlsForNode.mockReset().mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -245,7 +249,7 @@ describe('nodel-bindings', () => {
     const bindingsForm = queryRequired<HTMLFormElement>('[data-bindings-form]');
     const bindingsFieldset = queryRequired<HTMLFieldSetElement>('fieldset', bindingsForm);
     const sections = assertDefined(section('actions').parentElement, 'Expected actions section container to have parent');
-    const sectionContent = queryRequired<HTMLElement>('.nodel-collapse-content', section('actions'));
+    const sectionContent = queryRequired<HTMLElement>('.nodel-bindings-collapse-body', section('actions'));
     expect(bindingsForm.classList.contains('space-y-3')).toBe(false);
     expect(bindingsForm.classList.contains('gap-3')).toBe(true);
     expect(bindingsFieldset.classList.contains('gap-3')).toBe(true);
@@ -253,6 +257,20 @@ describe('nodel-bindings', () => {
     expect(sections.classList.contains('gap-3')).toBe(true);
     expect(sectionContent.classList.contains('space-y-2.5')).toBe(false);
     expect(sectionContent.classList.contains('gap-2.5')).toBe(true);
+    const compactActions = Array.from(document.querySelectorAll<HTMLElement>('.nodel-bindings-toolbar-panel button, [data-bindings-save], [data-bindings-revert], [data-bindings-show-invalid]'));
+    expect(compactActions.length).toBeGreaterThan(0);
+    for (const action of compactActions) {
+      expect(action.classList.contains('nodel-button-compact')).toBe(true);
+      expect(action.classList.contains('h-11') || action.classList.contains('min-h-11')).toBe(false);
+    }
+    expect(queryInput('[data-bindings-filter]').classList.contains('nodel-field-compact')).toBe(true);
+    expect(queryRequired<HTMLSelectElement>('[data-bindings-status-filter]').classList.contains('nodel-field-compact')).toBe(true);
+    const metadata = queryRequired<HTMLElement>('.nodel-bindings-meta');
+    expect(metadata.closest('.nodel-bindings-filter-toolbar')).toBeNull();
+    expect(metadata.querySelector('[aria-live="polite"]')?.textContent).toContain('3 bindings');
+    expect(metadata.querySelector('[aria-live="polite"]')?.textContent).not.toContain('selected');
+    expect(document.querySelector('.nodel-bindings-help')).toBeNull();
+    expect(document.body.textContent).not.toContain('Selection replaces checked rows within results');
     expect(document.body.textContent).toContain('Actions');
     expect(document.body.textContent).toContain('Events');
     expect(document.body.textContent).toContain('Set Level');
@@ -274,6 +292,26 @@ describe('nodel-bindings', () => {
       }
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(document.body.textContent).toContain('Saved');
+  });
+
+  it('enables Select Unset from saved status without runtime evidence and honors current filters', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: { node: 'Lighting', action: 'On' } }, events: {} });
+    await mountBindings();
+    const selectUnset = queryRequired<HTMLButtonElement>('[data-bindings-select="unset"]');
+    expect(selectUnset.disabled).toBe(false);
+    expect(queryRequired<HTMLElement>('[data-bindings-row-id]', section('actions')).getAttribute('data-bindings-row-id')).toBeTruthy();
+    await setInputValue(rowInputs(rowAt('actions', 0, 'Unset')).target, 'Draft target');
+    expect(rowAt('actions', 0, 'edited Unset').textContent).toContain('Unset');
+    selectUnset.click();
+    await flush();
+    expect(queryRequired<HTMLInputElement>('[data-bindings-row-select]', rowAt('actions', 0, 'selected Unset')).checked).toBe(true);
+    const status = queryRequired<HTMLSelectElement>('[data-bindings-status-filter]');
+    status.value = 'Unwired';
+    status.dispatchEvent(new Event('change', { bubbles: true }));
+    await flush();
+    expect(selectUnset.disabled).toBe(true);
+    expect(rows('actions')).toHaveLength(0);
   });
 
   it('saves complete, partial, and empty rows while preserving unknown binding metadata', async () => {
@@ -327,7 +365,7 @@ describe('nodel-bindings', () => {
     });
 
     await mountBindings();
-    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
     submitForm();
     await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
     expect(callAt(bindingsMock.saveNodeRemoteBindings.mock.calls, 'saveNodeRemoteBindings call')[0]).toEqual({
@@ -456,6 +494,41 @@ describe('nodel-bindings', () => {
     expect(bindingsMock.getNodeRemoteBindings).toHaveBeenCalledTimes(2);
   });
 
+  it('resets disclosure preferences only after a current clean restart load', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } }, events: { statusChanged: { node: 'Sensor', event: 'Status' } } });
+    const element = await mountBindings();
+    expect(section('actions').hasAttribute('open')).toBe(true);
+    expect(section('events').hasAttribute('open')).toBe(true);
+    await setInputValue(queryInput('[data-bindings-filter]'), 'Level');
+    queryRequired<HTMLDetailsElement>('details', section('actions')).open = false;
+    await waitFor(() => !section('actions').hasAttribute('open'));
+    const result = await requireRefreshableBindings(element).refreshAfterRestart();
+    expect(result.status).toBe('verified');
+    expect(section('actions').hasAttribute('open')).toBe(true);
+    expect(section('events').hasAttribute('open')).toBe(true);
+    await setInputValue(queryInput('[data-bindings-filter]'), 'Level');
+    await setInputValue(queryInput('[data-bindings-filter]'), '');
+    expect(section('actions').hasAttribute('open')).toBe(true);
+    expect(section('events').hasAttribute('open')).toBe(true);
+  });
+
+  it('preserves dirty binding drafts and invalidates saved runtime status on restart', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } } });
+    const element = await mountBindings();
+    const row = rowAt('actions', 0, 'first');
+    await setInputValue(rowInputs(row).target, 'SetDim');
+    const calls = bindingsMock.getNodeRemoteBindings.mock.calls.length;
+
+    const result = await requireRefreshableBindings(element).refreshAfterRestart();
+
+    expect(result).toMatchObject({ status: 'dirty-preserved' });
+    expect(rowInputs(row).target.value).toBe('SetDim');
+    expect(element.textContent).toContain('bindings were not reloaded');
+    expect(bindingsMock.getNodeRemoteBindings).toHaveBeenCalledTimes(calls);
+  });
+
   it('renders load and save errors', async () => {
     bindingsMock.getNodeRemoteSchema.mockRejectedValueOnce(new Error('Remote schema unavailable'));
     bindingsMock.getNodeRemoteBindings.mockResolvedValueOnce({});
@@ -496,6 +569,9 @@ describe('nodel-bindings', () => {
     bindingsMock.searchNodeUrls.mockResolvedValue([
       { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
     ]);
+    bindingsMock.getNodeUrlsForNode.mockResolvedValue([
+      { node: 'Lighting', address: `${window.location.origin}/nodes/Lighting/`, host: 'local' }
+    ]);
 
     await mountBindings();
 
@@ -513,6 +589,7 @@ describe('nodel-bindings', () => {
 
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
     expect(firstAction.querySelector('.nodel-bindings-popover')).toBeNull();
+    await waitFor(() => firstAction.querySelector<HTMLAnchorElement>('[data-bindings-open-node]')?.href === `${window.location.origin}/nodes/Lighting/`);
   });
 
   it('surfaces node lookup failures instead of presenting them as no matches', async () => {
@@ -966,7 +1043,8 @@ describe('nodel-bindings', () => {
     const target = rowInputs(actionRow).target;
     await setInputValue(target, 'MissingAction');
 
-    const error = actionRow.querySelector<HTMLElement>(`[id="${target.id}-error"]`);
+    const errorId = target.getAttribute('aria-describedby');
+    const error = errorId ? actionRow.querySelector<HTMLElement>(`[id="${errorId}"]`) : null;
     expect(target.getAttribute('aria-invalid')).toBe('true');
     expect(target.getAttribute('aria-describedby')).toBe(error?.id);
     expect(error?.textContent).toContain('available values');
@@ -979,11 +1057,90 @@ describe('nodel-bindings', () => {
     expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
   });
 
+  it('keeps validation IDs unique and references local across instances and repeated errors', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: { actions: { type: 'object', properties: { setLevel: {
+        type: 'object', properties: { node: { type: 'string' }, action: { type: 'string', enum: ['Dim'] } }
+      } } } }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } }, events: {} });
+    const first = await mountBindings();
+    const second = document.createElement('nodel-bindings') as NodelBindings;
+    document.body.append(second);
+    await waitFor(() => bindingsMock.getNodeRemoteSchema.mock.calls.length === 2 && bindingsMock.getNodeRemoteBindings.mock.calls.length === 2, { attempts: 100, intervalMs: 1 });
+    await waitFor(() => second.querySelector('[data-bindings-row-id]') !== null, { attempts: 100, intervalMs: 1 });
+    const firstTarget = queryRequired<HTMLInputElement>('[data-bindings-target]', first);
+    const secondTarget = queryRequired<HTMLInputElement>('[data-bindings-target]', second);
+    expect(firstTarget.labels?.[0]?.control).toBe(firstTarget);
+    expect(secondTarget.labels?.[0]?.control).toBe(secondTarget);
+    const checkLocalError = (target: HTMLInputElement) => {
+      const errorId = target.getAttribute('aria-describedby');
+      expect(errorId).toBeTruthy();
+      const error = document.getElementById(errorId!);
+      expect(error?.closest('[data-bindings-row-id]')).toBe(target.closest('[data-bindings-row-id]'));
+      expect(document.querySelectorAll(`[id="${target.id}"]`)).toHaveLength(1);
+      expect(document.querySelectorAll(`[id="${errorId}"]`)).toHaveLength(1);
+    };
+
+    await setInputValue(firstTarget, 'MissingAction');
+    await setInputValue(secondTarget, 'MissingAction');
+    expect(firstTarget.id).not.toBe(secondTarget.id);
+    checkLocalError(firstTarget);
+    checkLocalError(secondTarget);
+    await setInputValue(firstTarget, 'Dim');
+    await setInputValue(secondTarget, 'Dim');
+    expect(firstTarget.getAttribute('aria-describedby')).not.toContain('target-error');
+    expect(secondTarget.getAttribute('aria-describedby')).not.toContain('target-error');
+    await setInputValue(firstTarget, 'MissingAction');
+    await setInputValue(secondTarget, 'MissingAction');
+    checkLocalError(firstTarget);
+    checkLocalError(secondTarget);
+  });
+
+  it('reveals validation for invalid saved values that have not been edited', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue({
+      type: 'object',
+      properties: { actions: { type: 'object', properties: { setLevel: {
+        type: 'object', properties: { node: { type: 'string' }, action: { type: 'string', enum: ['Dim'] } }
+      } } } }
+    });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Unavailable' } }, events: {} });
+    await mountBindings();
+    const row = rowAt('actions', 0, 'invalid baseline');
+    expect(rowInputs(row).target.getAttribute('aria-invalid')).toBe('true');
+    await setInputValue(rowInputs(row).target, 'Dim');
+    document.querySelector<NodelBindings>('nodel-bindings')?.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      (event as CustomEvent<{ resolve(confirmed: boolean): void }>).detail.resolve(true);
+    }, { once: true });
+    document.querySelector<HTMLButtonElement>('[data-bindings-revert]')?.click();
+    await waitFor(() => rowInputs(rowAt('actions', 0, 'reverted invalid')).target.value === 'Unavailable');
+    expect(rowInputs(rowAt('actions', 0, 'reverted invalid')).target.getAttribute('aria-invalid')).not.toBe('true');
+    const disclosure = queryRequired<HTMLElement>('[data-bindings-section="actions"]');
+    queryRequired<HTMLDetailsElement>('details', disclosure).open = false;
+    await waitFor(() => !disclosure.hasAttribute('open'));
+    await setInputValue(queryInput('[data-bindings-filter]'), 'hidden');
+    document.querySelector<HTMLButtonElement>('[data-bindings-show-invalid]')?.click();
+    await flush();
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Filters cleared. Showing invalid bindings.');
+    const invalidTarget = rowInputs(rowAt('actions', 0, 'revealed invalid')).target;
+    expect(invalidTarget.getAttribute('aria-invalid')).toBe('true');
+    expect(invalidTarget).toBe(document.activeElement);
+    expect(disclosure.hasAttribute('open')).toBe(true);
+    await setInputValue(queryInput('[data-bindings-filter]'), 'Unavailable');
+    await setInputValue(queryInput('[data-bindings-filter]'), '');
+    expect(disclosure.hasAttribute('open')).toBe(true);
+  });
+
   it('selects a bulk node autocomplete option with the keyboard before applying it', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
     bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: {} });
     bindingsMock.searchNodeUrls.mockResolvedValue([
       { node: 'Lighting', address: 'http://host/nodes/Lighting/', host: 'host' }
+    ]);
+    bindingsMock.getNodeUrlsForNode.mockResolvedValue([
+      { node: 'Lighting', address: `${window.location.origin}/nodes/Lighting/`, host: 'local' }
     ]);
 
     await mountBindings();
@@ -1003,6 +1160,7 @@ describe('nodel-bindings', () => {
     expect(bulkNode.value).toBe('Lighting');
     expect(rowInputs(firstAction).node.value).toBe('Lighting');
     expect(rowInputs(secondAction).node.value).toBe('');
+    await waitFor(() => firstAction.querySelector<HTMLAnchorElement>('[data-bindings-open-node]')?.href === `${window.location.origin}/nodes/Lighting/`);
   });
 
   it('uses one shared toolbar and closes the bulk node dropdown on blur', async () => {
@@ -1015,7 +1173,8 @@ describe('nodel-bindings', () => {
     await mountBindings();
 
     expect(document.querySelectorAll('.nodel-bindings-toolbar-panel').length).toBe(1);
-    expect(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')?.placeholder).toBe('Search node');
+    expect(document.querySelector<HTMLInputElement>('[data-bindings-bulk-node]')?.getAttribute('aria-label')).toBe('Node to set on selected bindings');
+    expect(document.querySelector('.nodel-bindings-edit-toolbar label')?.textContent).toContain('Node to set on selected bindings');
 
     const bulkNode = queryInput('[data-bindings-bulk-node]');
     await setInputValue(bulkNode, 'Light');
@@ -1131,11 +1290,16 @@ describe('nodel-bindings', () => {
     const filter = queryInput('[data-bindings-filter]');
     await setInputValue(filter, 'power');
     await waitFor(() => rows('actions').length === 1);
+    expect(document.querySelector('[data-bindings-select="visible"]')?.textContent).toContain('Select filtered');
     expect(rowAt('actions', 0, 'first').textContent).toContain('Power On');
 
     filter.value = '';
     filter.dispatchEvent(new Event('search'));
     await waitFor(() => rows('actions').length === 2);
+    expect(document.querySelector('[data-bindings-select="visible"]')?.textContent).toContain('Select all');
+
+    await setInputValue(filter, '   ');
+    expect(document.querySelector('[data-bindings-select="visible"]')?.textContent).toContain('Select all');
 
     await setInputValue(filter, 'status');
     await waitFor(() => rows('events').length === 1 && rows('actions').length === 0);
@@ -1143,6 +1307,176 @@ describe('nodel-bindings', () => {
     document.querySelector<HTMLButtonElement>('[data-bindings-clear-filter]')?.click();
     await waitFor(() => rows('actions').length === 2 && rows('events').length === 1);
     expect(filter.value).toBe('');
+  });
+
+  it('filters by saved binding status and clears the status criterion', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Display', action: 'Dim' }, powerOn: {} }, events: { statusChanged: {} } });
+    await mountBindings();
+    activityMock.listener?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: { replace: false, transport: 'websocket', nextSeq: 2, items: [{ changed: true, live: false, entry: { seq: 1, timestamp: '2026-05-25T00:00:00Z', source: 'remote', type: 'actionBinding', alias: 'setLevel', arg: 'Wired' } }] }
+    });
+    await flush();
+    const status = queryRequired<HTMLSelectElement>('[data-bindings-status-filter]');
+    status.value = 'Wired';
+    status.dispatchEvent(new Event('change', { bubbles: true }));
+    await flush();
+    expect(rows('actions')).toHaveLength(1);
+    expect(rows('events')).toHaveLength(0);
+    expect(status.getAttribute('aria-label')).toBe('Saved binding status');
+    expect(document.querySelector('[data-bindings-select="visible"]')?.textContent).toContain('Select filtered');
+    document.querySelector<HTMLButtonElement>('[data-bindings-clear-filter]')?.click();
+    await flush();
+    expect(rows('actions')).toHaveLength(2);
+    expect(rows('events')).toHaveLength(1);
+    expect(status.value).toBe('All');
+    document.querySelector<HTMLButtonElement>('[data-bindings-select="visible"]')?.click();
+    await flush();
+    expect(Array.from(document.querySelectorAll<HTMLInputElement>('[data-bindings-row-select]')).every((checkbox) => checkbox.checked)).toBe(true);
+  });
+
+  it('does not treat cached replacement history as fresh status after saving', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } }, events: {} });
+    const element = await mountBindings();
+    const row = rowAt('actions', 0, 'first');
+    const activity = (arg: string, changed: boolean, replace: boolean, seq = 1) => activityMock.listener?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: { replace, transport: 'poll', nextSeq: seq + 1, items: [{ changed, live: false, entry: { seq, timestamp: `2026-05-25T00:00:0${seq}Z`, source: 'remote', type: 'actionBinding', alias: 'setLevel', arg } }] }
+    });
+    activity('Wired', true, false);
+    await flush();
+    await setInputValue(rowInputs(row).target, 'Other');
+    submitForm();
+    await waitFor(() => bindingsMock.saveNodeRemoteBindings.mock.calls.length === 1);
+    await waitFor(() => row.textContent?.includes('Unknown'));
+
+    activity('Wired', false, true);
+    await flush();
+    expect(row.textContent).toContain('Unknown');
+
+    activity('Wired', true, false, 2);
+    await flush();
+    expect(row.textContent).toContain('Wired');
+    expect(element.textContent).toContain('Saved');
+  });
+
+  it('accepts a non-replacement polling status after activity source recovery', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } }, events: {} });
+    await mountBindings();
+    const row = rowAt('actions', 0, 'first');
+    activityMock.listener?.({ loading: false, connected: false, error: '', batch: null });
+    await flush();
+    expect(row.textContent).toContain('Unknown');
+    activityMock.listener?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: { replace: false, transport: 'poll', nextSeq: 2, items: [{ changed: false, live: false, entry: { seq: 1, timestamp: '2026-05-25T00:00:00Z', source: 'remote', type: 'actionBinding', alias: 'setLevel', arg: 'Wired' } }] }
+    });
+    await flush();
+    expect(row.textContent).toContain('Wired');
+  });
+
+  it('prevents Enter in filters and bulk node input from submitting drafts', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' } }, events: {} });
+    await mountBindings();
+    await setInputValue(rowInputs(rowAt('actions', 0, 'first')).target, 'Unsaved');
+    const filterEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    queryInput('[data-bindings-filter]').dispatchEvent(filterEnter);
+    const bulkEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    queryInput('[data-bindings-bulk-node]').dispatchEvent(bulkEnter);
+    expect(filterEnter.defaultPrevented).toBe(true);
+    expect(bulkEnter.defaultPrevented).toBe(true);
+    expect(bindingsMock.saveNodeRemoteBindings).not.toHaveBeenCalled();
+  });
+
+  it('resolves exact node names, retains direct links through activity, and restores links on revert', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: ' Lighting ', action: 'Dim' } }, events: {} });
+    bindingsMock.getNodeUrlsForNode.mockResolvedValue([{ node: ' Lighting ', address: `${window.location.origin}/nodes/Lighting/`, host: 'local' }]);
+    const element = await mountBindings();
+    const row = rowAt('actions', 0, 'first');
+    const link = queryRequired<HTMLAnchorElement>('[data-bindings-open-node]', row);
+    await waitFor(() => link.href === `${window.location.origin}/nodes/Lighting/`);
+    expect(bindingsMock.getNodeUrlsForNode).toHaveBeenCalledWith(' Lighting ', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    activityMock.listener?.({
+      loading: false,
+      connected: true,
+      error: '',
+      batch: { replace: false, transport: 'websocket', nextSeq: 2, items: [{ changed: true, live: false, entry: { seq: 1, timestamp: '2026-05-25T00:00:00Z', source: 'remote', type: 'actionBinding', alias: 'setLevel', arg: 'Wired' } }] }
+    });
+    await flush();
+    expect(link.href).toBe(`${window.location.origin}/nodes/Lighting/`);
+
+    await setInputValue(rowInputs(row).node, 'Projector');
+    expect(link.getAttribute('href')).toBe('/nodes.html?filter=Projector#Network');
+    expect(link.href).not.toBe(`${window.location.origin}/nodes/Lighting/`);
+    element.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      (event as CustomEvent<{ resolve(confirmed: boolean): void }>).detail.resolve(true);
+    }, { once: true });
+    document.querySelector<HTMLButtonElement>('[data-bindings-revert]')?.click();
+    await waitFor(() => rowInputs(rowAt('actions', 0, 'reverted')).node.value === ' Lighting ');
+    await waitFor(() => rowAt('actions', 0, 'reverted').querySelector<HTMLAnchorElement>('[data-bindings-open-node]')?.href === `${window.location.origin}/nodes/Lighting/`, { attempts: 150, intervalMs: 2 });
+  });
+
+  it('reconciles delayed direct links after text and status filters replace their anchors', async () => {
+    const delayed = deferred<NodelNodeUrlEntry[]>();
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Lighting', action: 'Dim' }, powerOn: { node: 'Sensor', action: 'On' } }, events: {} });
+    bindingsMock.getNodeUrlsForNode.mockImplementation((name) => name === 'Lighting' ? delayed.promise : Promise.resolve([]));
+    await mountBindings();
+    const direct = `${window.location.origin}/nodes/Lighting/`;
+    await waitFor(() => bindingsMock.getNodeUrlsForNode.mock.calls.some(([name]) => name === 'Lighting'));
+    const originalLink = queryRequired<HTMLAnchorElement>('[data-bindings-open-node]', rowAt('actions', 0, 'first'));
+    await setInputValue(queryInput('[data-bindings-filter]'), 'power');
+    expect(originalLink.isConnected).toBe(false);
+    await setInputValue(queryInput('[data-bindings-filter]'), '');
+    await waitFor(() => bindingsMock.getNodeUrlsForNode.mock.calls.filter(([name]) => name === 'Lighting').length === 2);
+    delayed.resolve([{ node: 'Lighting', address: direct }]);
+    await waitFor(() => rowAt('actions', 0, 'restored').querySelector<HTMLAnchorElement>('[data-bindings-open-node]')?.href === direct);
+
+    const status = queryRequired<HTMLSelectElement>('[data-bindings-status-filter]');
+    status.value = 'Unset';
+    status.dispatchEvent(new Event('change', { bubbles: true }));
+    await flush();
+    expect(rows('actions')).toHaveLength(0);
+    document.querySelector<HTMLButtonElement>('[data-bindings-clear-filter]')?.click();
+    await waitFor(() => rowAt('actions', 0, 'clear filters').querySelector<HTMLAnchorElement>('[data-bindings-open-node]')?.href === direct);
+  });
+
+  it('reverts a hidden selected node without retaining its draft link or target address', async () => {
+    bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'OriginalNode', action: 'Dim' }, powerOn: {} }, events: {} });
+    bindingsMock.searchNodeUrls.mockImplementation(async (name) => name === 'Other' ? [{ node: 'OtherNode', address: 'http://other.test/nodes/OtherNode/', host: 'other.test' }] : []);
+    const element = await mountBindings();
+    const row = rowAt('actions', 0, 'original');
+    await setInputValue(rowInputs(row).node, 'Other');
+    await waitFor(() => row.querySelector('[data-bindings-option="node"]') !== null);
+    row.querySelector<HTMLButtonElement>('[data-bindings-option="node"]')?.click();
+    await flush();
+    await setInputValue(queryInput('[data-bindings-filter]'), 'power');
+    element.addEventListener('nodel-confirm', (event) => {
+      event.preventDefault();
+      (event as CustomEvent<{ resolve(confirmed: boolean): void }>).detail.resolve(true);
+    }, { once: true });
+    document.querySelector<HTMLButtonElement>('[data-bindings-revert]')?.click();
+    await waitFor(() => !element.textContent?.includes('Changed'));
+    document.querySelector<HTMLButtonElement>('[data-bindings-clear-filter]')?.click();
+    const restored = rowAt('actions', 0, 'restored');
+    expect(rowInputs(restored).node.value).toBe('OriginalNode');
+    expect(queryRequired<HTMLAnchorElement>('[data-bindings-open-node]', restored).getAttribute('href')).toBe('/nodes.html?filter=OriginalNode#Network');
+    await setInputValue(rowInputs(restored).target, 'D');
+    await waitFor(() => bindingsMock.getRemoteNodeActions.mock.calls.length > 0);
+    expect(bindingsMock.getRemoteNodeActions).not.toHaveBeenCalledWith('http://other.test/nodes/OtherNode/', expect.anything());
   });
 
   it('suggests matches and applies high or medium confidence suggestions for selected rows', async () => {
@@ -1286,7 +1620,7 @@ describe('nodel-bindings', () => {
 
   it('updates row status from remote binding activity entries', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
-    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Display Ünit' }, powerOn: {} }, events: {} });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Display Ünit', action: 'Dim' }, powerOn: {} }, events: {} });
 
     await mountBindings();
 
@@ -1318,14 +1652,24 @@ describe('nodel-bindings', () => {
 
     const actionRow = rowAt('actions', 0, 'first');
     expect(actionRow.textContent).toContain('Wired');
-    const statusLink = actionRow.querySelector<HTMLAnchorElement>('.nodel-bindings-status');
-    expect(statusLink?.getAttribute('href')).toBe('/nodes.html?filter=Display%20%C3%9Cnit#Network');
-    expect(statusLink?.getAttribute('aria-label')).toBe('Open Display Ünit in Network nodes');
+    const status = actionRow.querySelector<HTMLElement>('.nodel-bindings-status');
+    const nodeLink = actionRow.querySelector<HTMLAnchorElement>('[data-bindings-open-node]');
+    expect(status?.tagName).toBe('SPAN');
+    expect(nodeLink?.getAttribute('href')).toBe('/nodes.html?filter=Display%20%C3%9Cnit#Network');
+    expect(nodeLink?.getAttribute('aria-label')).toBe('Open node Display Ünit');
+    expect(nodeLink?.classList.contains('nodel-button-compact')).toBe(true);
+    expect(nodeLink?.classList.contains('nodel-button-ghost')).toBe(true);
+    expect(nodeLink?.querySelector('svg[data-icon="arrow-up-right-from-square"]')).not.toBeNull();
+    expect(nodeLink?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(nodeLink?.querySelector('svg')?.getAttribute('focusable')).toBe('false');
+    expect(nodeLink?.textContent?.trim()).toBe('');
+    expect(nodeLink?.closest('.nodel-bindings-node-field')?.querySelector('[data-bindings-node]')).toBeTruthy();
+    expect(nodeLink?.closest('.nodel-bindings-combobox')?.querySelector('.nodel-bindings-popover, [role="alert"]')).toBeNull();
   });
 
-  it('normalizes non-wired backend binding states to Unwired', async () => {
+  it('normalizes the fixture-backed Empty backend status to Unwired', async () => {
     bindingsMock.getNodeRemoteSchema.mockResolvedValue(bindingSchema);
-    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: {}, powerOn: {} }, events: { statusChanged: {} } });
+    bindingsMock.getNodeRemoteBindings.mockResolvedValue({ actions: { setLevel: { node: 'Display', action: 'Dim' }, powerOn: {} }, events: { statusChanged: {} } });
 
     await mountBindings();
 
@@ -1372,11 +1716,11 @@ describe('nodel-bindings', () => {
     bindings.remove();
     document.body.append(bindings);
     await waitFor(() => bindingsMock.getNodeRemoteSchema.mock.calls.length === 2);
-    await waitFor(() => bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled === false);
+    await waitFor(() => bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled === true);
     pendingSave.resolve({});
     await flush();
 
-    expect(bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(false);
+    expect(bindings.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
     expect(bindings.textContent).not.toContain('Bindings saved.');
   });
 

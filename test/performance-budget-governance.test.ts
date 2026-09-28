@@ -18,7 +18,7 @@ const languageEntries = [
 ] as const;
 const expected = {
   'stable-entry-closure': [386548, 405876, 104552, 109780],
-  'stable-css': [178790, 187730, 22244, 23357],
+  'stable-css': [178790, 187730, 23434, 23903],
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
   'codemirror-language-html': [271633, 285215, 92689, 97324],
@@ -44,16 +44,16 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('APPROVED_CATALOGUE_STRUCTURE_2026-09-18');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_BINDINGS_UI_CSS_2026-09-28');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
     expect(Object.keys(policy.budgets).sort()).toEqual(Object.keys(expected).sort());
     expect(notes).toContain(policy.releaseNotesMarker);
     expect(notes).toContain(policy.rationale);
-    expect(policy.rationale).toContain('39 pages, 59 paired examples, and 67 copy blocks');
-    expect(policy.rationale).toContain('only components-html');
-    expect(policy.rationale).toContain('All other metrics and budgets remain unchanged');
+    expect(policy.rationale).toContain('only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes');
+    expect(policy.rationale).toContain('stable-css raw baseline and maximum');
+    expect(policy.rationale).toContain('all other metrics and budgets, remain unchanged');
     for (const [name, values] of Object.entries(expected)) {
       const budget = policy.budgets[name];
       if (!budget) throw new Error(`Missing budget ${name}`);
@@ -61,6 +61,9 @@ describe('Stage 5 performance budget governance', () => {
       if (name === 'dist-v2-inventory') {
         expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.02 / 10000) * 10000);
         expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.02 / 5000) * 5000);
+      } else if (name === 'stable-css') {
+        expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.05));
+        expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.02));
       } else {
         expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.05));
         expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.05));

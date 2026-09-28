@@ -69,6 +69,10 @@ For focused unit feedback, use `npm run test:watch -- <spec-or-path>`. For focus
 
 The Stage 6 behavior-preserving boundaries are explicit: editor session, file, restart, and upload logic versus the editor component; bindings controller, model, and lookup logic versus its JsViews adapter; app navigation, restart, and connectivity versus the composition root, theme, and hosts; and actsig model/controller versus timers, DOM, clipboard, and events. Component-contract modules form the fifth hotspot boundary, separating contract data from catalogue, editor, reports, and serialization consumers.
 
+The bindings controller owns presence-aware saved baselines, editable drafts, stable filtered result membership, and replacement selection. Filter application prunes selection, while editing and runtime updates leave the current working set mounted until the filters are explicitly reapplied. Save persists the complete replacement payload with all pending edits and unknown metadata preserved, then advances only the successfully submitted baseline. Local Revert restores that baseline rather than fetching or writing server configuration. Saved binding status is distinct from draft values; direct node navigation resolves the displayed draft name through the shared safe navigation policy and never persists discovered addresses.
+
+Bindings uses the existing app-owned restart refresh path. Dirty drafts return `dirty-preserved` without destructive reload, preserving local editing context and reporting that bindings were not reloaded; clean instances refresh normally. Shared restart reporting is component-neutral and retains existing failure/conflict precedence. This aligns edit preservation with the editor without copying its file-specific reconciliation or pre-save conflict checks. Preserving a draft does not establish server agreement or make unconditional binding writes transactional.
+
 ## Input Boundaries
 
 Treat all REST, WebSocket, discovery, build metadata, authored attributes, and signal values as untrusted at the browser boundary.

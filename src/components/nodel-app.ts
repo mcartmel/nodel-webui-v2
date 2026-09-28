@@ -488,11 +488,11 @@ export class NodelApp extends HTMLElement implements NodelNavigationHost {
         : summary.conflict
           ? 'Node reloaded, but local editor content could not be reconciled. Local edits were preserved.'
           : summary.dirtyPreserved
-            ? 'Node reloaded. View refreshed; unsaved editor changes were preserved.'
+            ? 'Node reloaded. Unsaved changes were preserved.'
             : summary.diagnosticIssues
               ? 'Node reloaded. View is up to date; diagnostics need refresh.'
               : 'Node reloaded. View is up to date.',
-      detail: summary.failed ? summary.failureDetail : summary.diagnosticDetail,
+      detail: summary.failed ? summary.failureDetail : [summary.dirtyPreserved ? summary.result.detail : '', summary.diagnosticDetail].filter(Boolean).join(' '),
       tone: summary.failed || summary.conflict || summary.dirtyPreserved || summary.diagnosticIssues ? 'warning' : 'success',
       durationMs: summary.failed || summary.conflict || summary.diagnosticIssues ? 7000 : summary.dirtyPreserved ? 6000 : 3500
     });

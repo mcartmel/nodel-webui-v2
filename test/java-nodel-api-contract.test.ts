@@ -101,6 +101,7 @@ describe('Java Nodel API contract fixtures', () => {
       expect.stringContaining('Value.java'),
       expect.stringContaining('ParameterBindings.java'),
       expect.stringContaining('RemoteBindings.java'),
+      expect.stringContaining('BindingState.java'),
       expect.stringContaining('Serialisation.java')
     ]));
     expect(fixture.transport).toEqual(expect.objectContaining({

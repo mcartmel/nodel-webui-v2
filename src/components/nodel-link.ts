@@ -1,29 +1,16 @@
 import { getNodeEventBinding, getNodeUrlsForNode } from '../api/nodel-host-client';
 import type { NodelNodeUrlEntry } from '../api/nodel-types';
 import { renderFontAwesomeIcon, toastIcons, uiIcons } from '../icons/fontawesome';
-import { networkNodeSearchHref } from '../navigation/node-links';
-import { isRecord } from '../utils/records';
+import { networkNodeSearchHref, preferredNodeAddress } from '../navigation/node-links';
 import { isAbortError } from '../utils/errors';
 import { isWellFormedUtf16 } from '../utils/node-name';
 import { trimPointReference } from '../utils/edge-whitespace';
-import { safeNavigationHref, safeNavigationUrl } from '../utils/urls';
+import { safeNavigationHref } from '../utils/urls';
 import { LatestOperationCoordinator, type LatestOperationTicket } from '../utils/latest-operation-coordinator';
 
 type LinkState = 'idle' | 'loading' | 'ready' | 'error';
 
 let linkStatusId = 0;
-
-function preferredNodeAddress(entries: unknown) {
-  if (!Array.isArray(entries)) {
-    return null;
-  }
-  const valid = entries
-    .filter(isRecord)
-    .map((entry) => entry as Partial<NodelNodeUrlEntry>)
-    .map((entry) => typeof entry.address === 'string' ? safeNavigationUrl(entry.address) : null)
-    .filter((url): url is URL => url !== null);
-  return valid.find((url) => url.origin === window.location.origin) ?? valid[0] ?? null;
-}
 
 export class NodelLink extends HTMLElement {
   static observedAttributes = ['href', 'node', 'event-binding', 'target', 'rel', 'aria-label', 'aria-labelledby', 'aria-describedby', 'title'];

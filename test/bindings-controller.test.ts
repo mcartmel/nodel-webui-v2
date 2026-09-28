@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { NodelJsonSchema } from '../src/api/nodel-types';
+import type { NodelActivityLogEntry, NodelJsonSchema } from '../src/api/nodel-types';
 import {
   BindingsController,
   createBindingsViewModel,
@@ -7,6 +7,7 @@ import {
   type BindingsMutationAdapter
 } from '../src/features/bindings-controller';
 import { deferred } from './lifecycle-helpers';
+import type { NodeActivityBatch } from '../src/data/node-activity-source';
 
 const schema = {
   type: 'object',
@@ -77,6 +78,41 @@ describe('BindingsController', () => {
     expect(row.targetError).toContain('available values');
   });
 
+  it('counts invalid rows and changed rows by section independently of revealed messages', async () => {
+    const countedSchema: NodelJsonSchema = {
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'object',
+          properties: {
+            alpha: { type: 'object', properties: { node: { type: 'string', enum: ['N'] }, action: { type: 'string', enum: ['Run'] } } },
+            beta: { type: 'object', properties: { node: { type: 'string', enum: ['N'] }, action: { type: 'string', enum: ['Run'] } } }
+          }
+        }
+      }
+    };
+    const api = {
+      getSchema: vi.fn().mockResolvedValue(countedSchema),
+      getValues: vi.fn().mockResolvedValue({ actions: { alpha: { node: 'Bad', action: 'Wrong' }, beta: { node: 'N', action: 'Run' } } }),
+      save: vi.fn().mockResolvedValue({})
+    };
+    const subject = new BindingsController({ state: createBindingsViewModel(), adapter: mutationAdapter(), api, lookup: { searchNodeOptions: vi.fn(), getTargetOptions: vi.fn(), getSuggestion: vi.fn(), clear: vi.fn() } });
+    await subject.load(context());
+    const [alpha] = subject.state.sections[0]!.rows;
+    expect(subject.state).toMatchObject({ invalid: true, invalidCount: 1 });
+    expect(subject.state.sections[0]).toMatchObject({ invalidCount: 1, changedCount: 0 });
+
+    subject.editNode(alpha!, 'N');
+    expect(subject.state.invalidCount).toBe(1);
+    subject.editTarget(alpha!, 'Run');
+    expect(subject.state).toMatchObject({ invalid: false, invalidCount: 0, changedCount: 1 });
+    expect(subject.state.sections[0]).toMatchObject({ invalidCount: 0, changedCount: 1 });
+
+    subject.revert(subject.getRevision());
+    expect(subject.state).toMatchObject({ invalid: true, invalidCount: 1, changedCount: 0 });
+    expect(subject.state.sections[0]).toMatchObject({ invalidCount: 1, changedCount: 0 });
+  });
+
   it('filters, selects visible rows, summarizes, and serializes edited metadata without addresses', async () => {
     const instance = controller({ actions: { alpha: { node: 'N', action: 'A', keep: 1 }, beta: {} }, unknown: { keep: true } });
     await instance.controller.load(context());
@@ -131,6 +167,266 @@ describe('BindingsController', () => {
       actions: { alpha: { keep: 1, node: 'Lighting' } }
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(beta!.nodeAddress).toBe('');
+    expect(instance.controller.state.changedCount).toBe(0);
+    instance.controller.editNode(alpha!, 'Later');
+    const revision = instance.controller.getRevision();
+    expect(instance.controller.revert(revision)).toBe(true);
+    expect(alpha!.node).toBe('Lighting');
+    expect(instance.api.getValues).toHaveBeenCalledTimes(1);
+  });
+
+  it('tracks presence-aware local changes, guards revert revisions, and replaces selection', async () => {
+    const instance = controller({ actions: { alpha: {}, beta: { node: 'N', action: 'Run' } } });
+    await instance.controller.load(context());
+    const [alpha, beta] = instance.controller.state.sections[0]!.rows;
+    instance.controller.editNode(alpha!, '');
+    expect(alpha).toMatchObject({ dirty: true, nodeDirty: true });
+    const promptRevision = instance.controller.getRevision();
+    instance.controller.editNode(beta!, 'Changed');
+    expect(instance.controller.revert(promptRevision)).toBe(false);
+    instance.controller.setFilter('alpha');
+    instance.controller.selectRows('visible');
+    expect(alpha!.selected).toBe(true);
+    instance.controller.selectRows('unset');
+    expect(instance.controller.state.selectedCount).toBe(1);
+    expect(alpha!.selected).toBe(true);
+  });
+
+  it('resets hidden reverted destination links and autocomplete addresses before target lookup', async () => {
+    const instance = controller({ actions: { alpha: { node: 'OriginalNode', action: 'Run', vendor: 7 }, beta: {} } });
+    instance.lookup.getTargetOptions.mockResolvedValue([]);
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    row.nodeOptions = [{ value: 'OtherNode', label: 'OtherNode', address: 'https://other.test/nodes/OtherNode/', detail: '' }];
+    instance.controller.applyNodeOption(row, 0, row.nodeOptions[0]!);
+    row.statusHref = 'https://other.test/nodes/OtherNode/';
+    instance.controller.setFilter('beta');
+    expect(instance.controller.state.sections[0]!.visibleRows).not.toContain(row);
+    expect(instance.controller.revert(instance.controller.getRevision())).toBe(true);
+    expect(row).toMatchObject({ node: 'OriginalNode', nodeAddress: '', statusHref: '/nodes.html?filter=OriginalNode#Network', statusLinkLabel: 'Open OriginalNode in Network nodes', originalValue: { node: 'OriginalNode', action: 'Run', vendor: 7 } });
+    instance.controller.searchTarget(row, 'Run', context());
+    expect(instance.lookup.getTargetOptions).toHaveBeenCalledWith({ kind: 'actions', node: 'OriginalNode', nodeAddress: '' }, 'Run', expect.any(AbortSignal));
+  });
+
+  it('retains result membership through edits and prunes selection only on refresh', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Lamp', action: 'Dim' }, beta: { node: 'Other', action: 'On' } } });
+    await instance.controller.load(context());
+    instance.controller.setFilter('Lamp');
+    const [alpha] = instance.controller.state.sections[0]!.rows;
+    instance.controller.selectRows('visible');
+    instance.controller.editNode(alpha!, 'Projector');
+    expect(instance.controller.state.sections[0]!.visibleRows.map((row) => row.alias)).toEqual(['alpha']);
+    expect(instance.controller.state.resultsChanged).toBe(true);
+    expect(alpha!.selected).toBe(true);
+    instance.controller.refreshResults();
+    expect(instance.controller.state.sections[0]!.visibleRows).toHaveLength(0);
+    expect(alpha!.selected).toBe(false);
+  });
+
+  it('advances the submitted save baseline and rejects edits while saving', async () => {
+    const save = deferred<unknown>();
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Old' } } });
+    instance.api.save.mockReturnValue(save.promise);
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.editTarget(row, 'Submitted');
+    const pending = instance.controller.save(context());
+    instance.controller.editTarget(row, 'Newer');
+    save.resolve({});
+    expect(await pending).toMatchObject({ status: 'saved' });
+    expect(instance.controller.state.changedCount).toBe(0);
+    const revision = instance.controller.getRevision();
+    instance.controller.revert(revision);
+    expect(row.target).toBe('Submitted');
+  });
+
+  it('blocks bulk-node draft mutation while a save is pending', async () => {
+    const save = deferred<unknown>();
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Run' } } });
+    instance.api.save.mockReturnValue(save.promise);
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.editTarget(row, 'Changed');
+    instance.controller.selectRow(row, true);
+    instance.controller.state.bulkNode = 'Other';
+
+    const pendingSave = instance.controller.save(context());
+    instance.controller.applyBulkNode();
+    expect(row.node).toBe('N');
+
+    save.resolve({});
+    await pendingSave;
+  });
+
+  it('blocks suggestion application while a save is pending', async () => {
+    const save = deferred<unknown>();
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Run' } } });
+    instance.api.save.mockReturnValue(save.promise);
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.editNode(row, 'Changed node');
+    instance.controller.selectRow(row, true);
+    row.suggestionValue = 'Suggested';
+    row.suggestionConfidence = 'high';
+
+    const pendingSave = instance.controller.save(context());
+    instance.controller.applySuggestions();
+    expect(row.target).toBe('Run');
+
+    save.resolve({});
+    await pendingSave;
+  });
+
+  it('invalidates an in-flight suggestion when save begins', async () => {
+    const save = deferred<unknown>();
+    const suggestion = deferred<{ value: string; label: string; confidence: 'high' }>();
+    const lookup = { searchNodeOptions: vi.fn(), getTargetOptions: vi.fn(), getSuggestion: vi.fn().mockReturnValue(suggestion.promise), clear: vi.fn() };
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Run' } }, lookup });
+    instance.api.save.mockReturnValue(save.promise);
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.editTarget(row, 'Changed');
+    instance.controller.selectRow(row, true);
+    const pendingSuggestion = instance.controller.suggest(context());
+    const pendingSave = instance.controller.save(context());
+    suggestion.resolve({ value: 'Stale suggestion', label: 'Stale', confidence: 'high' });
+    await pendingSuggestion;
+    instance.controller.applySuggestions();
+    expect(row.target).toBe('Changed');
+    expect(row.suggestionValue).toBe('');
+
+    save.resolve({});
+    await pendingSave;
+  });
+
+  it('preserves dirty drafts on restart and invalidates runtime status evidence', async () => {
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.activityEntries([{ seq: 1, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' }]);
+    instance.controller.editTarget(row, 'Later');
+    expect(instance.controller.preserveAfterRestart()).toMatchObject({ status: 'dirty-preserved' });
+    expect(row).toMatchObject({ target: 'Later', status: 'Unknown', statusEvidence: 'source-invalidated' });
+    expect(instance.api.getValues).toHaveBeenCalledTimes(1);
+    const notice = instance.controller.state.restartNotice;
+    expect(notice).toContain('bindings were not reloaded');
+    instance.controller.setFilter('missing');
+    instance.controller.applySuggestions();
+    expect(instance.controller.state.message).toBe('0 suggestions applied.');
+    expect(instance.controller.revert(instance.controller.getRevision())).toBe(true);
+    expect(instance.controller.state.restartNotice).toBe(notice);
+    await instance.controller.load(context());
+    expect(instance.controller.state.restartNotice).toBe('');
+  });
+
+  it('accepts unchanged binding evidence from a recovered poll batch after transport loss', async () => {
+    const instance = controller({ actions: { alpha: { node: 'N', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.activityEntries([{ seq: 5, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' }]);
+    instance.controller.activityUnavailable();
+    expect(row).toMatchObject({ status: 'Unknown', statusEvidence: 'source-invalidated' });
+
+    // The activity source's recovery poll carries current entries as unchanged,
+    // non-live items in a non-replacement batch.
+    const recoveredPoll: NodeActivityBatch = {
+      replace: false,
+      transport: 'poll',
+      nextSeq: 6,
+      items: [{ entry: { seq: 5, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' }, changed: false, live: false }]
+    };
+    const freshBindings = new Set(recoveredPoll.items.filter((item) => item.changed || item.live).map((item) => `actions:${item.entry.alias}`));
+    instance.controller.activityEntries(recoveredPoll.items.map((item) => item.entry), freshBindings);
+
+    expect(row).toMatchObject({ status: 'Wired', statusEvidence: 'Wired' });
+  });
+
+  it('rejects cached pre-save history but accepts explicitly fresh evidence for a saved destination', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Old node', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.activityEntries([{ seq: 5, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' }]);
+    instance.controller.editNode(row, 'New node');
+    expect((await instance.controller.save(context()))?.status).toBe('saved');
+    expect(row).toMatchObject({ node: 'New node', status: 'Unknown', statusEvidence: 'save-invalidated' });
+
+    const cachedHistory = [{ seq: 5, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' } satisfies NodelActivityLogEntry];
+    instance.controller.activityEntries(cachedHistory);
+    expect(row.status).toBe('Unknown');
+    instance.controller.activityEntries(cachedHistory, new Set(['actions:alpha']));
+    expect(row.status).toBe('Unknown');
+    instance.controller.activityEntries([{ ...cachedHistory[0]!, seq: 6 }], new Set(['actions:alpha']));
+    expect(row.status).toBe('Wired');
+  });
+
+  it('accepts newer unchanged recovery evidence after a changed destination save and source loss', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Old node', action: 'Run' }, beta: { node: 'Other', action: 'Run' } } });
+    await instance.controller.load(context());
+    const [alpha, beta] = instance.controller.state.sections[0]!.rows;
+    const old = { seq: 5, timestamp: '2026-09-27T00:00:00Z', source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' } satisfies NodelActivityLogEntry;
+    instance.controller.activityEntries([old, { ...old, alias: 'beta' }]);
+    instance.controller.editNode(alpha!, 'New node');
+    expect((await instance.controller.save(context()))?.status).toBe('saved');
+    expect(alpha).toMatchObject({ status: 'Unknown', statusEvidence: 'save-invalidated' });
+    expect(beta).toMatchObject({ status: 'Wired', statusEvidence: 'Wired' });
+    instance.controller.activityUnavailable();
+    expect(alpha).toMatchObject({ status: 'Unknown', statusEvidence: 'save-invalidated' });
+    expect(beta).toMatchObject({ status: 'Unknown', statusEvidence: 'source-invalidated' });
+
+    instance.controller.activityEntries([old, { ...old, alias: 'beta' }]);
+    expect(alpha!.status).toBe('Unknown');
+    expect(beta!.status).toBe('Wired');
+    const recoveredPoll: NodeActivityBatch = {
+      replace: false, transport: 'poll', nextSeq: 7,
+      items: [{ entry: { ...old, seq: 6, arg: 'Resolved' }, changed: false, live: false }]
+    };
+    instance.controller.activityEntries(recoveredPoll.items.map((item) => item.entry));
+    expect(alpha).toMatchObject({ status: 'Unwired', statusEvidence: 'Unwired' });
+  });
+
+  it('requires a newer timestamp for unchanged recovery when activity sequence restarts', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Old', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    const old = { seq: 30, timestamp: '2026-09-27T00:00:00Z', source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' } satisfies NodelActivityLogEntry;
+    instance.controller.activityEntries([old]);
+    instance.controller.editNode(row, 'New');
+    await instance.controller.save(context());
+    instance.controller.activityUnavailable();
+    instance.controller.activityEntries([{ ...old, seq: 1 }]);
+    expect(row.status).toBe('Unknown');
+    instance.controller.activityEntries([{ ...old, seq: 1, timestamp: '2026-09-27T00:01:00Z', arg: 'Empty' }]);
+    expect(row).toMatchObject({ status: 'Unwired', statusEvidence: 'Unwired' });
+  });
+
+  it('requires explicit freshness when no pre-save observation establishes a watermark', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Old', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    instance.controller.editNode(row, 'New');
+    await instance.controller.save(context());
+    instance.controller.activityUnavailable();
+    const entry = { seq: 50, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' } satisfies NodelActivityLogEntry;
+    instance.controller.activityEntries([entry]);
+    expect(row).toMatchObject({ status: 'Unknown', statusEvidence: 'save-invalidated' });
+    instance.controller.activityEntries([entry], new Set(['actions:alpha']));
+    expect(row).toMatchObject({ status: 'Wired', statusEvidence: 'Wired' });
+  });
+
+  it('keeps saved-status invalidation across a dirty restart and rejects cached history', async () => {
+    const instance = controller({ actions: { alpha: { node: 'Old', action: 'Run' } } });
+    await instance.controller.load(context());
+    const row = instance.controller.state.sections[0]!.rows[0]!;
+    const old = { seq: 5, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Wired' } satisfies NodelActivityLogEntry;
+    instance.controller.activityEntries([old]);
+    instance.controller.editNode(row, 'New');
+    await instance.controller.save(context());
+    instance.controller.editTarget(row, 'Draft');
+    instance.controller.preserveAfterRestart();
+    instance.controller.activityEntries([old]);
+    expect(row).toMatchObject({ status: 'Unknown', statusEvidence: 'save-invalidated' });
+    instance.controller.activityEntries([{ ...old, seq: 1, timestamp: '2026-09-27T00:01:00Z' }]);
+    expect(row.status).toBe('Wired');
   });
 
   it('applies node, target, and bulk options synchronously', async () => {
@@ -154,7 +450,7 @@ describe('BindingsController', () => {
     expect(alpha).toMatchObject({ node: 'FallbackNode', target: 'fallback-target' });
   });
 
-  it('filters exact searchable fields and maintains section and toolbar counts', async () => {
+  it('filters exact searchable fields and maintains confirmed-unwired counts', async () => {
     const instance = controller({ actions: { alpha: { node: 'Lighting', action: 'Dim' }, beta: {} }, events: { changed: {} } });
     await instance.controller.load(context());
     instance.controller.setFilter('lighting');
@@ -162,8 +458,9 @@ describe('BindingsController', () => {
     instance.controller.selectRows('visible');
     expect(instance.controller.state.selectedCount).toBe(1);
     expect(instance.controller.state.sections[0]!.selectedCount).toBe(1);
-    instance.controller.selectRows('unbound');
-    expect(instance.controller.state.unboundCount).toBe(3);
+    instance.controller.selectRows('unset');
+    expect(instance.controller.state.unboundCount).toBe(0);
+    expect(instance.controller.state.selectedCount).toBe(0);
     instance.controller.clearFilter();
     expect(instance.controller.state.visibleCount).toBe(3);
     instance.controller.setFilter('no such binding');
@@ -174,6 +471,26 @@ describe('BindingsController', () => {
     expect(instance.controller.state.selectedCount).toBe(0);
     instance.controller.closeLookup(null, 'node');
     instance.controller.closeLookup(null, 'bulk-node');
+  });
+
+  it('replaces selection with visible saved-Unset rows, independent of runtime status and draft edits', async () => {
+    const instance = controller({ actions: { alpha: {}, beta: { node: 'N', action: 'Run' } }, events: { changed: { node: 'N', event: 'Stop' } } });
+    await instance.controller.load(context());
+    const [unset, wired] = instance.controller.state.sections[0]!.rows;
+    const [unwired] = instance.controller.state.sections[1]!.rows;
+    instance.controller.activityEntries([{ seq: 1, source: 'remote', type: 'eventBinding', alias: 'changed', arg: 'Empty' }]);
+    expect(unwired!.status).toBe('Unwired');
+    unset!.selected = true;
+    wired!.selected = true;
+    instance.controller.editNode(unset!, 'Draft node');
+    instance.controller.selectRows('unset');
+    expect(unset!.selected).toBe(true);
+    expect([wired!.selected, unwired!.selected]).toEqual([false, false]);
+    expect(instance.controller.state.changedCount).toBe(1);
+    expect(unset!.status).toBe('Unset');
+    instance.controller.setStatusFilter('Wired');
+    instance.controller.selectRows('unset');
+    expect(instance.controller.state.selectedCount).toBe(0);
   });
 
   it('closes a row lookup and ignores its abort-insensitive completion', async () => {
@@ -220,7 +537,7 @@ describe('BindingsController', () => {
   });
 
   it('maps only remote binding activity and retains the current-node link', async () => {
-    const instance = controller({ actions: { alpha: { node: 'Lighting' } } });
+    const instance = controller({ actions: { alpha: { node: 'Lighting', action: 'Run' } } });
     await instance.controller.load(context());
     const row = instance.controller.state.sections[0]!.rows[0]!;
     instance.controller.activityEntries([
@@ -230,7 +547,7 @@ describe('BindingsController', () => {
     expect(row.status).toBe('Wired');
     expect(row.statusHref).toContain('Lighting');
     instance.controller.activityEntries([{ seq: 3, source: 'remote', type: 'actionBinding', alias: 'alpha', arg: 'Other' }]);
-    expect(row.status).toBe('Unwired');
+    expect(row.status).toBe('Unknown');
   });
 
   it('supersedes abort-insensitive loads and reports unsupported, empty, and failed loads', async () => {

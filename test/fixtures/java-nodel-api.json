@@ -26,7 +26,8 @@
       "nodel-framework/src/main/java/org/nodel/reflection/Serialisation.java",
       "nodel-framework/src/main/java/org/nodel/core/NodelServerAction.java",
       "nodel-framework/src/main/java/org/nodel/core/NodelServerEvent.java",
-      "nodel-framework/src/main/java/org/nodel/core/NodelClients.java",
+        "nodel-framework/src/main/java/org/nodel/core/NodelClients.java",
+        "nodel-framework/src/main/java/org/nodel/core/BindingState.java",
       "nodel-framework/src/main/java/org/nodel/diagnostics/Diagnostics.java",
       "nodel-framework/src/main/java/org/nodel/diagnostics/MeasurementHistory.java"
     ]

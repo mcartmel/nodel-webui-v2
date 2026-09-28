@@ -191,7 +191,8 @@ describe('V1 migration and release guidance', () => {
     for (const phrase of [
       'recommended custom UI first', 'advanced core assistance', 'hidden internal entries', 'Ctrl/Cmd+Space',
       'arbitrary Tailwind output', 'does not call action or signal endpoints', 'infer or index point names',
-      'Empty, node-only, target-only, and complete binding rows', 'incomplete rows remain inactive and unwired',
+      'Empty, node-only, target-only, and complete binding rows', 'incomplete saved rows remain inactive and are displayed as Unset',
+      'Refresh results', 'Revert changes', 'dirty-preserved',
       'invalid typed or enum values still block', 'preserves unknown metadata', 'do not block Save',
       'schemaVersion', 'element audience', 'ignoring unknown additive fields', 'initialization-time navigation inputs',
       '/REST/nodeURLs', 'target-node `REST/actions` or `REST/events`'

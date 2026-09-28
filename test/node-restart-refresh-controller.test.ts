@@ -67,6 +67,25 @@ describe('NodeRestartRefreshController', () => {
     expect(long?.failureDetail.length).toBeLessThanOrEqual(500);
   });
 
+  it('retains labelled dirty component details without masking conflicts or diagnostic issues', async () => {
+    const controller = new NodeRestartRefreshController({
+      resetConsoleCursor: vi.fn(),
+      refreshConsole: async () => ({ status: 'failed', detail: 'offline' }),
+      refreshActivity: async () => ({ status: 'verified' })
+    });
+    const bindings = { label: 'Bindings', refresh: () => ({ status: 'dirty-preserved' as const, detail: 'Bindings were not reloaded.' }) };
+    const preserved = await controller.startManual([
+      bindings,
+      { label: 'Editor', refresh: () => ({ status: 'dirty-preserved', detail: 'Local editor changes were preserved.' }) }
+    ]);
+    expect(preserved).toMatchObject({ result: { status: 'dirty-preserved' }, diagnosticIssues: true });
+    expect(preserved?.result.detail).toContain('Bindings: Bindings were not reloaded.');
+    expect(preserved?.result.detail).toContain('Editor: Local editor changes were preserved.');
+    expect(preserved?.diagnosticDetail).toContain('Console: offline');
+    const conflict = await controller.startManual([bindings, { label: 'Editor', refresh: () => ({ status: 'conflict', detail: 'Remote script changed.' }) }]);
+    expect(conflict).toMatchObject({ result: { status: 'conflict', detail: 'Remote script changed.' }, dirtyPreserved: true });
+  });
+
   it('suppresses stale refreshes for superseding runs, pending identities, and disposal', async () => {
     const gate = deferred<{ status: 'verified' }>();
     const reset = vi.fn();

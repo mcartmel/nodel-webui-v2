@@ -286,55 +286,23 @@
   }
 
   .nodel-bindings-toolbar {
-    @apply grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center;
+    grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
   }
 
-  .nodel-bindings-toolbar-panel {
-    @apply relative z-10 space-y-2.5 rounded-card border border-nodel-border bg-nodel-surface p-2.5;
-    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-card, none);
-  }
-
-  .nodel-bindings-section.nodel-collapse {
+  .nodel-bindings-section > .nodel-collapse {
     overflow: visible;
   }
 
-  .nodel-bindings-table {
-    @apply min-w-0 space-y-1.5;
-  }
-
-  .nodel-bindings-header,
-  .nodel-bindings-row {
-    @apply grid min-w-0 gap-2;
-    grid-template-columns: 1.75rem 5rem minmax(8rem, 1.25fr) minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(7rem, 0.8fr);
-  }
-
   .nodel-bindings-header {
-    @apply px-2;
-  }
-
-  .nodel-bindings-row {
-    @apply items-start rounded-card border border-nodel-border bg-nodel-surface px-2 py-2 text-13 leading-5;
-    background: var(--nodel-card-background, rgb(var(--nodel-surface)));
-    border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
-    box-shadow: var(--nodel-shadow-card, none);
-  }
-
-  .nodel-bindings-combobox {
-    @apply relative min-w-0;
-  }
-
-  .nodel-bindings-popover {
-    @apply absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-auto p-1;
+    @apply grid;
   }
 
   .nodel-bindings-popover:not(:has(.nodel-menu-item)) {
     display: none;
   }
 
-  .nodel-bindings-popover .nodel-menu-item {
-    @apply flex w-full flex-col items-start gap-0.5 text-left;
+  .nodel-bindings-mobile-label {
+    @apply hidden;
   }
 
   .nodel-bindings-status,
@@ -361,6 +329,19 @@
   }
 
   @media (max-width: 900px) {
+    .nodel-bindings-toolbar {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .nodel-bindings-filter-toolbar > label,
+    .nodel-bindings-edit-toolbar > div {
+      grid-column: 1 / -1;
+    }
+
+    .nodel-bindings-toolbar > div {
+      grid-template-columns: 1fr;
+    }
+
     .nodel-bindings-header {
       @apply hidden;
     }
@@ -369,8 +350,12 @@
       grid-template-columns: 1.75rem minmax(0, 1fr);
     }
 
-    .nodel-bindings-row > span:nth-child(n + 2) {
+    .nodel-bindings-row > span {
       grid-column: 2;
+    }
+
+    .nodel-bindings-mobile-label {
+      display: block;
     }
   }
 
@@ -591,5 +576,16 @@
   .nodel-schema-array-entry {
     @apply bg-nodel-bg/35;
     background: var(--nodel-subtle-background, rgb(var(--nodel-bg) / 0.35));
+  }
+
+  .nodel-bindings .nodel-bindings-header,
+  .nodel-bindings .nodel-bindings-row {
+    grid-template-columns: 2rem 5rem minmax(8rem, 1.25fr) minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(7rem, 0.8fr);
+  }
+
+  @media (max-width: 900px) {
+    .nodel-bindings .nodel-bindings-row {
+      grid-template-columns: 2rem minmax(0, 1fr);
+    }
   }
 }

@@ -225,9 +225,38 @@ describe('nodel-app restart coordination', () => {
       expectation: { ...expectation, state: 'refreshing' },
       detail
     });
-    await waitFor(() => document.body.textContent?.includes('unsaved editor changes were preserved.') ?? false);
+    await waitFor(() => document.body.textContent?.includes('Unsaved changes were preserved.') ?? false);
     expect(restartMock.completeNodeRestartExpectation).toHaveBeenCalledWith(4, expect.objectContaining({ status: 'dirty-preserved' }));
     expect(document.body.textContent).not.toContain('View is up to date.');
+  });
+
+  it.each(['external', 'expected'])('reports preserved editor and bindings drafts together after an %s restart', async (kind) => {
+    document.body.innerHTML = '<nodel-app><nodel-page title="Config"><nodel-editor></nodel-editor><nodel-bindings></nodel-bindings></nodel-page></nodel-app>';
+    await customElements.whenDefined('nodel-app');
+    for (const [tag, detail] of [['nodel-editor', 'Local editor changes were preserved.'], ['nodel-bindings', 'Bindings were not reloaded.']]) {
+      Object.assign(document.querySelector(tag!)!, { refreshAfterRestart: vi.fn(async () => ({ status: 'dirty-preserved', detail })) });
+    }
+    const detail = { previousTimestamp: 'start-1', timestamp: 'start-2' };
+    if (kind === 'external') restartMock.listener?.(detail);
+    else restartMock.eventListener?.({ type: 'expected-confirmed', expectation: { id: 42, generation: 42, baselineTimestamp: 'start-1', state: 'refreshing' }, detail });
+    await waitFor(() => document.body.textContent?.includes('Unsaved changes were preserved.') ?? false);
+    expect(document.body.textContent).toContain('Bindings were not reloaded.');
+    expect(document.body.textContent).toContain('Local editor changes were preserved.');
+    expect(document.body.textContent).not.toContain('View is up to date.');
+    expect(document.body.textContent).not.toContain('View refreshed;');
+  });
+
+  it.each(['conflict', 'failed'] as const)('does not let preserved bindings mask an editor %s', async (status) => {
+    document.body.innerHTML = '<nodel-app><nodel-page title="Config"><nodel-editor></nodel-editor><nodel-bindings></nodel-bindings></nodel-page></nodel-app>';
+    await customElements.whenDefined('nodel-app');
+    Object.assign(document.querySelector('nodel-editor')!, { refreshAfterRestart: vi.fn(async () => ({ status, detail: 'Editor needs attention.' })) });
+    Object.assign(document.querySelector('nodel-bindings')!, { refreshAfterRestart: vi.fn(async () => ({ status: 'dirty-preserved', detail: 'Bindings were not reloaded.' })) });
+    restartMock.eventListener?.({ type: 'expected-confirmed', expectation: { id: 43, generation: 43, baselineTimestamp: 'start-1', state: 'refreshing' }, detail: { previousTimestamp: 'start-1', timestamp: 'start-2' } });
+    await waitFor(() => restartMock.completeNodeRestartExpectation.mock.calls.length === 1);
+    expect(restartMock.completeNodeRestartExpectation).toHaveBeenCalledWith(43, expect.objectContaining({ status }));
+    expect(document.body.textContent).toContain(status === 'failed' ? 'view verification failed' : 'could not be reconciled');
+    expect(document.body.textContent).not.toContain('View is up to date.');
+    expect(document.body.textContent).not.toContain('Node reloaded. Unsaved changes were preserved.');
   });
 
   it('does not claim an up-to-date view for explicit false or conflict results', async () => {
