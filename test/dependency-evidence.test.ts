@@ -85,6 +85,30 @@ describe('dependency evidence', () => {
     expect(normalizeAuditReport({ auditReportVersion: 2, vulnerabilities: {} })).toEqual([]);
   });
 
+  it('waives only the matching braces advisory before its fixed expiration', async () => {
+    await mkdir(root, { recursive: true });
+    const exceptionsPath = join(root, 'exceptions.json');
+    const exception = { package: 'braces', advisory: '1240992', severity: 'high', expires: '2026-11-08T12:15:00.000Z', reason: 'GHSA-vfj7-8cjw-p6xm affects fixed build globs; no released patch; retain Tailwind 3 browser support and remove after patched install.', owner: 'mcartmel' };
+    await writeFile(exceptionsPath, JSON.stringify({ schemaVersion: 1, exceptions: [exception] }));
+    const finding = (packageName = 'braces', advisory = '1240992', severity = 'high') => ({ auditReportVersion: 2, vulnerabilities: { [packageName]: { severity, via: [{ source: advisory, title: 'test' }] } } });
+    const beforeExpiry = new Date('2026-10-09T12:15:00.000Z');
+
+    await expect(verifyAuditReport(finding(), { exceptionsPath, now: beforeExpiry })).resolves.toMatchObject({ matched: [`braces\0${'1240992'}`] });
+    await expect(verifyAuditReport(finding(), { exceptionsPath, now: new Date('2026-11-08T12:15:00.000Z') })).rejects.toThrow(/Expired/);
+    await expect(verifyAuditReport(finding(), { exceptionsPath, now: new Date('2026-11-09T12:15:00.000Z') })).rejects.toThrow(/Expired/);
+    await expect(verifyAuditReport({ auditReportVersion: 2, vulnerabilities: {} }, { exceptionsPath, now: beforeExpiry })).rejects.toThrow(/Unmatched/);
+    await expect(verifyAuditReport(finding('other'), { exceptionsPath, now: beforeExpiry })).rejects.toThrow(/Unmatched/);
+    await expect(verifyAuditReport(finding('braces', 'GHSA-other'), { exceptionsPath, now: beforeExpiry })).rejects.toThrow(/Unmatched/);
+    await expect(verifyAuditReport(finding('braces', '1240992', 'critical'), { exceptionsPath, now: beforeExpiry })).rejects.toThrow(/Unmatched/);
+
+    await writeFile(exceptionsPath, JSON.stringify({ schemaVersion: 1, exceptions: [exception] }));
+    const withOtherFinding = { auditReportVersion: 2, vulnerabilities: {
+      braces: { severity: 'high', via: [{ source: '1240992', title: 'waived' }] },
+      other: { severity: 'high', via: [{ source: 'GHSA-other', title: 'unwaived' }] }
+    } };
+    await expect(verifyAuditReport(withOtherFinding, { exceptionsPath, now: beforeExpiry })).rejects.toThrow(/Unmatched high\/critical/);
+  });
+
   it('reconciles the explicit license policy and notices', () => {
     const lockHash = 'a'.repeat(64); const policyHash = 'b'.repeat(64); const noticeHash = 'c'.repeat(64);
     const licenses = generateLicenses({ packages: normalizeProductionPackages(lock), lockHash, policy, policyHash, notices, noticeHash });
