@@ -7207,14 +7207,40 @@
     {
       "name": "nodel-host-log",
       "description": "Host/server log viewer.",
-      "attributes": [],
+      "attributes": [
+        {
+          "defaultValue": "last-line",
+          "name": "collapse-preview",
+          "description": "Publish a plain-text latest-entry preview to a parent nodel-collapse; defaults to last-line.",
+          "values": [
+            "last-line",
+            "none"
+          ],
+          "valueType": "enum",
+          "completion": "advanced",
+          "lifecycle": "dynamic",
+          "consumption": "contextual-child",
+          "consumer": "nodel-collapse"
+        }
+      ],
       "snippet": "<nodel-host-log></nodel-host-log>",
       "audience": "core",
       "registration": "lazy",
       "completion": "advanced",
       "actionBindings": [],
       "signalBindings": [],
-      "events": []
+      "events": [
+        {
+          "name": "nodel-collapse-preview",
+          "description": "Reports a plain-text latest host-log entry preview for a parent collapse.",
+          "bubbles": true,
+          "composed": false,
+          "detailFields": [
+            "source",
+            "text"
+          ]
+        }
+      ]
     },
     {
       "name": "nodel-diagnostic-charts",

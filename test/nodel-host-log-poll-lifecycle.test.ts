@@ -7,11 +7,14 @@ const hostLogPollMock = vi.hoisted(() => {
     listener: (state: unknown) => void;
     timer: number;
   }> = [];
+  let initialActive = true;
   return {
     subscriptions,
     reset: () => {
       subscriptions.length = 0;
+      initialActive = true;
     },
+    setInitialActive(active: boolean) { initialActive = active; },
     register(intervalMs: number) {
       return {
         subscribe(_element: HTMLElement, listener: (state: unknown) => void) {
@@ -28,7 +31,7 @@ const hostLogPollMock = vi.hoisted(() => {
             timer: window.setInterval(() => listener({ active: true, data: null, error: '', loading: true }), intervalMs)
           };
           subscriptions.push(subscription);
-          listener({ active: true, data: null, error: '', loading: true });
+          listener({ active: initialActive, data: null, error: '', loading: true });
           return { dispose: subscription.dispose, getState: vi.fn(), refresh: vi.fn() };
         }
       };
@@ -116,5 +119,49 @@ describe('nodel-host-log poll lifecycle', () => {
     expect(hostLogPollMock.subscriptions.filter((subscription) => subscription.active)).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(1);
     expect(freshHostLog.textContent).not.toContain('Stale');
+  });
+
+  it('uses polling-paused rather than loading while the first request is inactive', async () => {
+    hostLogPollMock.setInitialActive(false);
+    const hostLog = document.createElement('nodel-host-log');
+    const previews: string[] = [];
+    hostLog.addEventListener('nodel-collapse-preview', (event) => previews.push((event as CustomEvent<{ text: string }>).detail.text));
+    document.body.append(hostLog);
+    await settleLifecycle();
+    expect(previews.at(-1)).toBe('Host log polling paused');
+    expect(previews).not.toContain('Loading host log');
+  });
+
+  it('does not emit preview events from stale lifecycle callbacks', async () => {
+    const hostLog = document.createElement('nodel-host-log');
+    let previewEvents = 0;
+    hostLog.addEventListener('nodel-collapse-preview', () => { previewEvents += 1; });
+    document.body.append(hostLog);
+    await settleLifecycle();
+    const stale = hostLogPollMock.subscriptions[0]!;
+    hostLog.remove();
+    const eventCountAtDispose = previewEvents;
+    stale.listener({ active: true, data: { entries: [{ seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'INFO', message: 'Stale' }], nextSeq: 2, replace: true }, error: '', loading: false });
+    expect(previewEvents).toBe(eventCountAtDispose);
+  });
+
+  it('publishes pause, resumes the current entry without loading flicker, and recovers from errors', async () => {
+    const hostLog = document.createElement('nodel-host-log');
+    const previews: string[] = [];
+    hostLog.addEventListener('nodel-collapse-preview', (event) => previews.push((event as CustomEvent<{ text: string }>).detail.text));
+    document.body.append(hostLog);
+    await settleLifecycle();
+    const listener = hostLogPollMock.subscriptions[0]!.listener;
+    const beforeSuccess = previews.length;
+    listener({ active: true, data: { entries: [{ seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'WARN', message: 'kept' }], nextSeq: 2, replace: true }, error: '', loading: false });
+    listener({ active: false, data: null, error: '', loading: true });
+    expect(previews.at(-1)).toMatch(/ WARN: kept — polling paused$/);
+    listener({ active: true, data: null, error: '', loading: true });
+    expect(previews.at(-1)).toMatch(/ WARN: kept$/);
+    expect(previews.slice(beforeSuccess)).not.toContain('Loading host log');
+    listener({ active: true, data: null, error: 'network', loading: false });
+    expect(previews.at(-1)).toBe('Host log unavailable');
+    listener({ active: true, data: { entries: [], nextSeq: 2, replace: false }, error: '', loading: false });
+    expect(previews.at(-1)).toMatch(/ WARN: kept$/);
   });
 });

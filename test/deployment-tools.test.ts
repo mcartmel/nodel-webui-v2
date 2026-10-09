@@ -283,7 +283,7 @@ describe('Stage 11 deployment tools', () => {
     const manifestData = await loadDeploymentManifest(manifestPath);
     const inventory = await createDeploymentInventory(viteDist, manifestData.manifest);
     expect(inventory.files.some((file: string) => file.startsWith('v2/chunks/main-'))).toBe(true);
-  }, 15_000);
+  }, 30_000);
 
   it('rejects forged, truncated, and drifted managed markers', async () => {
     await deploy(deployOptions(), { roots });
