@@ -61,6 +61,8 @@ Typed lint, TypeScript, and JsViews checks are required. V8 reports broad produc
 
 ### Testing
 
+Real-build tests must own their complete generated project state, including the project/config/script roots, installed dependencies, generated icon assets, output trees, and bundle reports; isolating only Vite's `outDir` is insufficient. Build tests use independent disposable copies and must not write to checkout `dist/`, `build/`, reports, or generated assets. CI tests run against any prebuilt release artifacts as read-only inputs.
+
 The main Playwright suite runs with four local workers and one CI worker intentionally. Four-worker qualification exceeded the existing test timeouts on the smaller CI runner, so CI remains at one worker without weakening any checks. The native `--workers=1` or `--workers=4` command-line override remains available.
 
 For focused unit feedback, use `npm run test:watch -- <spec-or-path>`. For focused browser feedback against an existing build, use `npm run test:browser:dist -- <spec-or-path> --workers=1`. These are development aids, not substitutes for the full unit, coverage, browser, deployment-smoke, release, and artifact-continuity gates. Rebuild before browser tests when application source or generated assets change, then run the full suite against the exact tested `dist/` and retain failure diagnostics.
