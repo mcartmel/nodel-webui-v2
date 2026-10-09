@@ -1,4 +1,13 @@
 {
   "schemaVersion": 1,
-  "exceptions": []
+  "exceptions": [
+    {
+      "package": "braces",
+      "advisory": "1240992",
+      "severity": "high",
+      "expires": "2026-11-08T12:15:00.000Z",
+      "reason": "GHSA-vfj7-8cjw-p6xm: build-only dependency with repo-owned glob patterns; no released patch. Retain Tailwind 3 for browser support. Remove this exception when a patched version is installed.",
+      "owner": "mcartmel"
+    }
+  ]
 }
