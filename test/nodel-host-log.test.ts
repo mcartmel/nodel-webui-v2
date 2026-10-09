@@ -65,6 +65,30 @@ describe('nodel-host-log', () => {
     expect(document.body.textContent).toContain('Entry 207');
   });
 
+  it('displays the local date and time in rows and collapsed previews', async () => {
+    const timestamp = '2026-01-01T00:00:01Z';
+    const expectedDisplayTime = new Date(timestamp).toLocaleString();
+    const sameTimeDifferentDate = '2026-01-02T00:00:01Z';
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { seq: 2, timestamp: sameTimeDifferentDate, level: 'INFO', message: 'second date' },
+      { seq: 1, timestamp, level: 'INFO', message: 'first date' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-collapse><nodel-host-log></nodel-host-log></nodel-collapse>';
+
+    const collapse = document.querySelector('nodel-collapse')!;
+    const hostLog = document.querySelector('nodel-host-log')!;
+    await waitFor(() => hostLog.querySelectorAll('.nodel-host-log-line').length === 2);
+
+    const timestamps = Array.from(hostLog.querySelectorAll('.nodel-host-log-timestamp'), (element) => element.textContent);
+    expect(timestamps).toEqual([
+      new Date(timestamp).toLocaleString(),
+      new Date(sameTimeDifferentDate).toLocaleString()
+    ]);
+    expect(timestamps[0]).toBe(expectedDisplayTime);
+    expect(timestamps[0]).not.toBe(timestamps[1]);
+    await waitFor(() => collapse.textContent?.includes(`${new Date(sameTimeDifferentDate).toLocaleString()} INFO: second date`) ?? false);
+  });
+
   it('updates a closed parent preview from newest retained entry and supports opt-out', async () => {
     let batch = [{ seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'WARN', message: 'first' }];
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(batch), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);

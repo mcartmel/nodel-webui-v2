@@ -61,7 +61,7 @@ const hostLogIncrementalPageSize = 200;
 function formatTimestamp(timestamp: unknown) {
   const value = safeText(timestamp);
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString();
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function levelClass(level: string) {
