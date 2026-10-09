@@ -199,7 +199,7 @@ function consumptionFor(elementName: string, name: string): { consumption: Attri
   if (elementName === 'nodel-page' && ['title', 'nav-label', 'nav-id', ...BACKGROUND_ATTRIBUTE_NAMES].includes(name)) return { consumption: 'parent', consumer: 'nodel-app' };
   if (elementName === 'nodel-template' && name === 'data-*') return { consumption: 'wildcard' };
   if (elementName === 'nodel-button' && ['value', 'color', 'border'].includes(name)) return { consumption: 'contextual-child', consumer: 'nodel-segmented,nodel-select,nodel-palette' };
-  if (elementName === 'nodel-console' && name === 'collapse-preview') return { consumption: 'contextual-child', consumer: 'nodel-collapse' };
+  if (['nodel-console', 'nodel-host-log'].includes(elementName) && name === 'collapse-preview') return { consumption: 'contextual-child', consumer: 'nodel-collapse' };
   if (['nodel-group', 'nodel-control-grid'].includes(elementName) && name === 'fill') return { consumption: 'parent', consumer: 'nodel-column,nodel-page' };
   return { consumption: 'observed' };
 }

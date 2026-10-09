@@ -45,7 +45,9 @@ export const coreElements: NodelElementDefinition[] = [
   {
     name: 'nodel-host-log',
     description: 'Host/server log viewer.',
-    attributes: [],
+    attributes: [
+      { name: 'collapse-preview', description: 'Publish a plain-text latest-entry preview to a parent nodel-collapse; defaults to last-line.', values: ['last-line', 'none'] }
+    ],
     snippet: '<nodel-host-log></nodel-host-log>'
   },
   {
