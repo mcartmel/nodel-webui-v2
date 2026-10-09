@@ -173,6 +173,7 @@ export const attributeDefaultMetadata: Record<string, AttributeDefaultMetadata> 
   'nodel-status.state': { defaultDescription: 'Derived from state-map, level, structured value, or recognized value text.' },
   'nodel-collapse.label': { defaultValue: 'Details' },
   'nodel-collapse.open': { defaultValue: 'false' },
+  'nodel-host-log.collapse-preview': { defaultValue: 'last-line' },
   'nodel-text.tone': { defaultValue: 'muted' },
   'nodel-text.size': { defaultValue: 'sm' },
   'nodel-text.surface': { defaultValue: 'none' },

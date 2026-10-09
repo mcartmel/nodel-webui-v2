@@ -86,7 +86,13 @@ function toEntryView(entry: NodelHostLogEntry): HostLogEntryView {
 }
 
 export class NodelHostLog extends HTMLElement {
+  static observedAttributes = ['collapse-preview'];
   private entries: HostLogEntryView[] = [];
+  private hasSuccessfulResponse = false;
+  private currentError = '';
+  private currentLoading = true;
+  private currentActive = true;
+  private initializationFailed = false;
   private lastAppliedNextSeq: number | null = null;
   private lifecycle = new ComponentLifecycle();
   private linkController = new JsViewsLinkController(this);
@@ -95,6 +101,7 @@ export class NodelHostLog extends HTMLElement {
   private source: NodelSourceSubscription<HostLogBatch> | null = null;
   private static nextSourceId = 0;
   private sourceKey = '';
+  private lastPreview: string | null = null;
   private view: HostLogViewModel = {
     entries: [],
     empty: false,
@@ -111,6 +118,8 @@ export class NodelHostLog extends HTMLElement {
 
     const scope = this.lifecycle.connect();
     if (scope) {
+      this.initializationFailed = false;
+      this.lastPreview = null;
       void scope.run(() => this.initialize(scope), (error) => this.handleInitializationError(error));
     }
   }
@@ -126,6 +135,7 @@ export class NodelHostLog extends HTMLElement {
       return;
     }
     this.linked = true;
+    this.initializationFailed = false;
 
     const source = registerNodelPollSource<HostLogBatch>({
       key: this.sourceKey,
@@ -161,6 +171,7 @@ export class NodelHostLog extends HTMLElement {
         this.applyBatch(state.data.entries, state.data.replace);
         this.lastAppliedNextSeq = state.data.nextSeq;
       }
+      if (state.data) this.hasSuccessfulResponse = true;
       this.updateStatus(state.loading, state.error, state.active);
     }));
     this.source = subscription;
@@ -173,6 +184,9 @@ export class NodelHostLog extends HTMLElement {
   }
 
   private updateStatus(loading: boolean, error: string, active: boolean) {
+    this.currentLoading = loading;
+    this.currentError = error;
+    this.currentActive = active;
     const statusLabel = error || (loading ? 'Loading host log' : active ? 'Host log' : 'Host log polling paused');
     const statusState = error ? 'error' : loading ? 'loading' : active ? 'active' : 'paused';
     this.dataset.state = statusState;
@@ -183,6 +197,45 @@ export class NodelHostLog extends HTMLElement {
       statusLabel,
       statusState
     });
+    this.publishPreview(error, loading, active);
+  }
+
+  attributeChangedCallback() {
+    if (!this.lifecycle.current?.isCurrent()) {
+      return;
+    }
+    if (this.linked) {
+      this.publishPreview();
+    } else if (this.initializationFailed) {
+      this.publishInitializationFailurePreview();
+    }
+  }
+
+  private publishPreview(error = this.currentError, loading = this.currentLoading, active = this.currentActive) {
+    if (!this.linked || this.getAttribute('collapse-preview') === 'none') {
+      if (this.linked && this.lastPreview !== null && this.lastPreview !== '') {
+        this.lastPreview = '';
+        this.dispatchPreview('');
+      }
+      return;
+    }
+    const latest = this.entries.at(-1);
+    const text = error ? 'Host log unavailable'
+      : !this.hasSuccessfulResponse ? (!active ? 'Host log polling paused' : loading ? 'Loading host log' : 'Host log polling paused')
+        : latest ? `${latest.displayTime} ${latest.level}: ${latest.message.trim() || '(no message)'}`.replace(/\s+/g, ' ').trim()
+          : 'No host log entries yet';
+    const summary = !error && this.hasSuccessfulResponse && !active ? `${text} — polling paused` : text;
+    if (summary !== this.lastPreview) {
+      this.lastPreview = summary;
+      this.dispatchPreview(summary);
+    }
+  }
+
+  private dispatchPreview(text: string) {
+    this.dispatchEvent(new CustomEvent('nodel-collapse-preview', {
+      bubbles: true,
+      detail: { source: 'host-log', text }
+    }));
   }
 
   private handleInitializationError(error: unknown) {
@@ -191,7 +244,23 @@ export class NodelHostLog extends HTMLElement {
     if (this.linked) {
       this.updateStatus(false, message, false);
     } else {
+      this.initializationFailed = true;
       renderComponentError(this, message);
+      this.publishInitializationFailurePreview();
+    }
+  }
+
+  private publishInitializationFailurePreview() {
+    if (this.getAttribute('collapse-preview') === 'none') {
+      if (this.lastPreview !== null && this.lastPreview !== '') {
+        this.lastPreview = '';
+        this.dispatchPreview('');
+      }
+      return;
+    }
+    if (this.lastPreview !== 'Host log unavailable') {
+      this.lastPreview = 'Host log unavailable';
+      this.dispatchPreview(this.lastPreview);
     }
   }
 
@@ -202,6 +271,8 @@ export class NodelHostLog extends HTMLElement {
     this.entries = [...current, ...entries.map(toEntryView)].slice(-200);
     getJQuery().observable(this.view.entries).refresh(this.entries);
     getJQuery().observable(this.view).setProperty('empty', this.entries.length === 0);
+    this.hasSuccessfulResponse = true;
+    this.publishPreview();
 
     const nextOutput = this.querySelector<HTMLElement>('[data-host-log-output]');
     if (shouldScroll && nextOutput) {

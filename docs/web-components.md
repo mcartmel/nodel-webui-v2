@@ -1291,7 +1291,7 @@ Components that support collapse previews should emit plain-text `nodel-collapse
 The standard host Diagnostics page uses three core components. They use absolute host REST endpoints and are intended for host-level pages such as `nodes.html`, not node-relative custom control pages.
 
 - `nodel-diagnostics` reads `/REST/diagnostics` and renders the current host diagnostic values.
-- `nodel-host-log` polls `/REST/logs` while visible, keeps the newest 200 entries, and follows new output when the viewer is already at the bottom.
+- `nodel-host-log` polls `/REST/logs` while visible, keeps the newest 200 entries, and follows new output when the viewer is already at the bottom. By default it emits a bubbling `nodel-collapse-preview` event with the latest retained entry (`time level: message`) for a parent `nodel-collapse`. The summary distinguishes initial loading, confirmed empty, paused polling, and unavailable polling; it updates as entries arrive even while the disclosure is closed. Set `collapse-preview="none"` to disable previews (and clear a dynamic preview already published); `collapse-preview="last-line"` explicitly enables them. Messages are normalized to one line and rendered as plain text.
 - `nodel-diagnostic-charts` reads `/REST/diagnostics/measurements` and renders selectable measurement histories.
 
 ```html

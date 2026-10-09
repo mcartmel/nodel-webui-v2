@@ -51,6 +51,7 @@ export const componentEventMap: Record<string, ComponentContract['events']> = {
   ],
   'nodel-node-menu': [event('nodel-node-menu-navigate', 'Requests navigation from the node menu.', ['url'])],
   'nodel-console': [event('nodel-collapse-preview', 'Reports a plain-text preview for a parent collapse.', ['source', 'text'])],
+  'nodel-host-log': [event('nodel-collapse-preview', 'Reports a plain-text latest host-log entry preview for a parent collapse.', ['source', 'text'])],
   'nodel-actsig': [
     event('nodel-actsig-submitted', 'Reports a submitted action or signal form.', ['type', 'name', 'payload']),
     event('nodel-actsig-error', 'Reports a failed action or signal submission.', ['type', 'name', 'error'])

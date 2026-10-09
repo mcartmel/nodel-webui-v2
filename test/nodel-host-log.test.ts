@@ -2,6 +2,7 @@ import { flush, waitFor } from './helpers';
 import { rapidReconnect } from './lifecycle-helpers';
 import '../src/components/nodel-page';
 import '../src/components/nodel-host-log';
+import '../src/components/nodel-collapse';
 
 describe('nodel-host-log', () => {
   beforeEach(() => {
@@ -62,6 +63,122 @@ describe('nodel-host-log', () => {
     expect(rows.length).toBe(200);
     expect(document.body.textContent).not.toContain('First');
     expect(document.body.textContent).toContain('Entry 207');
+  });
+
+  it('updates a closed parent preview from newest retained entry and supports opt-out', async () => {
+    let batch = [{ seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'WARN', message: 'first' }];
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(batch), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-collapse label="Host log"><nodel-host-log></nodel-host-log></nodel-collapse>';
+    const collapse = document.querySelector('nodel-collapse')!;
+    const hostLog = document.querySelector('nodel-host-log')! as HTMLElement & { source: { refresh: () => Promise<void> } };
+    await waitFor(() => collapse.textContent?.includes('WARN: first') ?? false);
+    expect(collapse.querySelector('details')?.open).toBe(false);
+    batch = [{ seq: 3, timestamp: '2026-01-01T00:00:03Z', level: 'ERROR', message: '<img>\nnext' }, { seq: 2, timestamp: '2026-01-01T00:00:02Z', level: 'INFO', message: 'middle' }];
+    await hostLog.source.refresh();
+    await waitFor(() => collapse.textContent?.includes('ERROR: <img> next') ?? false);
+    expect(collapse.querySelector('img')).toBeNull();
+    hostLog.setAttribute('collapse-preview', 'none');
+    await waitFor(() => !collapse.textContent?.includes('ERROR: <img> next'));
+    hostLog.setAttribute('collapse-preview', 'last-line');
+    await waitFor(() => collapse.textContent?.includes('ERROR: <img> next') ?? false);
+  });
+
+  it('distinguishes pending, confirmed empty, paused, and failed preview states', async () => {
+    let resolve!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((done) => { resolve = done; })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-collapse><nodel-host-log></nodel-host-log></nodel-collapse>';
+    const collapse = document.querySelector('nodel-collapse')!;
+    await waitFor(() => collapse.textContent?.includes('Loading host log') ?? false);
+    resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await waitFor(() => collapse.textContent?.includes('No host log entries yet') ?? false);
+  });
+
+  it('keeps a static preview when opted out initially and publishes blank messages as plain text', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'INFO', message: '  \n  ' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-collapse preview="Static summary"><nodel-host-log collapse-preview="none"></nodel-host-log></nodel-collapse>';
+    const collapse = document.querySelector('nodel-collapse')!;
+    const hostLog = document.querySelector('nodel-host-log')!;
+    const previews: Array<{ source: string; text: string }> = [];
+    hostLog.addEventListener('nodel-collapse-preview', (event) => previews.push((event as CustomEvent<{ source: string; text: string }>).detail));
+    await waitFor(() => hostLog.querySelector('.nodel-host-log-line') !== null);
+    expect(collapse.textContent).toContain('Static summary');
+    expect(previews).toEqual([]);
+    hostLog.setAttribute('collapse-preview', 'last-line');
+    await waitFor(() => collapse.textContent?.includes('(no message)') ?? false);
+    expect(previews.at(-1)).toMatchObject({ source: 'host-log' });
+    expect(previews.at(-1)?.text).toMatch(/ INFO: \(no message\)$/);
+  });
+
+  it('replays the current preview when a connected host log receives a new parent', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+      { seq: 1, timestamp: '2026-01-01T00:00:01Z', level: 'INFO', message: 'replayed' }
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } })) as unknown as typeof fetch);
+    document.body.innerHTML = '<nodel-collapse><nodel-host-log></nodel-host-log></nodel-collapse>';
+    const hostLog = document.querySelector('nodel-host-log')!;
+    await waitFor(() => document.querySelector('nodel-collapse')?.textContent?.includes('replayed') ?? false);
+    const newParent = document.createElement('nodel-collapse');
+    document.querySelector('nodel-collapse')!.replaceWith(newParent);
+    newParent.append(hostLog);
+    await waitFor(() => newParent.textContent?.includes('replayed') ?? false);
+  });
+
+  it('clears and republishes a failed initialization preview when the attribute changes', async () => {
+    const collapse = document.createElement('nodel-collapse');
+    collapse.setAttribute('preview', 'Static summary');
+    const hostLog = document.createElement('nodel-host-log') as HTMLElement & { linkController: { link: () => Promise<boolean> } };
+    collapse.append(hostLog);
+    hostLog.linkController = { link: () => Promise.reject(new Error('link failed')) };
+    document.body.append(collapse);
+    await waitFor(() => collapse.textContent?.includes('Host log unavailable') ?? false);
+    hostLog.setAttribute('collapse-preview', 'none');
+    await waitFor(() => collapse.querySelector<HTMLElement>('[data-collapse-preview]')?.hidden ?? false);
+    hostLog.setAttribute('collapse-preview', 'last-line');
+    await waitFor(() => collapse.textContent?.includes('Host log unavailable') ?? false);
+  });
+
+  it('replays a failed initialization preview when reconnected to a new parent', async () => {
+    const collapse = document.createElement('nodel-collapse');
+    const hostLog = document.createElement('nodel-host-log') as HTMLElement & { linkController: { link: () => Promise<boolean> } };
+    const link = vi.fn(() => Promise.reject(new Error('link failed')));
+    hostLog.linkController = { link };
+    const previews: Array<{ source: string; text: string }> = [];
+    hostLog.addEventListener('nodel-collapse-preview', (event) => previews.push((event as CustomEvent<{ source: string; text: string }>).detail));
+    collapse.append(hostLog);
+    document.body.append(collapse);
+    await waitFor(() => collapse.querySelector('[data-collapse-preview]')?.textContent === 'Host log unavailable');
+    const initialLinkCount = link.mock.calls.length;
+
+    const newParent = document.createElement('nodel-collapse');
+    collapse.replaceWith(newParent);
+    newParent.querySelector('[data-collapse-content]')!.append(hostLog);
+    await waitFor(() => newParent.querySelector('[data-collapse-preview]')?.textContent === 'Host log unavailable');
+
+    expect(link).toHaveBeenCalledTimes(initialLinkCount + 1);
+    expect(previews).toEqual([
+      { source: 'host-log', text: 'Host log unavailable' },
+      { source: 'host-log', text: 'Host log unavailable' }
+    ]);
+    hostLog.setAttribute('collapse-preview', 'last-line');
+    expect(previews).toHaveLength(2);
+  });
+
+  it('does not publish failed initialization previews for disconnected attribute changes', async () => {
+    const hostLog = document.createElement('nodel-host-log') as HTMLElement & { linkController: { link: () => Promise<boolean> } };
+    hostLog.linkController = { link: () => Promise.reject(new Error('link failed')) };
+    const preview = vi.fn();
+    hostLog.addEventListener('nodel-collapse-preview', preview);
+    document.body.append(hostLog);
+    await waitFor(() => preview.mock.calls.length === 1);
+
+    hostLog.remove();
+    hostLog.setAttribute('collapse-preview', 'none');
+    hostLog.setAttribute('collapse-preview', 'last-line');
+    hostLog.removeAttribute('collapse-preview');
+    await flush();
+
+    expect(preview).toHaveBeenCalledOnce();
   });
 
   it('renders an error state', async () => {

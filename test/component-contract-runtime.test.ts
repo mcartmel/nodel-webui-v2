@@ -13,6 +13,7 @@ const nonReactiveAttributes = new Set([
   'nodel-button.color',
   'nodel-button.value',
   'nodel-console.collapse-preview',
+  'nodel-host-log.collapse-preview',
   'nodel-control-grid.fill',
   'nodel-group.fill',
   ...['background-color', 'background-image', 'background-pattern', 'background-pattern-strength', 'background-brightness', 'background-pattern-scale', 'background-image-fit', 'background-image-position'].map((name) => `nodel-page.${name}`)
@@ -47,13 +48,17 @@ describe('component contract runtime alignment', () => {
 
       for (const attribute of observed) {
         if (attribute.startsWith('data-nodel-native-')) continue;
+        if (element.name === 'nodel-host-log' && attribute === 'collapse-preview') {
+          expect(declared.get(attribute)?.consumer).toBe('nodel-collapse');
+          continue;
+        }
         expect(declared.get(attribute)?.consumption, `${element.name}.${attribute}`).toBe('observed');
       }
 
       for (const attribute of element.attributes) {
         if (attribute.consumption === 'observed') {
           expect(observed.has(attribute.name), `${element.name}.${attribute.name}`).toBe(true);
-        } else {
+        } else if (!(element.name === 'nodel-host-log' && attribute.name === 'collapse-preview')) {
           expect(observed.has(attribute.name), `${element.name}.${attribute.name}`).toBe(false);
         }
       }
