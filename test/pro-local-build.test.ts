@@ -1,19 +1,18 @@
 // @vitest-environment node
 
-import { execFile } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { access, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 // @ts-expect-error Pro-local tooling intentionally remains Node ESM.
 import { adaptProIconSource, bootstrapProPackage, parseProBuildArgs, redactProError, runProBuild, sanitizeProChildEnvironment } from '../scripts/pro-local-build.mjs';
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { createDeploymentInventory, loadDeploymentManifest } from '../scripts/deployment-contract.mjs';
 import packageMetadata from '../package.json';
+import { createBuildProjectFixture, createBuildProjectFixtures } from './build-project-fixture';
 
 const fixtureIconNames = ['circle-check', 'circle-info', 'power-off', 'triangle-exclamation', 'volume-high'];
 const fixtureRoot = resolve('build/pro-local-build-test');
-const execFileAsync = promisify(execFile);
 
 async function treeHash(root: string, relativePath = ''): Promise<string> {
   const information = await lstat(root).catch(() => null);
@@ -161,7 +160,7 @@ describe('Pro-local icon adapter', () => {
     await expect(adaptProIconSource({ sourceRoot, publicVersion: '7.3.1', freeBrands: { version: '7.3.1', icons: [] } })).rejects.toThrow(/missing required/);
     let viteInvoked = false;
     await expect(runProBuild({
-      environment: { ...process.env, NODEL_FONTAWESOME_PRO_DIR: sourceRoot, FONTAWESOME_PACKAGE_TOKEN: '' },
+      environment: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot },
       run: async () => { viteInvoked = true; return { stdout: '', stderr: '' }; }
     })).rejects.toThrow(/missing required/);
     expect(viteInvoked).toBe(false);
@@ -185,55 +184,65 @@ describe('Pro-local icon adapter', () => {
   });
 
   it('rejects direct Pro-mode Vite builds without prepared validated assets', async () => {
-    await rm(resolve('build/icon-assets/pro-local'), { recursive: true, force: true });
-    await expect(execFileAsync(process.execPath, [resolve('node_modules/vite/bin/vite.js'), 'build', '--mode', 'pro-local'], { cwd: resolve('.') }))
-      .rejects.toThrow(/pro-local icon assets are missing/);
+    const fixture = await createBuildProjectFixture();
+    try {
+      await expect(fixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'pro-local']))
+        .rejects.toThrow(/pro-local icon assets are missing/);
+    } finally { await fixture.dispose(); }
   });
 
   it('builds a synthetic directory source only into the Pro-local output', async () => {
-    const sourceRoot = join(fixtureRoot, 'preview-pro');
+    const fixture = await createBuildProjectFixture();
+    try {
+    const sourceRoot = join(fixture.root, 'preview-pro');
     await writeProFixture(sourceRoot);
-    const publicDistBefore = await treeHash(resolve('dist'));
-    const publicGraph = resolve('build/bundle-graph.json');
-    const proGraph = resolve('build/pro-reports/bundle-graph.json');
+    const publicDist = join(fixture.root, 'dist');
+    const publicGraph = join(fixture.root, 'build/bundle-graph.json');
+    const proGraph = join(fixture.root, 'build/pro-reports/bundle-graph.json');
     const publicGraphBytes = Buffer.from('{"public":"preserve"}\n');
     const previousProGraphBytes = Buffer.from('{"pro":"replace"}\n');
-    await mkdir(resolve('build'), { recursive: true });
-    await mkdir(resolve('build/pro-reports'), { recursive: true });
+    await mkdir(publicDist, { recursive: true });
+    await writeFile(join(publicDist, 'sentinel'), 'public output remains intact\n');
+    const publicDistBefore = await treeHash(publicDist);
+    await mkdir(join(fixture.root, 'build'), { recursive: true });
+    await mkdir(join(fixture.root, 'build/pro-reports'), { recursive: true });
     await writeFile(publicGraph, publicGraphBytes);
     await writeFile(proGraph, previousProGraphBytes);
-    await execFileAsync(process.execPath, ['scripts/pro-local-build.mjs'], {
-      cwd: resolve('.'),
-      env: { ...process.env, NODEL_FONTAWESOME_PRO_DIR: sourceRoot, FONTAWESOME_PACKAGE_TOKEN: '' }
+    await fixture.run(process.execPath, ['scripts/pro-local-build.mjs'], {
+      env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot }
     });
-    const index = JSON.parse(await readFile(resolve('build/pro-dist/v2/nodel-icons.json'), 'utf8')) as { profile: string; sources: Array<{ package: string; version: string }> };
+    const index = JSON.parse(await readFile(join(fixture.root, 'build/pro-dist/v2/nodel-icons.json'), 'utf8')) as { profile: string; sources: Array<{ package: string; version: string }> };
     expect(index.profile).toBe('pro-local');
     expect(index.sources).toEqual(expect.arrayContaining([
       { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
       { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
       { package: '@fortawesome/fontawesome-pro', version: '7.3.2' }
     ]));
-    expect(await treeHash(resolve('dist'))).toBe(publicDistBefore);
+    expect(await treeHash(publicDist)).toBe(publicDistBefore);
     expect(await readFile(publicGraph)).toEqual(publicGraphBytes);
     expect(JSON.parse(await readFile(proGraph, 'utf8'))).toMatchObject({ schemaVersion: 1 });
-    expect(await readdir(resolve('build/pro-dist'))).not.toContain('bundle-graph.json');
-    const manifest = await loadDeploymentManifest(resolve('deployment-manifest.json'));
-    await expect(createDeploymentInventory(resolve('build/pro-dist'), manifest.manifest, { packageVersion: packageMetadata.version, expectedIconProfile: 'pro-local' })).resolves.toMatchObject({ root: resolve('build/pro-dist') });
+    expect(await readdir(join(fixture.root, 'build/pro-dist'))).not.toContain('bundle-graph.json');
+    const manifest = await loadDeploymentManifest(join(fixture.root, 'deployment-manifest.json'));
+    await expect(createDeploymentInventory(join(fixture.root, 'build/pro-dist'), manifest.manifest, { packageVersion: packageMetadata.version, expectedIconProfile: 'pro-local' })).resolves.toMatchObject({ root: join(fixture.root, 'build/pro-dist') });
     const proGraphBytes = await readFile(proGraph);
-    await execFileAsync(process.execPath, ['scripts/generate-icon-assets.mjs'], { cwd: resolve('.') });
-    await execFileAsync(process.execPath, [resolve('node_modules/vite/bin/vite.js'), 'build', '--mode', 'public'], { cwd: resolve('.') });
+    await fixture.run(process.execPath, ['scripts/generate-icon-assets.mjs']);
+    await fixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public']);
     expect(await readFile(proGraph)).toEqual(proGraphBytes);
-    const packageScripts = JSON.parse(await readFile(resolve('package.json'), 'utf8')).scripts as Record<string, string>;
+    const packageScripts = JSON.parse(await readFile(join(fixture.root, 'package.json'), 'utf8')).scripts as Record<string, string>;
     expect(packageScripts['deploy:local:pro']).toContain('build/pro-dist/');
     expect(packageScripts['deploy:local:pro']).not.toContain('pro-reports');
-  }, 120_000);
+    } finally { await fixture.dispose(); }
+  }, 90_000);
 
   it('invokes the release gate verifier against Pro-local output with explicit pro-local profile', async () => {
-    const sourceRoot = join(fixtureRoot, 'gate-pro');
+    const fixture = await createBuildProjectFixture();
+    try {
+    const sourceRoot = join(fixture.root, 'gate-pro');
     await writeProFixture(sourceRoot);
     const observed: Array<{ distRoot?: string; expectedIconProfile?: string }> = [];
-    const runResult = await runProBuild({
-      environment: { ...process.env, NODEL_FONTAWESOME_PRO_DIR: sourceRoot, FONTAWESOME_PACKAGE_TOKEN: '' },
+    const copiedScript = await import(`${pathToFileURL(join(fixture.root, 'scripts/pro-local-build.mjs')).href}?test=${Date.now()}`) as { runProBuild: typeof runProBuild };
+    const runResult = await copiedScript.runProBuild({
+      environment: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot },
       run: async () => ({ stdout: '', stderr: '' }),
       verifyReleaseGate: async (options: { distRoot?: string; expectedIconProfile?: string }) => {
         observed.push(options);
@@ -242,10 +251,11 @@ describe('Pro-local icon adapter', () => {
     });
     expect(runResult).toEqual({ profile: 'pro-local', sourceVersion: '7.3.2' });
     expect(observed).toEqual([{
-      distRoot: resolve('build/pro-dist'),
+      distRoot: join(fixture.root, 'build/pro-dist'),
       expectedIconProfile: 'pro-local'
     }]);
-  });
+    } finally { await fixture.dispose(); }
+  }, 60_000);
 });
 
 describe('Pro-local token bootstrap sanitization', () => {
@@ -300,4 +310,69 @@ describe('Pro-local token bootstrap sanitization', () => {
     expect(failure).not.toContain('fixture-only-token');
     await expect(access(failedConfigPath)).rejects.toThrow();
   });
+});
+
+describe('parallel real-build isolation', () => {
+  it('keeps public and Pro reports, outputs, and checkout artifacts independent while builds overlap', async () => {
+    let fixtures: Awaited<ReturnType<typeof createBuildProjectFixtures>> = [];
+    try {
+      fixtures = await createBuildProjectFixtures(2);
+      const publicFixture = fixtures[0]!;
+      const proFixture = fixtures[1]!;
+      const checkoutPaths = [
+        resolve('dist'), resolve('build/bundle-graph.json'), resolve('build/pro-reports/bundle-graph.json'),
+        resolve('build/icon-assets/free'), resolve('build/icon-assets/pro-local')
+      ];
+      const checkoutBefore = await Promise.all(checkoutPaths.map(path => treeHash(path)));
+      const sourceRoot = join(proFixture.root, 'pro-source');
+      await writeProFixture(sourceRoot);
+      await publicFixture.run(process.execPath, ['scripts/generate-icon-assets.mjs']);
+      const proPublicDist = join(proFixture.root, 'dist');
+      await mkdir(proPublicDist, { recursive: true });
+      await writeFile(join(proPublicDist, 'preserve-sentinel'), 'Pro build must preserve public dist\n');
+      const proPublicBefore = await treeHash(proPublicDist);
+      await mkdir(join(proFixture.root, 'build/pro-reports'), { recursive: true });
+      const publicSentinel = Buffer.from('{"workspace":"pro-public-report"}\n');
+      const proSentinel = Buffer.from('{"workspace":"pro-report"}\n');
+      await writeFile(join(proFixture.root, 'build/bundle-graph.json'), publicSentinel);
+      await writeFile(join(proFixture.root, 'build/pro-reports/bundle-graph.json'), proSentinel);
+      await mkdir(join(publicFixture.root, 'dist'), { recursive: true });
+      await writeFile(join(publicFixture.root, 'dist/preexisting'), 'removed by its own public build\n');
+
+      let release!: () => void;
+      const start = new Promise<void>(resolveStart => { release = resolveStart; });
+      const publicBuild = (async () => {
+        await start;
+        await publicFixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public']);
+      })();
+      const proBuild = (async () => {
+        await start;
+        await proFixture.run(process.execPath, ['scripts/pro-local-build.mjs'], {
+          env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot }
+        });
+      })();
+      release();
+      const buildResults = await Promise.allSettled([publicBuild, proBuild]);
+      const failedBuild = buildResults.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+      if (failedBuild) throw failedBuild.reason;
+
+      const publicGraph = JSON.parse(await readFile(join(publicFixture.root, 'build/bundle-graph.json'), 'utf8')) as { outputs: Array<{ path: string }> };
+      const proGraph = JSON.parse(await readFile(join(proFixture.root, 'build/pro-reports/bundle-graph.json'), 'utf8')) as { outputs: Array<{ path: string }> };
+      expect(publicGraph.outputs.length).toBeGreaterThan(0);
+      expect(proGraph.outputs.length).toBeGreaterThan(0);
+      expect(publicGraph.outputs.map(output => output.path)).toContain('v2/nodel-icons.json');
+      expect(proGraph.outputs.map(output => output.path)).toContain('v2/nodel-icons.json');
+      for (const output of publicGraph.outputs) await expect(access(join(publicFixture.root, 'dist', output.path))).resolves.toBeUndefined();
+      for (const output of proGraph.outputs) await expect(access(join(proFixture.root, 'build/pro-dist', output.path))).resolves.toBeUndefined();
+      expect(JSON.parse(await readFile(join(publicFixture.root, 'dist/v2/nodel-icons.json'), 'utf8'))).toMatchObject({ profile: 'free' });
+      expect(JSON.parse(await readFile(join(proFixture.root, 'build/pro-dist/v2/nodel-icons.json'), 'utf8'))).toMatchObject({ profile: 'pro-local' });
+      await expect(readFile(join(proFixture.root, 'build/bundle-graph.json'))).resolves.toEqual(publicSentinel);
+      await expect(treeHash(proPublicDist)).resolves.toBe(proPublicBefore);
+      await expect(readFile(join(publicFixture.root, 'dist/preexisting'))).rejects.toThrow();
+      expect(JSON.parse(await readFile(join(proFixture.root, 'build/pro-reports/bundle-graph.json'), 'utf8'))).toMatchObject({ schemaVersion: 1 });
+      expect(await Promise.all(checkoutPaths.map(path => treeHash(path)))).toEqual(checkoutBefore);
+    } finally {
+      await Promise.allSettled(fixtures.map(fixture => fixture.dispose()));
+    }
+  }, 60_000);
 });

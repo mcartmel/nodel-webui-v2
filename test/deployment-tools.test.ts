@@ -14,6 +14,7 @@ import { parseVerifyJavaHandoffArgs, runVerifyJavaHandoff } from '../scripts/ver
 import { parseVerifyDeploymentInventoryArgs, runVerifyDeploymentInventory } from '../scripts/verify-deployment-inventory.mjs';
 import { serializeComponentContract } from '../src/component-contract';
 import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
+import { createBuildProjectFixture } from './build-project-fixture';
 import packageMetadata from '../package.json';
 
 const execFileAsync = promisify(execFile);
@@ -278,12 +279,19 @@ describe('Stage 11 deployment tools', () => {
   });
 
   it('accepts Vite production modulepreload dependency maps', async () => {
-    const viteDist = join(fixtureRoot, 'vite-dist');
-    await execFileAsync('npx', ['vite', 'build', '--outDir', viteDist], { cwd: projectRoot });
-    const manifestData = await loadDeploymentManifest(manifestPath);
-    const inventory = await createDeploymentInventory(viteDist, manifestData.manifest);
-    expect(inventory.files.some((file: string) => file.startsWith('v2/chunks/main-'))).toBe(true);
-  }, 15_000);
+    const fixture = await createBuildProjectFixture();
+    try {
+      await fixture.run(process.execPath, ['scripts/generate-icon-assets.mjs']);
+      await fixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public'], { timeoutMs: 20_000 });
+      const manifestData = await loadDeploymentManifest(join(fixture.root, 'deployment-manifest.json'));
+      const viteDist = join(fixture.root, 'dist');
+      const inventory = await createDeploymentInventory(viteDist, manifestData.manifest);
+      expect(inventory.files.some((file: string) => file.startsWith('v2/chunks/main-'))).toBe(true);
+      expect(await lstat(join(fixture.root, 'build/bundle-graph.json'))).toBeTruthy();
+    } finally {
+      await fixture.dispose();
+    }
+  }, 60_000);
 
   it('rejects forged, truncated, and drifted managed markers', async () => {
     await deploy(deployOptions(), { roots });
