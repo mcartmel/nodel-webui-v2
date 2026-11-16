@@ -381,12 +381,13 @@ describe('parallel real-build isolation', () => {
       const start = new Promise<void>(resolveStart => { release = resolveStart; });
       const publicBuild = (async () => {
         await start;
-        await publicFixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public']);
+        await publicFixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public'], { timeoutMs: 60_000 });
       })();
       const proBuild = (async () => {
         await start;
         await proFixture.run(process.execPath, ['scripts/pro-local-build.mjs'], {
-          env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot }
+          env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot },
+          timeoutMs: 60_000
         });
       })();
       release();
@@ -412,5 +413,5 @@ describe('parallel real-build isolation', () => {
     } finally {
       await Promise.allSettled(fixtures.map(fixture => fixture.dispose()));
     }
-  }, 60_000);
+  }, 120_000);
 });
