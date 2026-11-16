@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-export const iconArtifactSchemaVersion = 1;
+export const iconArtifactSchemaVersion = 2;
 export const iconArtifactProfile = 'free';
 export const maxIconShardBytes = 128 * 1024;
 export const maxIconIndexBytes = 256 * 1024;
@@ -10,7 +10,8 @@ export const publicIconSources = Object.freeze([
   '@fortawesome/fontawesome-free',
   '@fortawesome/free-brands-svg-icons',
   '@fortawesome/free-regular-svg-icons',
-  '@fortawesome/free-solid-svg-icons'
+  '@fortawesome/free-solid-svg-icons',
+  '@mdi/svg'
 ]);
 
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -30,6 +31,7 @@ const safeLigature = value => (Number.isInteger(value) && value >= 0 && value <=
 const compareLigatures = (left, right) => typeof left === typeof right ? compare(String(left), String(right)) : typeof left === 'number' ? -1 : 1;
 const sortedUniqueLigatures = value => Array.isArray(value) && value.length <= 32 && value.every(safeLigature) && value.every((item, index) => index === 0 || compareLigatures(value[index - 1], item) < 0);
 const displayLabel = value => value.split('-').map(part => part ? part[0].toUpperCase() + part.slice(1) : part).join(' ');
+const validGlyphRecord = record => exactKeys(record, ['name', 'width', 'height', 'unicode', 'ligatures', 'paths']) && safeName(record.name) && Number.isInteger(record.width) && Number.isInteger(record.height) && record.width >= 1 && record.width <= 4096 && record.height >= 1 && record.height <= 4096 && typeof record.unicode === 'string' && /^[0-9a-f]{1,8}$/.test(record.unicode) && sortedUniqueLigatures(record.ligatures) && Array.isArray(record.paths) && (record.paths.length === 1 || record.paths.length === 2) && record.paths.every(path => safeText(path, 262144));
 
 export function fnv1a32(value) {
   let hash = 0x811c9dc5;
@@ -61,17 +63,32 @@ export function normalizeIconRecord(value) {
   };
 }
 
-function validateSources(sources) {
+export function validateIconSources(sources, { publicOnly = false } = {}) {
   if (!Array.isArray(sources) || !sources.length) throw new Error('Icon artifact requires source package records');
   let major;
   let previous = '';
   for (const source of sources) {
-    if (!exactKeys(source, ['package', 'version']) || typeof source.package !== 'string' || !/^@fortawesome\/[a-z0-9-]+$/.test(source.package) || !isExactSemVer(source.version) || source.package <= previous) throw new Error('Icon source record is invalid or unsorted');
-    const sourceMajor = source.version.split('.', 1)[0];
-    if (major !== undefined && sourceMajor !== major) throw new Error('Icon source packages must use the same Font Awesome major');
-    major = sourceMajor;
+    if (!exactKeys(source, ['library', 'package', 'version']) || typeof source.package !== 'string' || !((source.library === 'fontawesome' && /^@fortawesome\/[a-z0-9-]+$/.test(source.package)) || (source.library === 'mdi' && source.package === '@mdi/svg')) || !isExactSemVer(source.version) || source.package <= previous) throw new Error('Icon source record is invalid or unsorted');
+    if (source.library === 'fontawesome') {
+      const sourceMajor = semVerMajor(source.version);
+      if (major !== undefined && sourceMajor !== major) throw new Error('Icon source packages must use the same Font Awesome major');
+      major = sourceMajor;
+    }
     previous = source.package;
   }
+  if (publicOnly && JSON.stringify(sources.map(source => source.package)) !== JSON.stringify([...publicIconSources].sort(compare))) throw new Error('Free icon artifact declares a non-public or incomplete source set');
+}
+
+// MDI enters through its own metadata adapter, never through a fabricated FA tuple.
+export function adaptMdiIconRecord(value) {
+  if (!isRecord(value) || value.source?.package !== '@mdi/svg') throw new Error('Malformed MDI source record');
+  return normalizeNeutralIconRecord({ name: value.name, width: value.width, height: value.height, unicode: typeof value.codepoint === 'string' ? value.codepoint.toLowerCase() : value.codepoint, ligatures: [], paths: value.paths, label: value.label, terms: value.searchTerms, aliases: [], officialAliases: value.aliases });
+}
+
+export function normalizeNeutralIconRecord(value) {
+  if (!isRecord(value) || !validGlyphRecord({ name: value.name, width: value.width, height: value.height, unicode: value.unicode, ligatures: value.ligatures, paths: value.paths })) throw new Error('Malformed normalized icon geometry');
+  if (!safeText(value.label) || !sortedUnique(value.terms, 128) || !sortedUnique(value.aliases, 128) || !sortedUnique(value.officialAliases, 32)) throw new Error('Malformed normalized icon metadata');
+  return value;
 }
 
 function shardBytes(profile, family, style, bucket, records) {
@@ -84,11 +101,11 @@ function makeShards(profile, family, style, records) {
   do {
     buckets = Array.from({ length: bucketCount }, () => []);
     for (const record of records) buckets[fnv1a32(record.name) & (bucketCount - 1)].push({ name: record.name, width: record.width, height: record.height, unicode: record.unicode, ligatures: record.ligatures, paths: record.paths });
-    if (buckets.some((bucket, bucketNumber) => shardBytes(profile, family, style, bucketNumber, bucket).length > maxIconShardBytes)) {
-      if (bucketCount >= 128) throw new Error(`Icon shard cannot fit within ${maxIconShardBytes} bytes: ${family}/${style}`);
+    if (buckets.some((bucket, bucketNumber) => bucket.length > maxIconShardRecords || shardBytes(profile, family, style, bucketNumber, bucket).length > maxIconShardBytes)) {
+      if (bucketCount >= 128) throw new Error(`Icon shard cannot fit within ${maxIconShardBytes} bytes and ${maxIconShardRecords} records at 128 buckets: ${family}/${style}`);
       bucketCount *= 2;
     }
-  } while (buckets.some((bucket, bucketNumber) => shardBytes(profile, family, style, bucketNumber, bucket).length > maxIconShardBytes));
+  } while (buckets.some((bucket, bucketNumber) => bucket.length > maxIconShardRecords || shardBytes(profile, family, style, bucketNumber, bucket).length > maxIconShardBytes));
   const shards = buckets.map((bucket, bucketNumber) => {
     bucket.sort((a, b) => compare(a.name, b.name));
     const bytes = shardBytes(profile, family, style, bucketNumber, bucket);
@@ -101,17 +118,20 @@ function makeShards(profile, family, style, records) {
 export function validateIconArtifact(value, { expectedProfile } = {}) {
   if (!exactKeys(value, ['schemaVersion', 'profile', 'packageVersion', 'sources', 'default', 'aliases', 'families', 'cataloguePath']) || value.schemaVersion !== iconArtifactSchemaVersion || !['free', 'pro-local'].includes(value.profile) || (expectedProfile && value.profile !== expectedProfile)) throw new Error('Icon artifact index schema or profile is invalid');
   if (!isExactSemVer(value.packageVersion) || !Array.isArray(value.sources) || !isRecord(value.default) || !exactKeys(value.default, ['family', 'style']) || !safeName(value.default.family) || !safeName(value.default.style) || !isRecord(value.aliases) || !Array.isArray(value.families) || typeof value.cataloguePath !== 'string') throw new Error('Icon artifact index shape is invalid');
-  validateSources(value.sources);
+  validateIconSources(value.sources, { publicOnly: value.profile === 'free' });
   if (!/^v2\/icons\/catalogue-[0-9a-f]{16}\.json$/.test(value.cataloguePath)) throw new Error('Icon catalogue path is unsafe or has an invalid digest');
   const paths = new Set();
   const familyNames = new Set();
+  const combinations = new Set();
   for (const family of value.families) {
-    if (!exactKeys(family, ['family', 'defaultStyle', 'styles']) || !safeName(family.family) || !safeName(family.defaultStyle) || !Array.isArray(family.styles) || familyNames.has(family.family)) throw new Error('Icon family entry is invalid or duplicated');
+    if (!exactKeys(family, ['library', 'family', 'defaultStyle', 'styles']) || !safeName(family.family) || !safeName(family.defaultStyle) || !Array.isArray(family.styles) || familyNames.has(family.family)) throw new Error('Icon family entry is invalid or duplicated');
+    if (!value.sources.some(source => source.library === family.library) || (family.library === 'mdi' ? family.family !== 'mdi' || family.defaultStyle !== 'default' || family.styles.length !== 1 || family.styles[0]?.style !== 'default' : family.library !== 'fontawesome' || family.family === 'mdi')) throw new Error('Icon family library/source ownership is invalid');
     familyNames.add(family.family);
     const styleNames = new Set();
     for (const style of family.styles) {
       if (!exactKeys(style, ['style', 'sharding', 'shards']) || !safeName(style.style) || styleNames.has(style.style) || !isRecord(style.sharding) || !exactKeys(style.sharding, ['algorithm', 'bucketCount', 'maxBytes']) || style.sharding.algorithm !== 'fnv1a-32' || !Number.isInteger(style.sharding.bucketCount) || style.sharding.bucketCount < 1 || style.sharding.bucketCount > 128 || (style.sharding.bucketCount & (style.sharding.bucketCount - 1)) !== 0 || style.sharding.maxBytes !== maxIconShardBytes || !Array.isArray(style.shards) || style.shards.length !== style.sharding.bucketCount) throw new Error('Icon style sharding metadata is invalid');
       styleNames.add(style.style);
+      combinations.add(`${family.family}/${style.style}`);
       for (const [bucket, path] of style.shards.entries()) {
         const match = typeof path === 'string' ? path.match(/^v2\/icons\/([a-z0-9-]+)-([a-z0-9-]+)-(\d+)-([0-9a-f]{12})\.json$/) : null;
         if (!match || match[1] !== family.family || match[2] !== style.style || Number(match[3]) !== bucket || paths.has(path)) throw new Error('Icon shard path is unsafe, reordered, or duplicated');
@@ -120,7 +140,9 @@ export function validateIconArtifact(value, { expectedProfile } = {}) {
     }
     if (!styleNames.has(family.defaultStyle)) throw new Error('Icon family default style is undeclared');
   }
+  if (value.profile === 'free' && JSON.stringify([...combinations].sort(compare)) !== JSON.stringify(['brands/brands', 'classic/regular', 'classic/solid', 'mdi/default'])) throw new Error('Free icon artifact declares unsupported or incomplete family/style combinations');
   if (!familyNames.has(value.default.family) || !value.families.find(family => family.family === value.default.family).styles.some(style => style.style === value.default.style)) throw new Error('Icon artifact default family/style is undeclared');
+  if (Object.keys(value.aliases).length && value.families.find(family => family.family === value.default.family).library !== 'fontawesome') throw new Error('Icon aliases require a Font Awesome default family');
   for (const [alias, canonical] of Object.entries(value.aliases)) if (!safeName(alias) || !safeName(canonical)) throw new Error('Icon alias is invalid');
   return true;
 }
@@ -129,7 +151,7 @@ export function validateIconShard(value, { profile, family, style, bucket } = {}
   if (!exactKeys(value, ['schemaVersion', 'profile', 'family', 'style', 'bucket', 'records']) || value.schemaVersion !== iconArtifactSchemaVersion || !['free', 'pro-local'].includes(value.profile) || (profile && value.profile !== profile) || !safeName(value.family) || !safeName(value.style) || (family && value.family !== family) || (style && value.style !== style) || !Number.isInteger(value.bucket) || value.bucket < 0 || value.bucket >= 128 || (bucket !== undefined && value.bucket !== bucket) || !Array.isArray(value.records) || value.records.length > maxIconShardRecords) throw new Error('Icon shard envelope is invalid');
   let previous = '';
   for (const record of value.records) {
-    if (!exactKeys(record, ['name', 'width', 'height', 'unicode', 'ligatures', 'paths']) || !safeName(record.name) || record.name <= previous || !Number.isInteger(record.width) || !Number.isInteger(record.height) || record.width < 1 || record.width > 4096 || record.height < 1 || record.height > 4096 || typeof record.unicode !== 'string' || !/^[0-9a-f]{1,8}$/.test(record.unicode) || !sortedUniqueLigatures(record.ligatures) || !Array.isArray(record.paths) || (record.paths.length !== 1 && record.paths.length !== 2) || record.paths.some(path => !safeText(path, 262144))) throw new Error('Icon shard record is invalid');
+    if (!validGlyphRecord(record) || record.name <= previous) throw new Error('Icon shard record is invalid');
     previous = record.name;
   }
   return true;
@@ -189,18 +211,12 @@ export function validateIconArtifactFiles(indexBytes, files, { expectedProfile =
   for (const record of catalogue.records) if (!shardKeys.has(`${record.name}\0${record.family}\0${record.style}`)) throw new Error(`Icon catalogue record is absent from its shard: ${record.name}`);
   for (const key of shardKeys) if (!catalogueKeys.has(key)) throw new Error('Icon shard record is absent from the catalogue');
   for (const path of files instanceof Map ? files.keys() : Object.keys(files)) if (path.startsWith('v2/icons/') && !declared.has(path)) throw new Error(`Undeclared icon artifact path: ${path}`);
-  if (expectedProfile === 'free') {
-    const sources = index.sources.map(source => source.package).sort(compare);
-    if (JSON.stringify(sources) !== JSON.stringify([...publicIconSources].sort(compare))) throw new Error('Free icon artifact declares a non-public or incomplete Font Awesome source set');
-    const combinations = new Set(index.families.flatMap(family => family.styles.map(style => `${family.family}/${style.style}`)));
-    if (JSON.stringify([...combinations].sort(compare)) !== JSON.stringify(['brands/brands', 'classic/regular', 'classic/solid'])) throw new Error('Free icon artifact declares unsupported family/style combinations');
-  }
   return { index, paths: declared };
 }
 
 export function generateIconArtifacts({ packageVersion, profile = 'free', sources, aliases = {}, families, defaultFamily, defaultStyle }) {
   if (profile !== 'free' && profile !== 'pro-local') throw new Error(`Unsupported icon profile: ${profile}`);
-  validateSources(sources);
+  validateIconSources(sources);
   if (!Array.isArray(families) || !families.length) throw new Error('Icon artifact requires families');
   const shards = new Map();
   const catalogueRecords = [];
@@ -209,7 +225,8 @@ export function generateIconArtifacts({ packageVersion, profile = 'free', source
     const styles = inputFamily.styles.map(inputStyle => {
       const byName = new Map();
       for (const inputIcon of inputStyle.icons ?? []) {
-        const record = normalizeIconRecord(inputIcon);
+        if (inputFamily.library === 'mdi' && !sources.some(source => source.library === 'mdi' && source.package === inputIcon.source?.package && source.version === inputIcon.source?.version)) throw new Error('MDI record source/version does not match its declared source');
+        const record = inputFamily.library === 'mdi' ? adaptMdiIconRecord(inputIcon) : normalizeNeutralIconRecord(normalizeIconRecord(inputIcon));
         const previous = byName.get(record.name);
         if (previous && JSON.stringify(previous) !== JSON.stringify(record)) throw new Error(`Conflicting icon definition: ${inputFamily.family}/${inputStyle.style}/${record.name}`);
         byName.set(record.name, record);
@@ -220,7 +237,7 @@ export function generateIconArtifacts({ packageVersion, profile = 'free', source
       for (const shard of built.shards) shards.set(shard.path, shard.bytes);
       return { style: inputStyle.style, sharding: { algorithm: 'fnv1a-32', bucketCount: built.bucketCount, maxBytes: maxIconShardBytes }, shards: built.shards.map(shard => shard.path) };
     }).sort((a, b) => compare(a.style, b.style));
-    return { family: inputFamily.family, defaultStyle: inputFamily.defaultStyle, styles };
+    return { library: inputFamily.library, family: inputFamily.family, defaultStyle: inputFamily.defaultStyle, styles };
   }).sort((a, b) => compare(a.family, b.family));
   catalogueRecords.sort((a, b) => compare(`${a.name}\0${a.family}\0${a.style}`, `${b.name}\0${b.family}\0${b.style}`));
   const catalogue = json({ schemaVersion: iconArtifactSchemaVersion, profile, records: catalogueRecords });
@@ -232,8 +249,9 @@ export function generateIconArtifacts({ packageVersion, profile = 'free', source
   const index = { schemaVersion: iconArtifactSchemaVersion, profile, packageVersion, sources: [...sources].sort((a, b) => compare(a.package, b.package)), default: { family: selectedFamily, style: selectedStyle }, aliases: Object.fromEntries(Object.entries(aliases).sort(([a], [b]) => compare(a, b))), families: familyEntries, cataloguePath };
   validateIconArtifact(index, { expectedProfile: profile });
   const files = new Map([[cataloguePath, Buffer.from(catalogue)]]);
-  for (const [path, bytes] of shards) files.set(path, bytes);
+  for (const [path, bytes] of [...shards].sort(([left], [right]) => compare(left, right))) files.set(path, bytes);
   const indexBytes = Buffer.from(json(index));
   files.set('v2/nodel-icons.json', indexBytes);
-  return { index, catalogue, files, report: { schemaVersion: 1, profile, files: [...files.keys()].sort(compare), bytes: [...files.values()].reduce((sum, bytes) => sum + bytes.length, 0), sourcePackages: index.sources } };
+  if (indexBytes.length > maxIconIndexBytes || Buffer.byteLength(catalogue) > maxIconCatalogueBytes) throw new Error('Generated icon index or catalogue exceeds its byte limit');
+  return { index, catalogue, files, report: { schemaVersion: 2, profile, files: [...files.keys()].sort(compare), bytes: [...files.values()].reduce((sum, bytes) => sum + bytes.length, 0), sourcePackages: index.sources, counts: { records: catalogueRecords.length, families: familyEntries.length } } };
 }

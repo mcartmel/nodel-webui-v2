@@ -1,4 +1,7 @@
-export const ICON_ARTIFACT_SCHEMA_VERSION = 1;
+export const ICON_ARTIFACT_SCHEMA_VERSION = 2;
+export type IconLibrary = 'fontawesome' | 'mdi';
+export interface IconSource { library: IconLibrary; package: string; version: string }
+const publicIconSources = ['@fortawesome/fontawesome-free', '@fortawesome/free-brands-svg-icons', '@fortawesome/free-regular-svg-icons', '@fortawesome/free-solid-svg-icons', '@mdi/svg'];
 export const ICON_ARTIFACT_PROFILES = ['free', 'pro-local'] as const;
 export const MAX_ICON_SHARD_RECORDS = 4096;
 export const MAX_ICON_INDEX_BYTES = 256 * 1024;
@@ -30,21 +33,27 @@ export function validateIconArtifact(value: unknown, expectedProfile?: IconArtif
     if (!isRecord(sourceValue)) throw new Error('Icon source record is invalid or unsorted');
     const sourcePackage = sourceValue.package;
     const sourceVersion = sourceValue.version;
-    if (!exactKeys(sourceValue, ['package', 'version']) || typeof sourcePackage !== 'string' || !/^@fortawesome\/[a-z0-9-]+$/.test(sourcePackage) || !isExactSemVer(sourceVersion) || sourcePackage <= previousSource) throw new Error('Icon source record is invalid or unsorted');
-    const major = sourceVersion.split('.', 1)[0]!;
-    if (sourceMajor !== undefined && sourceMajor !== major) throw new Error('Icon source packages must use the same Font Awesome major');
-    sourceMajor = major; previousSource = sourcePackage;
+    if (!exactKeys(sourceValue, ['library', 'package', 'version']) || typeof sourcePackage !== 'string' || !((sourceValue.library === 'fontawesome' && /^@fortawesome\/[a-z0-9-]+$/.test(sourcePackage)) || (sourceValue.library === 'mdi' && sourcePackage === '@mdi/svg')) || !isExactSemVer(sourceVersion) || sourcePackage <= previousSource) throw new Error('Icon source record is invalid or unsorted');
+    if (sourceValue.library === 'fontawesome') {
+      const major = semVerMajor(sourceVersion)!;
+      if (sourceMajor !== undefined && sourceMajor !== major) throw new Error('Icon source packages must use the same Font Awesome major');
+      sourceMajor = major;
+    }
+    previousSource = sourcePackage;
   }
+  if (value.profile === 'free' && JSON.stringify(sources.map(source => isRecord(source) ? source.package : null)) !== JSON.stringify(publicIconSources)) throw new Error('Free icon artifact declares a non-public or incomplete source set');
   if (!/^v2\/icons\/catalogue-[0-9a-f]{16}\.json$/.test(value.cataloguePath)) throw new Error('Icon catalogue path is unsafe or has an invalid digest');
   const paths = new Set<string>();
   const familyNames = new Set<string>();
+  const combinations = new Set<string>();
   const families = value.families as unknown[];
   for (const family of families) {
     if (!isRecord(family)) throw new Error('Icon family entry is invalid');
     const familyName = family.family;
     const familyDefaultStyle = family.defaultStyle;
     const familyStyles = family.styles;
-    if (!exactKeys(family, ['family', 'defaultStyle', 'styles']) || !safeName(familyName) || !safeName(familyDefaultStyle) || !Array.isArray(familyStyles) || familyNames.has(familyName as string)) throw new Error('Icon family entry is invalid or duplicated');
+    if (!exactKeys(family, ['library', 'family', 'defaultStyle', 'styles']) || !safeName(familyName) || !safeName(familyDefaultStyle) || !Array.isArray(familyStyles) || familyNames.has(familyName as string)) throw new Error('Icon family entry is invalid or duplicated');
+    if (!sources.some(source => isRecord(source) && source.library === family.library) || (family.library === 'mdi' ? familyName !== 'mdi' || familyDefaultStyle !== 'default' || familyStyles.length !== 1 || !isRecord(familyStyles[0]) || familyStyles[0].style !== 'default' : family.library !== 'fontawesome' || familyName === 'mdi')) throw new Error('Icon family library/source ownership is invalid');
     familyNames.add(familyName as string);
     const styleNames = new Set<string>();
     for (const style of familyStyles as unknown[]) {
@@ -55,6 +64,7 @@ export function validateIconArtifact(value: unknown, expectedProfile?: IconArtif
       const shardPaths = isRecord(style) && Array.isArray(style.shards) ? style.shards : [];
       if (!exactKeys(style, ['style', 'sharding', 'shards']) || !safeName(styleName) || styleNames.has(styleName as string) || !sharding || !exactKeys(sharding, ['algorithm', 'bucketCount', 'maxBytes']) || sharding.algorithm !== 'fnv1a-32' || typeof bucketCount !== 'number' || !Number.isInteger(bucketCount) || bucketCount < 1 || bucketCount > 128 || (bucketCount & (bucketCount - 1)) !== 0 || sharding.maxBytes !== 128 * 1024 || shardPaths.length !== bucketCount || shardPaths.some(path => typeof path !== 'string')) throw new Error('Icon style sharding metadata is invalid');
       styleNames.add(styleName as string);
+      combinations.add(`${familyName as string}/${styleName as string}`);
        for (const [bucket, path] of (shardPaths as string[]).entries()) {
          const match = path.match(/^v2\/icons\/([a-z0-9-]+)-([a-z0-9-]+)-(\d+)-([0-9a-f]{12})\.json$/);
          if (!match || match[1] !== familyName || match[2] !== styleName || Number(match[3]) !== bucket || paths.has(path)) throw new Error('Icon shard path is unsafe, reordered, or duplicated');
@@ -63,11 +73,13 @@ export function validateIconArtifact(value: unknown, expectedProfile?: IconArtif
     }
     if (!styleNames.has(familyDefaultStyle as string)) throw new Error('Icon family default style is undeclared');
   }
+  if (value.profile === 'free' && JSON.stringify([...combinations].sort()) !== JSON.stringify(['brands/brands', 'classic/regular', 'classic/solid', 'mdi/default'])) throw new Error('Free icon artifact declares unsupported or incomplete family/style combinations');
   const defaultEntry = value.default;
   const defaultFamily = defaultEntry.family as string;
   const defaultStyle = defaultEntry.style as string;
   const matchingFamily = families.find(family => isRecord(family) && family.family === defaultFamily);
   if (!familyNames.has(defaultFamily) || !isRecord(matchingFamily) || !Array.isArray(matchingFamily.styles) || !matchingFamily.styles.some((style: unknown) => isRecord(style) && style.style === defaultStyle)) throw new Error('Icon artifact default family/style is undeclared');
+  if (Object.keys(value.aliases).length && matchingFamily.library !== 'fontawesome') throw new Error('Icon aliases require a Font Awesome default family');
   for (const [alias, canonical] of Object.entries(value.aliases)) if (!safeName(alias) || !safeName(canonical)) throw new Error('Icon alias is invalid');
 }
 
@@ -87,7 +99,7 @@ export function validateIconShard(value: unknown, expected: { profile: string; f
     const recordName = record.name;
     const width = isRecord(record) ? record.width : undefined;
     const height = isRecord(record) ? record.height : undefined;
-    const ligatures = Array.isArray(record.ligatures) ? record.ligatures as unknown[] : [];
+    const ligatures = record.ligatures;
     const paths = Array.isArray(record.paths) ? record.paths as unknown[] : [];
     if (!exactKeys(record, ['name', 'width', 'height', 'unicode', 'ligatures', 'paths']) || typeof recordName !== 'string' || !safeName(recordName) || recordName <= previous || typeof width !== 'number' || !Number.isInteger(width) || width < 1 || width > 4096 || typeof height !== 'number' || !Number.isInteger(height) || height < 1 || height > 4096 || typeof record.unicode !== 'string' || !/^[0-9a-f]{1,8}$/.test(record.unicode) || !sortedUniqueLigatures(ligatures) || !Array.isArray(record.paths) || (paths.length !== 1 && paths.length !== 2) || paths.some(path => !safeText(path, 262144))) throw new Error('Icon shard record is invalid');
     previous = recordName;

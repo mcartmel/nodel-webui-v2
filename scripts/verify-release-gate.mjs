@@ -2,7 +2,7 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseStrictArgs, validateComponentContractArtifact } from './deployment-contract.mjs';
-import { validateIconArtifactFiles } from './icon-artifact.mjs';
+import { maxIconIndexBytes, validateIconArtifact, validateIconArtifactFiles } from './icon-artifact.mjs';
 
 const dist = resolve(process.cwd(), 'dist');
 const entryPages = ['components.html', 'index.htm', 'nodel.html', 'nodes.html', 'toolkit.html'];
@@ -56,11 +56,11 @@ export async function verifyReleaseGate({ distRoot = dist, expectedIconProfile =
   await access(join(distRoot, 'v2/nodel-webui.css'));
   await access(join(distRoot, 'v2/nodel-webui.js'));
   const iconIndex = await readFile(join(distRoot, 'v2/nodel-icons.json'));
+  if (iconIndex.length > maxIconIndexBytes) throw new Error('Icon artifact index exceeds its byte limit');
+  validateIconArtifact(JSON.parse(iconIndex), { expectedProfile: expectedIconProfile });
   const iconFiles = new Map();
   for (const path of await readdir(join(distRoot, 'v2/icons'))) iconFiles.set(`v2/icons/${path}`, await readFile(join(distRoot, 'v2/icons', path)));
   iconFiles.set('v2/nodel-icons.json', iconIndex);
-  const index = JSON.parse(iconIndex);
-  iconFiles.set(index.cataloguePath, await readFile(join(distRoot, index.cataloguePath)));
   const packageMetadata = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8'));
   validateIconArtifactFiles(iconIndex, iconFiles, { expectedProfile: expectedIconProfile, expectedPackageVersion: packageMetadata.version });
   const componentContract = await readFile(join(distRoot, 'v2/nodel-components.json'));

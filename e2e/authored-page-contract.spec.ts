@@ -1,9 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Page, type TestInfo, type WebSocketRoute } from '@playwright/test';
 
 const releaseProjects = new Set([
   'chromium-light-desktop',
+  'firefox-light-desktop',
+  'webkit-light-desktop'
+]);
+const iconVisualProjects = new Set([
+  'chromium-light-desktop',
+  'chromium-dark-desktop',
   'firefox-light-desktop',
   'webkit-light-desktop'
 ]);
@@ -103,6 +109,9 @@ test.describe('no-build authored-page contract', () => {
       await page.goto(authoredPath, { waitUntil: 'domcontentloaded' });
       await expectStableAssets(page, traffic.responseStatuses, authoredPath);
       await expect(page.locator('html')).toHaveAttribute('data-theme', /^(light|dark)$/);
+      await expect(page.locator('#contract-fa-icon')).toHaveAttribute('data-icon-state', 'ready');
+      await expect(page.locator('#contract-mdi-icon')).toHaveAttribute('data-icon-state', 'ready');
+      await expect(page.locator('#contract-mdi-button button')).toHaveAttribute('aria-label', 'Lighting');
       await expect(page.locator('#contract-button button')).toHaveText('Ready');
       const toggle = page.locator('#contract-toggle');
       await expect(toggle.locator('button')).toHaveAttribute('role', 'switch');
@@ -168,6 +177,73 @@ test.describe('no-build authored-page contract', () => {
     expect(traffic.webSockets).toEqual([]);
     assertNoBackendTraffic(traffic.requests);
     assertNoHeavyChunks(traffic.requests);
+  });
+
+  test('renders MDI beside Font Awesome on nested no-build pages and follows name-only signals', async ({ page }, testInfo) => {
+    test.skip(!iconVisualProjects.has(testInfo.project.name), 'Icon visual checks run in light/dark Chromium and one desktop project per engine.');
+    const fixture = await readFile(resolve(process.cwd(), 'e2e/fixtures/no-build-authored-page.html'), 'utf8');
+    await serveNodeAssets(page);
+    await serveAuthoredFixture(page, '/nodes/Demo/authored-page.contract.html', fixture);
+    let activitySocket: WebSocketRoute | undefined;
+    await page.routeWebSocket('**/nodes/Demo/', (socket) => {
+      activitySocket = socket;
+      socket.send(JSON.stringify({ activityHistory: [{ seq: 1, alias: 'ContractIcon', source: 'local', type: 'event', arg: 'power' }] }));
+    });
+    const traffic = observePage(page);
+    await page.goto('/nodes/Demo/authored-page.contract.html', { waitUntil: 'domcontentloaded' });
+    await expectStableAssets(page, traffic.responseStatuses, '/nodes/Demo/authored-page.contract.html');
+
+    const faIcon = page.locator('#contract-fa-icon');
+    const mdiIcon = page.locator('#contract-mdi-icon');
+    await expect(faIcon).toHaveAttribute('data-icon-state', 'ready');
+    await expect(mdiIcon).toHaveAttribute('data-icon-state', 'ready');
+    await expect(faIcon).toHaveAttribute('role', 'img');
+    await expect(faIcon).toHaveAttribute('aria-label', 'Font Awesome power');
+    await expect(faIcon.locator('svg path').first()).toHaveAttribute('fill', 'currentColor');
+    await expect(mdiIcon.locator('svg path').first()).toHaveAttribute('fill', 'currentColor');
+    await expect(page.locator('#contract-mdi-button button')).toHaveAttribute('aria-label', 'Lighting');
+    await expect(page.locator('#contract-inactive-mdi')).toHaveAttribute('data-icon-state', 'loading');
+    const glyphBounds = await Promise.all([faIcon, mdiIcon].map(icon => icon.locator('svg').boundingBox()));
+    expect(glyphBounds[0]).not.toBeNull();
+    expect(glyphBounds[1]).not.toBeNull();
+    expect(glyphBounds[0]!.width).toBe(glyphBounds[1]!.width);
+    expect(glyphBounds[0]!.height).toBe(glyphBounds[1]!.height);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.locator('html').evaluate((root, nextTheme) => { root.dataset.theme = nextTheme; }, theme);
+      const themeColors = await Promise.all([faIcon, mdiIcon].map(icon => icon.evaluate(element => {
+        const svg = element.querySelector('svg');
+        const path = svg?.querySelector('path');
+        return { color: svg ? getComputedStyle(svg).color : '', fill: path ? getComputedStyle(path).fill : '' };
+      })));
+      expect(themeColors.every(style => style.color !== '' && style.fill !== '')).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`icons-${theme}.png`), fullPage: false });
+    }
+
+    const signalled = await page.evaluate(() => {
+      const target = document.createElement('nodel-icon');
+      target.id = 'contract-signal-icon';
+      target.setAttribute('signal', 'ContractIcon');
+      target.setAttribute('label', 'Signal-driven icon');
+      target.setAttribute('size', 'lg');
+      document.querySelector('#dynamic-contract')?.append(target);
+      return target;
+    });
+    void signalled;
+    const signalIcon = page.locator('#contract-signal-icon');
+    await expect(signalIcon).toHaveAttribute('data-name', 'power');
+    await expect(signalIcon).toHaveAttribute('data-icon-state', 'ready');
+    expect(activitySocket).toBeDefined();
+    activitySocket!.send(JSON.stringify({ activity: { seq: 2, alias: 'ContractIcon', source: 'local', type: 'event', arg: 'mdi:lightbulb' } }));
+    await expect(signalIcon).toHaveAttribute('data-name', 'mdi:lightbulb');
+    await expect(signalIcon).toHaveAttribute('data-icon-state', 'ready');
+
+    const requests = traffic.requests;
+    expect(requests.some(url => new URL(url).origin !== new URL(page.url()).origin)).toBe(false);
+    expect(requests.some(url => /(?:fontawesome|pictogrammers|cdnjs|jsdelivr|unpkg)/i.test(url))).toBe(false);
+    expect(requests.some(url => requestPath(url).includes('/v2/icons/'))).toBe(true);
+    expect(traffic.requestFailures).toEqual([]);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', /^(light|dark)$/);
   });
 
   test('automatically loads initial parsed lazy core markup', async ({ page }, testInfo) => {

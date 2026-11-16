@@ -2,8 +2,41 @@
 
 ## Unreleased
 
+### Material Design Icons
+
+- Added `mdi:` names to `nodel-icon`, including buttons, control grids, and
+  signal-driven icon changes. MDI uses the existing sizing, tone, theme,
+  accessibility, and loading/fallback behaviour. Font Awesome names and Nodel
+  aliases remain unchanged; `mdi:` takes precedence over retained `family` and
+  `style` attributes, allowing name-only signals to switch libraries.
+- Both public Free and isolated Pro-local builds include the 7,205 non-brand
+  icons from pinned `@mdi/svg@7.4.47`. The 242 upstream Brand / Logo entries
+  are excluded. Upstream aliases and category terms support editor search;
+  completion inserts canonical `mdi:` names rather than runtime aliases.
+- Icon artifacts move to schema 2 with explicit library ownership. Deploy or
+  roll back the complete matching `v2/` asset set; mixing old artifacts with
+  the new runtime is unsupported. MDI definitions remain local, hashed,
+  lazily loaded, and cached, with no CDN or icon font dependency.
+- Added editor completion/diagnostics, copyable catalogue examples, and
+  no-build page checks for library switching and light/dark presentation.
+
 ### Performance Budget Evidence
 
+- `APPROVED_MDI_OFFLINE_ASSETS_2026-11-16`: the approved full non-brand MDI
+  catalogue increases only the offline icon-artifact and total `v2/` budgets.
+  Measured with Node `24.15.0`, npm `11.12.1`, and `build:preview` plus
+  `report:bundle-budget`: icons are `8615311` raw / `1950455` gzip bytes
+  (maxima `9046077` / `2047978`); total `v2/` is `11348518` raw / `2738723`
+  gzip bytes (maxima `11580000` / `2795000`). The pre-feature HEAD `1c5def8`
+  measured icons `2758285` / `666125` and total `v2/` `5484534` / `1451828`.
+  Lazy-loading the icon loader preserves all existing initial and editor
+  limits: initial closure is `393671` / `105913`, versus pre-feature
+  `403737` / `109768`. CSS is unchanged at `186935` / `23895`.
+  The preview contains 90 icon shards (64 MDI), with the largest reported at
+  approximately 95.75 kB raw, below the unchanged 128 KiB shard ceiling. The
+  index is approximately 7.52 kB and the searchable catalogue 3.18 MB raw;
+  rendering a glyph does not fetch that searchable catalogue.
+- Rationale: Measured MDI non-brand assets update only free-icon-artifact to 8615311 raw / 1950455 gzip bytes with five percent headroom, and dist-v2-inventory to 11348518 raw / 2738723 gzip bytes with two percent rounded headroom. All initial JavaScript, CSS, editor, and other metric baselines and limits remain unchanged.
 - `APPROVED_BINDINGS_UI_CSS_2026-09-28`: the user approved preserving the refined bindings layout. Only the `stable-css` gzip budget changes, from baseline `22244` / max `23357` to reviewed baseline `23434` / max `23903`; all raw limits and other metric limits are unchanged. The final no-help build measured `23344` gzip bytes, within the approved allowance.
 - Rationale: Reviewed bindings UI refinements set only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes, with two percent headroom. The stable-css raw baseline and maximum, and all other metrics and budgets, remain unchanged.
 - `APPROVED_CATALOGUE_STRUCTURE_2026-09-18`: Catalogue reorganization covers 39 pages, 59 paired examples, and 67 copy blocks; only `components-html` is rebaselined to reviewed actual raw `175483` / max `184258` and gzip `20145` / max `21153`, with five percent headroom. All other metrics and budgets remain unchanged.

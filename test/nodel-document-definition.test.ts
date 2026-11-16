@@ -288,10 +288,10 @@ describe('nodel document definition', () => {
     expect(nodelHtmlCompletionSource(fakeCompletionContext('<nodel-toggle on-icon="'))?.options[0]?.label).toBe('sun');
     expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values?.[0]).toBe('image');
     expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.valueType).toBe('enum-or-string');
-    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.syntax).toContain('Generated catalogue');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.syntax).toContain('mdi:canonical-name');
     expect(new Set(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'name')?.values)).toEqual(new Set(controlIconNames));
     expect(byName('nodel-icon').attributes.map((attribute) => attribute.name)).toEqual(expect.arrayContaining(['family', 'style']));
-    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'family')?.syntax).toContain('Generated catalogue');
+    expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'family')?.syntax).toBe('Generated Font Awesome catalogue family identifier');
     expect(byName('nodel-icon').attributes.find((attribute) => attribute.name === 'style')?.defaultDescription).toContain('manifest default');
     expect(
       byName('nodel-icon')
@@ -494,9 +494,9 @@ describe('nodel document definition', () => {
 
     expect(codeElements.length).toBeGreaterThan(0);
     expect(examples.length).toBeGreaterThan(0);
-    expect(examples).toHaveLength(59);
-    expect(codeElements).toHaveLength(59);
-    expect(template.content.querySelectorAll('pre.nodel-catalogue-code')).toHaveLength(67);
+    expect(examples).toHaveLength(60);
+    expect(codeElements).toHaveLength(60);
+    expect(template.content.querySelectorAll('pre.nodel-catalogue-code')).toHaveLength(68);
     expect(codeIds.filter((id) => !id)).toEqual([]);
     expect(exampleIds.filter((id) => !id)).toEqual([]);
     expect(duplicateIds(codeIds)).toEqual([]);
@@ -546,7 +546,7 @@ describe('nodel document definition', () => {
     const voidElements = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
     const protectedElements = new Set(['template', 'script', 'pre', 'textarea']);
 
-    expect(codeElements).toHaveLength(67);
+    expect(codeElements).toHaveLength(68);
     for (const code of codeElements) {
       const lines = (code.textContent ?? '').split('\n');
       let depth = 0;
@@ -592,6 +592,11 @@ describe('nodel document definition', () => {
       '  </nodel-group>',
       '</nodel-control-grid>'
     ]);
+    const iconsSignal = template.content.querySelector<HTMLElement>('[data-catalogue-code-for="icons-library-signal"] code')?.textContent ?? '';
+    expect(iconsSignal).toContain('<nodel-button action="SetCatalogueIcon" arg="mdi:lightbulb">');
+    expect(iconsSignal).toContain('<nodel-icon name="mdi:lightbulb" size="md"></nodel-icon>');
+    expect(iconsSignal).toContain('<nodel-group label="Signal-driven icon" surface="panel" padding="compact">');
+    expect(iconsSignal).toContain('<nodel-icon signal="CatalogueIcon" label="Signal-driven equipment icon" size="lg"></nodel-icon>');
     const faderHorizontal = template.content.querySelector<HTMLElement>('[data-catalogue-code-for="faders-horizontal"] code')?.textContent ?? '';
     expect(faderHorizontal).toContain('increment=""');
     expect(faderHorizontal.split('\n')[0]).toBe('<nodel-control-grid>');

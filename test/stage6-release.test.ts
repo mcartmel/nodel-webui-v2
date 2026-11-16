@@ -3,7 +3,8 @@
 import { mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { generateIconArtifacts, validateIconArtifactFiles } from '../scripts/icon-artifact.mjs';
+import { generateIconArtifacts, validateIconArtifact, validateIconArtifactFiles } from '../scripts/icon-artifact.mjs';
+import { validateIconArtifact as validateRuntimeArtifact } from '../src/icons/icon-artifact';
 import { verifyPublicRelease } from '../scripts/verify-public-release.mjs';
 // @ts-expect-error Release scripts are intentionally plain Node ESM.
 import { validateIconSourceVersions } from '../scripts/release-contract.mjs';
@@ -13,17 +14,19 @@ function adapter(profile: 'free' | 'pro-local' = 'free') {
   return {
     packageVersion: packageMetadata.version, profile,
     sources: [
-      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
-      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' }
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' },
+      { library: 'mdi', package: '@mdi/svg', version: '7.4.47' }
     ], aliases: {},
     families: [
-      { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
-      { family: 'classic', defaultStyle: 'solid', styles: [
+      { library: 'fontawesome', family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
+      { library: 'fontawesome', family: 'classic', defaultStyle: 'solid', styles: [
         { style: 'regular', icons: [{ iconName: 'regular', icon: [16, 16, [], 'f002', 'M0'] }] },
         { style: 'solid', icons: [{ iconName: 'solid', icon: [16, 16, [], 'f003', 'M0'] }] }
-      ] }
+      ] },
+      { library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [{ style: 'default', icons: [] }] }
     ]
   };
 }
@@ -45,11 +48,37 @@ describe('Stage 6 release and public boundary contracts', () => {
     expect(() => validateIconArtifactFiles(artifact.files.get('v2/nodel-icons.json')!, artifact.files, { expectedProfile: 'free' })).toThrow(/profile/);
   });
 
+  it('enforces every exact Free combination at Node, browser, and file boundaries', () => {
+    const input = adapter();
+    const missingCombinations = input.families.flatMap(family => family.styles.map(style => input.families.map(candidate => {
+      const styles = candidate.family === family.family ? candidate.styles.filter(entry => entry.style !== style.style) : candidate.styles;
+      return { ...candidate, styles, defaultStyle: styles.some(entry => entry.style === candidate.defaultStyle) ? candidate.defaultStyle : styles[0]?.style };
+    }).filter(candidate => candidate.styles.length > 0)));
+    const extraCombination = [...input.families, { library: 'fontawesome', family: 'sharp', defaultStyle: 'solid', styles: [{ style: 'solid', icons: [] }] }];
+    for (const families of [...missingCombinations, extraCombination]) {
+      expect(() => generateIconArtifacts({ ...input, families })).toThrow(/family\/style combinations/);
+      const artifact = generateIconArtifacts({ ...input, profile: 'pro-local', families });
+      const index = { ...artifact.index, profile: 'free' };
+      const bytes = Buffer.from(JSON.stringify(index));
+      const files = new Map(artifact.files).set('v2/nodel-icons.json', bytes);
+      expect(() => validateIconArtifact(index)).toThrow(/family\/style combinations/);
+      expect(() => validateRuntimeArtifact(index)).toThrow(/family\/style combinations/);
+      expect(() => validateIconArtifactFiles(bytes, files, { expectedProfile: 'free' })).toThrow(/family\/style combinations/);
+    }
+    const valid = freeArtifact();
+    expect(() => validateIconArtifact(valid.index)).not.toThrow();
+    expect(() => validateRuntimeArtifact(valid.index)).not.toThrow();
+    expect(() => validateIconArtifactFiles(valid.files.get('v2/nodel-icons.json')!, valid.files)).not.toThrow();
+  });
+
   it('validates release source descriptors independently of the bound index', () => {
     const valid = adapter().sources;
     expect(() => validateIconSourceVersions(valid)).not.toThrow();
     expect(() => validateIconSourceVersions([{ package: valid[0]!.package, version: valid[0]!.version }, valid[1], valid[1]])).toThrow(/sourceVersions/);
-    expect(() => validateIconSourceVersions(valid.map((source, index) => index === 0 ? { ...source, version: '6.0.0' } : source))).toThrow(/one Font Awesome major/);
+    expect(() => validateIconSourceVersions(valid.map((source, index) => index === 0 ? { ...source, version: '6.0.0' } : source))).toThrow(/same Font Awesome major/);
+    expect(() => validateIconSourceVersions(valid.map(source => source.library === 'fontawesome' ? { ...source, version: '6.0.0' } : source))).not.toThrow();
+    expect(() => validateIconSourceVersions(valid.map(source => source.package === '@mdi/svg' ? { ...source, library: 'fontawesome' } : source))).toThrow(/sourceVersions/);
+    expect(() => validateIconSourceVersions(valid.slice(0, -1))).toThrow(/incomplete/);
     expect(() => validateIconSourceVersions(valid.map(source => ({ ...source, version: '7.3' })))).toThrow(/sourceVersions/);
   });
 

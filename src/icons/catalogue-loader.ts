@@ -4,8 +4,10 @@ import {
   validateIconCatalogue,
   validateIconShard,
   MAX_ICON_INDEX_BYTES,
-  type IconArtifactProfile
+  type IconArtifactProfile,
+  type IconLibrary
 } from './icon-artifact';
+import { parseIconReference, resolveIconReferenceName, selectIconReference } from './icon-reference';
 
 export interface IconRecord {
   name: string;
@@ -33,7 +35,7 @@ export interface IconCatalogue {
 }
 
 interface IconStyle { style: string; sharding: { bucketCount: number }; shards: string[] }
-interface IconFamily { family: string; defaultStyle: string; styles: IconStyle[] }
+interface IconFamily { library: IconLibrary; family: string; defaultStyle: string; styles: IconStyle[] }
 export interface IconIndex {
   profile: IconArtifactProfile;
   default: { family: string; style: string };
@@ -49,6 +51,7 @@ export interface IconSelection {
 
 const indexUrl = new URL('../nodel-icons.json', import.meta.url);
 const cache = new Map<string, Promise<unknown>>();
+const inFlight = new Map<string, Set<() => boolean>>();
 const malformed = new Set<string>();
 const MAX_RETRIES = 1;
 const MAX_CATALOGUE_BYTES = 16 * 1024 * 1024;
@@ -109,9 +112,11 @@ export async function sha256Hex(bytes: Uint8Array) {
   return Array.from(state, word => word.toString(16).padStart(8, '0')).join('');
 }
 
-async function fetchJson(url: URL, maxBytes: number) {
+async function fetchJson(url: URL, maxBytes: number, hasEligibleConsumer: () => boolean) {
   let lastError: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    // A retry is a new request, not continuation of the completed attempt.
+    if (!hasEligibleConsumer()) throw new IconNetworkError('Icon request has no eligible consumers');
     try {
       let response: Response;
       try {
@@ -151,17 +156,44 @@ async function fetchJson(url: URL, maxBytes: number) {
   throw lastError;
 }
 
-function cached<T>(url: URL, maxBytes: number, validate: (value: unknown) => T) {
+function cached<T>(url: URL, maxBytes: number, validate: (value: unknown) => T, isEligible: () => boolean = () => true) {
   const key = url.href;
   if (malformed.has(key)) return cache.get(key)! as Promise<T>;
   const existing = cache.get(key) as Promise<T> | undefined;
-  if (existing) return existing;
-  const request = fetchJson(url, maxBytes).then(value => validate(value));
-  cache.set(key, request);
-  request.catch(error => {
-    if (transient(error)) cache.delete(key);
-    else malformed.add(key);
-  });
+  if (existing) {
+    inFlight.get(key)?.add(isEligible);
+    return existing;
+  }
+  const consumers = new Set([isEligible]);
+  let abandoned = false;
+  inFlight.set(key, consumers);
+  const request = fetchJson(url, maxBytes, () => {
+    if ([...consumers].some(eligible => eligible())) return true;
+    // Detach at the cancellation decision, not in a later rejection reaction:
+    // a consumer arriving in between must create a fresh request. Ownership
+    // also protects a replacement installed after a cache reset.
+    abandoned = true;
+    consumers.clear();
+    if (inFlight.get(key) === consumers) {
+      inFlight.delete(key);
+      cache.delete(key);
+    }
+    return false;
+  }).then(value => validate(value));
+  // The very first eligibility check can abandon synchronously, before fetch.
+  if (!abandoned) cache.set(key, request);
+  const settle = (failed: boolean, error?: unknown) => {
+    // Release component closures on either outcome; successful cache entries
+    // must not remain bound to the first consumer's lifecycle.
+    consumers.clear();
+    if (cache.get(key) !== request) return;
+    inFlight.delete(key);
+    if (failed) {
+      if (transient(error)) cache.delete(key);
+      else malformed.add(key);
+    }
+  };
+  void request.then(() => settle(false), error => settle(true, error));
   return request;
 }
 
@@ -170,8 +202,8 @@ function indexValue(value: unknown) {
   return value as unknown as IconIndex;
 }
 
-export function loadIconIndex() {
-  return cached(indexUrl, MAX_ICON_INDEX_BYTES, indexValue);
+export function loadIconIndex(isEligible: () => boolean = () => true) {
+  return cached(indexUrl, MAX_ICON_INDEX_BYTES, indexValue, isEligible);
 }
 
 export function loadIconCatalogue() {
@@ -190,23 +222,33 @@ function findStyle(index: IconIndex, family: string, style: string) {
   return styleEntry;
 }
 
-function selectionFromIndex(index: IconIndex, family?: string, style?: string): IconSelection | null {
-  const effectiveFamily = family ?? index.default.family;
-  const familyEntry = index.families.find(item => item.family === effectiveFamily);
-  const effectiveStyle = style ?? familyEntry?.defaultStyle;
+function selectionFromIndex(index: IconIndex, name: string, family?: string, style?: string): IconSelection | null {
+  const reference = parseIconReference(name);
+  const proposed = selectIconReference(reference, family ?? index.default.family, style ?? undefined);
+  if (!proposed) return null;
+  const familyEntry = index.families.find(item => item.family === proposed.family && item.library === proposed.library);
+  const effectiveFamily = familyEntry?.family;
+  if (!effectiveFamily) return null;
+  const effectiveStyle = proposed.style || familyEntry.defaultStyle;
   if (!effectiveStyle || !findStyle(index, effectiveFamily, effectiveStyle)) return null;
   return { family: effectiveFamily, style: effectiveStyle };
 }
 
-export async function resolveIconSelection(family?: string, style?: string): Promise<IconSelection | null> {
-  return selectionFromIndex(await loadIconIndex(), family, style);
+export async function resolveIconSelection(name: string, family?: string, style?: string, isEligible: () => boolean = () => true): Promise<IconSelection | null> {
+  return selectionFromIndex(await loadIconIndex(isEligible), name, family, style);
 }
 
-export async function loadIconRecord(name: string, family?: string, style?: string): Promise<IconRecord | null> {
-  const index = await loadIconIndex();
-  const selection = selectionFromIndex(index, family, style);
+// Eligibility belongs to one consumer, never the shared URL cache. Let requests
+// already in flight finish for other consumers, but do not start the next stage
+// for an obsolete selection. A cancelled lookup's null is not cached.
+export async function loadIconRecord(name: string, family?: string, style?: string, isEligible: () => boolean = () => true): Promise<IconRecord | null> {
+  if (!isEligible()) return null;
+  const index = await loadIconIndex(isEligible);
+  if (!isEligible()) return null;
+  const reference = parseIconReference(name);
+  const selection = selectionFromIndex(index, name, family, style);
   if (!selection) return null;
-  const canonical = index.aliases[name] ?? name;
+  const canonical = resolveIconReferenceName(reference, index.aliases);
   const styleEntry = findStyle(index, selection.family, selection.style);
   if (!styleEntry) return null;
   const bucket = fnv1a32(canonical) & (styleEntry.sharding.bucketCount - 1);
@@ -216,12 +258,13 @@ export async function loadIconRecord(name: string, family?: string, style?: stri
   const shard = await cached<Record<string, unknown>>(url, MAX_SHARD_BYTES, value => {
     validateIconShard(value, { profile: index.profile, family: selection.family, style: selection.style, bucket });
     return value;
-  });
+  }, isEligible);
   return (shard.records as IconRecord[]).find(record => record.name === canonical) ?? null;
 }
 
 export function resetIconCatalogueCache() {
   cache.clear();
+  inFlight.clear();
   malformed.clear();
 }
 

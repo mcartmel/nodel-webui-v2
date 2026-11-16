@@ -2465,21 +2465,18 @@
             <p class="nodel-catalogue-description">
               Use
               <code>nodel-icon</code>
-              standalone or inline. These examples preserve the public Free
-              profile: canonical
-              <code>tv</code>
-              , a Classic Regular icon, a Brand icon, manifest defaults, and the
-              Nodel
-              <code>power</code>
-              alias; Pro-only families are excluded.
+              standalone or inline. These examples include public Font Awesome
+              and namespaced MDI icons; Pro-only families and MDI Brand / Logo
+              entries are excluded.
             </p>
           </header>
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">
-              <h2 class="nodel-catalogue-subtitle">Free icon profile</h2>
+              <h2 class="nodel-catalogue-subtitle">Free Font Awesome and shared MDI icons</h2>
               <p class="nodel-catalogue-description">
-                Family and style select installed manifest entries; a group
-                provides a visible caption when the icon is otherwise alone.
+                Family and style select Font Awesome manifest entries; use the
+                canonical <code>mdi:</code> prefix for MDI. A group provides a
+                visible caption when the icon is otherwise alone.
               </p>
             </header>
             <div
@@ -2514,6 +2511,9 @@
                 <nodel-group label="Nodel alias">
                   <nodel-icon name="power" tone="success"></nodel-icon>
                 </nodel-group>
+                <nodel-group label="Material Design Icon">
+                  <nodel-icon name="mdi:lightbulb" size="lg"></nodel-icon>
+                </nodel-group>
               </nodel-control-grid>
             </div>
             <pre
@@ -2530,7 +2530,48 @@
   &lt;nodel-group label="Nodel alias"&gt;
     &lt;nodel-icon name="power" tone="success"&gt;&lt;/nodel-icon&gt;
   &lt;/nodel-group&gt;
+  &lt;nodel-group label="Material Design Icon"&gt;
+    &lt;nodel-icon name="mdi:lightbulb" size="lg"&gt;&lt;/nodel-icon&gt;
+  &lt;/nodel-group&gt;
 &lt;/nodel-control-grid&gt;</code></pre>
+          </section>
+          <section class="nodel-catalogue-section">
+            <header class="nodel-catalogue-header">
+              <h2 class="nodel-catalogue-subtitle">Name-only signal across icon libraries</h2>
+              <p class="nodel-catalogue-description">
+                The MDI prefix selects that library even if Font Awesome family
+                or style attributes are present. A name-only signal can switch
+                between unprefixed Font Awesome and namespaced MDI values.
+              </p>
+            </header>
+            <div class="nodel-catalogue-examples max-w-4xl" data-catalogue-example="icons-library-signal">
+              <nodel-control-grid columns="2">
+                <nodel-button action="SetCatalogueIcon" arg="mdi:lightbulb">
+                  <nodel-icon name="mdi:lightbulb" size="md"></nodel-icon>
+                  Use MDI
+                </nodel-button>
+                <nodel-button action="SetCatalogueIcon" arg="power">
+                  <nodel-icon name="power" size="md"></nodel-icon>
+                  Use Font Awesome
+                </nodel-button>
+              </nodel-control-grid>
+              <nodel-group label="Signal-driven icon" surface="panel" padding="compact">
+                <nodel-icon signal="CatalogueIcon" label="Signal-driven equipment icon" size="lg"></nodel-icon>
+              </nodel-group>
+            </div>
+            <pre class="nodel-catalogue-code" data-catalogue-code-for="icons-library-signal"><code>&lt;nodel-control-grid columns="2"&gt;
+  &lt;nodel-button action="SetCatalogueIcon" arg="mdi:lightbulb"&gt;
+    &lt;nodel-icon name="mdi:lightbulb" size="md"&gt;&lt;/nodel-icon&gt;
+    Use MDI
+  &lt;/nodel-button&gt;
+  &lt;nodel-button action="SetCatalogueIcon" arg="power"&gt;
+    &lt;nodel-icon name="power" size="md"&gt;&lt;/nodel-icon&gt;
+    Use Font Awesome
+  &lt;/nodel-button&gt;
+&lt;/nodel-control-grid&gt;
+&lt;nodel-group label="Signal-driven icon" surface="panel" padding="compact"&gt;
+  &lt;nodel-icon signal="CatalogueIcon" label="Signal-driven equipment icon" size="lg"&gt;&lt;/nodel-icon&gt;
+&lt;/nodel-group&gt;</code></pre>
           </section>
           <section class="nodel-catalogue-section">
             <header class="nodel-catalogue-header">

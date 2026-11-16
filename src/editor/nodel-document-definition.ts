@@ -9,7 +9,8 @@ import {
   findComponentContract as findNodelElement
 } from '../component-contract';
 import { slugPageTitle } from '../navigation/navigation';
-import { loadIconCatalogue, loadIconIndex, type IconIndex } from '../icons/catalogue-loader';
+import type { IconIndex } from '../icons/catalogue-loader';
+import { formatIconReference, parseIconReference } from '../icons/icon-reference';
 import { authoredPageDocumentSnippet, authoredPageHead, authoredPageScaffold, authoredPageScaffoldSnippet } from './authored-page-scaffold';
 
 export { authoredPageDocumentSnippet, authoredPageHead, authoredPageScaffold, authoredPageScaffoldSnippet, commonNodelAttributes, findNodelElement, nodelDocumentElements };
@@ -117,6 +118,31 @@ function valueRange(context: CompletionContext, from: number) {
   return { from: Math.max(from, Math.min(context.pos, from)), to: context.pos };
 }
 
+function iconNameValueRange(context: CompletionContext, from: number) {
+  const prefix = valueRange(context, from);
+  const valueNode = ancestor(syntaxTree(context.state).resolveInner(context.pos, -1), 'AttributeValue');
+  if (!valueNode) return prefix;
+  const document = context.state.doc;
+  const openingQuote = document.sliceString(from - 1, from);
+  let to = context.pos;
+  if (openingQuote === '"' || openingQuote === "'") {
+    if (valueNode.from !== from - 1) return prefix;
+    // Recovery nodes can swallow later tags (and their quotes). Only extend a
+    // quoted replacement through a closed, unambiguous icon-name scalar. Allow
+    // multiline whitespace, but never consume markup or an adjacent attr's '='.
+    while (to < valueNode.to) {
+      const character = document.sliceString(to, to + 1);
+      if (character === openingQuote) return { ...prefix, to };
+      if (!/[\w:\s-]/.test(character)) return prefix;
+      to += 1;
+    }
+    return prefix;
+  } else {
+    while (to < valueNode.to && /[\w:-]/.test(document.sliceString(to, to + 1))) to += 1;
+  }
+  return { ...prefix, to };
+}
+
 function actionPhaseCompletions(context: CompletionContext, value: string, from: number, tagName: string, attribute: string): CompletionResult | null {
   const definition = attributesFor(tagName).find((item) => item.name === attribute);
   if (!definition?.syntax?.startsWith('ActionName')) return null;
@@ -222,9 +248,9 @@ function iconAttributes(context: CompletionContext) {
 }
 
 function effectiveIconSelection(index: IconIndex, values: Map<string, string>) {
-  const family = values.get('family') || index.default.family;
+  const family = values.get('family')?.trim() || index.default.family;
   const familyEntry = index.families.find(item => item.family === family);
-  const style = values.get('style') || familyEntry?.defaultStyle;
+  const style = values.get('style')?.trim() || familyEntry?.defaultStyle;
   return { family, style, familyEntry };
 }
 
@@ -233,16 +259,18 @@ function iconCatalogueCompletions(context: CompletionContext): CompletionResult 
   if (!icon || !icon.current.attribute || icon.current.valueText === undefined || icon.current.valueFrom === undefined) return null;
   const attribute = icon.current.attribute;
   if (attribute !== 'name' && attribute !== 'family' && attribute !== 'style') return null;
-  return Promise.all([loadIconIndex(), loadIconCatalogue()]).then(([index, catalogue]) => {
+  return import('../icons/catalogue-loader').then(({ loadIconCatalogue, loadIconIndex }) =>
+    Promise.all([loadIconIndex(), loadIconCatalogue()])
+  ).then(([index, catalogue]) => {
     const selection = effectiveIconSelection(index, icon.values);
     const from = icon.current.valueFrom ?? context.pos;
     // XML can expose an incomplete AttributeValue node with an empty slice;
     // derive the live query from the cursor range in that case.
     const value = context.state.sliceDoc(from, context.pos).replace(/["']$/, '');
     if (attribute === 'family') {
-      const families = index.families.filter(family => {
-        const style = icon.values.get('style');
-        const name = icon.values.get('name');
+      const families = index.families.filter(family => family.library === 'fontawesome').filter(family => {
+        const style = icon.values.get('style')?.trim();
+        const name = icon.values.get('name')?.trim();
         const canonicalName = name ? (index.aliases[name] ?? name) : undefined;
         return (!style || family.styles.some(item => item.style === style))
           && (!canonicalName || catalogue.records.some(record => record.name === canonicalName && record.family === family.family && (!style || record.style === style)));
@@ -251,37 +279,67 @@ function iconCatalogueCompletions(context: CompletionContext): CompletionResult 
     }
     if (attribute === 'style') {
       const family = selection.familyEntry;
-      const name = icon.values.get('name');
+      const name = icon.values.get('name')?.trim();
       const canonicalName = name ? (index.aliases[name] ?? catalogue.records.find(record => record.aliases.includes(name))?.name ?? name) : undefined;
-      const styles = family?.styles.filter(style => !canonicalName || catalogue.records.some(record => record.family === family.family && record.style === style.style && record.name === canonicalName)) ?? [];
+      const styles = family?.library === 'fontawesome' ? family.styles.filter(style => !canonicalName || catalogue.records.some(record => record.family === family.family && record.style === style.style && record.name === canonicalName)) : [];
       return { ...valueRange(context, from), options: styles.map(style => ({ label: style.style, type: 'constant', apply: style.style, detail: 'icon style' })) };
     }
-    const records = catalogue.records.filter(record => record.family === selection.family && record.style === selection.style);
-    const query = value.toLocaleLowerCase();
-    const optionsWithRank = records.flatMap(record => {
-      const nodelAliases = [...record.aliases, ...Object.entries(index.aliases).filter(([, canonicalName]) => canonicalName === record.name).map(([alias]) => alias)];
+    const queryValue = value.trim();
+    const parsedReference = parseIconReference(queryValue);
+    const mdiOnly = parsedReference.library === 'mdi' && parsedReference.prefixed;
+    const query = (mdiOnly ? queryValue.slice(4) : queryValue).toLocaleLowerCase();
+    const mdiFamilies = new Set(index.families.filter(family => family.library === 'mdi').map(family => family.family));
+    const familyAliases = new Map<string, string[]>();
+    for (const [alias, canonical] of Object.entries(index.aliases)) {
+      const aliases = familyAliases.get(canonical) ?? [];
+      aliases.push(alias);
+      familyAliases.set(canonical, aliases);
+    }
+    const optionsByIdentity = new Map<string, { option: Completion; rank: number }>();
+    for (const record of catalogue.records) {
+      const mdi = mdiFamilies.has(record.family);
+      if (mdiOnly ? !mdi : (!mdi && (record.family !== selection.family || record.style !== selection.style))) continue;
+      const authoredName = formatIconReference(mdi ? 'mdi' : 'fontawesome', record.name);
+      const nodelAliases = mdi ? record.officialAliases : [...record.aliases, ...(familyAliases.get(record.name) ?? [])];
       const canonicalPrefix = record.name.toLocaleLowerCase().startsWith(query);
       const aliasPrefix = nodelAliases.some(alias => alias.toLocaleLowerCase().startsWith(query));
       const termMatch = record.terms.some(term => term.toLocaleLowerCase().includes(query));
-      const officialMatch = record.officialAliases.some(alias => alias.toLocaleLowerCase().includes(query));
-      if (query && !canonicalPrefix && !aliasPrefix && !termMatch && !officialMatch) return [];
+      const officialMatch = !mdi && record.officialAliases.some(alias => alias.toLocaleLowerCase().includes(query));
+      if (query && !canonicalPrefix && !aliasPrefix && !termMatch && !officialMatch) continue;
       const rank = canonicalPrefix ? 0 : aliasPrefix ? 1 : termMatch ? 2 : 3;
-      const result: Array<{ option: Completion; rank: number }> = [{
-        option: { label: record.name, type: 'constant', detail: `${record.label} · ${record.family} ${record.style}`, apply: record.name, boost: 100 - rank },
+      const identity = `${mdi ? 'mdi' : 'fontawesome'}:${record.family}/${record.style}/${record.name}`;
+      optionsByIdentity.set(identity, {
+        option: { label: authoredName, type: 'constant', detail: `${record.label} · ${mdi ? 'MDI' : `${record.family} ${record.style}`}`, apply: authoredName, boost: 100 - rank },
         rank
-      }];
-      for (const alias of nodelAliases) result.push({ option: { label: alias, type: 'constant', detail: `Nodel alias for ${record.name}`, apply: alias, boost: 90 - rank }, rank: Math.max(1, rank) });
-      for (const alias of record.officialAliases) result.push({ option: { label: alias, type: 'constant', detail: `Font Awesome alias for ${record.name}`, apply: record.name, boost: 80 - rank }, rank: Math.max(3, rank) });
-      return result;
-    });
-    const options = optionsWithRank
-      .sort((left, right) => left.rank - right.rank || left.option.label.localeCompare(right.option.label))
-      .map(item => item.option)
-      .filter((option, index, all) => all.findIndex(candidate => candidate.label === option.label) === index)
-      .slice(0, 200);
-    // The catalogue source has already matched terms and official aliases;
-    // CodeMirror's label-only filter would discard those canonical results.
-    return { ...valueRange(context, from), options, filter: false, validFor: /^[a-z0-9-]*$/ };
+      });
+      if (mdi) {
+        if (aliasPrefix && query) optionsByIdentity.set(`mdi-alias:${record.name}`, {
+          option: { label: authoredName, type: 'constant', detail: `MDI search alias for ${record.name}`, apply: authoredName, boost: 90 - rank },
+          rank: Math.max(1, rank)
+        });
+      } else {
+        for (const alias of nodelAliases) {
+          if (query && !alias.toLocaleLowerCase().startsWith(query)) continue;
+          const aliasIdentity = `fontawesome-alias:${record.family}/${record.style}/${alias}`;
+          optionsByIdentity.set(aliasIdentity, { option: { label: alias, type: 'constant', detail: `Nodel alias for ${record.name}`, apply: alias, boost: 90 - rank }, rank: Math.max(1, rank) });
+        }
+        for (const alias of record.officialAliases) {
+          if (query && !alias.toLocaleLowerCase().includes(query)) continue;
+          const aliasIdentity = `fontawesome-official:${record.family}/${record.style}/${alias}`;
+          optionsByIdentity.set(aliasIdentity, { option: { label: alias, type: 'constant', detail: `Font Awesome alias for ${record.name}`, apply: record.name, boost: 80 - rank }, rank: Math.max(3, rank) });
+        }
+      }
+    }
+    const ordered = [...optionsByIdentity.values()].sort((left, right) => left.rank - right.rank || left.option.label.localeCompare(right.option.label));
+    const seenLabels = new Set<string>();
+    const options = ordered.filter(item => {
+      if (seenLabels.has(item.option.label)) return false;
+      seenLabels.add(item.option.label);
+      return true;
+    }).slice(0, 200).map(item => item.option);
+    // Reuse this result only while the text is unchanged. New characters must
+    // rerun catalogue matching, while the parser accepts ':' in MDI references.
+    return { ...iconNameValueRange(context, from), options, filter: false, validFor: (text: string) => text === value };
   }).catch(() => null);
 }
 
@@ -348,7 +406,7 @@ export function withNodelDocumentCompletions(native: CompletionSource): SyncComp
         const decorated = filterIconNativeResult(context, decorateNativeResult(context, baseResult));
         if (!extraResult) return decorated;
         if (extraResult.from !== decorated.from || (extraResult.to ?? context.pos) !== (decorated.to ?? context.pos)) return extraResult;
-        const options = [...extraResult.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index);
+        const options = [...extraResult.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index).slice(0, 200);
         return { ...decorated, ...(extraResult.validFor ? { validFor: extraResult.validFor } : {}), ...(extraResult.filter !== undefined ? { filter: extraResult.filter } : {}), options };
       }).catch(() => base instanceof Promise ? base.then(result => result ? filterIconNativeResult(context, decorateNativeResult(context, result)) : null) : base);
     }
@@ -356,7 +414,7 @@ export function withNodelDocumentCompletions(native: CompletionSource): SyncComp
     const decorated = filterIconNativeResult(context, decorateNativeResult(context, base));
     if (!extra) return decorated;
     if (extra.from !== decorated.from || (extra.to ?? context.pos) !== (decorated.to ?? context.pos)) return extra;
-    const options = [...extra.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index);
+    const options = [...extra.options, ...decorated.options].filter((option, index, all) => all.findIndex((candidate) => candidate.label === option.label) === index).slice(0, 200);
     const validFor = extra.validFor ?? decorated.validFor;
     return { ...decorated, ...(validFor ? { validFor } : {}), options };
   }) as unknown as SyncCompletionSource;

@@ -3,11 +3,72 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 export const dependencyEvidenceSchemaVersion = 1;
+const requiredFontAwesomePackages = Object.freeze([
+  '@fortawesome/fontawesome-free',
+  '@fortawesome/free-brands-svg-icons',
+  '@fortawesome/free-regular-svg-icons',
+  '@fortawesome/free-solid-svg-icons'
+]);
+const requiredMdiPackages = Object.freeze(['@mdi/svg']);
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 function json(value) { return JSON.stringify(value, null, 2) + '\n'; }
 function record(value) { return value && typeof value === 'object' && !Array.isArray(value); }
 function fail(message) { throw new Error(message); }
-function safeName(value) { return typeof value === 'string' && /^[A-Za-z0-9._@/+-]+$/.test(value) && !value.includes('..'); }
+function packageName(value) {
+  return typeof value === 'string' && value.length <= 214
+    && /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/.test(value);
+}
+// Lockfiles can contain legacy published names (e.g. JSONStream). These still
+// need safe, unambiguous path segments, not the stricter new policy-name rules.
+function safeLockPackageName(value) {
+  return typeof value === 'string'
+    && /^(?:@[A-Za-z0-9][A-Za-z0-9._~+-]*\/)?[A-Za-z0-9][A-Za-z0-9._~+-]*$/.test(value);
+}
+function exactVersion(value) {
+  return typeof value === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(value);
+}
+function canonicalPackageIdentity(pkg) {
+  return record(pkg) && safeLockPackageName(pkg.name) && exactVersion(pkg.version)
+    && pkg.purl === purl(pkg.name, pkg.version);
+}
+function validatePackageIdentities(licenses, sbom) {
+  if (!record(licenses) || !Array.isArray(licenses.packages) || !record(sbom) || !Array.isArray(sbom.components)) fail('Dependency evidence package identity sets are invalid');
+  if (licenses.packages.some(pkg => !canonicalPackageIdentity(pkg))) fail('License evidence package identity is invalid');
+  if (sbom.components.some(pkg => !canonicalPackageIdentity(pkg) || pkg['bom-ref'] !== pkg.purl)) fail('SBOM package identity is invalid');
+  if (licenses.packages.length !== sbom.components.length || licenses.packages.some((pkg, index) => {
+    const component = sbom.components[index];
+    return pkg.name !== component.name || pkg.version !== component.version || pkg.purl !== component.purl;
+  })) fail('SBOM and license evidence package sets differ');
+}
+export function validateRequiredPublicPackages(requiredPublicPackages) {
+  if (!Array.isArray(requiredPublicPackages) || requiredPublicPackages.length === 0
+    || requiredPublicPackages.some(name => !packageName(name))
+    || new Set(requiredPublicPackages).size !== requiredPublicPackages.length
+    || [...requiredFontAwesomePackages, ...requiredMdiPackages].some(name => !requiredPublicPackages.includes(name))) {
+    fail('license-policy.json requiredPublicPackages must use valid npm package names and preserve all required Font Awesome and MDI packages');
+  }
+  return requiredPublicPackages;
+}
+
+export function validateIconSourcesAgainstDependencyEvidence(sources, licenses, sbom) {
+  if (!Array.isArray(sources)) fail('Icon source versions cannot be checked against invalid dependency evidence');
+  validatePackageIdentities(licenses, sbom);
+  const packages = new Map();
+  for (const pkg of licenses.packages) {
+    if (!packages.has(pkg.name)) packages.set(pkg.name, new Set());
+    packages.get(pkg.name).add(pkg.version);
+  }
+  for (const source of sources) {
+    if (!record(source) || !packageName(source.package) || !exactVersion(source.version)) fail('Icon source versions are malformed');
+    const versions = packages.get(source.package);
+    if (!versions) fail(`Icon source package is missing from dependency evidence: ${source.package}`);
+    // Schema 1 omits lock paths, so it cannot prove which installed version was
+    // the generator's root source. Never select an arbitrary last occurrence.
+    if (versions.size !== 1) fail(`Icon source dependency version is ambiguous for ${source.package}: ${[...versions].sort(compareCodeUnits).join(', ')}`);
+    if (!versions.has(source.version)) fail(`Icon source version does not match dependency evidence for ${source.package}: ${source.version} != ${[...versions][0]}`);
+  }
+  return true;
+}
 export function compareCodeUnits(left, right) {
   const length = Math.min(left.length, right.length);
   for (let index = 0; index < length; index += 1) {
@@ -61,7 +122,7 @@ export function traverseProductionLock(lock) {
   const paths = new Set();
   while (queue.length) {
     const { name, parent, optional } = queue.shift();
-    if (!safeName(name)) fail(`Unsafe package name: ${name}`);
+    if (!safeLockPackageName(name)) fail(`Unsafe package name: ${name}`);
     const path = locate(lock, parent, name);
     if (!path) {
       if (optional) continue;
@@ -158,12 +219,11 @@ export async function generateDependencyEvidence({ projectRoot = process.cwd(), 
   const policyBytes = await readFile(policyPath); const noticesBytes = await readFile(noticesPath);
   let policy; try { policy = JSON.parse(policyBytes); } catch { fail('license-policy.json is not valid JSON'); }
   if (policy.schemaVersion !== 1 || !Array.isArray(policy.allowedLicenses)) fail('license-policy.json schema is invalid');
+  const requiredPublicPackages = validateRequiredPublicPackages(policy.requiredPublicPackages);
   const packages = normalizeProductionPackages(lock);
-  if (Array.isArray(policy.requiredPublicFontAwesomePackages)) {
-    const packageNames = new Set(packages.map(pkg => pkg.name));
-    const missing = policy.requiredPublicFontAwesomePackages.filter(name => !packageNames.has(name));
-    if (missing.length) fail(`Required public Font Awesome packages are missing from production dependencies: ${missing.join(', ')}`);
-  }
+  const packageNames = new Set(packages.map(pkg => pkg.name));
+  const missing = requiredPublicPackages.filter(name => !packageNames.has(name));
+  if (missing.length) fail(`Required public production packages are missing from dependencies: ${missing.join(', ')}`);
   const sbom = generateSbom({ lock, lockHash });
   const licenses = generateLicenses({ packages, lockHash, policy, policyHash: sha256(policyBytes), notices: noticesBytes.toString('utf8'), noticeHash: sha256(noticesBytes) });
   return { outputDir, files: { sbom: json(sbom), licenses: json(licenses) }, lockHash, sbom, licenses };
@@ -175,10 +235,11 @@ export function validateDependencyEvidence({ sbom, licenses, lockHash, policyHas
   const refs = sbom.components.map(component => component['bom-ref']);
   if (refs.some((ref, index) => typeof ref !== 'string' || (index && compareCodeUnits(refs[index - 1], ref) > 0))) fail('SBOM components are not sorted');
   if (!record(licenses) || licenses.schemaVersion !== 1 || licenses.lockHash !== lockHash || licenses.policyHash !== policyHash || licenses.noticeHash !== noticeHash || !Array.isArray(licenses.allowedLicenses) || !Array.isArray(licenses.packages) || !record(licenses.licenseSummary) || !record(licenses.noticeReconciliation)) fail('License evidence binding is invalid');
+  validatePackageIdentities(licenses, sbom);
   if (licenses.allowedLicenses.some(license => typeof license !== 'string') || licenses.packages.some((pkg, index) => !record(pkg) || !pkg.name || !pkg.version || !pkg.purl || !pkg.integrity || !pkg.license || !licenses.allowedLicenses.includes(pkg.license) || (index && compareCodeUnits(licenses.packages[index - 1].purl, pkg.purl) > 0))) fail('License evidence packages are invalid or unsorted');
   const summary = Object.fromEntries([...new Set(licenses.packages.map(pkg => pkg.license))].sort(compareCodeUnits).map(license => [license, licenses.packages.filter(pkg => pkg.license === license).length]));
   if (JSON.stringify(summary) !== JSON.stringify(licenses.licenseSummary) || licenses.noticeReconciliation.missing.length !== 0 || licenses.noticeReconciliation.mismatched.length !== 0 || licenses.noticeReconciliation.covered !== licenses.packages.length) fail('License evidence content reconciliation is invalid');
-  if (licenses.packages.length !== sbom.components.length || licenses.packages.some((pkg, index) => pkg.purl !== sbom.components[index].purl || pkg.version !== sbom.components[index].version || pkg.license !== (sbom.components[index].licenses?.[0]?.license?.id ?? sbom.components[index].licenses?.[0]?.expression))) fail('SBOM and license evidence package sets differ');
+  if (licenses.packages.some((pkg, index) => pkg.license !== (sbom.components[index].licenses?.[0]?.license?.id ?? sbom.components[index].licenses?.[0]?.expression))) fail('SBOM and license evidence package sets differ');
   return true;
 }
 

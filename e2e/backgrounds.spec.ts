@@ -774,8 +774,8 @@ test.describe('authored background rendering', () => {
     }
     const catalogue = await openBackgroundCatalogue(page);
     const section = page.locator('[data-background-catalogue-section]');
-    await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(69);
-    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(69);
+    await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(70);
+    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(70);
     const patternSelect = catalogue.locator('nodel-select[action="SetCatalogueBackgroundPattern"]');
     await patternSelect.locator('.nodel-select-trigger').focus();
     await page.keyboard.press('Enter');

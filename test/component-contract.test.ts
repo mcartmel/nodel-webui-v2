@@ -10,6 +10,7 @@ import { findNodelElement, getEffectiveCatalogueAttributes, nodelDocumentElement
 import { NodelPage } from '../src/components/nodel-page';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { preferredToggleIconNames } from '../src/component-contract/values';
 
 function required<T>(value: T | undefined | null, description: string): T {
   if (value === undefined || value === null) throw new Error(`Missing ${description}`);
@@ -65,6 +66,18 @@ describe('component contract', () => {
       expect.objectContaining({ name: 'nodel-shortcut-error', detailFields: expect.arrayContaining(['key', 'ctrl', 'alt', 'shift', 'meta']) }),
       expect.objectContaining({ name: 'nodel-shortcut-conflict', detailFields: ['key', 'ctrl', 'alt', 'shift', 'meta', 'count', 'ids'] })
     ]);
+  });
+
+  it('documents MDI as additive nodel-icon name syntax without changing its attribute contract', () => {
+    const icon = required(componentContracts.find((element) => element.name === 'nodel-icon'), 'icon contract');
+    expect(icon.attributes.map((attribute) => attribute.name)).toEqual([
+      'name', 'family', 'style', 'label', 'alt', 'aria-label', 'aria-labelledby', 'tone', 'size', 'signal', 'signals'
+    ]);
+    expect(icon.attributes.find((attribute) => attribute.name === 'name')).toMatchObject({ valueType: 'enum-or-string', values: ['image', ...preferredToggleIconNames.filter((name) => name !== 'image')] });
+    expect(icon.attributes.find((attribute) => attribute.name === 'family')?.defaultValue).toBe('classic');
+    expect(icon.attributes.find((attribute) => attribute.name === 'style')?.defaultValue).toBeUndefined();
+    expect(icon.attributes.find((attribute) => attribute.name === 'name')?.description).toContain('mdi:');
+    expect(icon.attributes.find((attribute) => attribute.name === 'family')?.description).toContain('ignored');
   });
 
   it('publishes fill only as a dynamic parent-consumed boolean on group and control grid', () => {

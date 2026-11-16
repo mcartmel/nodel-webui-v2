@@ -64,6 +64,7 @@
     "release:build": "npm run build && npm run verify:dependencies && npm run release:prepare"
   },
   "dependencies": {
+    "@mdi/svg": "7.4.47",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.0",
     "@codemirror/lang-css": "^6.3.1",
