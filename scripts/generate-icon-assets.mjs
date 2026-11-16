@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import packageMetadata from '../package.json' with { type: 'json' };
 import { generateIconArtifacts } from './icon-artifact.mjs';
 import { enrichFontAwesomeIcons, loadPinnedFreeFontAwesomeMetadata } from './fontawesome-metadata.mjs';
+import { loadPinnedMdiMetadata } from './mdi-metadata.mjs';
 
 const root = resolve(process.cwd());
 const output = resolve(root, 'build/icon-assets/free');
@@ -14,14 +15,18 @@ async function load(name) { return import(name); }
 export async function generateFreeIconAssets({ outputRoot = output } = {}) {
   const modules = await Promise.all(packageNames.map(load));
   const metadataSource = await loadPinnedFreeFontAwesomeMetadata(root);
+  const mdi = await loadPinnedMdiMetadata({ root });
   const withMetadata = module => enrichFontAwesomeIcons(definitions(module), metadataSource.metadata);
   const families = [
-    { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: withMetadata(modules[0]) }] },
-    { family: 'classic', defaultStyle: 'solid', styles: [{ style: 'regular', icons: withMetadata(modules[1]) }, { style: 'solid', icons: withMetadata(modules[2]) }] }
+    { library: 'fontawesome', family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: withMetadata(modules[0]) }] },
+    { library: 'fontawesome', family: 'classic', defaultStyle: 'solid', styles: [{ style: 'regular', icons: withMetadata(modules[1]) }, { style: 'solid', icons: withMetadata(modules[2]) }] },
+    { library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [{ style: 'default', icons: mdi.records }] }
   ];
   const lock = JSON.parse(await readFile(resolve(root, 'package-lock.json'), 'utf8'));
-  const sources = [...packageNames, metadataSource.package].sort().map(name => ({ package: name, version: name === metadataSource.package ? metadataSource.version : lock.packages[`node_modules/${name}`].version }));
+  const sources = [...packageNames, metadataSource.package].sort().map(name => ({ library: 'fontawesome', package: name, version: name === metadataSource.package ? metadataSource.version : lock.packages[`node_modules/${name}`].version }));
+  sources.push({ library: 'mdi', ...mdi.source });
   const artifact = generateIconArtifacts({ packageVersion: packageMetadata.version, sources, aliases, families });
+  artifact.report.mdi = mdi.report;
   await rm(outputRoot, { recursive: true, force: true });
   await mkdir(outputRoot, { recursive: true });
   for (const [path, bytes] of artifact.files) { const target = resolve(outputRoot, path); await mkdir(resolve(target, '..'), { recursive: true }); await writeFile(target, bytes); }

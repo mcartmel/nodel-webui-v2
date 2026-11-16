@@ -4,7 +4,7 @@ import { join } from 'node:path';
 // @ts-expect-error Security scripts are intentionally plain Node ESM.
 import { normalizeAuditReport, verifyAuditReport } from '../scripts/audit-policy.mjs';
 // @ts-expect-error Security scripts are intentionally plain Node ESM.
-import { compareCodeUnits, generateSbom, generateLicenses, normalizeProductionPackages, validateDependencyEvidence } from '../scripts/dependency-evidence.mjs';
+import { compareCodeUnits, generateDependencyEvidence, generateSbom, generateLicenses, normalizeProductionPackages, validateDependencyEvidence, validateIconSourcesAgainstDependencyEvidence, validateRequiredPublicPackages } from '../scripts/dependency-evidence.mjs';
 
 const root = join(process.cwd(), 'build', 'dependency-evidence-test');
 const lock = { lockfileVersion: 3, packages: {
@@ -18,6 +18,120 @@ type TestLock = { packages: Record<string, Record<string, unknown>> };
 
 describe('dependency evidence', () => {
   afterEach(async () => rm(root, { recursive: true, force: true }));
+
+  it('requires a well-formed public package list and preserves every required Font Awesome package', () => {
+    const validateRequiredPackages = validateRequiredPublicPackages as unknown as (value: unknown) => string[];
+    const fontAwesome = ['@fortawesome/fontawesome-free', '@fortawesome/free-brands-svg-icons', '@fortawesome/free-regular-svg-icons', '@fortawesome/free-solid-svg-icons'];
+    const required = [...fontAwesome, '@mdi/svg'];
+    expect(validateRequiredPackages(required)).toEqual(required);
+    for (const omitted of required) expect(() => validateRequiredPackages(required.filter(name => name !== omitted))).toThrow(/requiredPublicPackages/);
+    for (const malformed of [undefined, null, 'not-an-array', [], ['@mdi/svg'], [...required, '@mdi/svg'], [...required, 7], [...required, '@'], [...required, '/'], [...required, '@mdi'], [...required, 'scope/name'], [...required, 'JSONStream']]) {
+      expect(() => validateRequiredPackages(malformed)).toThrow(/requiredPublicPackages/);
+    }
+    expect(validateRequiredPackages([...required, '@valid-scope/valid-package'])).toContain('@valid-scope/valid-package');
+  });
+
+  it('rejects required public packages missing from production lock traversal', async () => {
+    await mkdir(root, { recursive: true });
+    const requiredPublicPackages = ['@fortawesome/fontawesome-free', '@fortawesome/free-brands-svg-icons', '@fortawesome/free-regular-svg-icons', '@fortawesome/free-solid-svg-icons', '@mdi/svg'];
+    const lockPackages = Object.fromEntries(requiredPublicPackages.slice(0, 4).map(name => [`node_modules/${name}`, {
+      version: '7.3.1', resolved: `https://registry/${name}.tgz`, integrity: 'sha512-YQ==', license: 'MIT'
+    }]));
+    await writeFile(join(root, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages: {
+      '': { dependencies: Object.fromEntries(requiredPublicPackages.slice(0, 4).map(name => [name, '7.3.1'])) },
+      ...lockPackages
+    } }));
+    await writeFile(join(root, 'policy.json'), JSON.stringify({ schemaVersion: 1, allowedLicenses: ['Apache-2.0', 'MIT'], requiredPublicPackages, noticeRequired: true }));
+    await writeFile(join(root, 'notices.md'), '| Package | License |\n| --- | --- |\n');
+    await expect(generateDependencyEvidence({ projectRoot: root, policyPath: join(root, 'policy.json'), noticesPath: join(root, 'notices.md') })).rejects.toThrow(/Required public production packages are missing from dependencies: @mdi\/svg/);
+  });
+
+  it('binds every icon source package version to the validated license evidence', () => {
+    const sources = [
+      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { package: '@mdi/svg', version: '7.4.47' }
+    ];
+    const packages = sources.map(source => ({ name: source.package, version: source.version, purl: `pkg:npm/%40${source.package.slice(1)}@${source.version}` }));
+    const licenses = { packages };
+    const sbom = { components: packages.map(pkg => ({ ...pkg, 'bom-ref': pkg.purl })) };
+    expect(() => validateIconSourcesAgainstDependencyEvidence(sources, licenses, sbom)).not.toThrow();
+    for (const [index, mismatch] of [[0, '7.3.2'], [1, '8.0.0']] as const) {
+      const altered = [...sources];
+      altered[index] = { ...sources[index]!, version: mismatch };
+      expect(() => validateIconSourcesAgainstDependencyEvidence(altered, licenses, sbom)).toThrow(/Icon source version does not match dependency evidence/);
+    }
+  });
+
+  it('fails closed for multi-version icon packages regardless of evidence order or selected source version', () => {
+    const packages = ['7.4.47', '8.0.0'].map(version => ({ name: '@mdi/svg', version, purl: `pkg:npm/%40mdi/svg@${version}` }));
+    for (const ordered of [packages, [...packages].reverse()]) {
+      const licenses = { packages: ordered };
+      const sbom = { components: ordered.map(pkg => ({ ...pkg, 'bom-ref': pkg.purl })) };
+      for (const version of ['7.4.47', '8.0.0']) {
+        expect(() => validateIconSourcesAgainstDependencyEvidence([{ package: '@mdi/svg', version }], licenses, sbom)).toThrow(/ambiguous.*@mdi\/svg/i);
+      }
+    }
+  });
+
+  it('allows repeated installations of one exact source identity without rejecting unrelated multiple versions', () => {
+    const packages = [
+      { name: '@mdi/svg', version: '7.4.47', purl: 'pkg:npm/%40mdi/svg@7.4.47' },
+      { name: '@mdi/svg', version: '7.4.47', purl: 'pkg:npm/%40mdi/svg@7.4.47' },
+      { name: 'other', version: '1.0.0', purl: 'pkg:npm/other@1.0.0' },
+      { name: 'other', version: '2.0.0', purl: 'pkg:npm/other@2.0.0' }
+    ];
+    const licenses = { packages };
+    const sbom = { components: packages.map(pkg => ({ ...pkg, 'bom-ref': pkg.purl })) };
+    expect(validateIconSourcesAgainstDependencyEvidence([{ package: '@mdi/svg', version: '7.4.47' }], licenses, sbom)).toBe(true);
+  });
+
+  it('traverses legacy uppercase lock names without allowing malformed package paths', () => {
+    const legacy = { lockfileVersion: 3, packages: {
+      '': { dependencies: { JSONStream: '1.3.5' } },
+      'node_modules/JSONStream': { version: '1.3.5', resolved: 'legacy', integrity: 'sha512-YQ==', license: 'MIT' }
+    } };
+    expect(normalizeProductionPackages(legacy)).toMatchObject([{ name: 'JSONStream', version: '1.3.5', purl: 'pkg:npm/JSONStream@1.3.5' }]);
+    const lockHash = 'a'.repeat(64); const policyHash = 'b'.repeat(64); const noticeHash = 'c'.repeat(64);
+    const sbom = generateSbom({ lock: legacy, lockHash });
+    const licenses = generateLicenses({ packages: normalizeProductionPackages(legacy), lockHash, policy, policyHash, notices: '| `JSONStream` | MIT |\n', noticeHash });
+    expect(validateDependencyEvidence({ sbom, licenses, lockHash, policyHash, noticeHash })).toBe(true);
+    for (const name of ['@', '/', '@mdi', 'scope/name', '@scope/', '@scope/name/extra', '../escape', 'a/../escape', 'a\\escape']) {
+      expect(() => normalizeProductionPackages({ packages: { '': { dependencies: { [name]: '1.0.0' } } } })).toThrow(/Unsafe package name/);
+    }
+  });
+
+  it.each([
+    'license name', 'SBOM name', 'both names', 'license PURL', 'SBOM PURL', 'both PURLs', 'SBOM ref',
+    'license version', 'SBOM version', 'both versions', 'version range',
+    'license canonical substitution', 'SBOM canonical substitution'
+  ])('rejects inconsistent canonical package identity: %s', alteration => {
+    const lockHash = 'a'.repeat(64); const policyHash = 'b'.repeat(64); const noticeHash = 'c'.repeat(64);
+    const sbom = generateSbom({ lock, lockHash });
+    const licenses = generateLicenses({ packages: normalizeProductionPackages(lock), lockHash, policy, policyHash, notices, noticeHash });
+    const pkg = licenses.packages[0]; const component = sbom.components[0];
+    if (alteration === 'license name' || alteration === 'both names') pkg.name = '@mdi/svg';
+    if (alteration === 'SBOM name' || alteration === 'both names') component.name = '@mdi/svg';
+    if (alteration === 'license PURL' || alteration === 'both PURLs') pkg.purl = 'pkg:npm/alternate@1.0.0';
+    if (alteration === 'SBOM PURL' || alteration === 'both PURLs') component.purl = 'pkg:npm/alternate@1.0.0';
+    if (alteration === 'SBOM ref') component['bom-ref'] = 'pkg:npm/alternate@1.0.0';
+    if (alteration === 'license version' || alteration === 'both versions') pkg.version = '3.7.1';
+    if (alteration === 'SBOM version' || alteration === 'both versions') component.version = '3.7.1';
+    if (alteration === 'version range') {
+      pkg.version = component.version = '^1.0.0';
+      pkg.purl = component.purl = component['bom-ref'] = 'pkg:npm/app@^1.0.0';
+    }
+    if (alteration === 'license canonical substitution') {
+      pkg.name = 'alternate';
+      pkg.purl = 'pkg:npm/alternate@1.0.0';
+    }
+    if (alteration === 'SBOM canonical substitution') {
+      component.name = 'alternate';
+      component.purl = component['bom-ref'] = 'pkg:npm/alternate@1.0.0';
+    }
+    expect(() => validateDependencyEvidence({ sbom, licenses, lockHash, policyHash, noticeHash })).toThrow(/identity|package sets differ/i);
+    // The source cross-check must not trust an unvalidated alternate name either.
+    expect(() => validateIconSourcesAgainstDependencyEvidence([{ package: pkg.name, version: pkg.version }], licenses, sbom)).toThrow(/identity|package sets differ/i);
+  });
 
   it('traverses only production lock dependencies and emits deterministic SBOM data', () => {
     const packages = normalizeProductionPackages(lock);

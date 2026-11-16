@@ -91,7 +91,7 @@ test.describe('catalogue code copy', () => {
         duplicateIds: [...document.querySelectorAll('[id]')].map((element) => element.id).filter((id, index, ids) => ids.indexOf(id) !== index)
       };
     });
-    expect(inventory).toEqual({ blocks: 69, toolbars: 69, buttons: 69, statuses: 69, uniqueButtons: 69, uniqueStatuses: 69, toolbarAbovePre: true, meaningfulLabels: true, quickstartLabel: 'Copy code: Quickstart', backgroundLabels: ['Copy code: Backgrounds, App', 'Copy code: Backgrounds, Page override'], insideExamples: 0, referenceCells: 0, duplicateIds: [] });
+    expect(inventory).toEqual({ blocks: 70, toolbars: 70, buttons: 70, statuses: 70, uniqueButtons: 70, uniqueStatuses: 70, toolbarAbovePre: true, meaningfulLabels: true, quickstartLabel: 'Copy code: Quickstart', backgroundLabels: ['Copy code: Backgrounds, App', 'Copy code: Backgrounds, Page override'], insideExamples: 0, referenceCells: 0, duplicateIds: [] });
     await saveCapture(page.locator('nodel-page[data-page-id="App"][active]'), testInfo, 'catalogue-inventory.png');
   });
 

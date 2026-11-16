@@ -32,8 +32,8 @@ const expected = {
   'codemirror-language-sql': [40595, 42625, 14926, 15673],
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
   'components-html': [175483, 184258, 20145, 21153],
-  'free-icon-artifact': [2758285, 2896200, 666125, 699432],
-  'dist-v2-inventory': [5448589, 5560000, 1442562, 1475000]
+  'free-icon-artifact': [8615311, 9046077, 1950455, 2047978],
+  'dist-v2-inventory': [11348518, 11580000, 2738723, 2795000]
 } as const;
 
 describe('Stage 5 performance budget governance', () => {
@@ -44,16 +44,16 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('APPROVED_BINDINGS_UI_CSS_2026-09-28');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_MDI_OFFLINE_ASSETS_2026-11-16');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
     expect(Object.keys(policy.budgets).sort()).toEqual(Object.keys(expected).sort());
     expect(notes).toContain(policy.releaseNotesMarker);
     expect(notes).toContain(policy.rationale);
-    expect(policy.rationale).toContain('only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes');
-    expect(policy.rationale).toContain('stable-css raw baseline and maximum');
-    expect(policy.rationale).toContain('all other metrics and budgets, remain unchanged');
+    expect(policy.rationale).toContain('only free-icon-artifact');
+    expect(policy.rationale).toContain('dist-v2-inventory');
+    expect(policy.rationale).toContain('All initial JavaScript, CSS, editor, and other metric baselines and limits remain unchanged');
     for (const [name, values] of Object.entries(expected)) {
       const budget = policy.budgets[name];
       if (!budget) throw new Error(`Missing budget ${name}`);

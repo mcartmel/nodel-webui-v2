@@ -1,5 +1,4 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -17,6 +16,7 @@ import { runVerifyDeploymentInventory } from '../scripts/verify-deployment-inven
 import { runVerifyJavaHandoff } from '../scripts/verify-java-handoff.mjs';
 import { serializeComponentContract } from '../src/component-contract';
 import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
+import { createHash } from 'node:crypto';
 // @ts-expect-error Security scripts are intentionally plain Node ESM.
 import { generateDependencyEvidence } from '../scripts/dependency-evidence.mjs';
 
@@ -46,17 +46,19 @@ async function writeSource() {
   const iconArtifact = generateIconArtifacts({
     packageVersion: '0.1.1', profile: 'free',
     sources: [
-      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
-      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' }
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' },
+      { library: 'mdi', package: '@mdi/svg', version: '7.4.47' }
     ], aliases: { power: 'power-off' }, defaultFamily: 'classic', defaultStyle: 'solid',
     families: [
-      { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
-      { family: 'classic', defaultStyle: 'solid', styles: [
+      { library: 'fontawesome', family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
+      { library: 'fontawesome', family: 'classic', defaultStyle: 'solid', styles: [
         { style: 'regular', icons: [{ iconName: 'fixture-regular', icon: [16, 16, [], 'f002', 'M0'] }] },
         { style: 'solid', icons: [{ iconName: 'power-off', icon: [16, 16, [], 'f003', 'M0'] }] }
-      ] }
+      ] },
+      { library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [{ style: 'default', icons: [] }] }
     ]
   });
   for (const [path, bytes] of iconArtifact.files) {
@@ -66,6 +68,14 @@ async function writeSource() {
 }
 
 async function writeFixtureProject() {
+  const requiredPublicPackages = ['@fortawesome/fontawesome-free', '@fortawesome/free-brands-svg-icons', '@fortawesome/free-regular-svg-icons', '@fortawesome/free-solid-svg-icons', '@mdi/svg'];
+  const fixturePackages = [...requiredPublicPackages, 'jquery'];
+  const fixturePackageMetadata = Object.fromEntries(fixturePackages.map((name) => [`node_modules/${name}`, {
+    version: name === '@mdi/svg' ? '7.4.47' : name.startsWith('@fortawesome/') ? '7.3.1' : '3.7.1',
+    resolved: `https://registry.example.invalid/${name}/-/${name.split('/').at(-1)}.tgz`,
+    integrity: 'sha512-Zml4dHVyZS1wYWNrYWdl',
+    license: name === '@mdi/svg' ? 'Apache-2.0' : 'MIT'
+  }]));
   await mkdir(join(fixtureRoot, 'docs'), { recursive: true });
   await mkdir(join(fixtureRoot, 'security'), { recursive: true });
   await writeFile(join(fixtureRoot, 'package.json'), JSON.stringify({
@@ -73,15 +83,15 @@ async function writeFixtureProject() {
   }, null, 2));
   await writeFile(join(fixtureRoot, '.gitignore'), 'build/\njava/\n');
   await writeFile(join(fixtureRoot, 'LICENSE'), 'license\n');
-  await writeFile(join(fixtureRoot, 'THIRD-PARTY-NOTICES.md'), '# Third-Party Notices\n\n| Package | License |\n| --- | --- |\n| `fixture-package` | MIT |\n');
+  await writeFile(join(fixtureRoot, 'THIRD-PARTY-NOTICES.md'), `# Third-Party Notices\n\n| Package | License |\n| --- | --- |\n${fixturePackages.map((name) => `| \`${name}\` | ${name === '@mdi/svg' ? 'Apache-2.0' : 'MIT'} |`).join('\n')}\n`);
   await writeFile(join(fixtureRoot, 'package-lock.json'), JSON.stringify({
     name: 'nodel-webui-v2', version: '0.1.1', lockfileVersion: 3, requires: true,
     packages: {
-      '': { name: 'nodel-webui-v2', version: '0.1.1', license: 'MPL-2.0', dependencies: { 'fixture-package': '1.0.0' } },
-      'node_modules/fixture-package': { version: '1.0.0', resolved: 'https://registry.example.invalid/fixture-package/-/fixture-package-1.0.0.tgz', integrity: 'sha512-Zml4dHVyZS1wYWNrYWdl', license: 'MIT' }
+      '': { name: 'nodel-webui-v2', version: '0.1.1', license: 'MPL-2.0', dependencies: Object.fromEntries(fixturePackages.map((name) => [name, name === '@mdi/svg' ? '7.4.47' : name.startsWith('@fortawesome/') ? '7.3.1' : '3.7.1'])) },
+      ...fixturePackageMetadata
     }
   }, null, 2) + '\n');
-  await writeFile(join(fixtureRoot, 'security', 'license-policy.json'), '{\n  "schemaVersion": 1,\n  "allowedLicenses": ["MIT"],\n  "noticeRequired": true\n}\n');
+  await writeFile(join(fixtureRoot, 'security', 'license-policy.json'), `${JSON.stringify({ schemaVersion: 1, allowedLicenses: ['Apache-2.0', 'MIT'], requiredPublicPackages, noticeRequired: true }, null, 2)}\n`);
   await writeFile(join(fixtureRoot, 'RELEASE_NOTES.md'), '# Release Notes\n\n## 0.1.1\n\nFixture notes.\n');
   await writeFile(join(fixtureRoot, 'docs', 'release-handoff.md'), 'handoff\n');
   await writeFile(join(fixtureRoot, 'deployment-manifest.json'), await readFile(join(projectRoot, 'deployment-manifest.json'), 'utf8'));
@@ -99,6 +109,32 @@ async function writeDependencyEvidence() {
   await mkdir(join(fixtureRoot, 'build', 'dependency-evidence'), { recursive: true });
   await writeFile(join(fixtureRoot, 'build', 'dependency-evidence', 'SBOM.cdx.json'), evidence.files.sbom);
   await writeFile(join(fixtureRoot, 'build', 'dependency-evidence', 'THIRD-PARTY-LICENSES.json'), evidence.files.licenses);
+}
+
+async function addNestedMdi() {
+  const lockPath = join(fixtureRoot, 'package-lock.json');
+  const lock = JSON.parse(await readFile(lockPath, 'utf8'));
+  lock.packages['node_modules/jquery'].dependencies = { '@mdi/svg': '8.0.0' };
+  lock.packages['node_modules/jquery/node_modules/@mdi/svg'] = { ...lock.packages['node_modules/@mdi/svg'], version: '8.0.0' };
+  await writeFile(lockPath, JSON.stringify(lock));
+  await writeDependencyEvidence();
+}
+
+async function rewritePackagedJson(path: string, value: unknown) {
+  const manifestPath = join(target, 'release.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  await writeFile(join(target, path), bytes);
+  const entry = manifest.files.find((item: { path: string }) => item.path === path);
+  entry.bytes = bytes.length;
+  entry.sha256 = hash;
+  if (path === 'v2/nodel-icons.json') {
+    manifest.iconCatalogue.sha256 = hash;
+    manifest.iconCatalogue.sourceVersions = (value as { sources: unknown }).sources;
+  } else if (path === 'SBOM.cdx.json') manifest.dependencyEvidence.sbom.sha256 = hash;
+  else if (path === 'THIRD-PARTY-LICENSES.json') manifest.dependencyEvidence.licenses.sha256 = hash;
+  await writeFile(manifestPath, JSON.stringify(manifest));
 }
 
 async function writeJavaFixture() {
@@ -209,6 +245,87 @@ describe('prepare-release', () => {
     expect(() => validateTaggedReleaseNotes('0.1.1\n-----\n\n## Unreleased\n', '0.1.1')).toThrow(/convert ## Unreleased/);
   });
 
+  it.each([
+    ['@mdi/svg', '8.0.0'],
+    ['@fortawesome/free-solid-svg-icons', '7.4.0']
+  ])('rejects prepared icon source version drift for %s', async (packageName, version) => {
+    const indexPath = join(source, 'v2', 'nodel-icons.json');
+    const iconIndex = JSON.parse(await readFile(indexPath, 'utf8'));
+    const sourceRecord = iconIndex.sources.find((item: { package: string }) => item.package === packageName);
+    sourceRecord.version = version;
+    await writeFile(indexPath, `${JSON.stringify(iconIndex, null, 2)}\n`);
+    await expect(release()).rejects.toThrow(/Icon source version does not match dependency evidence/);
+  });
+
+  it('rejects standalone icon source mismatches despite a self-consistent index, descriptor, and inventory', async () => {
+    await release();
+    const manifestPath = join(target, 'release.json');
+    const indexPath = join(target, 'v2', 'nodel-icons.json');
+    const originalSources = JSON.parse(await readFile(indexPath, 'utf8')).sources;
+    for (const [packageName, version] of [['@mdi/svg', '8.0.0'], ['@fortawesome/free-solid-svg-icons', '7.4.0']]) {
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+      const iconIndex = JSON.parse(await readFile(indexPath, 'utf8'));
+      iconIndex.sources = originalSources.map((source: { package: string; version: string }) => ({ ...source }));
+      const sourceRecord = iconIndex.sources.find((item: { package: string }) => item.package === packageName);
+      sourceRecord.version = version;
+      const indexBytes = Buffer.from(`${JSON.stringify(iconIndex, null, 2)}\n`);
+      await writeFile(indexPath, indexBytes);
+      const hash = createHash('sha256').update(indexBytes).digest('hex');
+      manifest.iconCatalogue.sourceVersions = iconIndex.sources;
+      manifest.iconCatalogue.sha256 = hash;
+      const inventoryEntry = manifest.files.find((entry: { path: string }) => entry.path === 'v2/nodel-icons.json');
+      inventoryEntry.bytes = indexBytes.length;
+      inventoryEntry.sha256 = hash;
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      await expect(verifyReleaseBundle(target)).rejects.toThrow(/Icon source version does not match dependency evidence/);
+    }
+  });
+
+  it.each(['license name', 'SBOM name', 'both names'])('rejects standalone identity spoofing via %s even with all changed files rehashed', async alteration => {
+    await release();
+    await expect(verifyReleaseBundle(target)).resolves.toMatchObject({ schemaVersion: 6 });
+    const licenses = JSON.parse(await readFile(join(target, 'THIRD-PARTY-LICENSES.json'), 'utf8'));
+    const sbom = JSON.parse(await readFile(join(target, 'SBOM.cdx.json'), 'utf8'));
+    const iconIndex = JSON.parse(await readFile(join(target, 'v2/nodel-icons.json'), 'utf8'));
+    expect(sbom.components.find((item: { name: string }) => item.name === '@mdi/svg').version).toBe('7.4.47');
+    if (alteration !== 'SBOM name') licenses.packages.find((item: { name: string }) => item.name === 'jquery').name = '@mdi/svg';
+    if (alteration !== 'license name') sbom.components.find((item: { name: string }) => item.name === 'jquery').name = '@mdi/svg';
+    iconIndex.sources.find((item: { package: string }) => item.package === '@mdi/svg').version = '3.7.1';
+    await rewritePackagedJson('THIRD-PARTY-LICENSES.json', licenses);
+    await rewritePackagedJson('SBOM.cdx.json', sbom);
+    await rewritePackagedJson('v2/nodel-icons.json', iconIndex);
+    await expect(verifyReleaseBundle(target)).rejects.toThrow(/identity|package sets differ/i);
+  });
+
+  it('fails preparation closed for root and nested source versions when dependency evidence is ambiguous', async () => {
+    await addNestedMdi();
+    const indexPath = join(source, 'v2/nodel-icons.json');
+    const iconIndex = JSON.parse(await readFile(indexPath, 'utf8'));
+    for (const version of ['7.4.47', '8.0.0']) {
+      iconIndex.sources.find((item: { package: string }) => item.package === '@mdi/svg').version = version;
+      await writeFile(indexPath, JSON.stringify(iconIndex));
+      await expect(release()).rejects.toThrow(/ambiguous.*@mdi\/svg/i);
+    }
+  });
+
+  it('fails standalone verification closed for self-consistently rehashed multi-version source evidence', async () => {
+    await release();
+    await addNestedMdi();
+    const evidence = await generateDependencyEvidence({ projectRoot: fixtureRoot });
+    await rewritePackagedJson('SBOM.cdx.json', evidence.sbom);
+    await rewritePackagedJson('THIRD-PARTY-LICENSES.json', evidence.licenses);
+    const manifestPath = join(target, 'release.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest.dependencyEvidence.lockSha256 = evidence.lockHash;
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    const iconIndex = JSON.parse(await readFile(join(target, 'v2/nodel-icons.json'), 'utf8'));
+    for (const version of ['7.4.47', '8.0.0']) {
+      iconIndex.sources.find((item: { package: string }) => item.package === '@mdi/svg').version = version;
+      await rewritePackagedJson('v2/nodel-icons.json', iconIndex);
+      await expect(verifyReleaseBundle(target)).rejects.toThrow(/ambiguous.*@mdi\/svg/i);
+    }
+  });
+
   it('creates a schema 6 bundle with icon and dependency evidence and exact hashes', async () => {
     const derived = await resolveReleaseOptions(await options(), { projectRoot: fixtureRoot });
     expect(derived.sourceDateEpoch).toBe(Number((await git(['show', '-s', '--format=%ct', 'HEAD'])).stdout.trim()));
@@ -231,7 +348,7 @@ describe('prepare-release', () => {
         javaTargets: { dev: 'prerelease', master: 'stable' }
        },
        componentContract: { path: 'v2/nodel-components.json', schemaVersion: 1, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
-       iconCatalogue: { path: 'v2/nodel-icons.json', schemaVersion: 1, profile: 'free', sourceVersions: expect.any(Array), sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+       iconCatalogue: { path: 'v2/nodel-icons.json', schemaVersion: 2, profile: 'free', sourceVersions: expect.any(Array), sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
        dependencyEvidence: {
          lockSha256: expect.stringMatching(/^[0-9a-f]{64}$/), policySha256: expect.stringMatching(/^[0-9a-f]{64}$/), noticeSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
          sbom: { path: 'SBOM.cdx.json', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },

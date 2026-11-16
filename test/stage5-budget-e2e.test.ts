@@ -38,8 +38,8 @@ async function fixture() {
     outputs.push({ path, type: 'chunk', modules: [`${moduleIds[index]}`], imports: [], dynamicImports: [], facadeModuleId: moduleIds[index] });
   }
   await add('v2/codemirror.js', 'base');
-  await add('v2/nodel-icons.json', '{"schemaVersion":1,"profile":"free"}\n');
-  await add('v2/icons/fixture-shard.json', '{"schemaVersion":1,"profile":"free","family":"classic","style":"solid","bucket":0,"records":[]}\n');
+  await add('v2/nodel-icons.json', '{"schemaVersion":2,"profile":"free"}\n');
+  await add('v2/icons/fixture-shard.json', '{"schemaVersion":2,"profile":"free","family":"classic","style":"solid","bucket":0,"records":[]}\n');
   outputs.push({ path: 'v2/codemirror.js', type: 'chunk', modules: ['src/editor/codemirror-editor.ts'], imports: [], dynamicImports: languageEntries.map((entry) => `v2/${entry.role}.js`), facadeModuleId: null });
   for (const output of outputs) output.bytes = (await readFile(join(root, 'dist', String(output.path)))).byteLength;
   const graph = { schemaVersion: 1, outputs };

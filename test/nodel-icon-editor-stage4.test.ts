@@ -1,34 +1,49 @@
 // @vitest-environment jsdom
 
-import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, CompletionContext, completionStatus, currentCompletions, selectedCompletion, setSelectedCompletion, startCompletion, type CompletionResult } from '@codemirror/autocomplete';
 import { htmlLanguage } from '@codemirror/lang-html';
-import { EditorState } from '@codemirror/state';
+import { xmlLanguage } from '@codemirror/lang-xml';
+import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import * as lint from '@codemirror/lint';
 import { vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import type { IconCatalogue, IconIndex } from '../src/icons/catalogue-loader';
+import { validateIconArtifact, validateIconCatalogue } from '../src/icons/icon-artifact';
 
-const index: IconIndex = {
-  profile: 'free', default: { family: 'classic', style: 'solid' }, aliases: { power: 'power-off', warning: 'warning-octagon' },
-  families: [
-    { family: 'classic', defaultStyle: 'solid', styles: [
-      { style: 'solid', sharding: { bucketCount: 1 }, shards: ['v2/icons/a.json'] },
-      { style: 'regular', sharding: { bucketCount: 1 }, shards: ['v2/icons/b.json'] }
-    ] },
-    { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', sharding: { bucketCount: 1 }, shards: ['v2/icons/c.json'] }] }
-  ],
-  cataloguePath: 'v2/icons/catalogue-a.json'
-};
 const catalogue: IconCatalogue = {
-  schemaVersion: 1, profile: 'free', records: [
+  schemaVersion: 2, profile: 'free', records: [
     { name: 'power-off', label: 'Power Off', family: 'classic', style: 'solid', terms: ['power'], aliases: ['power'], officialAliases: ['power-button'] },
     { name: 'warning-octagon', label: 'Warning Octagon', family: 'classic', style: 'solid', terms: ['warning'], aliases: [], officialAliases: ['warning'] },
     { name: 'tv', label: 'TV', family: 'classic', style: 'solid', terms: ['television'], aliases: [], officialAliases: [] },
     { name: '0', label: '0', family: 'classic', style: 'solid', terms: ['nada'], aliases: [], officialAliases: [] },
     { name: 'address-book', label: 'Address Book', family: 'classic', style: 'regular', terms: ['contacts'], aliases: [], officialAliases: ['address-card-old'] },
-    { name: 'github', label: 'GitHub', family: 'brands', style: 'brands', terms: ['repository'], aliases: [], officialAliases: [] }
+    { name: 'github', label: 'GitHub', family: 'brands', style: 'brands', terms: ['repository'], aliases: [], officialAliases: [] },
+    { name: 'lightbulb', label: 'Lightbulb', family: 'mdi', style: 'default', terms: ['bulb', 'home automation', 'idea', 'lighting', 'power'], aliases: [], officialAliases: ['bulb', 'idea', 'power'] },
+    { name: 'power', label: 'Power', family: 'mdi', style: 'default', terms: ['power'], aliases: [], officialAliases: [] }
   ]
+};
+catalogue.records.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+function contentDigest(value: unknown, length: number) { return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length); }
+function fixtureStyle(family: string, style: string) {
+  const records = catalogue.records.filter(record => record.family === family && record.style === style).map(record => ({ name: record.name, width: 16, height: 16, unicode: 'f001', ligatures: [], paths: ['M0'] }));
+  const shard = { schemaVersion: 2, profile: 'free', family, style, bucket: 0, records };
+  return { style, sharding: { algorithm: 'fnv1a-32', bucketCount: 1, maxBytes: 131072 }, shards: [`v2/icons/${family}-${style}-0-${contentDigest(shard, 12)}.json`] };
+}
+const families: IconIndex['families'] = [
+  { library: 'fontawesome', family: 'classic', defaultStyle: 'solid', styles: [fixtureStyle('classic', 'solid'), fixtureStyle('classic', 'regular')] },
+  { library: 'fontawesome', family: 'brands', defaultStyle: 'brands', styles: [fixtureStyle('brands', 'brands')] },
+  { library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [fixtureStyle('mdi', 'default')] }
+];
+const index = {
+  schemaVersion: 2, profile: 'free' as const, packageVersion: '0.1.2',
+  sources: [
+    ...['@fortawesome/fontawesome-free', '@fortawesome/free-brands-svg-icons', '@fortawesome/free-regular-svg-icons', '@fortawesome/free-solid-svg-icons'].map(packageName => ({ library: 'fontawesome', package: packageName, version: '7.3.1' })),
+    { library: 'mdi', package: '@mdi/svg', version: '7.4.47' }
+  ],
+  default: { family: 'classic', style: 'solid' }, aliases: { power: 'power-off', warning: 'warning-octagon' },
+  families, cataloguePath: `v2/icons/catalogue-${contentDigest(catalogue, 16)}.json`
 };
 
 let indexResult: Promise<IconIndex> = Promise.resolve(index);
@@ -43,6 +58,7 @@ vi.mock('@codemirror/lint', async () => {
 });
 
 import { nodelHtmlCompletionSource } from '../src/editor/nodel-html-document-support';
+import { nodelXmlCompletionSource } from '../src/editor/nodel-xml-document-support';
 import { diagnoseNodelIconCatalogue, nodelDocumentDiagnostics } from '../src/editor/nodel-document-diagnostics';
 
 function context(text: string) {
@@ -55,10 +71,34 @@ async function completion(text: string): Promise<CompletionResult | null> {
   return result instanceof Promise ? await result : result;
 }
 
+async function xmlCompletion(text: string): Promise<CompletionResult | null> {
+  const state = EditorState.create({ doc: text, extensions: [xmlLanguage] });
+  const result = nodelXmlCompletionSource(new CompletionContext(state, text.length, true)) as CompletionResult | Promise<CompletionResult | null> | null;
+  return result instanceof Promise ? await result : result;
+}
+
+function validCompletionValue(result: CompletionResult | null, text: string) {
+  const validFor = result?.validFor;
+  if (validFor instanceof RegExp) return validFor.test(text);
+  return validFor?.(text, 0, text.length, EditorState.create({ doc: text, extensions: [htmlLanguage] })) ?? false;
+}
+
+async function waitForEditorOptions(view: EditorView, predicate: (options: ReturnType<typeof currentCompletions>) => boolean) {
+  await vi.waitFor(() => {
+    const options = currentCompletions(view.state);
+    expect(predicate(options), `Current icon completion labels: ${options.slice(0, 10).map(option => option.label).join(', ')}`).toBe(true);
+  }, { interval: 5, timeout: 1_000 });
+}
+
 describe('profile-aware icon editor support', () => {
   beforeEach(() => {
     indexResult = Promise.resolve(index);
     catalogueResult = Promise.resolve(catalogue);
+  });
+
+  it('uses a complete schema-valid Free index and catalogue fixture', () => {
+    expect(() => validateIconArtifact(index, 'free')).not.toThrow();
+    expect(() => validateIconCatalogue(catalogue, 'free', index)).not.toThrow();
   });
 
   it('matches query prefixes, terms, aliases and official aliases, ranks, caps, and preserves ranges', async () => {
@@ -77,10 +117,115 @@ describe('profile-aware icon editor support', () => {
   it('filters family and style by the current icon and merges native options without duplicates', async () => {
     const family = await completion('<nodel-icon name="address-book" family="');
     expect(family?.options.map(option => option.label)).toEqual(['classic']);
+    const publicFamilies = await completion('<nodel-icon family="');
+    expect(publicFamilies?.options.map(option => option.label)).not.toContain('mdi');
     const style = await completion('<nodel-icon name="address-book" family="classic" style="');
     expect(style?.options.map(option => option.label)).toEqual(['regular']);
     const ordinary = await completion('<nodel-icon name="');
     expect(new Set(ordinary?.options.map(option => option.label)).size).toBe(ordinary?.options.length);
+  });
+
+  it('offers MDI only for mdi: queries, emits canonical names, and keeps same-name libraries distinct', async () => {
+    const prefixed = await completion('<nodel-icon name="mdi:bul');
+    expect(prefixed?.options.map(option => option.label)).toContain('mdi:lightbulb');
+    expect(prefixed?.options.every(option => String(option.label).startsWith('mdi:'))).toBe(true);
+    expect(prefixed?.options.find(option => option.label === 'mdi:lightbulb')?.apply).toBe('mdi:lightbulb');
+    const unprefixed = await completion('<nodel-icon name="power');
+    expect(unprefixed?.options.map(option => option.label)).toContain('power');
+    expect(unprefixed?.options.map(option => option.label)).toContain('mdi:power');
+    expect(unprefixed?.options.find(option => option.label === 'mdi:power')?.apply).toBe('mdi:power');
+    expect(validCompletionValue(prefixed, 'mdi:bul')).toBe(true);
+    const prefixOnly = await completion('<nodel-icon name="mdi:');
+    expect(validCompletionValue(prefixOnly, 'mdi:')).toBe(true);
+  });
+
+  it('accepts colon completion ranges in HTML and XML authoring contexts', async () => {
+    const html = await completion('<nodel-icon name="mdi:light');
+    const xml = await xmlCompletion('<nodel-icon name="mdi:light');
+    expect(html?.options.map(option => option.label)).toContain('mdi:lightbulb');
+    expect(xml?.options.map(option => option.label)).toContain('mdi:lightbulb');
+    expect(xml?.from).toBe('<nodel-icon name="'.length);
+    expect(validCompletionValue(xml, 'mdi:light')).toBe(true);
+  });
+
+  it.each([
+    ['HTML', htmlLanguage, nodelHtmlCompletionSource],
+    ['XML', xmlLanguage, nodelXmlCompletionSource]
+  ] as const)('reruns asynchronous %s completions after typing into an MDI prefix', async (_label, language, source) => {
+    const host = document.createElement('div');
+    const initial = '<nodel-icon name="mdi:">';
+    const observedSource = vi.fn(source);
+    const view = new EditorView({
+      parent: host,
+      state: EditorState.create({ doc: initial, selection: EditorSelection.cursor(initial.indexOf('">')), extensions: [language, autocompletion({ override: [observedSource] })] })
+    });
+    try {
+      ensureSyntaxTree(view.state, view.state.doc.length, 10_000);
+      const directResult = await Promise.resolve(source(new CompletionContext(view.state, view.state.selection.main.head, true))) as CompletionResult | null;
+      expect(directResult?.options.map(option => option.label)).toContain('mdi:power');
+      expect(startCompletion(view)).toBe(true);
+      await waitForEditorOptions(view, options => options.some(option => option.label === 'mdi:power'));
+      expect(currentCompletions(view.state).some(option => option.label === 'mdi:lightbulb')).toBe(true);
+      const start = view.state.selection.main.head;
+      view.dispatch({ changes: { from: start, insert: 'lig' }, selection: EditorSelection.cursor(start + 3), annotations: Transaction.userEvent.of('input.type') });
+      await vi.waitFor(() => expect(observedSource.mock.calls.length).toBeGreaterThan(1), { interval: 5, timeout: 1_000 });
+      await waitForEditorOptions(view, options => options.some(option => option.label === 'mdi:lightbulb') && !options.some(option => option.label === 'mdi:power'));
+      expect(currentCompletions(view.state).map(option => option.label)).toContain('mdi:lightbulb');
+    } finally {
+      view.destroy();
+    }
+  });
+
+  describe.each([
+    ['HTML', htmlLanguage, nodelHtmlCompletionSource],
+    ['XML', xmlLanguage, nodelXmlCompletionSource]
+  ] as const)('bounds accepted icon scalar replacements in %s', (_label, language, source) => {
+    it.each([
+      ['closed double quote with adjacent attributes', '<nodel-icon name="mdi:bul|b" alt="Lighting"></nodel-icon>'],
+      ['closed single quote with adjacent attributes', "<nodel-icon name='mdi:bul|b' alt='Lighting'></nodel-icon>"],
+      ['closed multiline double quote', '<nodel-icon name="mdi:bul|\nb" alt="Lighting"></nodel-icon>'],
+      ['closed multiline single quote', "<nodel-icon name='mdi:bul|\nb' alt='Lighting'></nodel-icon>"],
+      ['missing double quote at EOF', '<nodel-icon name="mdi:bul|'],
+      ['missing single quote at EOF', "<nodel-icon name='mdi:bul|"],
+      ['missing quote before document closing tags', '<nodel-app><nodel-page><nodel-icon name="mdi:bul|\n</nodel-page>\n</nodel-app>'],
+      ['later double quote on another element', '<nodel-icon name="mdi:bul|\n</nodel-page><nodel-page title="Next"></nodel-page></nodel-app>'],
+      ['later single quote on another element', "<nodel-icon name='mdi:bul|\n</nodel-page><nodel-page title='Next'></nodel-page></nodel-app>"],
+      ['missing quote before an adjacent attribute', '<nodel-icon name="mdi:bul| alt="Lighting"></nodel-icon>'],
+      ['uncertain unclosed scalar suffix', '<nodel-icon name="mdi:bul|b\n</nodel-page>\n</nodel-app>']
+    ])('preserves the document suffix for %s', async (_case, marked) => {
+      const host = document.createElement('div');
+      const cursor = marked.indexOf('|');
+      const initial = marked.replace('|', '');
+      const expected = marked.replace(/mdi:bul\|(?:\n?b(?=["']))?/, 'mdi:lightbulb');
+      const view = new EditorView({
+        parent: host,
+        state: EditorState.create({ doc: initial, selection: EditorSelection.cursor(cursor), extensions: [language, autocompletion({ override: [source], interactionDelay: 0 })] })
+      });
+      try {
+        ensureSyntaxTree(view.state, view.state.doc.length, 10_000);
+        expect(startCompletion(view)).toBe(true);
+        await waitForEditorOptions(view, options => options.some(option => option.label === 'mdi:lightbulb'));
+        expect(currentCompletions(view.state)[0]?.label).toBe('mdi:lightbulb');
+        expect(completionStatus(view.state)).toBe('active');
+        view.dispatch({ effects: setSelectedCompletion(0) });
+        expect(selectedCompletion(view.state)?.label).toBe('mdi:lightbulb');
+        expect(acceptCompletion(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(expected);
+      } finally {
+        view.destroy();
+      }
+    });
+  });
+
+  it('keeps enlarged mixed-library suggestions unique and bounded at 200 results', async () => {
+    const records: IconCatalogue['records'] = Array.from({ length: 250 }, (_, number) => {
+      const name = `mdi-test-${String(number).padStart(3, '0')}`;
+      return { name, label: name, family: 'mdi', style: 'default', terms: ['mdi search'], aliases: [], officialAliases: [] };
+    });
+    catalogueResult = Promise.resolve({ schemaVersion: 2, profile: 'free', records });
+    const result = await completion('<nodel-icon name="mdi:mdi-test-');
+    expect(result?.options).toHaveLength(200);
+    expect(new Set(result?.options.map(option => option.label)).size).toBe(200);
   });
 
   it('keeps native completion available when the catalogue fails and does not load it for unrelated values', async () => {
@@ -122,6 +267,37 @@ describe('profile-aware icon editor support', () => {
     ensureSyntaxTree(state, state.doc.length, 10_000);
     const diagnostics = diagnoseNodelIconCatalogue(state, catalogue, undefined, index);
     expect(diagnostics.filter(item => item.message.includes('unavailable')).length).toBe(2);
+  });
+
+  it('applies runtime namespace precedence and diagnoses MDI aliases and unknown namespaces', () => {
+    const source = '<nodel-icon name="mdi:power" family="bad" style="wrong" /><nodel-icon name="mdi:bulb" /><nodel-icon name="fa:power" /><nodel-icon name="mdi:missing" /><nodel-icon name="mdi:power" family="bad" signal="IconName" /><nodel-icon name="lightbulb" family="mdi" />';
+    const state = EditorState.create({ doc: source, extensions: [htmlLanguage] });
+    ensureSyntaxTree(state, state.doc.length, 10_000);
+    const diagnostics = diagnoseNodelIconCatalogue(state, catalogue, undefined, index);
+    expect(diagnostics.map(item => item.message)).toEqual(expect.arrayContaining([
+      expect.stringContaining('ignored for an mdi:'),
+      expect.stringContaining('MDI alias is search-only; use mdi:lightbulb'),
+      expect.stringContaining('Unknown icon namespace'),
+      expect.stringContaining('Unknown or excluded MDI icon')
+    ]));
+    const familyErrors = diagnostics.filter(item => item.message.includes('Icon family is unavailable'));
+    expect(familyErrors).toHaveLength(1);
+    expect(source.slice(familyErrors[0]!.from, familyErrors[0]!.to)).toContain('family="mdi"');
+    expect(diagnostics.filter(item => item.message.includes('ignored for an mdi:'))).toHaveLength(1);
+    expect(diagnostics.some(item => item.message.includes('MDI alias is search-only; use mdi:power'))).toBe(false);
+  });
+
+  it('recognizes signal-bound dynamic name and family values without redundant-static warnings', () => {
+    const source = '<nodel-icon name="mdi:power" family="classic" signals="SelectedIcon; IconFamily:family" /><nodel-icon name="mdi:power" family="classic" signals="SelectedIcon:name(last)" /><nodel-icon name="mdi:power" family="classic" signal="SelectedIcon:label" />';
+    const state = EditorState.create({ doc: source, extensions: [htmlLanguage] });
+    ensureSyntaxTree(state, state.doc.length, 10_000);
+    const diagnostics = diagnoseNodelIconCatalogue(state, catalogue, undefined, index);
+    expect(diagnostics.filter(item => item.message.includes('ignored for an mdi:'))).toHaveLength(1);
+    const padded = '<nodel-icon name=" power " family=" classic " style=" solid " /><nodel-icon name="power" family="" style="" />';
+    const paddedState = EditorState.create({ doc: padded, extensions: [htmlLanguage] });
+    ensureSyntaxTree(paddedState, paddedState.doc.length, 10_000);
+    const paddedDiagnostics = diagnoseNodelIconCatalogue(paddedState, catalogue, undefined, index);
+    expect(paddedDiagnostics).toEqual([]);
   });
 
   it('force-lints once for a connected valid catalogue and ignores failure or disconnection', async () => {

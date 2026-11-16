@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import packageMetadata from '../package.json' with { type: 'json' };
 import { generateIconArtifacts, isExactSemVer, normalizeIconRecord, semVerMajor, validateIconArtifact } from './icon-artifact.mjs';
 import { enrichFontAwesomeIcons, loadPinnedFreeFontAwesomeMetadata, parseFontAwesomeMetadataYaml } from './fontawesome-metadata.mjs';
+import { loadPinnedMdiMetadata } from './mdi-metadata.mjs';
 import { verifyReleaseGate as verifyReleaseGateApi } from './verify-release-gate.mjs';
 import { assertNoSymlinkAncestors, isInside, projectRoot } from './deployment-contract.mjs';
 
@@ -292,7 +293,7 @@ function mergeFamilyStyles(proFamilies, freeBrands) {
     family.styles.push({ style: entry.style, icons: entry.icons });
     families.set(entry.family, family);
   }
-  return [...families.values()];
+  return [...families.values()].map(family => ({ library: 'fontawesome', ...family }));
 }
 
 export async function adaptProIconSource({ sourceRoot, publicVersion, freeBrands } = {}) {
@@ -310,16 +311,20 @@ export async function adaptProIconSource({ sourceRoot, publicVersion, freeBrands
   return {
     packageVersion: packageMetadata.version,
     profile: 'pro-local',
-    sources: [{ package: metadataSource.package, version: metadataSource.version }, { package: proPackageName, version: source.version }, { package: freeBrandsPackageName, version: brands.version }],
+    sources: [{ library: 'fontawesome', package: metadataSource.package, version: metadataSource.version }, { library: 'fontawesome', package: proPackageName, version: source.version }, { library: 'fontawesome', package: freeBrandsPackageName, version: brands.version }],
     aliases: iconAliases,
     families
   };
 }
 
-export async function generateProIconAssets({ sourceRoot, publicVersion, outputRoot = proAssetRoot, freeBrands } = {}) {
+export async function generateProIconAssets({ sourceRoot, publicVersion, outputRoot = proAssetRoot, freeBrands, mdiSource } = {}) {
   const adapter = await adaptProIconSource({ sourceRoot, publicVersion, freeBrands });
-  const availableNames = new Set(adapter.families.flatMap(family => family.styles.flatMap(style => style.icons.map(icon => icon.iconName))));
+  const mdi = mdiSource ?? await loadPinnedMdiMetadata({ root: projectRoot });
+  adapter.sources.push({ library: 'mdi', ...mdi.source });
+  adapter.families.push({ library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [{ style: 'default', icons: mdi.records }] });
+  const availableNames = new Set(adapter.families.filter(family => family.family === 'classic').flatMap(family => family.styles.filter(style => style.style === 'solid').flatMap(style => style.icons.map(icon => icon.iconName))));
   const artifact = generateIconArtifacts({ ...adapter, aliases: Object.fromEntries(Object.entries(adapter.aliases).filter(([, canonical]) => availableNames.has(canonical))) });
+  artifact.report.mdi = mdi.report;
   validateIconArtifact(artifact.index, { expectedProfile: 'pro-local' });
   const output = resolve(outputRoot);
   if (!isInside(resolve(projectRoot, 'build'), output)) throw new Error('Pro icon assets must be generated below the ignored build directory');

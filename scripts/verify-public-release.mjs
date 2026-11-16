@@ -62,7 +62,6 @@ export async function verifyPublicRelease({ projectRoot = process.cwd(), distRoo
   const files = new Map([['v2/nodel-icons.json', indexBytes]]);
   for (const path of actualIconFiles) files.set(path, await readFile(resolve(distRoot, path)));
   const packageMetadata = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8'));
-  validateIconArtifactFiles(indexBytes, files, { expectedProfile: 'free', expectedPackageVersion: packageMetadata.version });
   const declared = new Set(validateIconArtifactFiles(indexBytes, files, { expectedProfile: 'free', expectedPackageVersion: packageMetadata.version }).paths);
   if (actualIconFiles.some(path => !declared.has(path))) throw new Error('Public dist contains an undeclared icon artifact');
   return { profile: 'free', privateNames: [], iconFiles: files.size };
