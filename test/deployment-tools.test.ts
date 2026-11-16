@@ -53,17 +53,19 @@ async function writeSource(root = source) {
   const icons = generateIconArtifacts({
     packageVersion: packageMetadata.version, profile: 'free',
     sources: [
-      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
-      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' }
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-regular-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-solid-svg-icons', version: '7.3.1' },
+      { library: 'mdi', package: '@mdi/svg', version: '7.4.47' }
     ], aliases: { power: 'power-off' },
     families: [
-      { family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
-      { family: 'classic', defaultStyle: 'solid', styles: [
+      { library: 'fontawesome', family: 'brands', defaultStyle: 'brands', styles: [{ style: 'brands', icons: [{ iconName: 'fixture-brand', icon: [16, 16, [], 'f001', 'M0'] }] }] },
+      { library: 'fontawesome', family: 'classic', defaultStyle: 'solid', styles: [
         { style: 'regular', icons: [{ iconName: 'fixture-regular', icon: [16, 16, [], 'f002', 'M0'] }] },
         { style: 'solid', icons: [{ iconName: 'power-off', icon: [16, 16, [], 'f003', 'M0'] }] }
-      ] }
+      ] },
+      { library: 'mdi', family: 'mdi', defaultStyle: 'default', styles: [{ style: 'default', icons: [] }] }
     ]
   });
   for (const [path, bytes] of icons.files) { await mkdir(dirname(join(root, path)), { recursive: true }); await writeFile(join(root, path), bytes); }

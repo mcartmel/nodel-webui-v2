@@ -4,7 +4,9 @@ import { ViewPlugin, type EditorView } from '@codemirror/view';
 import type { EditorState, Extension } from '@codemirror/state';
 import type { SyntaxNode } from '@lezer/common';
 import { componentContractCommonAttributes, findComponentContract } from '../component-contract';
-import { loadIconCatalogue, loadIconIndex, type IconCatalogue, type IconIndex } from '../icons/catalogue-loader';
+import type { IconCatalogue, IconIndex } from '../icons/catalogue-loader';
+import { formatIconReference, parseIconReference } from '../icons/icon-reference';
+import { parseSignalBindings } from '../data/signal-bindings';
 import { isStrictActionBindingList } from '../utils/action-binding-validation';
 import { safeImageSrc } from '../utils/urls';
 import { normalizeBackgroundColor, normalizeBackgroundNumber, normalizeBackgroundPosition } from '../backgrounds/contract';
@@ -123,11 +125,16 @@ function diagnosePageSizing(item: { node: SyntaxNode; name: string; attrs: Synta
 export function diagnoseNodelIconCatalogue(state: EditorState, catalogue: IconCatalogue, tree = syntaxTree(state), index?: IconIndex): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const records = catalogue.records;
-  const families = new Set(records.map(record => record.family));
   const styles = new Map<string, Set<string>>();
   for (const record of records) styles.set(record.family, (styles.get(record.family) ?? new Set()).add(record.style));
-  const aliases = new Set([...records.flatMap(record => record.aliases), ...Object.keys(index?.aliases ?? {})]);
-  const officialAliases = new Map(records.flatMap(record => record.officialAliases.map(alias => [alias, record.name] as const)));
+  const mdiFamilies = new Set(index?.families.filter(family => family.library === 'mdi').map(family => family.family) ?? []);
+  const families = new Set(index?.families.filter(family => family.library === 'fontawesome').map(family => family.family) ?? records.filter(record => !mdiFamilies.has(record.family)).map(record => record.family));
+  const mdiRecords = records.filter(record => mdiFamilies.has(record.family));
+  const fontAwesomeRecords = records.filter(record => !mdiFamilies.has(record.family));
+  const aliases = new Set([...fontAwesomeRecords.flatMap(record => record.aliases), ...Object.keys(index?.aliases ?? {})]);
+  const officialAliases = new Map(fontAwesomeRecords.flatMap(record => record.officialAliases.map(alias => [alias, record.name] as const)));
+  const mdiNames = new Set(mdiRecords.map(record => record.name));
+  const mdiAliases = new Map(mdiRecords.flatMap(record => record.officialAliases.map(alias => [alias, record.name] as const)));
   tree.iterate({ enter(cursor) {
     if (cursor.name !== 'Element') return;
     const tag = child(cursor.node, 'OpenTag') ?? child(cursor.node, 'SelfClosingTag');
@@ -138,25 +145,56 @@ export function diagnoseNodelIconCatalogue(state: EditorState, catalogue: IconCa
     const nameAttr = values.get('name');
     const familyAttr = values.get('family');
     const styleAttr = values.get('style');
-    const name = nameAttr ? attrValue(nameAttr, state) : '';
-    const family = familyAttr ? attrValue(familyAttr, state) : undefined;
-    const style = styleAttr ? attrValue(styleAttr, state) : undefined;
+    const name = nameAttr ? attrValue(nameAttr, state).trim() : '';
+    const family = familyAttr ? attrValue(familyAttr, state).trim() || undefined : undefined;
+    const style = styleAttr ? attrValue(styleAttr, state).trim() || undefined : undefined;
+    const signalsAttr = values.get('signals');
+    const signals = signalsAttr ? attrValue(signalsAttr, state) : '';
     if (isPlaceholder(name) || (family !== undefined && isPlaceholder(family)) || (style !== undefined && isPlaceholder(style))) return;
-    if (family !== undefined && !families.has(family)) add(diagnostics, 'error', familyAttr!.from, familyAttr!.to, 'Icon family is unavailable in the installed catalogue.');
-    if (style !== undefined && family !== undefined && families.has(family) && !styles.get(family)?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for this icon family.');
-    if (style !== undefined && family === undefined && !styles.get(index?.default.family ?? '')?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for the default icon family.');
+    const reference = parseIconReference(name);
+    const signalAttr = values.get('signal');
+    const signal = signalAttr ? attrValue(signalAttr, state) : '';
+    const bindings = parseSignalBindings(signal || null, signals || null, 'name');
+    const dynamicName = bindings.some(binding => binding.target === 'name');
+    const dynamicSelection = dynamicName || bindings.some(binding => binding.target === 'family' || binding.target === 'style');
+    const mdi = reference.library === 'mdi' && reference.prefixed;
+    if (!mdi && family !== undefined && !families.has(family)) add(diagnostics, 'error', familyAttr!.from, familyAttr!.to, 'Icon family is unavailable in the installed catalogue.');
+    if (!mdi && style !== undefined && family !== undefined && families.has(family) && !styles.get(family)?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for this icon family.');
+    if (!mdi && style !== undefined && family === undefined && !styles.get(index?.default.family ?? '')?.has(style)) add(diagnostics, 'error', styleAttr!.from, styleAttr!.to, 'Icon style is unavailable for the default icon family.');
     if (!name || !nameAttr) return;
-    const knownName = aliases.has(name) || records.some(record => record.name === name);
+    if (name.includes(':') && !reference.prefixed) {
+      add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Unknown icon namespace. Only the mdi: namespace is supported.');
+      return;
+    }
+    if (!reference.valid) {
+      add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Icon name or namespace is malformed. Use a canonical name or mdi:canonical-name.');
+      return;
+    }
+    if (mdi) {
+      if ((familyAttr || styleAttr) && !dynamicSelection) {
+        const ignored = [familyAttr && 'family', styleAttr && 'style'].filter(Boolean).join(' and ');
+        const attributes = [familyAttr, styleAttr].filter((attr): attr is SyntaxNode => Boolean(attr));
+        add(diagnostics, 'warning', Math.min(...attributes.map(attr => attr.from)), Math.max(...attributes.map(attr => attr.to)), `Explicit ${ignored} ${ignored === 'family' ? 'is' : 'are'} ignored for an mdi: icon name.`);
+      }
+      if (mdiNames.has(reference.name)) return;
+      if (mdiAliases.has(reference.name)) {
+        add(diagnostics, 'error', nameAttr.from, nameAttr.to, `MDI alias is search-only; use ${formatIconReference('mdi', mdiAliases.get(reference.name)!)}.`);
+        return;
+      }
+      if (!mdiNames.has(reference.name)) add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Unknown or excluded MDI icon in the installed catalogue.');
+      return;
+    }
+    const knownName = aliases.has(name) || fontAwesomeRecords.some(record => record.name === name);
     if (officialAliases.has(name) && !knownName) {
       add(diagnostics, 'error', nameAttr.from, nameAttr.to, `Official Font Awesome alias is not an authored icon name; use ${officialAliases.get(name)}.`);
       return;
     }
     if (!knownName) add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Unknown Nodel icon name in the installed catalogue.');
-    const canonical = index?.aliases[name] ?? records.find(record => record.name === name)?.name ?? records.find(record => record.aliases.includes(name))?.name ?? name;
-    const canonicalFamily = family ?? index?.default.family ?? records.find(record => record.name === canonical)?.family;
+    const canonical = index?.aliases[name] ?? fontAwesomeRecords.find(record => record.name === name)?.name ?? fontAwesomeRecords.find(record => record.aliases.includes(name))?.name ?? name;
+    const canonicalFamily = family ?? index?.default.family ?? fontAwesomeRecords.find(record => record.name === canonical)?.family;
     const effectiveStyle = style ?? (index?.families.find(item => item.family === canonicalFamily)?.defaultStyle);
     if (knownName && (family === undefined || families.has(family)) && (effectiveStyle === undefined || (canonicalFamily !== undefined && styles.get(canonicalFamily)?.has(effectiveStyle)))) {
-      const available = records.some(record => record.name === canonical && (!family || record.family === family) && (!effectiveStyle || record.style === effectiveStyle));
+      const available = fontAwesomeRecords.some(record => record.name === canonical && (!family || record.family === family) && (!effectiveStyle || record.style === effectiveStyle));
       if (!available) add(diagnostics, 'error', nameAttr.from, nameAttr.to, 'Icon is unavailable for the selected family/style combination.');
     }
   }});
@@ -379,7 +417,9 @@ export function nodelDocumentDiagnostics(options: NodelDocumentDiagnosticsOption
     options.onDiagnostics?.(summary);
     return diagnostics;
   };
-  const load = Promise.all([loadIconIndex(), loadIconCatalogue()]).then(([loadedIndex, value]) => { index = loadedIndex; catalogue = value; }).catch(() => undefined);
+  const load = import('../icons/catalogue-loader').then(({ loadIconCatalogue, loadIconIndex }) =>
+    Promise.all([loadIconIndex(), loadIconCatalogue()])
+  ).then(([loadedIndex, value]) => { index = loadedIndex; catalogue = value; }).catch(() => undefined);
   return [linter(source, { delay: 350 }), ViewPlugin.fromClass(class {
     constructor(private view: EditorView) { void load.then(() => { if (catalogue && this.view.dom.isConnected && (!options.isCurrent || options.isCurrent())) forceLinting(this.view); }); }
   })];

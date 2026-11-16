@@ -3,11 +3,10 @@ import type { Plugin, UserConfig } from 'vite';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import packageMetadata from './package.json';
 import { serializeComponentContract } from './src/component-contract/serialize';
 import { bundleGraphPlugin } from './scripts/bundle-graph.mjs';
-import { validateIconArtifact, validateIconCatalogue, validateIconShard } from './scripts/icon-artifact.mjs';
+import { maxIconIndexBytes, validateIconArtifact, validateIconArtifactFiles } from './scripts/icon-artifact.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const componentContractPath = '/v2/nodel-components.json';
@@ -16,28 +15,23 @@ function iconAssetsPlugin({ iconProfile, iconAssetRoot, proLocalBuild }: { iconP
   const indexPath = resolve(iconAssetRoot, 'v2/nodel-icons.json');
   if (!existsSync(indexPath)) throw new Error(`${iconProfile} icon assets are missing. Run the matching icon generation command before invoking Vite.`);
   let index: Record<string, unknown>;
-  try { index = JSON.parse(readFileSync(indexPath, 'utf8')) as Record<string, unknown>; validateIconArtifact(index, { expectedProfile: iconProfile }); } catch (error) { throw new Error(`${iconProfile} icon assets are invalid: ${error instanceof Error ? error.message : String(error)}`); }
+  try {
+    const bytes = readFileSync(indexPath);
+    if (bytes.length > maxIconIndexBytes) throw new Error('Icon artifact index exceeds its byte limit');
+    index = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+    validateIconArtifact(index, { expectedProfile: iconProfile });
+  } catch (error) { throw new Error(`${iconProfile} icon assets are invalid: ${error instanceof Error ? error.message : String(error)}`); }
   const declared = new Set<string>(['v2/nodel-icons.json', String(index.cataloguePath)]);
-  const shardMetadata = new Map<string, { family: string; style: string; bucket: number }>();
-  for (const family of index.families as Array<{ family: string; styles: Array<{ style: string; shards: string[] }> }>) for (const style of family.styles) for (const [bucket, path] of style.shards.entries()) { declared.add(path); shardMetadata.set(path, { family: family.family, style: style.style, bucket }); }
+  for (const family of index.families as Array<{ styles: Array<{ shards: string[] }> }>) for (const style of family.styles) for (const path of style.shards) declared.add(path);
   const sources = new Map<string, string>();
   for (const path of declared) {
     const sourcePath = resolve(iconAssetRoot, path);
     if (!existsSync(sourcePath)) throw new Error(`${iconProfile} icon asset is declared but missing: ${path}`);
-    const source = readFileSync(sourcePath, 'utf8');
-    try {
-      const artifact = JSON.parse(source) as Record<string, unknown>;
-      if (path === String(index.cataloguePath)) validateIconCatalogue(artifact, { expectedProfile: iconProfile, index });
-      else if (path !== 'v2/nodel-icons.json') {
-        const metadata = shardMetadata.get(path);
-        if (!metadata) throw new Error(`Unrecognized icon shard path: ${path}`);
-        validateIconShard(artifact, { profile: iconProfile, ...metadata });
-      }
-      const expectedDigest = path === String(index.cataloguePath) ? path.match(/catalogue-([0-9a-f]{16})\.json$/)?.[1] : path.match(/-([0-9a-f]{12})\.json$/)?.[1];
-      if (expectedDigest && !createHash('sha256').update(source).digest('hex').startsWith(expectedDigest)) throw new Error(`Content hash does not match generated path: ${path}`);
-    } catch (error) { throw new Error(`${iconProfile} icon asset is invalid: ${path}: ${error instanceof Error ? error.message : String(error)}`); }
-    sources.set(path, source);
+    sources.set(path, readFileSync(sourcePath, 'utf8'));
   }
+  try {
+    validateIconArtifactFiles(Buffer.from(sources.get('v2/nodel-icons.json')!), new Map([...sources].map(([path, source]) => [path, Buffer.from(source)])), { expectedProfile: iconProfile, expectedPackageVersion: packageMetadata.version });
+  } catch (error) { throw new Error(`${iconProfile} icon assets are invalid: ${error instanceof Error ? error.message : String(error)}`); }
   return {
     name: 'nodel-icon-assets',
     configResolved(config) {

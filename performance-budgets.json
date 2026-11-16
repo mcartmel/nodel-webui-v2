@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "APPROVED_BINDINGS_UI_CSS_2026-09-28",
-  "rationale": "Reviewed bindings UI refinements set only stable-css gzip baseline to 23434 bytes and maximum to 23903 bytes, with two percent headroom. The stable-css raw baseline and maximum, and all other metrics and budgets, remain unchanged.",
+  "releaseNotesMarker": "APPROVED_MDI_OFFLINE_ASSETS_2026-11-16",
+  "rationale": "Measured MDI non-brand assets update only free-icon-artifact to 8615311 raw / 1950455 gzip bytes with five percent headroom, and dist-v2-inventory to 11348518 raw / 2738723 gzip bytes with two percent rounded headroom. All initial JavaScript, CSS, editor, and other metric baselines and limits remain unchanged.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -33,7 +33,7 @@
     "codemirror-language-sql": { "rawBaseline": 40595, "rawMax": 42625, "gzipBaseline": 14926, "gzipMax": 15673 },
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
     "components-html": { "rawBaseline": 175483, "rawMax": 184258, "gzipBaseline": 20145, "gzipMax": 21153 },
-    "free-icon-artifact": { "rawBaseline": 2758285, "rawMax": 2896200, "gzipBaseline": 666125, "gzipMax": 699432 },
-    "dist-v2-inventory": { "rawBaseline": 5448589, "rawMax": 5560000, "gzipBaseline": 1442562, "gzipMax": 1475000 }
+    "free-icon-artifact": { "rawBaseline": 8615311, "rawMax": 9046077, "gzipBaseline": 1950455, "gzipMax": 2047978 },
+    "dist-v2-inventory": { "rawBaseline": 11348518, "rawMax": 11580000, "gzipBaseline": 2738723, "gzipMax": 2795000 }
   }
 }

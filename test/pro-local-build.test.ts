@@ -5,7 +5,10 @@ import { createHash } from 'node:crypto';
 import { access, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 // @ts-expect-error Pro-local tooling intentionally remains Node ESM.
-import { adaptProIconSource, bootstrapProPackage, parseProBuildArgs, redactProError, runProBuild, sanitizeProChildEnvironment } from '../scripts/pro-local-build.mjs';
+import { adaptProIconSource, bootstrapProPackage, generateProIconAssets, parseProBuildArgs, redactProError, runProBuild, sanitizeProChildEnvironment } from '../scripts/pro-local-build.mjs';
+import { normalizeMdiMetadata } from '../scripts/mdi-metadata.mjs';
+import { generateIconArtifacts } from '../scripts/icon-artifact.mjs';
+import freeIconFixture from './fixtures/icon-free-adapter.json';
 // @ts-expect-error Deployment scripts are intentionally plain Node ESM.
 import { createDeploymentInventory, loadDeploymentManifest } from '../scripts/deployment-contract.mjs';
 import packageMetadata from '../package.json';
@@ -102,6 +105,28 @@ describe('Pro-local icon adapter', () => {
     await rm(fixtureRoot, { recursive: true, force: true });
   });
 
+  it('uses the shared MDI adapter and persists counts/exclusions in isolated Pro output', async () => {
+    const sourceRoot = join(fixtureRoot, 'mdi-pro');
+    await writeProFixture(sourceRoot);
+    const mdiSource = await normalizeMdiMetadata({
+      metadata: [
+        { name: 'lightbulb', codepoint: 'F0335', aliases: ['bulb'], tags: ['Home Automation'] },
+        { name: 'private-logo', codepoint: 'F0336', aliases: ['logo-alias'], tags: ['Brand / Logo'] }
+      ],
+      readSvg: async () => '<svg xmlns="http://www.w3.org/2000/svg" id="mdi-lightbulb" viewBox="0 0 24 24"><path d="M0 0Z" /></svg>'
+    });
+    const outputRoot = join(fixtureRoot, 'generated-pro');
+    const pro = await generateProIconAssets({ sourceRoot, publicVersion: '7.3.1', outputRoot, freeBrands: { version: '7.3.1', icons: [] }, mdiSource });
+    const free = generateIconArtifacts({ ...freeIconFixture, families: freeIconFixture.families.map(family => family.library === 'mdi' ? { ...family, styles: [{ style: 'default', icons: mdiSource.records }] } : family) });
+    const glyphs = (artifact: ReturnType<typeof generateIconArtifacts>) => [...artifact.files].filter(([path]) => path.includes('/mdi-default-')).flatMap(([, bytes]) => (JSON.parse(bytes.toString()) as { records: unknown[] }).records);
+    expect(glyphs(pro)).toEqual(glyphs(free));
+    expect(glyphs(pro)).toEqual([expect.objectContaining({ name: 'lightbulb', unicode: 'f0335' })]);
+    expect(pro.index.default).toEqual({ family: 'classic', style: 'solid' });
+    expect(pro.index.aliases).toMatchObject({ power: 'power-off' });
+    expect(JSON.parse(await readFile(join(outputRoot, 'generation-report.json'), 'utf8')).mdi).toEqual(mdiSource.report);
+    expect(mdiSource.report).toMatchObject({ counts: { metadata: 2, included: 1, excluded: 1 }, exclusions: { names: ['private-logo'] } });
+  });
+
   it('discovers every recognized Pro family and lets Pro Brands win collisions', async () => {
     const sourceRoot = join(fixtureRoot, 'extracted-pro');
     await writeProFixture(sourceRoot);
@@ -119,9 +144,9 @@ describe('Pro-local icon adapter', () => {
     });
     expect(adapter.profile).toBe('pro-local');
     expect(adapter.sources).toEqual([
-      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
-      { package: '@fortawesome/fontawesome-pro', version: '7.3.2' },
-      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' }
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-pro', version: '7.3.2' },
+      { library: 'fontawesome', package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' }
     ]);
     expect(adapter.families.map((family: { family: string }) => family.family).sort()).toEqual(['brands', 'classic', 'duotone', 'sharp', 'sharp-duotone']);
     for (const family of adapter.families.filter((family: { family: string }) => family.family !== 'brands') as Array<{ styles: Array<{ style: string }> }>) {
@@ -214,9 +239,10 @@ describe('Pro-local icon adapter', () => {
     const index = JSON.parse(await readFile(join(fixture.root, 'build/pro-dist/v2/nodel-icons.json'), 'utf8')) as { profile: string; sources: Array<{ package: string; version: string }> };
     expect(index.profile).toBe('pro-local');
     expect(index.sources).toEqual(expect.arrayContaining([
-      { package: '@fortawesome/fontawesome-free', version: '7.3.1' },
-      { package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
-      { package: '@fortawesome/fontawesome-pro', version: '7.3.2' }
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-free', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/free-brands-svg-icons', version: '7.3.1' },
+      { library: 'fontawesome', package: '@fortawesome/fontawesome-pro', version: '7.3.2' },
+      { library: 'mdi', package: '@mdi/svg', version: '7.4.47' }
     ]));
     expect(await treeHash(publicDist)).toBe(publicDistBefore);
     expect(await readFile(publicGraph)).toEqual(publicGraphBytes);
@@ -226,6 +252,18 @@ describe('Pro-local icon adapter', () => {
     await expect(createDeploymentInventory(join(fixture.root, 'build/pro-dist'), manifest.manifest, { packageVersion: packageMetadata.version, expectedIconProfile: 'pro-local' })).resolves.toMatchObject({ root: join(fixture.root, 'build/pro-dist') });
     const proGraphBytes = await readFile(proGraph);
     await fixture.run(process.execPath, ['scripts/generate-icon-assets.mjs']);
+    const mdiGlyphs = async (root: string) => {
+      const paths = (await readdir(join(root, 'v2/icons'))).filter(path => path.startsWith('mdi-default-')).sort();
+      const shards = await Promise.all(paths.map(async path => (JSON.parse(await readFile(join(root, 'v2/icons', path), 'utf8')) as { records: unknown[] }).records));
+      return shards.flat();
+    };
+    const freeAssets = join(fixture.root, 'build/icon-assets/free');
+    const proAssets = join(fixture.root, 'build/icon-assets/pro-local');
+    expect(await mdiGlyphs(proAssets)).toEqual(await mdiGlyphs(freeAssets));
+    expect(await mdiGlyphs(proAssets)).toHaveLength(7205);
+    const reports = await Promise.all([freeAssets, proAssets].map(async root => (JSON.parse(await readFile(join(root, 'generation-report.json'), 'utf8')) as { mdi: unknown }).mdi));
+    expect(reports[0]).toEqual(reports[1]);
+    expect(reports[1]).toMatchObject({ counts: { metadata: 7447, included: 7205, excluded: 242 } });
     await fixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public']);
     expect(await readFile(proGraph)).toEqual(proGraphBytes);
     const packageScripts = JSON.parse(await readFile(join(fixture.root, 'package.json'), 'utf8')).scripts as Record<string, string>;
@@ -343,12 +381,13 @@ describe('parallel real-build isolation', () => {
       const start = new Promise<void>(resolveStart => { release = resolveStart; });
       const publicBuild = (async () => {
         await start;
-        await publicFixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public']);
+        await publicFixture.run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--mode', 'public'], { timeoutMs: 60_000 });
       })();
       const proBuild = (async () => {
         await start;
         await proFixture.run(process.execPath, ['scripts/pro-local-build.mjs'], {
-          env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot }
+          env: { NODEL_FONTAWESOME_PRO_DIR: sourceRoot },
+          timeoutMs: 60_000
         });
       })();
       release();
@@ -374,5 +413,5 @@ describe('parallel real-build isolation', () => {
     } finally {
       await Promise.allSettled(fixtures.map(fixture => fixture.dispose()));
     }
-  }, 60_000);
+  }, 120_000);
 });

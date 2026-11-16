@@ -130,7 +130,16 @@ describe('Stage 1 reviewed component API baseline', () => {
         'elements.nodel-page.attributes.background-pattern-strength: added',
         'elements.nodel-page.attributes.background-pattern: added'
       ],
-      informational: [], operational: []
+      informational: [
+        'elements.nodel-icon.attributes.family.description: changed',
+        'elements.nodel-icon.attributes.family.syntax: changed',
+        'elements.nodel-icon.attributes.name.description: changed',
+        'elements.nodel-icon.attributes.name.syntax: changed',
+        'elements.nodel-icon.attributes.style.description: changed',
+        'elements.nodel-icon.attributes.style.syntax: changed',
+        'elements.nodel-icon.snippet: changed'
+      ],
+      operational: []
     });
     expect(goldenSource).toBe(`${JSON.stringify(golden, null, 2)}\n`);
     expect(createHash('sha256').update(goldenSource).digest('hex')).toBe(reviewed.serializedSha256);

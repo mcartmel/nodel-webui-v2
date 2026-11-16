@@ -130,4 +130,34 @@ test.describe('catalogue Quickstart', () => {
     });
     expect(overflow).toEqual({ document: false, codeFitsViewport: true, codeScrollsInternally: true });
   });
+
+  test('demonstrates canonical MDI names and name-only signal switching in the icon catalogue', async ({ page }) => {
+    await page.goto('/components.html#Icons', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('nodel-page[data-page-id="Icons"][active]')).toHaveCount(1);
+    const mdi = page.locator('[data-catalogue-example="icons-standalone"] nodel-icon[name="mdi:lightbulb"]');
+    await expect(mdi).toHaveAttribute('data-icon-state', 'ready');
+    const signalIcon = page.locator('[data-catalogue-example="icons-library-signal"] nodel-group[label="Signal-driven icon"] nodel-icon');
+    await expect(signalIcon).toHaveAttribute('data-name', 'power');
+    await expect(signalIcon).toHaveAttribute('data-icon-state', 'ready');
+    await page.locator('[data-catalogue-example="icons-library-signal"] nodel-button').filter({ hasText: 'Use MDI' }).locator('button').click();
+    await expect(signalIcon).toHaveAttribute('data-name', 'mdi:lightbulb');
+    await expect(signalIcon).toHaveAttribute('data-icon-state', 'ready');
+    await page.locator('[data-catalogue-example="icons-library-signal"] nodel-button').filter({ hasText: 'Use Font Awesome' }).locator('button').click();
+    await expect(signalIcon).toHaveAttribute('data-name', 'power');
+    await expect(signalIcon).toHaveAttribute('data-icon-state', 'ready');
+    const copiedMarkup = await page.locator('[data-catalogue-code-for="icons-library-signal"] code').textContent();
+    expect(copiedMarkup).toContain('signal="CatalogueIcon"');
+    expect(copiedMarkup).toContain('mdi:lightbulb');
+    expect(copiedMarkup).toContain('arg="power"');
+
+    await page.route('**/stage4-copied-icon-example.html', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: `<!doctype html><script type="module" src="./v2/nodel-webui.js"></script>${copiedMarkup}`
+    }));
+    await page.goto('/stage4-copied-icon-example.html', { waitUntil: 'domcontentloaded' });
+    const copiedMdiIcons = page.locator('nodel-icon[name="mdi:lightbulb"]');
+    await expect(copiedMdiIcons).toHaveCount(1);
+    await expect(copiedMdiIcons.nth(0)).toHaveAttribute('data-icon-state', 'ready');
+  });
 });

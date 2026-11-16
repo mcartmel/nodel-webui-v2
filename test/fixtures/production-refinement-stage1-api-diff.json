@@ -52,7 +52,8 @@
       "elements.nodel-icon.attributes.name.description: changed",
       "elements.nodel-icon.attributes.name.syntax: changed",
       "elements.nodel-icon.attributes.name.valueType: widened",
-      "elements.nodel-icon.attributes.signals.description: changed"
+      "elements.nodel-icon.attributes.signals.description: changed",
+      "elements.nodel-icon.snippet: changed"
     ],
     "operational": []
   },

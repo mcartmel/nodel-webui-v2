@@ -31,10 +31,12 @@ npm run build
 
 `npm run build` runs all validation steps before writing the production site to `dist/`.
 The build first generates the mandatory public Free icon profile. It includes
-Classic Solid, Classic Regular, and Brands definitions under `dist/v2/`, while
-the searchable catalogue and definitions remain lazy at runtime. Public
-validation rejects Pro packages, private registry configuration, and non-Free
-icon artifacts.
+Classic Solid, Classic Regular, Brands, and non-brand Material Design Icons
+from the pinned `@mdi/svg` metadata under `dist/v2/`, while the searchable
+catalogue and definitions remain lazy at runtime. The licensed local Pro
+profile uses the same MDI names and namespace alongside its licensed Font
+Awesome packages. Public validation rejects Pro Font Awesome packages, private
+registry configuration, and non-Free Font Awesome artifacts.
 
 Browser tests run in the digest-pinned Playwright environment declared by
 `browser-test-environment.json`. `npm run test:browser` builds a preview first;

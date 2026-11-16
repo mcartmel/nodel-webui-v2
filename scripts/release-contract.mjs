@@ -21,8 +21,8 @@ import {
   validateDeploymentReferences
 } from './deployment-contract.mjs';
 import { verifyDeploymentInventoryReport } from './verify-deployment-inventory.mjs';
-import { generateDependencyEvidence, validateDependencyEvidence } from './dependency-evidence.mjs';
-import { validateIconArtifactFiles, iconArtifactSchemaVersion, isExactSemVer, publicIconSources, semVerMajor } from './icon-artifact.mjs';
+import { generateDependencyEvidence, validateDependencyEvidence, validateIconSourcesAgainstDependencyEvidence } from './dependency-evidence.mjs';
+import { validateIconArtifactFiles, iconArtifactSchemaVersion, validateIconSources } from './icon-artifact.mjs';
 
 const execFileAsync = promisify(execFile);
 export const nodelApiRange = Object.freeze({ min: '1.0', maxExclusive: '2.0' });
@@ -51,15 +51,8 @@ function validHash(value) { return typeof value === 'string' && /^[0-9a-f]{64}$/
 function safePath(value) { return safeRelativePath(value); }
 
 export function validateIconSourceVersions(sources) {
-  if (!Array.isArray(sources) || sources.length !== publicIconSources.length) throw new Error('release.json icon catalogue sourceVersions must contain the complete public source set');
-  let previous = ''; let major;
-  for (const source of sources) {
-    if (!sameKeys(source, ['package', 'version']) || typeof source.package !== 'string' || !/^@fortawesome\/[a-z0-9-]+$/.test(source.package) || !isExactSemVer(source.version) || source.package <= previous) throw new Error('release.json icon catalogue sourceVersions are invalid or unsorted');
-    if (major === undefined) major = semVerMajor(source.version);
-    if (semVerMajor(source.version) !== major) throw new Error('release.json icon catalogue sourceVersions must use one Font Awesome major');
-    previous = source.package;
-  }
-  if (JSON.stringify(sources.map(source => source.package)) !== JSON.stringify([...publicIconSources].sort())) throw new Error('release.json icon catalogue sourceVersions are not the approved public packages');
+  try { validateIconSources(sources, { publicOnly: true }); }
+  catch (error) { throw new Error(`release.json icon catalogue sourceVersions: ${error.message}`); }
 }
 
 export function validateTaggedReleaseNotes(markdown, version) {
@@ -239,7 +232,7 @@ async function readDependencyEvidence(root, operations = defaultOperations) {
   if (licenses.noticeHash !== descriptor.noticeSha256 || licenses.policyHash !== descriptor.policySha256) throw new Error('Dependency evidence is not bound to the current policy and notices');
   const generated = await generateDependencyEvidence({ projectRoot: root });
   if (generated.files.sbom !== captures['SBOM.cdx.json'].content.toString('utf8') || generated.files.licenses !== captures['THIRD-PARTY-LICENSES.json'].content.toString('utf8')) throw new Error('Dependency evidence is stale or was substituted; regenerate build/dependency-evidence');
-  return Object.freeze({ captures, sourceCaptures: { lock, policy, notices }, descriptor });
+  return Object.freeze({ captures, sourceCaptures: { lock, policy, notices }, descriptor, licenses, sbom });
 }
 
 export function parseReleaseArgs(argv, { projectRoot = process.cwd() } = {}) {
@@ -429,6 +422,7 @@ export async function verifyReleaseBundle(target, { operations = defaultOperatio
   if (!sbomContent || !licensesContent) throw new Error('Release inventory is missing dependency evidence');
   let sbom; let licenses; try { sbom = JSON.parse(sbomContent); licenses = JSON.parse(licensesContent); } catch { throw new Error('Dependency evidence is not valid JSON'); }
   validateDependencyEvidence({ sbom, licenses, lockHash: manifest.dependencyEvidence.lockSha256, policyHash: manifest.dependencyEvidence.policySha256, noticeHash: manifest.dependencyEvidence.noticeSha256 });
+  validateIconSourcesAgainstDependencyEvidence(iconResult.index.sources, licenses, sbom);
   if (sha256(sbomContent) !== manifest.dependencyEvidence.sbom.sha256 || sha256(licensesContent) !== manifest.dependencyEvidence.licenses.sha256) throw new Error('Packaged dependency evidence hash does not match release.json');
   const noticesEntry = manifest.files.find(entry => entry.path === 'THIRD-PARTY-NOTICES.md');
   if (!noticesEntry || noticesEntry.sha256 !== manifest.dependencyEvidence.noticeSha256) throw new Error('Packaged notices do not match dependency evidence');
@@ -595,7 +589,8 @@ export async function prepareRelease(options, { projectRoot, gitRunner = git, op
    const iconIndex = JSON.parse(capturedIconIndex.toString('utf8'));
     const iconFiles = new Map();
     for (const entry of inventory.entries.filter(entry => entry.path === 'v2/nodel-icons.json' || entry.path.startsWith('v2/icons/') || entry.path === iconIndex.cataloguePath)) iconFiles.set(entry.path, await readCapturedDeploymentEntry(inventory.root, entry));
-    validateIconArtifactFiles(capturedIconIndex, iconFiles, { expectedProfile: 'free', expectedPackageVersion: resolved.packageMetadata.version });
+    const iconResult = validateIconArtifactFiles(capturedIconIndex, iconFiles, { expectedProfile: 'free', expectedPackageVersion: resolved.packageMetadata.version });
+     validateIconSourcesAgainstDependencyEvidence(iconResult.index.sources, dependencyEvidence.licenses, dependencyEvidence.sbom);
    const iconCatalogue = Object.freeze({ path: 'v2/nodel-icons.json', schemaVersion: iconArtifactSchemaVersion, profile: 'free', sourceVersions: iconIndex.sources, sha256: sha256(capturedIconIndex) });
   const expected = Object.freeze({ name: resolved.packageMetadata.name, version: resolved.version, commit: resolved.commit, repository: resolved.repository,
     branch: resolved.branch, tag: resolved.tag, dirty: resolved.dirty, publishable, sourceDateEpoch: resolved.sourceDateEpoch, deploymentManifestHash: manifestData.hash,

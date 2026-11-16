@@ -9,7 +9,7 @@ test.describe('catalogue in-memory runtime', () => {
   test('catalogue uses canonical public Free examples and preserves the Nodel alias', async ({ page }) => {
     await openCatalogue(page, 'Icons');
     const examples = page.locator('[data-catalogue-example="icons-standalone"] nodel-icon');
-    await expect(examples).toHaveCount(4);
+    await expect(examples).toHaveCount(5);
     await expect(examples.nth(0)).toHaveAttribute('data-name', 'tv');
     await expect(examples.nth(0)).toHaveAttribute('data-family', 'classic');
     await expect(examples.nth(0)).toHaveAttribute('data-style', 'solid');
@@ -18,6 +18,8 @@ test.describe('catalogue in-memory runtime', () => {
     await expect(examples.nth(2)).toHaveAttribute('data-name', 'github');
     await expect(examples.nth(2)).toHaveAttribute('data-family', 'brands');
     await expect(examples.nth(3)).toHaveAttribute('data-name', 'power');
+    await expect(examples.nth(4)).toHaveAttribute('data-name', 'mdi:lightbulb');
+    await expect(examples.nth(4)).toHaveAttribute('data-icon-state', 'ready');
     await expect(page.locator('nodel-icon[family="duotone"], nodel-icon[family="sharp"], nodel-icon[family="sharp-duotone"]')).toHaveCount(0);
     await openCatalogue(page, 'Images');
     await expect(page.locator('[data-catalogue-example="images-standalone"] nodel-image')).toHaveCount(1);
@@ -83,6 +85,27 @@ test.describe('catalogue in-memory runtime', () => {
       expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true);
       await expect(page.locator('#icon-button button')).toBeVisible();
     }
+  });
+
+  test('defers every icon manifest and shard request until a hidden MDI page becomes active', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', request => requests.push(new URL(request.url()).pathname));
+    await page.route('**/inactive-mdi-surface.html', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><script type="module" src="./v2/nodel-webui.js"></script><button id="show-icons">Show icons</button><nodel-page id="inactive-mdi-page" hidden><nodel-icon id="deferred-mdi" name="mdi:lightbulb-outline" alt="Deferred MDI icon"></nodel-icon></nodel-page>'
+    }));
+    await page.goto('/inactive-mdi-surface.html', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#deferred-mdi')).toHaveAttribute('data-icon-state', 'loading');
+    const iconRequests = () => requests.filter(path => path.endsWith('/v2/nodel-icons.json') || path.includes('/v2/icons/'));
+    expect(iconRequests()).toEqual([]);
+
+    await page.locator('#show-icons').click();
+    await page.locator('#inactive-mdi-page').evaluate(element => element.removeAttribute('hidden'));
+    await expect(page.locator('#deferred-mdi')).toHaveAttribute('data-icon-state', 'ready');
+    await expect.poll(() => iconRequests().filter(path => path.endsWith('/v2/nodel-icons.json')).length).toBeGreaterThan(0);
+    await expect.poll(() => iconRequests().filter(path => path.includes('/v2/icons/')).length).toBeGreaterThan(0);
+    await expect(page.locator('#deferred-mdi')).toHaveAttribute('aria-label', 'Deferred MDI icon');
   });
 
   test('starts in memory and closes the loop between actions and signals', async ({ page }) => {

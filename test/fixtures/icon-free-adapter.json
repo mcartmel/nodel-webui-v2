@@ -2,16 +2,26 @@
   "packageVersion": "0.1.2",
   "profile": "free",
   "sources": [
-    { "package": "@fortawesome/fontawesome-free", "version": "7.3.1" },
-    { "package": "@fortawesome/free-solid-svg-icons", "version": "7.3.1" }
+    { "library": "fontawesome", "package": "@fortawesome/fontawesome-free", "version": "7.3.1" },
+    { "library": "fontawesome", "package": "@fortawesome/free-brands-svg-icons", "version": "7.3.1" },
+    { "library": "fontawesome", "package": "@fortawesome/free-regular-svg-icons", "version": "7.3.1" },
+    { "library": "fontawesome", "package": "@fortawesome/free-solid-svg-icons", "version": "7.3.1" },
+    { "library": "mdi", "package": "@mdi/svg", "version": "7.4.47" }
   ],
   "aliases": { "power": "power-off" },
   "families": [{
+    "library": "fontawesome",
     "family": "classic",
     "defaultStyle": "solid",
     "styles": [{ "style": "solid", "icons": [
       { "iconName": "power-off", "icon": [16, 16, ["power-alias"], "f011", "M0"], "searchTerms": ["shutdown"] },
       { "iconName": "split", "icon": [20, 20, [], "e001", ["M1", "M2"]] }
-    ] }]
+    ] }, { "style": "regular", "icons": [] }]
+  }, {
+    "library": "mdi", "family": "mdi", "defaultStyle": "default",
+    "styles": [{ "style": "default", "icons": [{ "name": "power", "label": "Power", "codepoint": "F0425", "width": 24, "height": 24, "paths": ["M0 0Z"], "aliases": ["switch"], "searchTerms": ["power", "switch"], "source": { "package": "@mdi/svg", "version": "7.4.47" } }] }]
+  }, {
+    "library": "fontawesome", "family": "brands", "defaultStyle": "brands",
+    "styles": [{ "style": "brands", "icons": [] }]
   }]
 }

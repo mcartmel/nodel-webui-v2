@@ -24,6 +24,7 @@ const initialSignals: Record<string, unknown> = {
     { value: 'Signage', label: 'Signage' }
   ],
   CurrentSource: 'HDMI 1',
+  CatalogueIcon: 'power',
   AvailableModes: ['Auto', 'Manual', 'Presentation'],
   CurrentMode: 'Auto',
   Source: 'HDMI 1',

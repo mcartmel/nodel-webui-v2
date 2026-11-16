@@ -1,13 +1,17 @@
 {
   "packageVersion": "0.1.2",
   "profile": "pro-local",
-  "sources": [{ "package": "@fortawesome/fontawesome-pro", "version": "7.3.1" }],
+  "sources": [{ "library": "fontawesome", "package": "@fortawesome/fontawesome-pro", "version": "7.3.1" }, { "library": "mdi", "package": "@mdi/svg", "version": "7.4.47" }],
   "aliases": {},
   "families": [{
+    "library": "fontawesome",
     "family": "sharp",
     "defaultStyle": "solid",
     "styles": [{ "style": "solid", "icons": [
       { "iconName": "bolt", "icon": [16, 16, [], "f0e7", "M0"], "aliases": ["flash"] }
     ] }]
+  }, {
+    "library": "mdi", "family": "mdi", "defaultStyle": "default",
+    "styles": [{ "style": "default", "icons": [{ "name": "power", "label": "Power", "codepoint": "F0425", "width": 24, "height": 24, "paths": ["M0 0Z"], "aliases": ["switch"], "searchTerms": ["power", "switch"], "source": { "package": "@mdi/svg", "version": "7.4.47" } }] }]
   }]
 }
