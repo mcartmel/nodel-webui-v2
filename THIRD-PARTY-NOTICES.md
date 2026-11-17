@@ -20,6 +20,7 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `@codemirror/lint` | MIT |
 | `@codemirror/search` | MIT |
 | `@codemirror/state` | MIT |
+| `@codemirror/streamparser` | MIT |
 | `@codemirror/view` | MIT |
 | `@fortawesome/fontawesome-common-types` | MIT |
 | `@fortawesome/fontawesome-free` | (CC-BY-4.0 AND OFL-1.1 AND MIT) |
