@@ -31,4 +31,20 @@ describe('Stage 5 workflow contract', () => {
     expect(source).not.toContain("resolve(projectRoot, 'dist/.vite')");
   });
 
+  it('downloads review-impact bundle graphs into the build directory in both browser jobs', async () => {
+    const expectedAction = 'actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2';
+    for (const workflow of ['.github/workflows/build.yml', '.github/workflows/release.yml']) {
+      const source = await readFile(workflow, 'utf8');
+      const downloader = source.match(/- name: Download tested bundle graph for browser assertions\n(?<step>(?:\s+.*\n){1,6})/);
+      const uploader = source.match(/- name: Upload review impact\n(?<step>(?:\s+.*\n){1,15})/);
+      expect(downloader?.groups?.step, `${workflow} bundle graph download step`).toContain(`uses: ${expectedAction}`);
+      expect(downloader?.groups?.step).toContain('name: review-impact');
+      expect(downloader?.groups?.step).toContain('path: build');
+      expect(uploader?.groups?.step, `${workflow} review-impact upload step`).toContain('name: review-impact');
+      expect(uploader?.groups?.step).toContain('build/bundle-graph.json');
+      expect(uploader?.groups?.step).toContain('build/contract-report/');
+      expect(uploader?.groups?.step).toContain('build/review-impact/');
+    }
+  });
+
 });

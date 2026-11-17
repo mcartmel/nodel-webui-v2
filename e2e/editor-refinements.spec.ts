@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
@@ -16,6 +16,30 @@ function isDesktopThemeProject(testInfo: TestInfo) {
 async function selectEditorFileByVisibleLabel(picker: Locator, path: string) {
   const option = picker.locator('option').filter({ hasText: path }).first();
   await picker.selectOption({ label: await option.textContent() ?? path });
+}
+
+function syntaxModeChunk(modulePath: string) {
+  const graphPath = resolve(process.cwd(), 'build/bundle-graph.json');
+  const graph = JSON.parse(readFileSync(graphPath, 'utf8')) as {
+    outputs: Array<{ path: string; type: string; modules: string[] }>;
+  };
+  const outputs = graph.outputs.filter((output) => output.type === 'chunk' && output.modules.includes(modulePath));
+  expect(outputs, `bundle graph output for ${modulePath}`).toHaveLength(1);
+  const outputPath = outputs[0]!.path;
+  expect(outputPath).toMatch(/^v2\/chunks\/[A-Za-z0-9._-]+\.js$/);
+  return outputPath;
+}
+
+function hasRequestedChunk(scripts: string[], outputPath: string) {
+  return scripts.some((url) => {
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(new URL(url).pathname);
+    } catch {
+      return false;
+    }
+    return pathname.endsWith(`/${outputPath}`);
+  });
 }
 
 async function openEditorFixture(page: Page, defaultFile: string, fixture: EditorFixture, beforeMount?: () => Promise<void>, importFailure = false) {
@@ -334,6 +358,8 @@ test.describe('editor refinements', () => {
   });
 
   test('loads retained syntax modes only when matching files are selected', async ({ page }) => {
+    const javaChunk = syntaxModeChunk('node_modules/@codemirror/lang-java/dist/index.js');
+    const sqlChunk = syntaxModeChunk('node_modules/@codemirror/lang-sql/dist/index.js');
     const fixture: EditorFixture = {
       files: [
         { path: 'Example.java' },
@@ -351,33 +377,43 @@ test.describe('editor refinements', () => {
       ]),
       saves: []
     };
-    const scripts: string[] = [];
-    page.on('response', (response) => {
-      if (response.request().resourceType() === 'script') {
-        scripts.push(response.url());
+    const scriptRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.resourceType() === 'script') {
+        scriptRequests.push(request.url());
       }
     });
     const editor = await openEditorFixture(page, 'settings.yaml', fixture);
     await expect(editor.locator('.cm-content')).not.toHaveAttribute('data-language');
-    expect(scripts.some((url) => /groovy-.*\.js/.test(url))).toBe(false);
-    expect(scripts.some((url) => /shell-.*\.js/.test(url))).toBe(false);
-    const initialLanguageChunks = scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length;
+    expect(scriptRequests.some((url) => /groovy-.*\.js/.test(url))).toBe(false);
+    expect(scriptRequests.some((url) => /shell-.*\.js/.test(url))).toBe(false);
+    expect(hasRequestedChunk(scriptRequests, javaChunk)).toBe(false);
+    expect(hasRequestedChunk(scriptRequests, sqlChunk)).toBe(false);
 
     await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'Example.java');
     await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', 'java');
-    await expect.poll(() => scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length).toBeGreaterThan(initialLanguageChunks);
-    const beforeSqlChunks = scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length;
+    await expect.poll(() => hasRequestedChunk(scriptRequests, javaChunk)).toBe(true);
+    expect(hasRequestedChunk(scriptRequests, sqlChunk)).toBe(false);
 
     for (const path of ['build.groovy', 'query.sql', 'deploy.sh']) {
+      if (path === 'query.sql') expect(hasRequestedChunk(scriptRequests, sqlChunk)).toBe(false);
       await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), path);
       await expect.poll(() => editor.locator('.cm-line').allTextContents()).toEqual(fixture.contents.get(path)!.split('\n'));
       await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', path === 'build.groovy' ? 'groovy' : path === 'query.sql' ? 'sql' : 'shell');
       if (path === 'query.sql') {
-        await expect.poll(() => scripts.filter((url) => /\/chunks\/index-.*\.js/.test(url)).length).toBeGreaterThan(beforeSqlChunks);
+        await expect.poll(() => hasRequestedChunk(scriptRequests, sqlChunk)).toBe(true);
       }
     }
-    expect(scripts.some((url) => /groovy-.*\.js/.test(url))).toBe(true);
-    expect(scripts.some((url) => /shell-.*\.js/.test(url))).toBe(true);
+    const javaRequestCount = scriptRequests.filter((url) => hasRequestedChunk([url], javaChunk)).length;
+    const sqlRequestCount = scriptRequests.filter((url) => hasRequestedChunk([url], sqlChunk)).length;
+    await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'Example.java');
+    await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', 'java');
+    await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'query.sql');
+    await expect(editor.locator('.cm-content')).toHaveAttribute('data-language', 'sql');
+    expect(scriptRequests.filter((url) => hasRequestedChunk([url], javaChunk))).toHaveLength(javaRequestCount);
+    expect(scriptRequests.filter((url) => hasRequestedChunk([url], sqlChunk))).toHaveLength(sqlRequestCount);
+    expect(scriptRequests.some((url) => /groovy-.*\.js/.test(url))).toBe(true);
+    expect(scriptRequests.some((url) => /shell-.*\.js/.test(url))).toBe(true);
 
     await selectEditorFileByVisibleLabel(editor.locator('[data-editor-file-picker]'), 'settings.yaml');
     await expect(editor.locator('.cm-content')).toContainText('value: true');
