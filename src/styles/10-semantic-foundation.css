@@ -267,9 +267,51 @@
   }
 
   .nodel-catalogue-code {
-    @apply overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-card;
+    @apply min-w-0 max-w-full overflow-auto whitespace-pre rounded-control border border-nodel-border bg-nodel-surface p-4 font-mono text-xs leading-5 text-nodel-fg shadow-nodel-card;
     background: var(--nodel-card-background, rgb(var(--nodel-surface)));
     border-color: var(--nodel-card-border, rgb(var(--nodel-border)));
+  }
+
+  [data-catalogue-copy-container] {
+    @apply relative min-w-0 max-w-full;
+  }
+
+  .nodel-button.nodel-catalogue-copy-button {
+    @apply absolute right-2 top-2 z-10 h-11 w-11 p-0;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .nodel-button.nodel-catalogue-copy-button:disabled {
+    opacity: 0;
+  }
+
+  [data-catalogue-copy-container]:is(:hover, :focus-within) .nodel-catalogue-copy-button {
+    opacity: 1;
+  }
+
+  [data-catalogue-copy-container]:is(:hover, :focus-within) .nodel-button.nodel-catalogue-copy-button:disabled {
+    opacity: 0.55;
+  }
+
+  .nodel-catalogue-copy-status {
+    @apply mt-2 whitespace-normal [overflow-wrap:anywhere];
+  }
+
+  @media (hover: none), (pointer: coarse) {
+    .nodel-button.nodel-catalogue-copy-button {
+      opacity: 1;
+    }
+
+    .nodel-button.nodel-catalogue-copy-button:disabled {
+      opacity: 0.55;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nodel-button.nodel-catalogue-copy-button {
+      transition: none;
+    }
   }
 
   .nodel-catalogue-reference-table-scroll {

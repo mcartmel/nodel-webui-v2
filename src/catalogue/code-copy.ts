@@ -1,29 +1,102 @@
 import { copyTextToClipboard } from '../utils/clipboard';
+import { faCopy } from '@fortawesome/free-regular-svg-icons';
+import { renderFontAwesomeIcon } from '../icons/fontawesome';
 
 const codeSelector = 'pre.nodel-catalogue-code';
-const ownedToolbar = 'data-catalogue-copy-toolbar';
+const ownedContainer = 'data-catalogue-copy-container';
 const ownedStatus = 'data-catalogue-copy-status';
+const ownedButton = 'data-catalogue-copy-button';
 
 interface CopyBlock {
+  root: ParentNode;
   pre: HTMLPreElement;
   code: HTMLElement | null;
   text: string;
+  container: HTMLDivElement;
   button: HTMLButtonElement;
   status: HTMLParagraphElement;
   pending: boolean;
   contentRevision: number;
   requestIdentity: number;
   ownsTabIndex: boolean;
+  disposed: boolean;
   dispose: () => void;
 }
 
 interface Controller {
   dispose: () => void;
+  capture: (moves?: ReadonlyMap<Node, Node | null>) => void;
+  discover: (pre: HTMLPreElement) => void;
 }
 
 const ownedBlocks = new WeakMap<HTMLPreElement, CopyBlock>();
+const ownedContainers = new WeakMap<HTMLDivElement, CopyBlock>();
 const ownedRoots = new WeakMap<ParentNode, Controller>();
-const ownedToolbars = new WeakSet<HTMLElement>();
+const controllers = new Set<Controller>();
+
+// Drain before changing ownership so queued removals retain their generation.
+// After our moves, ignore only the exact child-removal edges we generated, not
+// authored removals with a coincidentally identical final DOM position.
+function captureMutations(moves?: ReadonlyMap<Node, Node | null>) {
+  for (const controller of controllers) controller.capture(moves);
+}
+
+function moveOwnedNodes(nodes: Node[], move: () => void) {
+  captureMutations();
+  const moves = new Map(nodes.map((node) => [node, node.parentNode]));
+  // DOM reparenting clears focus and live Range endpoints even when the same
+  // nodes remain connected. Snapshot endpoints, not a live cloned Range.
+  const active = document.activeElement;
+  const restoreFocus = active instanceof HTMLElement && nodes.some((node) => node.contains(active));
+  const selection = document.getSelection();
+  const anchor = selection?.anchorNode;
+  const focus = selection?.focusNode;
+  const anchorOffset = selection?.anchorOffset ?? 0;
+  const focusOffset = selection?.focusOffset ?? 0;
+  const restoreSelection = anchor && focus && nodes.some((node) => node.contains(anchor) || node.contains(focus));
+  move();
+  if (restoreFocus && active.isConnected) active.focus({ preventScroll: true });
+  if (restoreSelection && anchor.isConnected && focus.isConnected) {
+    selection?.setBaseAndExtent(anchor, anchorOffset, focus, focusOffset);
+  }
+  captureMutations(moves);
+}
+
+function clearContainerChrome(container: HTMLDivElement) {
+  for (const element of [...container.children]) {
+    if (element.matches(`[${ownedButton}], [${ownedStatus}]`)) element.remove();
+  }
+}
+
+function isolateContainer(block: CopyBlock) {
+  const shared = block.container;
+  if (shared.parentNode && !ownedRoots.has(shared)) {
+    // Keep the live owner stationary. Lift extra authored nodes out of our
+    // generated wrapper instead of nesting another wrapper around the owner.
+    // This preserves focus/selection and restores the parent's sibling layout.
+    const children = [...shared.childNodes];
+    const index = children.indexOf(block.pre);
+    const authored = (node: Node) => node !== block.button && node !== block.status;
+    const before = children.slice(0, index).filter(authored);
+    const after = children.slice(index + 1).filter(authored);
+    moveOwnedNodes([...before, ...after], () => {
+      shared.before(...before);
+      shared.after(...after);
+    });
+    return;
+  }
+  // A caller's scoped root must remain in place and retain its descendants.
+  // Only this protected shell needs inner copy areas; it is not an orphan.
+  const container = document.createElement('div');
+  container.setAttribute(ownedContainer, '');
+  shared.insertBefore(container, block.pre);
+  moveOwnedNodes([block.pre, block.button, block.status], () => container.append(block.pre, block.button, block.status));
+  ownedContainers.delete(shared);
+  block.container = container;
+  ownedContainers.set(container, block);
+  // The old wrapper is now a grouping/scoped-root shell, not a copy area.
+  shared.removeAttribute(ownedContainer);
+}
 
 function isCataloguePre(element: Element | null): element is HTMLPreElement {
   return element instanceof HTMLPreElement && element.matches(codeSelector);
@@ -56,7 +129,7 @@ function preDisabled(pre: HTMLPreElement) {
 
 function clearFeedback(block: CopyBlock) {
   block.status.textContent = '';
-  block.status.hidden = false;
+  block.status.hidden = true;
 }
 
 function refreshBlock(block: CopyBlock) {
@@ -74,6 +147,7 @@ function refreshBlock(block: CopyBlock) {
     clearFeedback(block);
   }
   block.button.setAttribute('aria-label', blockLabel(block.pre));
+  block.button.title = blockLabel(block.pre);
   block.button.disabled = block.pending || !block.code?.textContent?.trim() || preDisabled(block.pre);
   if (preDisabled(block.pre) && !block.pending) clearFeedback(block);
 }
@@ -92,45 +166,93 @@ export function enhanceCatalogueCodeCopy(root: ParentNode = document): () => voi
 
   const blocks = new Set<CopyBlock>();
   let disposed = false;
+  const pending: Array<{ record: MutationRecord; removed: CopyBlock[] }> = [];
+  const released = new Set<HTMLPreElement>();
+  let scheduled = false;
 
   const createBlock = (pre: HTMLPreElement) => {
-    if (disposed || !inScope(root, pre) || !validPre(pre) || ownedBlocks.has(pre)) return;
+    if (disposed || !inScope(root, pre) || !validPre(pre)) return;
+    captureMutations();
+    const previous = ownedBlocks.get(pre);
+    if (previous) {
+      if (!previous.disposed && inScope(previous.root, pre)) return;
+      previous.dispose();
+    }
     const code = pre.querySelector<HTMLElement>('code');
     if (!code) return;
 
-    const adjacentToolbar = pre.previousElementSibling;
-    if (adjacentToolbar instanceof HTMLElement && adjacentToolbar.hasAttribute(ownedToolbar) && !ownedToolbars.has(adjacentToolbar)) adjacentToolbar.remove();
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'nodel-catalogue-copy-toolbar flex flex-wrap items-center justify-between gap-2 min-w-0';
-    toolbar.setAttribute(ownedToolbar, '');
+    let container = pre.parentElement instanceof HTMLDivElement && pre.parentElement.hasAttribute(ownedContainer)
+      ? pre.parentElement
+      : null;
+    if (container && (ownedContainers.has(container) || container.querySelectorAll(`:scope > ${codeSelector}`).length !== 1)) {
+      const owner = ownedContainers.get(container);
+      if (owner && owner.pre.parentElement === container) isolateContainer(owner);
+      else {
+        // Another observer may discover this sibling before the previous
+        // producer's removal has been reconciled by its scoped owner.
+        owner?.dispose();
+        clearContainerChrome(container);
+        if (container.parentNode && !ownedRoots.has(container)) {
+          // An unowned clone can already contain several pres. Flatten its
+          // generated shell as well; each pre will get its own copy area.
+          const children = [...container.childNodes];
+          const shared = container;
+          moveOwnedNodes(children, () => shared.replaceWith(...children));
+        } else container.removeAttribute(ownedContainer);
+      }
+      container = null;
+    }
+    if (!container) {
+      container = document.createElement('div');
+      container.setAttribute(ownedContainer, '');
+      pre.before(container);
+      const wrapper = container;
+      moveOwnedNodes([pre], () => wrapper.append(pre));
+    }
+    // Cloned catalogue DOM carries the old control markup. Replace only our
+    // generated descendants; the authored pre/code tree stays untouched.
+    clearContainerChrome(container);
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'nodel-button nodel-button-ghost';
-    button.textContent = 'Copy code';
+    button.className = 'nodel-button nodel-button-ghost nodel-catalogue-copy-button';
+    button.setAttribute(ownedButton, '');
+    button.title = blockLabel(pre);
+    button.innerHTML = renderFontAwesomeIcon(faCopy, 'h-4 w-4');
     const status = document.createElement('p');
-    status.className = 'min-w-0 flex-1 text-sm text-nodel-muted';
+    status.className = 'nodel-catalogue-copy-status min-w-0 text-sm text-nodel-muted';
     status.setAttribute(ownedStatus, '');
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
     status.setAttribute('aria-atomic', 'true');
-    status.hidden = false;
-    toolbar.append(status, button);
-    ownedToolbars.add(toolbar);
-    pre.before(toolbar);
+    status.hidden = true;
+    container.append(button, status);
 
     const block: CopyBlock = {
-      pre, code, text: code.textContent ?? '', button, status, pending: false, contentRevision: 0, requestIdentity: 0, ownsTabIndex: false,
+      root, pre, code, text: code.textContent ?? '', container, button, status, pending: false, contentRevision: 0, requestIdentity: 0, ownsTabIndex: false, disposed: false,
       dispose: () => {
+        if (block.disposed) return;
+        captureMutations();
+        block.disposed = true;
         block.requestIdentity += 1;
         blocks.delete(block);
         if (ownedBlocks.get(pre) === block) ownedBlocks.delete(pre);
+        const container = block.container;
+        if (ownedContainers.get(container) === block) ownedContainers.delete(container);
         clearFeedback(block);
         button.removeEventListener('click', onClick);
-        ownedToolbars.delete(toolbar);
-        toolbar.remove();
+        button.remove();
         status.remove();
+        if (container.parentNode && container !== root && !ownedRoots.has(container)) {
+          // An adopted/cloned wrapper may contain additional authored nodes.
+          // Never replace it with just the pre or remove a caller's scoped root.
+          const children = [...container.childNodes];
+          moveOwnedNodes(children, () => container.replaceWith(...children));
+        }
         if (block.ownsTabIndex && pre.getAttribute('tabindex') === '0') pre.removeAttribute('tabindex');
+        // An overlapping controller may have skipped this still-owned pre at
+        // discovery. Offer it explicitly, even if chrome was already removed
+        // and disposal itself produced no observable document mutations.
+        for (const controller of controllers) controller.discover(pre);
       }
     };
 
@@ -181,32 +303,38 @@ export function enhanceCatalogueCodeCopy(root: ParentNode = document): () => voi
     };
 
     ownedBlocks.set(pre, block);
+    ownedContainers.set(container, block);
     blocks.add(block);
     button.addEventListener('click', onClick);
     refreshBlock(block);
+    button.title = blockLabel(pre);
   };
-
-  const initial = root instanceof HTMLPreElement && root.matches(codeSelector) ? [root] : [];
-  for (const pre of [...initial, ...root.querySelectorAll<HTMLPreElement>(codeSelector)]) createBlock(pre);
 
   const observerTarget = root instanceof Document ? root : root.ownerDocument ?? document;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     observer.disconnect();
+    pending.length = 0;
+    released.clear();
+    controllers.delete(controller);
     if (ownedRoots.get(root)?.dispose === dispose) ownedRoots.delete(root);
     for (const block of [...blocks]) block.dispose();
   };
 
-  const observer = new MutationObserver((records) => {
+  const reconcile = () => {
+    scheduled = false;
     if (disposed) return;
     if (!(root instanceof Document) && !root.isConnected) {
       dispose();
       return;
     }
-    const added = new Set<HTMLPreElement>();
+    const added = new Set(released);
+    released.clear();
     const changed = new Set<HTMLPreElement>();
-    for (const record of records) {
+    const removed = new Set<CopyBlock>();
+    // Snapshot the entire batch before disposal/creation can enqueue more work.
+    for (const { record, removed: recordRemoved } of pending.splice(0)) {
       for (const node of record.addedNodes) {
         for (const block of ownedBlocksIn(node)) changed.add(block.pre);
         if ((root as Node).contains(node)) {
@@ -217,9 +345,7 @@ export function enhanceCatalogueCodeCopy(root: ParentNode = document): () => voi
           }
         }
       }
-      for (const node of record.removedNodes) {
-        for (const block of ownedBlocksIn(node)) if (blocks.has(block)) block.dispose();
-      }
+      for (const block of recordRemoved) if (blocks.has(block)) removed.add(block);
       if (record.type === 'characterData' || record.type === 'childList' || record.type === 'attributes') {
         const targetPre = record.target instanceof Element && record.target.matches(codeSelector)
           ? record.target as HTMLPreElement
@@ -227,14 +353,59 @@ export function enhanceCatalogueCodeCopy(root: ParentNode = document): () => voi
         if (targetPre && inScope(root, targetPre)) changed.add(targetPre);
       }
     }
+    for (const block of removed) {
+      const reattached = inScope(root, block.pre) && block.pre.isConnected;
+      block.dispose();
+      if (reattached) added.add(block.pre);
+    }
     for (const pre of added) createBlock(pre);
     for (const pre of changed) {
       const block = ownedBlocks.get(pre);
       if (block && blocks.has(block)) refreshBlock(block);
       else createBlock(pre);
     }
+  };
+  const enqueue = (records: MutationRecord[], moves?: ReadonlyMap<Node, Node | null>) => {
+    const remainingMoves = new Map(moves);
+    for (const record of records) {
+      const removed = [...record.removedNodes]
+        .filter((node) => {
+          if (!remainingMoves.has(node) || remainingMoves.get(node) !== record.target) return true;
+          // Consume one edge only: synchronous authored/custom-element code
+          // triggered by the move can remove the very same node again.
+          remainingMoves.delete(node);
+          return false;
+        })
+        .flatMap(ownedBlocksIn);
+      pending.push({ record, removed });
+    }
+  };
+  const observer = new MutationObserver((records) => {
+    enqueue(records);
+    reconcile();
   });
-  ownedRoots.set(root, { dispose });
+  const scheduleReconcile = () => {
+    if (!scheduled && !disposed) {
+      scheduled = true;
+      queueMicrotask(reconcile);
+    }
+  };
+  const controller: Controller = {
+    dispose,
+    capture: (moves) => {
+      enqueue(observer.takeRecords(), moves);
+      if (pending.length) scheduleReconcile();
+    },
+    discover: (pre) => {
+      if (disposed || !pre.matches(codeSelector) || !pre.isConnected || !inScope(root, pre)) return;
+      released.add(pre);
+      scheduleReconcile();
+    }
+  };
+  ownedRoots.set(root, controller);
+  controllers.add(controller);
   observer.observe(observerTarget, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-catalogue-copy-disabled', 'data-catalogue-copy-label'] });
+  const initial = root instanceof HTMLPreElement && root.matches(codeSelector) ? [root] : [];
+  for (const pre of [...initial, ...root.querySelectorAll<HTMLPreElement>(codeSelector)]) createBlock(pre);
   return dispose;
 }

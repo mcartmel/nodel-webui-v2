@@ -22,6 +22,17 @@
 
 ### Performance Budget Evidence
 
+- `APPROVED_CATALOGUE_COPY_CSS_2026-11-17`: After removing the unused icon
+  descendant rule and consolidating the copy-overlay state selectors, the local
+  preview measured `187828` raw / `24046` gzip bytes, down
+  from CI's pre-optimization `188020` / `24068` and above the previous maxima
+  `187730` / `23903`. These measured values are the only changed baselines;
+  established five-percent raw / two-percent gzip headroom yields maxima
+  `197220` / `24527`. Restoring the reduced-motion rule's original specificity
+  keeps its no-transition override effective. Every other metric and budget
+  remains unchanged. The separate parser-dependency approval below remains in
+  force.
+- Rationale: Local preview after restoring reduced-motion selector specificity measured stable-css at 187828 raw / 24046 gzip bytes, down from CI's pre-optimization 188020 / 24068 and above prior maxima 187730 / 23903. These measured values become the only updated baselines: existing 5% raw / 2% gzip headroom sets maxima 197220 / 24527. All other metrics and budgets remain unchanged; the separate parser-dependency approval remains intact.
 - `APPROVED_PARSER_DEPENDENCIES_2026-11-17`: CI run `43994373770` measured
   Java at `74801` raw / `28280` gzip bytes and XML at `151378` raw / `42638`
   gzip bytes. Upstream `@lezer/java` `1.1.3` -> `1.1.5` contributes `7021`

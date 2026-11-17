@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 const animationReset = `
   *, *::before, *::after {
@@ -14,7 +14,34 @@ async function openCatalogue(page: Page, pageId: string) {
   await page.evaluate(async () => {
     await document.fonts?.ready;
   });
+  await expect.poll(async () => page.locator('pre.nodel-catalogue-code').evaluateAll((pres) =>
+    pres.every((pre) => pre.closest('[data-catalogue-example]') || pre.parentElement?.hasAttribute('data-catalogue-copy-container'))
+  )).toBe(true);
   await page.addStyleTag({ content: animationReset });
+}
+
+async function resetScreenshotState(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.mouse.move(0, 0);
+}
+
+async function captureWithCompositingNormalization(
+  page: Page,
+  target: Locator,
+  selector: string,
+  screenshot: string,
+  options: ReturnType<typeof catalogueScreenshotOptions>
+) {
+  // Stabilize text rasterization with a temporary GPU layer for these element captures only.
+  // This helper is never used for full-page or fixed-overlay shots; the style is removed in finally.
+  const style = await page.addStyleTag({ content: `${selector} { transform: translateZ(0); }` });
+  try {
+    await expect(target).toHaveScreenshot(screenshot, options);
+  } finally {
+    await style.evaluate((element) => {
+      if (element.parentNode) element.parentNode.removeChild(element);
+    });
+  }
 }
 
 function catalogueScreenshotOptions(testInfo: TestInfo) {
@@ -27,7 +54,12 @@ async function captureCatalogueExample(page: Page, testInfo: TestInfo, pageId: s
   await openCatalogue(page, pageId);
   const example = page.locator(`[data-catalogue-example="${exampleId}"]`);
   await expect(example).toBeVisible();
-  await expect(example).toHaveScreenshot(screenshot, catalogueScreenshotOptions(testInfo));
+  const options = catalogueScreenshotOptions(testInfo);
+  if (exampleId === 'toggles-switch-states' || exampleId === 'media-qr-codes') {
+    await captureWithCompositingNormalization(page, example, 'nodel-app', screenshot, options);
+    return;
+  }
+  await expect(example).toHaveScreenshot(screenshot, options);
 }
 
 function isDesktopThemeProject(testInfo: TestInfo) {
@@ -54,6 +86,9 @@ test.describe('catalogue visual regressions', () => {
     const shutdown = page.locator('[data-catalogue-example="toggles-actions-confirm"] nodel-group').filter({ hasText: 'Shutdown' });
     await shutdown.locator('nodel-toggle button').click();
     await expect(host).toBeVisible();
+    const hoveredDigit = host.locator('[data-confirm-code-digit="6"]');
+    await expect(hoveredDigit).toBeVisible();
+    await hoveredDigit.hover();
     await expect(host.locator('.nodel-confirm-dialog')).toHaveScreenshot('confirm-code-dialog.png');
   });
 
@@ -132,8 +167,15 @@ test.describe('catalogue visual regressions', () => {
     await expect(fixture.getByRole('textbox', { name: 'Enabled' })).toHaveValue('Editable');
     await expect(fixture.locator('input[readonly]')).toHaveValue('Read only');
     await expect(fixture.locator('input:disabled')).toHaveValue('Disabled');
-    await page.mouse.move(0, 0);
-    await expect(fixture).toHaveScreenshot('theme-state-review.png', catalogueScreenshotOptions(testInfo));
+    await resetScreenshotState(page);
+    await fixture.scrollIntoViewIfNeeded();
+    const screenshot = 'theme-state-review.png';
+    const options = catalogueScreenshotOptions(testInfo);
+    if (testInfo.project.name.includes('mobile')) {
+      await captureWithCompositingNormalization(page, fixture, 'nodel-app', screenshot, options);
+    } else {
+      await expect(fixture).toHaveScreenshot(screenshot, options);
+    }
   });
 
   test('keeps the mobile toolbar in view and captures its open group menu', async ({ page }, testInfo) => {
@@ -155,6 +197,7 @@ test.describe('catalogue visual regressions', () => {
     expect(menuBox!.x).toBeGreaterThanOrEqual(0);
     expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(390);
 
+    await resetScreenshotState(page);
     await expect(page).toHaveScreenshot('toolbar-open-group-mobile.png');
 
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -237,6 +280,7 @@ test.describe('catalogue visual regressions', () => {
     const confirm = page.getByRole('dialog');
     await expect(confirm).toBeVisible();
     await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await resetScreenshotState(page);
     await expect(page).toHaveScreenshot('confirm-dialog.png');
     await confirm.getByRole('button', { name: 'Cancel' }).click();
 

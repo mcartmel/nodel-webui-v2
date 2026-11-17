@@ -27,11 +27,11 @@ async function openBackgroundCatalogue(page: Page) {
 }
 
 function backgroundCopyButton(section: ReturnType<Page['locator']>, kind: 'app' | 'page') {
-  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=preceding-sibling::*[1]//button');
+  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=..//button');
 }
 
 function backgroundCopyStatus(section: ReturnType<Page['locator']>, kind: 'app' | 'page') {
-  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=preceding-sibling::*[1]').locator('[data-catalogue-copy-status]');
+  return section.locator(`[data-background-markup="${kind}"]`).locator('xpath=..').locator('[data-catalogue-copy-status]');
 }
 
 async function chooseCatalogueOption(catalogue: ReturnType<Page['locator']>, action: string, value: string) {
@@ -480,8 +480,8 @@ test.describe('authored background rendering', () => {
     expect(await page.evaluate(() => (window as Window & { __removedBackgroundHost?: HTMLElement }).__removedBackgroundHost?.dataset.backgroundCatalogueMounted)).toBeUndefined();
     await expect(replacement.locator('[data-background-markup="app"]')).toContainText('background-color="rgb(52 86 120)"');
     await expect.poll(() => replacement.locator('[data-background-markup]').evaluateAll((blocks) => blocks.every((block) => {
-      const toolbar = block.previousElementSibling;
-      return toolbar?.hasAttribute('data-catalogue-copy-toolbar') && toolbar.querySelectorAll('button').length === 1 && toolbar.querySelectorAll('[data-catalogue-copy-status]').length === 1;
+      const container = block.parentElement;
+      return container?.hasAttribute('data-catalogue-copy-container') && container.querySelectorAll('button').length === 1 && container.querySelectorAll('[data-catalogue-copy-status]').length === 1;
     }))).toBe(true);
     for (const kind of ['app', 'page'] as const) {
       const pre = replacement.locator(`[data-background-markup="${kind}"]`);
@@ -775,7 +775,7 @@ test.describe('authored background rendering', () => {
     const catalogue = await openBackgroundCatalogue(page);
     const section = page.locator('[data-background-catalogue-section]');
     await expect(page.locator('pre.nodel-catalogue-code > code')).toHaveCount(70);
-    await expect(page.locator('[data-catalogue-copy-toolbar]')).toHaveCount(70);
+    await expect(page.locator('[data-catalogue-copy-container]')).toHaveCount(70);
     const patternSelect = catalogue.locator('nodel-select[action="SetCatalogueBackgroundPattern"]');
     await patternSelect.locator('.nodel-select-trigger').focus();
     await page.keyboard.press('Enter');
