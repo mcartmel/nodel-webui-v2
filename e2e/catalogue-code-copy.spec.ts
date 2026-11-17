@@ -240,6 +240,21 @@ test.describe('catalogue code copy', () => {
     await expect(button).toBeEnabled();
   });
 
+  test('respects reduced-motion preference for the copy-button transition', async ({ page }) => {
+    await openCatalogue(page, 'Quickstart');
+    const button = copyButton(page.locator('[data-catalogue-quickstart-code]'));
+    const transition = () => button.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { property: style.transitionProperty, duration: style.transitionDuration };
+    });
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect.poll(transition).toEqual({ property: 'none', duration: '0s' });
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect.poll(transition).toEqual({ property: 'opacity', duration: '0.12s' });
+  });
+
   test('disposes pending copy when its enclosing Quickstart section is removed and reattached', async ({ page }) => {
     await openCatalogue(page, 'Quickstart');
     const pre = page.locator('[data-catalogue-quickstart-code]');

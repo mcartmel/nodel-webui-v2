@@ -286,18 +286,12 @@
     opacity: 0;
   }
 
-  [data-catalogue-copy-container]:hover .nodel-catalogue-copy-button,
-  [data-catalogue-copy-container]:focus-within .nodel-catalogue-copy-button {
+  [data-catalogue-copy-container]:is(:hover, :focus-within) .nodel-catalogue-copy-button {
     opacity: 1;
   }
 
-  [data-catalogue-copy-container]:hover .nodel-button.nodel-catalogue-copy-button:disabled,
-  [data-catalogue-copy-container]:focus-within .nodel-button.nodel-catalogue-copy-button:disabled {
+  [data-catalogue-copy-container]:is(:hover, :focus-within) .nodel-button.nodel-catalogue-copy-button:disabled {
     opacity: 0.55;
-  }
-
-  .nodel-catalogue-copy-button nodel-icon {
-    @apply pointer-events-none;
   }
 
   .nodel-catalogue-copy-status {
