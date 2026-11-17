@@ -1,4 +1,13 @@
 {
   "schemaVersion": 1,
-  "exceptions": []
+  "exceptions": [
+    {
+      "package": "picomatch",
+      "advisory": "1247710",
+      "severity": "high",
+      "owner": "mcartmel",
+      "expires": "2026-12-01T00:00:00.000Z",
+      "reason": "Temporary acceptance of dev-tool ReDoS risk; no patched release is published. See upstream micromatch/picomatch#247; remove this exception when patched."
+    }
+  ]
 }
