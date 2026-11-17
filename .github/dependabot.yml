@@ -30,6 +30,7 @@ updates:
           - patch
         exclude-patterns:
           - '@lezer/markdown'
+          - '@playwright/test'
   - package-ecosystem: github-actions
     directory: /
     schedule:
