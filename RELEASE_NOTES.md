@@ -22,6 +22,18 @@
 
 ### Performance Budget Evidence
 
+- `APPROVED_PARSER_DEPENDENCIES_2026-11-17`: CI run `43994373770` measured
+  Java at `74801` raw / `28280` gzip bytes and XML at `151378` raw / `42638`
+  gzip bytes. Upstream `@lezer/java` `1.1.3` -> `1.1.5` contributes `7021`
+  raw / `2598` gzip bytes to Java; `@lezer/lr` `1.4.10` -> `1.4.12`
+  contributes approximately `445` raw / `120` gzip bytes to XML. These grammar
+  and reuse fixes are retained rather than pinned or rolled back. Only Java
+  raw/gzip and XML gzip baselines are updated with five percent headroom; all
+  other baselines and limits remain unchanged.
+- Rationale: CI run 43994373770 measured Java at 74801 raw / 28280 gzip bytes and XML at 151378 raw / 42638 gzip bytes. Upstream @lezer/java 1.1.3->1.1.5 contributes 7021 raw / 2598 gzip bytes to Java, and @lezer/lr 1.4.10->1.4.12 contributes approximately 445 raw / 120 gzip bytes to XML; these grammar and reuse fixes are retained rather than pinned or rolled back. Only Java raw/gzip and XML gzip baselines are updated with five percent headroom; all other baselines and limits remain unchanged.
+- This parser-dependency approval supersedes the earlier editor-freeze budget
+  approval only for the three limits above. The separate MDI-specific approval
+  remains applicable to its icon and inventory budgets.
 - `APPROVED_MDI_OFFLINE_ASSETS_2026-11-16`: the approved full non-brand MDI
   catalogue increases only the offline icon-artifact and total `v2/` budgets.
   Measured with Node `24.15.0`, npm `11.12.1`, and `build:preview` plus
