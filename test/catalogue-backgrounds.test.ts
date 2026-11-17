@@ -9,7 +9,7 @@ import { installControlRuntime } from '../src/data/control-runtime';
 import { enhanceCatalogueCodeCopy } from '../src/catalogue/code-copy';
 
 function copyButton(section: ParentNode, kind: 'app' | 'page') {
-  return section.querySelector<HTMLButtonElement>(`[data-background-markup="${kind}"]`)?.previousElementSibling?.querySelector<HTMLButtonElement>('button');
+  return section.querySelector<HTMLButtonElement>(`[data-background-markup="${kind}"]`)?.parentElement?.querySelector<HTMLButtonElement>('button');
 }
 
 let disposeCodeCopy: (() => void) | undefined;

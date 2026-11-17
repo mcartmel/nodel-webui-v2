@@ -18,7 +18,7 @@ const languageEntries = [
 ] as const;
 const expected = {
   'stable-entry-closure': [386548, 405876, 104552, 109780],
-  'stable-css': [178790, 187730, 23434, 23903],
+  'stable-css': [187828, 197220, 24046, 24527],
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
   'codemirror-language-html': [271633, 285215, 92689, 97324],
@@ -44,19 +44,20 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('APPROVED_PARSER_DEPENDENCIES_2026-11-17');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_CATALOGUE_COPY_CSS_2026-11-17');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
     expect(Object.keys(policy.budgets).sort()).toEqual(Object.keys(expected).sort());
     expect(notes).toContain(policy.releaseNotesMarker);
     expect(notes).toContain(policy.rationale);
-    expect(policy.rationale).toBe('CI run 43994373770 measured Java at 74801 raw / 28280 gzip bytes and XML at 151378 raw / 42638 gzip bytes. Upstream @lezer/java 1.1.3->1.1.5 contributes 7021 raw / 2598 gzip bytes to Java, and @lezer/lr 1.4.10->1.4.12 contributes approximately 445 raw / 120 gzip bytes to XML; these grammar and reuse fixes are retained rather than pinned or rolled back. Only Java raw/gzip and XML gzip baselines are updated with five percent headroom; all other baselines and limits remain unchanged.');
+    expect(policy.rationale).toBe("Local preview after restoring reduced-motion selector specificity measured stable-css at 187828 raw / 24046 gzip bytes, down from CI's pre-optimization 188020 / 24068 and above prior maxima 187730 / 23903. These measured values become the only updated baselines: existing 5% raw / 2% gzip headroom sets maxima 197220 / 24527. All other metrics and budgets remain unchanged; the separate parser-dependency approval remains intact.");
     expect(notes).toContain('APPROVED_MDI_OFFLINE_ASSETS_2026-11-16');
     expect(notes).toContain('only free-icon-artifact');
     expect(notes).toContain('dist-v2-inventory');
     expect(notes).toContain('All initial JavaScript, CSS, editor, and other metric baselines and limits remain unchanged');
     expect(notes).toContain('APPROVED_PARSER_DEPENDENCIES_2026-11-17');
+    expect(notes).toContain('APPROVED_CATALOGUE_COPY_CSS_2026-11-17');
     expect(notes).toContain(policy.rationale);
     for (const [name, values] of Object.entries(expected)) {
       const budget = policy.budgets[name];
