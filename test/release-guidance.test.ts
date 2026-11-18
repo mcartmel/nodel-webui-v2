@@ -425,10 +425,10 @@ describe('V1 migration and release guidance', () => {
       runtime: { name: 'node', version: '24.15.0', onFail: 'error' },
       packageManager: { name: 'npm', version: '11.12.1', onFail: 'error' }
     });
-    expect(packageJson.devDependencies['@types/node']).toBe('^24.13.3');
+    expect(packageJson.devDependencies['@types/node']).toBe('^24.19.2');
     expect(packageLock.packages[''].engines).toEqual(packageJson.engines);
-    expect(packageLock.packages[''].devDependencies['@types/node']).toBe('^24.13.3');
-    expect(packageLock.packages['node_modules/@types/node'].version).toBe('24.13.3');
+    expect(packageLock.packages[''].devDependencies['@types/node']).toBe('^24.19.2');
+    expect(packageLock.packages['node_modules/@types/node'].version).toBe('24.19.2');
     expect(npmrc).toBe('engine-strict=true');
 
     for (const workflow of [buildWorkflow, releaseWorkflow]) {
@@ -515,7 +515,8 @@ describe('V1 migration and release guidance', () => {
       '          - minor',
       '          - patch',
       '        exclude-patterns:',
-      "          - '@lezer/markdown'"
+      "          - '@lezer/markdown'",
+      "          - '@playwright/test'"
     ].join('\n'));
     expect(allow.trim()).toBe([
       'allow:',
@@ -543,7 +544,8 @@ describe('V1 migration and release guidance', () => {
       '          - minor',
       '          - patch',
       '        exclude-patterns:',
-      "          - '@lezer/markdown'"
+      "          - '@lezer/markdown'",
+      "          - '@playwright/test'"
     ].join('\n'));
     expect(actions).toBe([
       '  - package-ecosystem: github-actions',
