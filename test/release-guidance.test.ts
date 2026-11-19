@@ -381,10 +381,13 @@ describe('V1 migration and release guidance', () => {
       await writeFile(futureWorkflowPath, '  run: npm run test:browser:dist');
       const browserWorkflows = await readWorkflowContents(temporaryRoot);
       const browserPolicy = JSON.parse(await readFile(resolve(root, 'browser-test-environment.json'), 'utf8'));
+      const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
+        devDependencies: Record<string, string>;
+      };
       expect(() => validateBrowserTestEnvironment(
         browserPolicy,
         browserWorkflows,
-        '^1.62.1'
+        packageJson.devDependencies['@playwright/test'] ?? ''
       )).toThrow(/preflight/);
     } finally {
       await rm(temporaryRoot, { recursive: true, force: true });
