@@ -1,0 +1,2801 @@
+{
+  "schemaVersion": 2,
+  "createdAt": "2026-11-21T07:56:54.814Z",
+  "complete": true,
+  "chromium": "159.0.8154.6",
+  "sourcePath": "src/experiments/konva-canvas/main.ts",
+  "sourceSha256": "8a8a3a405b2cdc800e4d22869e767797a003f6d9901a9b655ecfaab9feeecd73",
+  "repeats": 2,
+  "sizes": [
+    9
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "viewports": [
+    {
+      "width": 1366,
+      "height": 768
+    },
+    {
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "variants": [
+    "control",
+    "optimizedLargerOnly"
+  ],
+  "method": "Fresh browser context per row; source transformed in-memory; five direct synchronous card-layer drawScene calls after readiness; SHA-256 hashes are readback of the two visible scene canvases only (wire scene layer and card scene layer), never Konva hit canvases; interactive checks use native Konva intersections and trusted browser clicks; every fixture wire endpoint is checked against its declared node/port and sampled for actual wire-layer scene ink; selected node/wire state and visible selection redraw are checked; complete-group cache, when tested, is applied after all children are constructed; cache bytes are scene+hit RGBA backing lower bounds, not a heap measurement.",
+  "rows": [
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "0cfc56a8a499a3fec936965b2cdbc23ed0d5a7588800cc593f5c7e563dfd865d",
+        "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a"
+      ],
+      "drawSceneMs": [
+        10.399999618530273,
+        11.100000381469727,
+        10.899999618530273,
+        11.700000762939453,
+        10.600000381469727
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "eca07ea251b81345275aad929b8339d3f7628b2fb4423ae03e2fc1b9534eb6d8",
+          "374f929fb3d13dca75a99faaca2d2f4c8715503e8380561225c64b2a4597a014"
+        ],
+        "after": [
+          "a607f4e022b4033baa9ca88aa613fc5791b5b18d62752451b9a891033a5cb005",
+          "26576da2a5f4ee41d39decdfca94f6b016b7fbbf18634d45de506fb4a5c366ab"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "0cfc56a8a499a3fec936965b2cdbc23ed0d5a7588800cc593f5c7e563dfd865d",
+        "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a"
+      ],
+      "drawSceneMs": [
+        11.100000381469727,
+        11.299999237060547,
+        11.200000762939453,
+        11.69999885559082,
+        12.30000114440918
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "eca07ea251b81345275aad929b8339d3f7628b2fb4423ae03e2fc1b9534eb6d8",
+          "374f929fb3d13dca75a99faaca2d2f4c8715503e8380561225c64b2a4597a014"
+        ],
+        "after": [
+          "a607f4e022b4033baa9ca88aa613fc5791b5b18d62752451b9a891033a5cb005",
+          "26576da2a5f4ee41d39decdfca94f6b016b7fbbf18634d45de506fb4a5c366ab"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "73a88f9244a254d42d17af352b063bc9d4864fccaab5f8b7e7347536005de8c2",
+        "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65"
+      ],
+      "drawSceneMs": [
+        139,
+        137.89999961853027,
+        142,
+        143.39999961853027,
+        141.39999961853027
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "bc9637d818d92b8dd3af4a17b427a609afb180b9d049849087c9b505a130f37c",
+          "fcce7b6ad1617fa60c92273349428dd50407562cd81c9165e6a7dcb13faef704"
+        ],
+        "after": [
+          "6d01ea669bacc0349ff962e5540c04476ecd6143318fea013b378bb8ebe7c789",
+          "93c0ded6d7214ff125ff80a7c799973cfd7b0167ad52afccd3c203b41151acec"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "73a88f9244a254d42d17af352b063bc9d4864fccaab5f8b7e7347536005de8c2",
+        "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65"
+      ],
+      "drawSceneMs": [
+        141.79999923706055,
+        140.60000038146973,
+        140,
+        148.29999923706055,
+        140.60000038146973
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "bc9637d818d92b8dd3af4a17b427a609afb180b9d049849087c9b505a130f37c",
+          "fcce7b6ad1617fa60c92273349428dd50407562cd81c9165e6a7dcb13faef704"
+        ],
+        "after": [
+          "6d01ea669bacc0349ff962e5540c04476ecd6143318fea013b378bb8ebe7c789",
+          "93c0ded6d7214ff125ff80a7c799973cfd7b0167ad52afccd3c203b41151acec"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "4cee6513ed6230cd2101dee5a84125619d904ec4661fd19e9aaf9494c8a64e02",
+        "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf"
+      ],
+      "drawSceneMs": [
+        15.5,
+        16,
+        16,
+        17.5,
+        16.30000114440918
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "60c7a5e936f9c5ebfb01ec459f16fd8e228cb1214f1b15de4cb83449d7069a54",
+          "158ea556ea1e48283d12e6c8e97c69265ab446a92d57387d58b49863d2f55fea"
+        ],
+        "after": [
+          "3130f1b6e416703b9d93e7843412eca29fe99d1f6ca7ccfb619add01879f39f6",
+          "34f5df4618898f4d78ea2f81f723a67eb3565b656d1ec79bee7d98cbd37a1a6b"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "4cee6513ed6230cd2101dee5a84125619d904ec4661fd19e9aaf9494c8a64e02",
+        "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf"
+      ],
+      "drawSceneMs": [
+        10.700000762939453,
+        11,
+        11,
+        11.399999618530273,
+        10.899999618530273
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "60c7a5e936f9c5ebfb01ec459f16fd8e228cb1214f1b15de4cb83449d7069a54",
+          "158ea556ea1e48283d12e6c8e97c69265ab446a92d57387d58b49863d2f55fea"
+        ],
+        "after": [
+          "3130f1b6e416703b9d93e7843412eca29fe99d1f6ca7ccfb619add01879f39f6",
+          "34f5df4618898f4d78ea2f81f723a67eb3565b656d1ec79bee7d98cbd37a1a6b"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "ad5b6d897f5d5cbffa74885d6b10db35605657ff5957cb775ad63261c425b666",
+        "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1"
+      ],
+      "drawSceneMs": [
+        148.30000114440918,
+        142.39999961853027,
+        144.39999961853027,
+        140.60000038146973,
+        140
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "c8930f7514cf118020268454c70c21f3d6fd62f34099646364dd58e77164f92f",
+          "5266cafcdef5f827e9edc769b94798b526931a4016f22aff8a92f751f4fe07e5"
+        ],
+        "after": [
+          "1a1957533280dee234e88f7c943e20c9716c78df7150a96c6caafbde414e4c5b",
+          "c09e74700e1822c5d9d4162658cab7797363bcc48d558bb6245ef108978d6c2c"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 0,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "ad5b6d897f5d5cbffa74885d6b10db35605657ff5957cb775ad63261c425b666",
+        "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1"
+      ],
+      "drawSceneMs": [
+        154.19999885559082,
+        144.4000015258789,
+        148.69999885559082,
+        163.10000038146973,
+        164.20000076293945
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "c8930f7514cf118020268454c70c21f3d6fd62f34099646364dd58e77164f92f",
+          "5266cafcdef5f827e9edc769b94798b526931a4016f22aff8a92f751f4fe07e5"
+        ],
+        "after": [
+          "1a1957533280dee234e88f7c943e20c9716c78df7150a96c6caafbde414e4c5b",
+          "c09e74700e1822c5d9d4162658cab7797363bcc48d558bb6245ef108978d6c2c"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "0cfc56a8a499a3fec936965b2cdbc23ed0d5a7588800cc593f5c7e563dfd865d",
+        "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a"
+      ],
+      "drawSceneMs": [
+        10.600000381469727,
+        11.200000762939453,
+        10.899999618530273,
+        11.19999885559082,
+        10.30000114440918
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "eca07ea251b81345275aad929b8339d3f7628b2fb4423ae03e2fc1b9534eb6d8",
+          "374f929fb3d13dca75a99faaca2d2f4c8715503e8380561225c64b2a4597a014"
+        ],
+        "after": [
+          "a607f4e022b4033baa9ca88aa613fc5791b5b18d62752451b9a891033a5cb005",
+          "26576da2a5f4ee41d39decdfca94f6b016b7fbbf18634d45de506fb4a5c366ab"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "0cfc56a8a499a3fec936965b2cdbc23ed0d5a7588800cc593f5c7e563dfd865d",
+        "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a"
+      ],
+      "drawSceneMs": [
+        11.399999618530273,
+        11.5,
+        11.80000114440918,
+        11.19999885559082,
+        10.899999618530273
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "54068cd0a64cf633f8331703d5f3563595853636a0c55a2f7774f2b18459677a",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "eca07ea251b81345275aad929b8339d3f7628b2fb4423ae03e2fc1b9534eb6d8",
+          "374f929fb3d13dca75a99faaca2d2f4c8715503e8380561225c64b2a4597a014"
+        ],
+        "after": [
+          "a607f4e022b4033baa9ca88aa613fc5791b5b18d62752451b9a891033a5cb005",
+          "26576da2a5f4ee41d39decdfca94f6b016b7fbbf18634d45de506fb4a5c366ab"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "73a88f9244a254d42d17af352b063bc9d4864fccaab5f8b7e7347536005de8c2",
+        "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65"
+      ],
+      "drawSceneMs": [
+        145.79999923706055,
+        141,
+        144.10000038146973,
+        148,
+        141.39999961853027
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "bc9637d818d92b8dd3af4a17b427a609afb180b9d049849087c9b505a130f37c",
+          "fcce7b6ad1617fa60c92273349428dd50407562cd81c9165e6a7dcb13faef704"
+        ],
+        "after": [
+          "6d01ea669bacc0349ff962e5540c04476ecd6143318fea013b378bb8ebe7c789",
+          "93c0ded6d7214ff125ff80a7c799973cfd7b0167ad52afccd3c203b41151acec"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "light",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "73a88f9244a254d42d17af352b063bc9d4864fccaab5f8b7e7347536005de8c2",
+        "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65"
+      ],
+      "drawSceneMs": [
+        140.9000015258789,
+        138.39999961853027,
+        139.69999885559082,
+        145.30000114440918,
+        149.79999923706055
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "cab2177827d32fc986a4a4ea0d67f46a44189a449619ab53ffbb58529593ba65",
+        "strokeBefore": "rgb(215 222 229)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "bc9637d818d92b8dd3af4a17b427a609afb180b9d049849087c9b505a130f37c",
+          "fcce7b6ad1617fa60c92273349428dd50407562cd81c9165e6a7dcb13faef704"
+        ],
+        "after": [
+          "6d01ea669bacc0349ff962e5540c04476ecd6143318fea013b378bb8ebe7c789",
+          "93c0ded6d7214ff125ff80a7c799973cfd7b0167ad52afccd3c203b41151acec"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "4cee6513ed6230cd2101dee5a84125619d904ec4661fd19e9aaf9494c8a64e02",
+        "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf"
+      ],
+      "drawSceneMs": [
+        10.299999237060547,
+        10.80000114440918,
+        11.099998474121094,
+        10.80000114440918,
+        11.100000381469727
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "60c7a5e936f9c5ebfb01ec459f16fd8e228cb1214f1b15de4cb83449d7069a54",
+          "158ea556ea1e48283d12e6c8e97c69265ab446a92d57387d58b49863d2f55fea"
+        ],
+        "after": [
+          "3130f1b6e416703b9d93e7843412eca29fe99d1f6ca7ccfb619add01879f39f6",
+          "34f5df4618898f4d78ea2f81f723a67eb3565b656d1ec79bee7d98cbd37a1a6b"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 768
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          193.46354166666666,
+          25.026041666666664,
+          193.30208333333334,
+          155.60416666666669
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          673.109375,
+          257.63020833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          432.48437500000006,
+          426.06770833333337,
+          193.30208333333331,
+          134.75
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          432.48437500000006,
+          105.23437500000001,
+          193.30208333333331,
+          197.3125
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          673.109375,
+          490.23437500000006,
+          193.30208333333337,
+          155.60416666666669
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          673.109375,
+          8.984375000000009,
+          193.30208333333337,
+          113.89583333333333
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          673.109375,
+          129.296875,
+          193.30208333333337,
+          113.89583333333334
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          673.109375,
+          377.94270833333337,
+          193.30208333333337,
+          113.89583333333331
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          921.7552083333334,
+          249.60937500000003,
+          193.30208333333337,
+          176.45833333333334
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "4cee6513ed6230cd2101dee5a84125619d904ec4661fd19e9aaf9494c8a64e02",
+        "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf"
+      ],
+      "drawSceneMs": [
+        11.799999237060547,
+        11.200000762939453,
+        12.399999618530273,
+        11.700000762939453,
+        11.299999237060547
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 182
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 319.11458333333337,
+          "y": 151.3125
+        },
+        "beforeHash": "8281eaf3c4c5e22999705612412ba03d5d3788db3376cb4476c1f7dd9dea2ecf",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "60c7a5e936f9c5ebfb01ec459f16fd8e228cb1214f1b15de4cb83449d7069a54",
+          "158ea556ea1e48283d12e6c8e97c69265ab446a92d57387d58b49863d2f55fea"
+        ],
+        "after": [
+          "3130f1b6e416703b9d93e7843412eca29fe99d1f6ca7ccfb619add01879f39f6",
+          "34f5df4618898f4d78ea2f81f723a67eb3565b656d1ec79bee7d98cbd37a1a6b"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "optimizedLargerOnly",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "ad5b6d897f5d5cbffa74885d6b10db35605657ff5957cb775ad63261c425b666",
+        "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1"
+      ],
+      "drawSceneMs": [
+        140.39999961853027,
+        140.60000038146973,
+        141.19999885559082,
+        139.39999961853027,
+        140.89999961853027
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "c8930f7514cf118020268454c70c21f3d6fd62f34099646364dd58e77164f92f",
+          "5266cafcdef5f827e9edc769b94798b526931a4016f22aff8a92f751f4fe07e5"
+        ],
+        "after": [
+          "1a1957533280dee234e88f7c943e20c9716c78df7150a96c6caafbde414e4c5b",
+          "c09e74700e1822c5d9d4162658cab7797363bcc48d558bb6245ef108978d6c2c"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    },
+    {
+      "variant": "control",
+      "size": 9,
+      "theme": "dark",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "repeat": 1,
+      "fixtureCounts": {
+        "nodes": 9,
+        "wires": 14,
+        "expectedWires": 14
+      },
+      "cardShapeCounts": [
+        12,
+        10,
+        10,
+        22,
+        12,
+        10,
+        10,
+        10,
+        14
+      ],
+      "rects": [
+        [
+          "schedule",
+          42,
+          120,
+          356.5,
+          106.5,
+          241,
+          194
+        ],
+        [
+          "touch-panel",
+          640,
+          410,
+          954.5,
+          396.5,
+          241,
+          142
+        ],
+        [
+          "media-player",
+          340,
+          620,
+          654.5,
+          606.5,
+          241,
+          168
+        ],
+        [
+          "room-controller",
+          340,
+          220,
+          654.5,
+          206.5,
+          241,
+          246
+        ],
+        [
+          "audio-dsp",
+          640,
+          700,
+          954.5,
+          686.5,
+          241,
+          194
+        ],
+        [
+          "projector-a",
+          640,
+          100,
+          954.5,
+          86.5,
+          241,
+          142
+        ],
+        [
+          "projector-b",
+          640,
+          250,
+          954.5,
+          236.5,
+          241,
+          142
+        ],
+        [
+          "lighting",
+          640,
+          560,
+          954.5,
+          546.5,
+          241,
+          142
+        ],
+        [
+          "room-status",
+          950,
+          400,
+          1264.5,
+          386.5,
+          241,
+          220
+        ]
+      ],
+      "visibleSceneCanvasHashes": [
+        "ad5b6d897f5d5cbffa74885d6b10db35605657ff5957cb775ad63261c425b666",
+        "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1"
+      ],
+      "drawSceneMs": [
+        140.29999923706055,
+        142.20000076293945,
+        142.5,
+        148.29999923706055,
+        142.5
+      ],
+      "cacheGroups": 0,
+      "estimatedGroupCacheBytes": 0,
+      "cacheEstimateScope": "scene + hit RGBA backing only; filter canvases (currently zero-sized), GPU copies, and compositor storage excluded; this is an RGBA lower bound, not a heap measurement",
+      "layers": 2,
+      "endpointGeometry": {
+        "checked": 14,
+        "passed": 14
+      },
+      "endpointInk": {
+        "checked": 28,
+        "passed": 28,
+        "minimumAlpha": 255
+      },
+      "cardHit": {
+        "targetId": "schedule",
+        "hitId": "schedule"
+      },
+      "cardSelection": {
+        "click": {
+          "x": 506,
+          "y": 241
+        },
+        "beforeHash": "93aa60e59df72cdd33e0a9fcc84715514b72c421af6170298cf2d31f31defec1",
+        "strokeBefore": "rgb(63 63 70)"
+      },
+      "semantics": {
+        "nodeSelected": true,
+        "nodeHit": true,
+        "nodeSelectionVisible": true,
+        "wireHit": true,
+        "wireSelected": true,
+        "wireSelectionVisible": true,
+        "endpointHighlightVisible": true,
+        "selectedWireId": "schedule-scene"
+      },
+      "wireSelectionSceneHashes": {
+        "before": [
+          "c8930f7514cf118020268454c70c21f3d6fd62f34099646364dd58e77164f92f",
+          "5266cafcdef5f827e9edc769b94798b526931a4016f22aff8a92f751f4fe07e5"
+        ],
+        "after": [
+          "1a1957533280dee234e88f7c943e20c9716c78df7150a96c6caafbde414e4c5b",
+          "c09e74700e1822c5d9d4162658cab7797363bcc48d558bb6245ef108978d6c2c"
+        ]
+      },
+      "validation": {
+        "fixtureCounts": true,
+        "twoVisibleSceneLayers": true,
+        "endpointGeometry": true,
+        "endpointSceneInk": true,
+        "interactions": true,
+        "failedSemantics": []
+      }
+    }
+  ]
+}
