@@ -13,7 +13,8 @@ const childOutputLimit = 16 * 1024 * 1024;
 const projectInputs = [
   'src', 'scripts', 'public', 'components.html', 'nodes.html', 'nodel.html', 'toolkit.html',
   'package.json', 'package-lock.json', 'vite.config.ts', 'postcss.config.cjs', 'tailwind.config.ts',
-  'tsconfig.json', 'deployment-manifest.json'
+  // Production bundling ships an offline copy of the project's MPL text.
+  'tsconfig.json', 'deployment-manifest.json', 'LICENSE'
 ];
 
 async function copyPrivateTree(source: string, destination: string, boundary: string): Promise<void> {

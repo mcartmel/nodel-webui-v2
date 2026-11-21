@@ -1,9 +1,10 @@
 import { safeHostRestUrl } from '../utils/urls';
 import { isAbortError } from '../utils/errors';
-import { decodeNodeUrls } from './codecs/nodel-codecs';
+import { decodeNodeUrls, decodeNodeUrlsDetailed } from './codecs/nodel-codecs';
 import { postJson } from './http-transport';
-import { fetchWithDeadline } from './request';
+import { fetchWithDeadline, type NodelReadInit } from './request';
 import type { NodelNodeUrlEntry } from './nodel-types';
+export type { DetailedNodeUrlDiscovery, NodeUrlDiscoveryDiagnostic } from './codecs/nodel-codecs';
 
 interface NodelReachabilityResult {
   host: string;
@@ -12,6 +13,11 @@ interface NodelReachabilityResult {
 
 export async function searchNodeUrls(filter: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {
   return decodeNodeUrls(await postJson('/REST/nodeURLs', { filter }, init), 'POST /REST/nodeURLs');
+}
+
+export async function searchNodeUrlsDetailed(filter = '', { waitForSettlement, ...init }: NodelReadInit = {}): Promise<ReturnType<typeof decodeNodeUrlsDetailed>> {
+  return decodeNodeUrlsDetailed(await postJson('/REST/nodeURLs', { filter }, init, undefined,
+    waitForSettlement ? 'settled' : 'deadline'), 'POST /REST/nodeURLs');
 }
 
 export async function getNodeUrlsForNode(name: string, init?: RequestInit): Promise<NodelNodeUrlEntry[]> {

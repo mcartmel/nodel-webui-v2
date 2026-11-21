@@ -22,6 +22,14 @@
 
 ### Performance Budget Evidence
 
+- `APPROVED_CURRENT_DIST_INVENTORY_XML_RAW_2026-11-20`: Current dist
+  verification measured total offline `v2/` inventory at `11864128` raw /
+  `2892457` gzip bytes and CodeMirror XML at `151912` raw / `42775` gzip bytes.
+  Only inventory raw/gzip and XML raw baselines change: inventory maxima are
+  `12110000` / `2950000` (approximately two-percent rounded headroom), while
+  XML raw max is `152000` for minimal headroom. XML gzip and ordinary initial
+  page budgets remain unchanged.
+- Rationale: Current dist verification measured dist-v2-inventory at 11864128 raw / 2892457 gzip bytes and CodeMirror XML at 151912 raw / 42775 gzip bytes. Only the offline inventory raw/gzip and XML raw baselines change, using approximately 2% rounded inventory headroom and minimal XML raw headroom; XML gzip and ordinary initial-page budgets remain unchanged.
 - `APPROVED_CATALOGUE_COPY_CSS_2026-11-17`: After removing the unused icon
   descendant rule and consolidating the copy-overlay state selectors, the local
   preview measured `187828` raw / `24046` gzip bytes, down

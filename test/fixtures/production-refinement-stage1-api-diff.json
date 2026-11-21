@@ -1,7 +1,7 @@
 {
   "baseline": "production-refinement-stage0-component-contract.json",
   "golden": "production-refinement-stage1-component-contract.json",
-  "serializedSha256": "7f06a82abab3abfa167f67377bc90c364db6de79b35954a8d3206939aebbab1e",
+  "serializedSha256": "7cc8eacce5c654d9f15e634a61b54e382afbed98e7c5e768eba9ce9af26464be",
   "reviewedDiff": {
     "breaking": [
       "elements.nodel-add-node.attributes.duplicate.defaultValue: changed",
@@ -46,7 +46,8 @@
       "elements.nodel-readout.attributes.notch-position: added",
       "elements.nodel-readout.attributes.ring-layout: added",
       "elements.nodel-shortcut: added",
-      "elements.nodel-toolbar.attributes.show-host-icon: added"
+      "elements.nodel-toolbar.attributes.show-host-icon: added",
+      "elements.nodel-topology: added"
     ],
     "informational": [
       "elements.nodel-icon.attributes.name.description: changed",
@@ -58,25 +59,25 @@
     "operational": []
   },
   "contractAnnotations": {
-    "elements": 51,
-    "attributes": 487,
+    "elements": 52,
+    "attributes": 489,
     "audiences": {
       "custom": 33,
-      "core": 15,
+      "core": 16,
       "internal": 3
     },
     "registrations": {
       "eager": 33,
-      "lazy": 15,
+      "lazy": 16,
       "auto-host": 3
     },
     "completion": {
       "recommended": 33,
-      "advanced": 15,
+      "advanced": 16,
       "hidden": 3
     },
     "consumption": {
-      "observed": 468,
+      "observed": 470,
       "initialization": 0,
       "parent": 13,
       "contextual-child": 5,

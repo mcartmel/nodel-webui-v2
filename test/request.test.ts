@@ -1,4 +1,4 @@
-import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, fetchWithDeadline, NodelRequestTimeoutError, runWithDeadline } from '../src/api/request';
+import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, fetchWithDeadline, NodelRequestTimeoutError, runWithDeadline, startRequestDeadline } from '../src/api/request';
 
 describe('request deadlines', () => {
   beforeEach(() => {
@@ -39,6 +39,55 @@ describe('request deadlines', () => {
 
     caller.abort();
     await expect(request).rejects.toEqual(expect.objectContaining({ name: 'AbortError' }));
+  });
+
+  it('does not dispatch pre-aborted work in cooperative or strict mode', async () => {
+    const caller = new AbortController();
+    const reason = new Error('Already cancelled');
+    caller.abort(reason);
+    const operation = vi.fn(async () => 'unreachable');
+    const fetchMock = vi.fn(async () => new Response());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const hard = startRequestDeadline(operation, caller.signal);
+    await expect(hard.result).rejects.toBe(reason);
+    await hard.settled;
+    await expect(runWithDeadline(operation, caller.signal, 0)).rejects.toBe(reason);
+    await expect(fetchWithDeadline('/REST', { signal: caller.signal })).rejects.toBe(reason);
+    expect(operation).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps a cooperative fetch pending until the fetch settles, even after its deadline', async () => {
+    let finish!: (response: Response) => void;
+    let signal: AbortSignal | null | undefined;
+    vi.stubGlobal('fetch', vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal;
+      return new Promise<Response>((resolve) => { finish = resolve; });
+    }));
+    const notified = vi.fn();
+    const request = fetchWithDeadline('/REST', undefined, 75);
+    void request.then(notified, notified);
+    await vi.advanceTimersByTimeAsync(75);
+    expect(signal?.aborted).toBe(true);
+    expect(notified).not.toHaveBeenCalled();
+    finish(new Response('{}'));
+    await expect(request).rejects.toBeInstanceOf(NodelRequestTimeoutError);
+  });
+
+  it('reports a strict deadline without pretending that abort-insensitive work has settled', async () => {
+    let finish!: (value: string) => void;
+    const operation = startRequestDeadline(() => new Promise<string>((resolve) => { finish = resolve; }), undefined, 75);
+    const rejection = expect(operation.result).rejects.toBeInstanceOf(NodelRequestTimeoutError);
+    const settled = vi.fn();
+    void operation.settled.then(settled);
+    await vi.advanceTimersByTimeAsync(75);
+    await rejection;
+    expect(settled).not.toHaveBeenCalled();
+    finish('late');
+    await operation.settled;
+    expect(settled).toHaveBeenCalledOnce();
   });
 
   it('keeps the deadline active while a response body is consumed', async () => {

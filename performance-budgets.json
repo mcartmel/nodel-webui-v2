@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseNotesMarker": "APPROVED_CATALOGUE_COPY_CSS_2026-11-17",
-  "rationale": "Local preview after restoring reduced-motion selector specificity measured stable-css at 187828 raw / 24046 gzip bytes, down from CI's pre-optimization 188020 / 24068 and above prior maxima 187730 / 23903. These measured values become the only updated baselines: existing 5% raw / 2% gzip headroom sets maxima 197220 / 24527. All other metrics and budgets remain unchanged; the separate parser-dependency approval remains intact.",
+  "releaseNotesMarker": "APPROVED_CURRENT_DIST_INVENTORY_XML_RAW_2026-11-20",
+  "rationale": "Current dist verification measured dist-v2-inventory at 11864128 raw / 2892457 gzip bytes and CodeMirror XML at 151912 raw / 42775 gzip bytes. Only the offline inventory raw/gzip and XML raw baselines change, using approximately 2% rounded inventory headroom and minimal XML raw headroom; XML gzip and ordinary initial-page budgets remain unchanged.",
   "codeMirrorBaseModuleId": "src/editor/codemirror-editor.ts",
   "languageRoles": ["python", "html", "xml", "javascript", "json", "css", "markdown", "java", "groovy", "sql", "shell"],
   "languageEntries": [
@@ -23,7 +23,7 @@
     "codemirror-base": { "rawBaseline": 411183, "rawMax": 431743, "gzipBaseline": 133409, "gzipMax": 140080 },
     "codemirror-language-python": { "rawBaseline": 71704, "rawMax": 75290, "gzipBaseline": 27989, "gzipMax": 29389 },
     "codemirror-language-html": { "rawBaseline": 271633, "rawMax": 285215, "gzipBaseline": 92689, "gzipMax": 97324 },
-    "codemirror-language-xml": { "rawBaseline": 144439, "rawMax": 151661, "gzipBaseline": 42638, "gzipMax": 44770 },
+    "codemirror-language-xml": { "rawBaseline": 151912, "rawMax": 152000, "gzipBaseline": 42638, "gzipMax": 44770 },
     "codemirror-language-javascript": { "rawBaseline": 111238, "rawMax": 116800, "gzipBaseline": 42326, "gzipMax": 44443 },
     "codemirror-language-json": { "rawBaseline": 28617, "rawMax": 30048, "gzipBaseline": 10118, "gzipMax": 10624 },
     "codemirror-language-css": { "rawBaseline": 53800, "rawMax": 56490, "gzipBaseline": 21113, "gzipMax": 22169 },
@@ -34,6 +34,6 @@
     "codemirror-language-shell": { "rawBaseline": 2571, "rawMax": 2700, "gzipBaseline": 1214, "gzipMax": 1275 },
     "components-html": { "rawBaseline": 175483, "rawMax": 184258, "gzipBaseline": 20145, "gzipMax": 21153 },
     "free-icon-artifact": { "rawBaseline": 8615311, "rawMax": 9046077, "gzipBaseline": 1950455, "gzipMax": 2047978 },
-    "dist-v2-inventory": { "rawBaseline": 11348518, "rawMax": 11580000, "gzipBaseline": 2738723, "gzipMax": 2795000 }
+    "dist-v2-inventory": { "rawBaseline": 11864128, "rawMax": 12110000, "gzipBaseline": 2892457, "gzipMax": 2950000 }
   }
 }

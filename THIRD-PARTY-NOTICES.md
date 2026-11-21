@@ -4,6 +4,7 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 
 | Package | License |
 | --- | --- |
+| `@antv/x6` | MIT |
 | `@codemirror/autocomplete` | MIT |
 | `@codemirror/commands` | MIT |
 | `@codemirror/lang-css` | MIT |
@@ -46,6 +47,7 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `camelcase` | MIT |
 | `chart.js` | MIT |
 | `codemirror` | MIT |
+| `dom-align` | MIT |
 | `cliui` | ISC |
 | `color-convert` | MIT |
 | `color-name` | MIT |
@@ -61,6 +63,8 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `jquery` | MIT |
 | `jsviews` | MIT |
 | `locate-path` | MIT |
+| `lodash-es` | MIT |
+| `mousetrap` | Apache-2.0 WITH LLVM-exception |
 | `p-limit` | MIT |
 | `p-locate` | MIT |
 | `p-try` | MIT |
@@ -74,6 +78,8 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `string-width` | MIT |
 | `strip-ansi` | MIT |
 | `style-mod` | MIT |
+| `tslib` | 0BSD |
+| `utility-types` | MIT |
 | `w3c-keyname` | MIT |
 | `which-module` | ISC |
 | `wrap-ansi` | MIT |
@@ -83,6 +89,24 @@ The Nodel Web UI release bundle includes bundled code and assets from open sourc
 | `yargs-parser` | ISC |
 
 The project source license is provided separately in `LICENSE`.
+
+## Topology SimpleName transliteration data
+
+The separate `topology-simple-name-transliterations.json` data is adapted from
+[CIRCLE](https://stackoverflow.com/users/2011284/circle)'s Stack Overflow
+[answer to “How do I remove diacritics (accents) from a string in .NET?”](https://stackoverflow.com/a/34272324),
+[revision 2, 14 December 2015](https://stackoverflow.com/revisions/34272324/2),
+licensed under [CC BY-SA 3.0 Unported](https://creativecommons.org/licenses/by-sa/3.0/).
+The ordered table was extracted into JSON and its replacement strings were
+lowercased to reproduce Java `SimpleName` under `Locale.ROOT`. The 2024 edit
+is not used. The adaptation, including its bundled representation, is
+distributed under CC BY-SA 3.0; this does not license the application under CC BY-SA.
+
+The answer identifies its CodeIgniter origin. For the matching upstream table,
+retained MIT attribution, and separately MPL-2.0 Java-derived comparator, see
+`v2/licenses/topology-simple-name-NOTICE.txt` (`public/v2/licenses/` in the
+source checkout). The installed `v2/licenses/` directory includes the
+corresponding JSON data and offline license texts.
 
 ## Material Design Icons
 

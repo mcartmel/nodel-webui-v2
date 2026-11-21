@@ -24,13 +24,15 @@ import {
   isDecodedNodeFileReadCapability,
   nodeFilePathCompatibility
 } from '../utils/node-file-path';
-import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, runWithDeadline } from './request';
+import { DEFAULT_REQUEST_TIMEOUT_MS, FILE_REQUEST_TIMEOUT_MS, runWithDeadline, type NodelReadInit } from './request';
 import { boundedLongPollTimeout, fetchJson, fetchOk, postJson, responseError } from './http-transport';
 import { isRecord, hasOwn } from '../utils/records';
 export { createNode, removeCurrentNode, renameCurrentNode, restartCurrentNode } from './node-lifecycle';
 export { waitForNodeReady } from './node-readiness';
 export { duplicateNode, NodelDuplicateNodeError } from './node-duplication';
-export { checkHostReachable, getNodeUrlsForNode, searchNodeUrls } from './node-discovery';
+export { checkHostReachable, getNodeUrlsForNode, searchNodeUrls, searchNodeUrlsDetailed } from './node-discovery';
+export { getTopologyActions, getTopologyEvents, getTopologyRemoteBindings, getTopologyRemoteSchema, localTopologyNodeAddress, topologyNodeAddress } from './topology-client';
+export type { TopologyNodeAddress } from './topology-client';
 import type {
   NodelActivityLogEntry,
   NodelActionDefinition,
@@ -59,8 +61,8 @@ export interface NodelCustomUiEntry {
   title: string;
 }
 
-export async function getLocalRest(init?: RequestInit): Promise<NodelLocalRestResponse> {
-  return decodeLocalRest(await fetchJson('/REST', init), 'GET /REST');
+export async function getLocalRest({ waitForSettlement, ...init }: NodelReadInit = {}): Promise<NodelLocalRestResponse> {
+  return decodeLocalRest(await fetchJson('/REST', init, undefined, waitForSettlement ? 'settled' : 'deadline'), 'GET /REST');
 }
 
 export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosticsResponse> {

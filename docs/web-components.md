@@ -102,6 +102,7 @@ The backdrop remains fixed while page content scrolls. Brightness applies only t
 
 - `nodel-description`: current-node description rendered from Markdown.
 - `nodel-node-list`: local or network-wide node list.
+- `nodel-topology`: read-only topology viewer for discovered nodes, endpoints, and configured action/event bindings.
 - `nodel-add-node`: node creation, recipe selection, and duplication flow.
 - `nodel-node-menu`: current-node navigation and management drawer.
 - `nodel-diagnostics`: host diagnostics table.
@@ -118,6 +119,12 @@ The backdrop remains fixed while page content scrolls. Brightness applies only t
 - `nodel-confirm-host`: app-level confirmation dialog host, created automatically by `nodel-app`.
 - `nodel-connectivity-host`: app-level host-connectivity presentation, created automatically by `nodel-app`.
 - `nodel-link`: safe static, node-discovered, or event-binding-derived link.
+
+`nodel-topology` renders every complete owner assignment as a configured wire by default, including when target discovery or endpoint inventory is unread, unavailable, missing, or disputed. The wire represents owner configuration only; its `referenceResolution` is target-validation evidence and does not claim that an action or event ran. Target validation distinguishes resolved, missing, ambiguous, not-discovered, and unknown evidence. Unbound, partial, malformed, or conflicting owner assignments do not create speculative wires. Use the **Connections** display filter or status/display filters to narrow the diagram; selecting a binding still reveals only that binding without changing the global filter settings.
+
+Nodes with multiple matching routes are grouped by Java-compatible logical name. The inspector identifies the route supplying the selected evidence and reports duplicate route names/counts; conflicting evidence suppresses the administration link rather than choosing another route's address. An advertised node with no browser read attempt is described as **advertised only**, separately from an unreadable node. Failed owner-assignment reads retain a clearly stale configured wire; a successful cached owner assignment is marked pending/cached instead of being reported as a failure.
+
+Topology node, endpoint, and binding IDs now use logical-name keys instead of exact route/name text. This keeps IDs stable across equivalent Nodel spellings and placeholder-to-advertised promotion, preserving current selection and layout in those cases. Existing locally persisted layout entries keyed by the former IDs may not match after this identity change; the viewer will place unmatched nodes automatically, while saved positions for unchanged IDs remain in place.
 
 ### Admin Control Density
 
@@ -1443,6 +1450,27 @@ Behavior:
 - Query-prefilled filters are URL-decoded once; later manual edits are not overwritten by polling or unrelated attribute changes.
 - Node icons use the familiar Nodel host identicon generated from `identicon.js` and `xxhashjs`.
 - Unreachable network hosts are dimmed.
+
+## Read-only Topology
+
+`nodel-topology` is a host-level viewer that reads discovered nodes and their action, event, and remote-binding metadata. It can be embedded in host pages and is loaded only when its page is activated.
+
+```html
+<nodel-topology></nodel-topology>
+```
+
+Supported attributes:
+
+- `show-candidates` is retained for compatibility with legacy candidate identities; current logical-name resolution groups duplicate routes instead of creating candidate nodes.
+- `show-placeholders` is retained as a compatibility opt-in. Configured unresolved targets are visible by default; the “All unresolved references” display control can narrow them.
+
+The viewer starts discovery only while its containing page is active and the document is visible. The Topology page keeps the host navigation and content gutters; it measures the remaining viewport below the actual page position and uses a topology-scoped application grid. With no saved layout, Relationships shows the actual visible terminals of complete configured relationships plus manually placed nodes; this membership comes from owner-assignment evidence, not from the Connections wire-display toggle. Unknown target reads remain unknown evidence, not evidence of disconnection. A searchable, paged inventory sidebar always covers the full advertised-node inventory (including nodes not currently painted); host and browser-read-status filters apply to that inventory. Place adds a node, Centre navigates to a displayed node, and Remove records a presentation-only omission that persists when switching views. Place clears that omission. Reset returns to the complete inventory view and clears saved positions and omissions. All Nodes is an explicit inventory view; its status, unresolved/candidate, labels, and Connections controls still apply to the diagram.
+
+Overview aggregates parallel relationships only as visual bundles; selecting a multi-binding bundle keeps it highlighted and lists the original member bindings, and inspection requires choosing an individual binding. A single relationship remains its original binding wire. Focus supports upstream, downstream, or both branches at one or two hops. Its temporary layout, selection, viewport, and prior selection are restored on exit; the focused node and restoration state survive reload. Auto Layout explicitly arranges visible cards while retaining hidden coordinates and manually dragged anchors. Ordinary refreshes retain existing coordinates, place only new cards, and nudge only colliding auto-positioned cards when live geometry grows. Automatic-versus-manual position origin is persisted, so saved generated coordinates do not become pins after reload. The endpoint visibility control independently selects configured, compact-count, or expanded ports.
+
+A dominant pannable diagram, optional inspector and collapsed diagnostics drawer share the remaining space, with scrolling confined to panels and results. On narrow viewports the sidebar and inspector open as bounded, labelled overlays with Escape/Close and focus return. The toolbar provides keyboard-navigable search across all known nodes, endpoints and bindings, port visibility (Configured + revealed, Compact, Expanded), refresh, fit-displayed, fit-selection, fit-component, centre and zoom. Search selects a result without changing global display controls or status filters; only that selected node/endpoint or binding is temporarily revealed. Revealed endpoints are selected and centred on their port. To inspect one unresolved reference, use Inspector → Bindings and select it; “Reveal this connection” overlays only that binding and its configured terminals. Status facets combine with OR, and display toggles change only presentation. Selecting a graph item opens the optional inspector, which has Overview, Bindings and Endpoints tabs; it can be closed independently without clearing selection. Binding and endpoint inventories are searchable/paged in the inspector, not permanently mounted below the graph. The short status warning keeps counts and state while detailed messages and last-success time live in the v2 `nodel-collapse` Diagnostics drawer. Membership, pins, omissions, positions and viewport are saved locally per host context. Safe discovered administration links may be opened separately.
+
+Topology is evidence, not a configuration editor: the viewer does not create nodes, change bindings, invoke actions/events, or issue Nodel API writes. Partial or failed reads remain visible in diagnostics, and unresolved or ambiguous references are represented distinctly rather than guessed.
 
 ## Add Node
 

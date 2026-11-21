@@ -19,7 +19,7 @@ import type {
   NodelSignalDefinition,
   NodelToolkitResponse
 } from '../nodel-types';
-import { canonicalJavaAbsoluteHttpHref, canonicalRemoteNodeHref, hostMatchesRemoteNodeUrl, safeNavigationHref } from '../../utils/urls';
+import { canonicalJavaAbsoluteHttpHref, canonicalRemoteNodeHref, canonicalTopologyNodeHref, hostMatchesRemoteNodeUrl, safeNavigationHref } from '../../utils/urls';
 import {
   nodeFilePathCompatibility,
   nodeRecipePathCompatibility,
@@ -27,13 +27,16 @@ import {
   registerDecodedNodeRecipeEntry
 } from '../../utils/node-file-path';
 import { MAX_JSON_COLLECTION_ITEMS, MAX_JSON_DEPTH, validateJsonValueBounds } from '../../utils/json-value';
-import { reduceNodeNameForPath } from '../../utils/node-name';
+import { isUsableNodeName, reduceNodeNameForPath } from '../../utils/node-name';
 
 export const MAX_API_COLLECTION_ITEMS = MAX_JSON_COLLECTION_ITEMS;
 export const MAX_DIAGNOSTIC_MEASUREMENTS = 1000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_SAMPLES = 5000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_TOTAL_SAMPLES = 50_000;
 export const MAX_DIAGNOSTIC_MEASUREMENT_NAME_BYTES = 512;
+export const MAX_TOPOLOGY_NAMES_PER_INTERFACE = 1_024;
+export const MAX_DETAIL_NAME_LENGTH = 1_000;
+export const MAX_DETAIL_TEXT_PER_INTERFACE = 32_768;
 const MAX_SCHEMA_DEPTH = 32;
 const unsafeText = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 const unsafeActivityTimestampText = /[\u0000-\u001f\u007f]/;
@@ -46,6 +49,17 @@ export class NodelApiDecodeError extends Error {
     super(`${context} returned invalid data at ${boundedPath}: ${expected}`.slice(0, 500));
     this.name = 'NodelApiDecodeError';
   }
+}
+
+export class TopologyDetailLimitError extends Error {}
+
+/** A limit violation cannot prove that omitted interface data is absent. */
+export function topologyDetailTextBudget() {
+  let remaining = MAX_DETAIL_TEXT_PER_INTERFACE;
+  return (value: string) => {
+    remaining -= value.length;
+    if (value.length > MAX_DETAIL_NAME_LENGTH || remaining < 0) throw new TopologyDetailLimitError();
+  };
 }
 
 function invalid(context: string, path: string, expected: string): never {
@@ -576,12 +590,55 @@ export function decodeRemoteBindings(value: unknown, context: string): NodelRemo
     }
     const section = asRecord(record[sectionName], context, `$.${sectionName}`);
     result[sectionName] = Object.fromEntries(limitedEntries(section, context, `$.${sectionName}`).map(([name, item]) => {
-      const binding = asRecord(item, context, `$.${sectionName}.${name}`);
-      const normalized = normalizeOptionalStrings(binding, ['node', 'action', 'event'], context, `$.${sectionName}.${name}`);
-      return [name, normalized];
+      const path = `$.${sectionName}.${name}`;
+      const binding = asRecord(item, context, path);
+      return [name, normalizeOptionalStrings(binding, ['node', 'action', 'event'], context, path)];
     }));
   }
   return result;
+}
+
+type TopologyBindingField = 'node' | 'action' | 'event';
+/** `null` marks a present but malformed row; only a genuine `{}` is unbound. */
+type DecodedTopologyBindingRow = Readonly<Partial<Record<TopologyBindingField, string>>> | null;
+export type DecodedTopologyRemoteBindings = Readonly<Record<'actions' | 'events', Record<string, DecodedTopologyBindingRow>>>;
+
+/** Validate the envelope and limits, but isolate invalid rows from valid siblings. */
+export function decodeTopologyRemoteBindings(value: unknown, context: string): DecodedTopologyRemoteBindings {
+  const record = asRecord(value, context);
+  validateJsonBounds(record, context, '$');
+  const countText = topologyDetailTextBudget();
+  const fields = ['node', 'action', 'event'] as const;
+
+  function section(kind: 'actions' | 'events'): Record<string, DecodedTopologyBindingRow> {
+    const data = record[kind];
+    if (data === undefined || data === null) return Object.freeze({});
+    const path = `$.${kind}`;
+    const entries = limitedEntries(asRecord(data, context, path), context, path);
+    if (entries.length > MAX_TOPOLOGY_NAMES_PER_INTERFACE) throw new TopologyDetailLimitError();
+    const endpointField = kind === 'actions' ? 'action' : 'event';
+
+    return Object.freeze(Object.fromEntries(entries.map(([alias, item]) => {
+      countText(alias);
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) return [alias, null];
+      const row = item as Record<string, unknown>;
+      const decoded: Partial<Record<TopologyBindingField, string>> = {};
+      let invalidRow = Object.keys(row).some((field) => field !== 'node' && field !== endpointField);
+      for (const field of fields) {
+        if (!Object.hasOwn(row, field)) continue;
+        const part = row[field];
+        if (typeof part === 'string') {
+          // Known fields count towards the interface budget even in invalid rows.
+          countText(part);
+          if (unsafeText.test(part)) invalidRow = true;
+          else decoded[field] = part;
+        } else invalidRow = true;
+      }
+      return [alias, invalidRow ? null : Object.freeze(decoded)];
+    })));
+  }
+
+  return Object.freeze({ actions: section('actions'), events: section('events') });
 }
 
 function cloneJsonValue(value: unknown): unknown {
@@ -614,6 +671,42 @@ export function decodeFiles(value: unknown, context: string): NodelFileEntry[] {
   });
 }
 
+type DiscoveryNameIssue = 'unsafe-name' | 'name-conflict';
+type DiscoveryAddressIssue = 'unusable-address' | 'host-mismatch';
+
+function isSafeDiscoveryName(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 1000 && isUsableNodeName(value);
+}
+
+function decodeDiscoveryNames(record: Record<string, unknown>):
+  | { names: Pick<NodelNodeUrlEntry, 'name' | 'node'>; issue?: DiscoveryNameIssue }
+  | { reason: 'missing-name' | 'unsafe-name' } {
+  // Java advertises `node`; a compatibility `name` is only a fallback when
+  // `node` is absent. Never substitute it for a malformed primary identity.
+  const field = record.node == null ? 'name' : 'node';
+  const value = record[field];
+  if (value == null || value === '') return { reason: 'missing-name' };
+  if (!isSafeDiscoveryName(value)) return { reason: 'unsafe-name' };
+  if (field === 'name') return { names: { name: value } };
+  if (record.name == null) return { names: { node: value } };
+  if (!isSafeDiscoveryName(record.name)) return { names: { node: value }, issue: 'unsafe-name' };
+  if (record.name !== value) return { names: { node: value }, issue: 'name-conflict' };
+  return { names: { node: value, name: record.name } };
+}
+
+function decodeDiscoveryAddress(record: Record<string, unknown>):
+  | { address: string; host?: string }
+  | { reason: DiscoveryAddressIssue } {
+  const address = typeof record.address === 'string' ? canonicalTopologyNodeHref(record.address) : null;
+  if (!address) return { reason: 'unusable-address' };
+  const host = record.host;
+  if (host == null) return { address };
+  if (typeof host !== 'string' || unsafePathText.test(host) || (host && !hostMatchesRemoteNodeUrl(host, address))) {
+    return { reason: 'host-mismatch' };
+  }
+  return { address, host };
+}
+
 export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEntry[] {
   const items = asArray(value, context);
   const decoded: NodelNodeUrlEntry[] = [];
@@ -627,6 +720,8 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
       if (!href) {
         invalid(context, `${path}.address`, 'expected an absolute HTTP(S) node URL without credentials, query, or fragment');
       }
+      // The compatibility API validates `name` first and keeps both fields,
+      // including an empty `node` used by existing consumers as a fallback.
       const result = normalizeOptionalStrings(record, ['name', 'node', 'host'], context, path);
       const name = optionalString(record, 'name', context, path) ?? optionalString(record, 'node', context, path);
       if (!name) {
@@ -650,6 +745,67 @@ export function decodeNodeUrls(value: unknown, context: string): NodelNodeUrlEnt
     throw errorToThrow;
   }
   return decoded;
+}
+
+export interface NodeUrlDiscoveryDiagnostic {
+  index: number;
+  reason: 'invalid-entry' | 'missing-name' | DiscoveryNameIssue | DiscoveryAddressIssue;
+}
+
+export interface DetailedNodeUrlDiscovery {
+  entries: Array<Pick<NodelNodeUrlEntry, 'name' | 'node' | 'host'> & { address?: string }>;
+  diagnostics: {
+    discardedCount: number;
+    discarded: NodeUrlDiscoveryDiagnostic[];
+    unusableAddressCount: number;
+    unusableAddresses: NodeUrlDiscoveryDiagnostic[];
+    nameIssueCount: number;
+    nameIssues: NodeUrlDiscoveryDiagnostic[];
+  };
+}
+
+/** Decode discovery rows without retaining untrusted rejected text; diagnostics are capped. */
+export function decodeNodeUrlsDetailed(value: unknown, context: string, diagnosticLimit = 20): DetailedNodeUrlDiscovery {
+  const items = asArray(value, context);
+  const entries: DetailedNodeUrlDiscovery['entries'] = [];
+  const discarded: NodeUrlDiscoveryDiagnostic[] = [];
+  const unusableAddresses: NodeUrlDiscoveryDiagnostic[] = [];
+  const nameIssues: NodeUrlDiscoveryDiagnostic[] = [];
+  let discardedCount = 0;
+  let unusableAddressCount = 0;
+  let nameIssueCount = 0;
+  const limit = Math.max(0, Math.min(100, Math.floor(diagnosticLimit)));
+  const report = (issues: NodeUrlDiscoveryDiagnostic[], index: number, reason: NodeUrlDiscoveryDiagnostic['reason']) => {
+    if (issues.length < limit) issues.push({ index, reason });
+  };
+  items.forEach((item, index) => {
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      discardedCount += 1;
+      report(discarded, index, 'invalid-entry');
+      return;
+    }
+    const record = item as Record<string, unknown>;
+    const identity = decodeDiscoveryNames(record);
+    if ('reason' in identity) {
+      discardedCount += 1;
+      report(discarded, index, identity.reason);
+      return;
+    }
+    if (identity.issue) {
+      nameIssueCount += 1;
+      report(nameIssues, index, identity.issue);
+    }
+    const address = decodeDiscoveryAddress(record);
+    if ('reason' in address) {
+      unusableAddressCount += 1;
+      report(unusableAddresses, index, address.reason);
+      entries.push(identity.names);
+    } else {
+      entries.push({ ...identity.names, ...address });
+    }
+  });
+  if (items.length > 0 && entries.length === 0) invalid(context, '$', 'discovery contained no usable node names');
+  return { entries, diagnostics: { discardedCount, discarded, unusableAddressCount, unusableAddresses, nameIssueCount, nameIssues } };
 }
 
 export function decodeRecipes(value: unknown, context: string): NodelRecipeEntry[] {

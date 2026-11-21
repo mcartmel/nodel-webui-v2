@@ -488,7 +488,9 @@ describe('Stage 4 pure boundary properties', () => {
   it('uses caller cancellation and direct-operation paths for deadlines', async () => {
     const caller = new AbortController();
     caller.abort('cancelled');
-    await expect(runWithDeadline(async (signal) => signal.aborted, caller.signal)).resolves.toBe(true);
+    const operation = vi.fn(async (signal: AbortSignal) => signal.aborted);
+    await expect(runWithDeadline(operation, caller.signal)).rejects.toBe('cancelled');
+    expect(operation).not.toHaveBeenCalled();
     await expect(runWithDeadline(async (signal) => signal.aborted, undefined, 0)).resolves.toBe(false);
   });
 });

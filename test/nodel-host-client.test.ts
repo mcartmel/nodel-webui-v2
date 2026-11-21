@@ -1,3 +1,5 @@
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import {
   createNode,
   duplicateNode,
@@ -5,6 +7,7 @@ import {
   getHostLogs,
   getNodeEventBinding,
   getNodeConsoleLogs,
+  getNodeRemoteBindings,
   getNodeUrlsForNode,
   getNodeRestartStatus,
   listRecipes,
@@ -16,6 +19,15 @@ import {
   saveNodeRemoteBindings,
   waitForNodeReady
 } from '../src/api/nodel-host-client';
+import { getTopologyActions, getTopologyEvents, getTopologyRemoteBindings, getTopologyRemoteSchema, localTopologyNodeAddress, topologyNodeAddress } from '../src/api/topology-client';
+import { searchNodeUrls, searchNodeUrlsDetailed } from '../src/api/node-discovery';
+import { subscribeConnectivity } from '../src/data/connectivity';
+import { BindingLookupService } from '../src/features/bindings-lookup';
+import { topologyReaders } from '../src/features/topology/topology-discovery';
+import { reconstructTopology } from '../src/features/topology/topology-model';
+import { presentTopology } from '../src/features/topology/topology-presentation';
+
+const transportFetch = globalThis.fetch;
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error('Expected test value to be present');
@@ -31,6 +43,325 @@ describe('nodel host client', () => {
         : { timestamp: '2026-01-01T00:00:00.000Z' };
       return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }));
+  });
+
+  it('reads topology bindings and schema with fixed read-only remote contracts', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), ...(init ? { init } : {}) });
+      return new Response(JSON.stringify(String(input).endsWith('/REST/remote')
+        ? { actions: { Move: { node: 'Device', action: 'Run' } }, events: {} }
+        : { type: 'object', properties: { actions: { type: 'object' }, events: { type: 'object' } } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }) as never;
+    }) as unknown as typeof fetch);
+
+    const target = topologyNodeAddress('https://host.example/nodes/Controller/')!;
+    await expect(getTopologyRemoteBindings(target, { cache: 'force-cache', credentials: 'include', headers: { Authorization: 'ignored' } }))
+      .resolves.toMatchObject({ actions: { Move: { node: 'Device', action: 'Run' } }, events: {} });
+    await expect(getTopologyRemoteSchema(target))
+      .resolves.toMatchObject({ type: 'object' });
+
+    expect(calls.map(({ url }) => url)).toEqual([
+      'https://host.example/nodes/Controller/REST/remote',
+      'https://host.example/nodes/Controller/REST/remote/schema'
+    ]);
+    for (const { init } of calls) {
+      expect(init).toMatchObject({ method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', signal: expect.any(AbortSignal) });
+      expect(new Headers(init?.headers).get('Accept')).toBe('application/json');
+      expect(init?.body).toBeUndefined();
+      expect(new Headers(init?.headers).get('Authorization')).toBeNull();
+    }
+  });
+
+  it('carries malformed null fields through topology as conflicting rows, without changing legacy bindings', async () => {
+    const rows = {
+      actions: { ClearAction: {}, NullNode: { node: null }, NullAction: { action: null }, WrongKind: { event: null } },
+      events: { ClearEvent: {}, NullEvent: { event: null }, NullNode: { node: null } }
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(rows))));
+    const target = localTopologyNodeAddress('Display');
+    await expect(getTopologyRemoteBindings(target)).resolves.toEqual({
+      actions: { ClearAction: {}, NullNode: null, NullAction: null, WrongKind: null },
+      events: { ClearEvent: {}, NullEvent: null, NullNode: null }
+    });
+    await expect(getNodeRemoteBindings()).resolves.toEqual({
+      actions: { ClearAction: {}, NullNode: {}, NullAction: {}, WrongKind: {} },
+      events: { ClearEvent: {}, NullEvent: {}, NullNode: {} }
+    });
+
+    const assignments = await topologyReaders.assignments(target, {});
+    const graph = reconstructTopology({
+      hostContext: window.location.origin,
+      discovery: { status: 'success', source: 'inventory', value: ['Display'] },
+      nodes: [{
+        observationId: 'Display', name: 'Display', addresses: [],
+        actions: { status: 'absent', source: 'actions' },
+        events: { status: 'absent', source: 'events' },
+        schema: { status: 'absent', source: 'schema' },
+        assignments: { status: 'success', source: 'assignments', value: assignments }
+      }]
+    });
+    expect(graph.bindings).toHaveLength(7);
+    expect(graph.bindings.filter(({ assignment }) => assignment === 'unbound').map(({ alias }) => alias).sort())
+      .toEqual(['ClearAction', 'ClearEvent']);
+    for (const row of graph.bindings.filter(({ alias }) => !alias.startsWith('Clear'))) {
+      expect(row).toMatchObject({ assignmentRow: 'present', assignment: 'conflicting', referenceResolution: 'unknown' });
+      expect(row.targetNodeId).toBeUndefined();
+    }
+  });
+
+  it('draws the valid Power assignment and removes a formerly wired Broken row when it becomes numeric', async () => {
+    const power = { node: 'Device', action: 'On' };
+    const previous = { actions: { Power: power, Broken: { node: 'Other', action: 'On' } }, events: {} };
+    const current = { actions: { Power: power, Broken: 42 }, events: {} };
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>()
+      .mockImplementationOnce(async () => new Response(JSON.stringify(previous)))
+      .mockImplementationOnce(async () => new Response(JSON.stringify(current))));
+    const target = localTopologyNodeAddress('Owner');
+    const readGraph = async () => {
+      const assignments = await topologyReaders.assignments(target, {});
+      return reconstructTopology({
+        hostContext: window.location.origin,
+        discovery: { status: 'success', source: 'inventory', value: ['Owner'] },
+        nodes: [{ observationId: 'Owner', name: 'Owner', addresses: [],
+          actions: { status: 'absent', source: 'actions' }, events: { status: 'absent', source: 'events' },
+          schema: { status: 'absent', source: 'schema' }, assignments: { status: 'success', source: 'assignments', value: assignments } }]
+      });
+    };
+    const before = await readGraph();
+    const after = await readGraph();
+    const wires = (graph: typeof before) => presentTopology(graph, new Map(), {
+      query: '', showCandidates: true, showPlaceholders: true
+    }, 'connected').projection.wires;
+    expect(wires(before)).toHaveLength(2);
+    const oldBroken = before.bindings.find(({ alias }) => alias === 'Broken')!;
+    expect(after.bindings.find(({ alias }) => alias === 'Broken')).toMatchObject({
+      id: oldBroken.id, assignment: 'conflicting', assignmentRow: 'present', assignmentFreshness: 'current'
+    });
+    expect(after.bindings.filter(({ targetEndpointId }) => targetEndpointId)).toEqual([before.bindings.find(({ alias }) => alias === 'Power')]);
+    expect(wires(after)).toEqual([expect.objectContaining({ id: before.bindings.find(({ alias }) => alias === 'Power')?.id })]);
+    expect(after.nodes.some(({ name }) => name === 'Other')).toBe(false);
+  });
+
+  it('rejects redirects and does not fetch unsafe or guessed remote addresses', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getTopologyRemoteBindings(topologyNodeAddress('https://user:secret@host.example/')!)).rejects.toThrow();
+    expect(() => topologyNodeAddress('host.example')).not.toThrow();
+    expect(topologyNodeAddress('host.example')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.redirect).toBe('error');
+      return new Response(null, { status: 302, headers: { Location: 'https://unverified.example/REST/remote' } });
+    }) as unknown as typeof fetch);
+    await expect(getTopologyRemoteBindings(topologyNodeAddress('https://advertised.example/nodes/Device/')!)).rejects.toThrow();
+  });
+
+  it('keeps topology display and fetch addresses separate and builds verified local addresses on current origin', () => {
+    expect(topologyNodeAddress('https://display.example/nodes/Display/')).toEqual({
+      fetchBase: 'https://display.example/nodes/Display/',
+      displayAddress: 'https://display.example/nodes/Display/',
+      adminHref: 'https://display.example/nodes/Display/',
+      scope: 'remote'
+    });
+    expect(topologyNodeAddress('https://user:secret@display.example/')).toBeNull();
+    expect(topologyNodeAddress('http://[fe80::1%25eth0]/nodes/Display/')).toMatchObject({
+      fetchBase: '', displayAddress: 'http://[fe80::1%25eth0]/nodes/Display/', adminHref: null, scope: 'remote'
+    });
+    expect(localTopologyNodeAddress('Display')).toEqual({
+      fetchBase: `${window.location.origin}/nodes/Display/`,
+      displayAddress: `${window.location.origin}/nodes/Display/`,
+      adminHref: `${window.location.origin}/nodes/Display/`,
+      scope: 'local'
+    });
+  });
+
+  it('rejects topology addresses with queries, fragments or raw control characters', () => {
+    for (const base of ['https://example.test/nodes/Display/', 'http://[fe80::1%25eth0]/nodes/Display/']) {
+      for (const suffix of ['?token=private', '#private', '?token=private#private', '?', '#', '\n', '\u0085']) {
+        expect(topologyNodeAddress(base + suffix)).toBeNull();
+      }
+    }
+    expect(topologyNodeAddress('https://example.test/nodes/Display%3F%23')).toEqual({
+      fetchBase: 'https://example.test/nodes/Display%3F%23/',
+      displayAddress: 'https://example.test/nodes/Display%3F%23/',
+      adminHref: 'https://example.test/nodes/Display%3F%23/',
+      scope: 'remote'
+    });
+  });
+
+  it('uses fixed action and event read paths and sends credentials only to verified local nodes', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), ...(init ? { init } : {}) });
+      return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as unknown as typeof fetch);
+    const local = localTopologyNodeAddress('Display');
+    await getTopologyActions(local);
+    await getTopologyEvents(local);
+    await getTopologyActions(topologyNodeAddress('https://remote.example/nodes/Display/')!);
+    expect(calls.map(({ url }) => url)).toEqual([
+      `${window.location.origin}/nodes/Display/REST/actions`,
+      `${window.location.origin}/nodes/Display/REST/events`,
+      'https://remote.example/nodes/Display/REST/actions'
+    ]);
+    expect(calls.map(({ init }) => init?.credentials)).toEqual(['same-origin', 'same-origin', 'omit']);
+    for (const { init } of calls) expect(init).toMatchObject({ cache: 'no-store', redirect: 'error' });
+    await expect(getTopologyActions({ ...local })).rejects.toThrow('current origin');
+  });
+
+  it('isolates failed and successful same-origin advertisements from host connectivity', async () => {
+    const local = localTopologyNodeAddress('Display');
+    const remote = topologyNodeAddress(local.fetchBase)!;
+    let respond = false;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (!respond) throw new TypeError('unreadable');
+      return new Response('{}');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const listener = vi.fn();
+    const subscription = subscribeConnectivity(listener);
+    const endpoint = `${local.fetchBase}REST/actions`;
+
+    try {
+      await expect(getTopologyActions(remote)).rejects.toThrow('unreadable');
+      expect(fetchMock).toHaveBeenCalledExactlyOnceWith(endpoint, expect.objectContaining({ credentials: 'omit', cache: 'no-store' }));
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      await expect(getTopologyActions(local)).rejects.toThrow('unreadable');
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([endpoint, endpoint, '/REST']);
+      expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ offline: true, reason: 'network' }));
+      const updates = listener.mock.calls.length;
+
+      respond = true;
+      await expect(getTopologyActions(remote)).resolves.toEqual({});
+      expect(listener).toHaveBeenCalledTimes(updates);
+      await expect(getTopologyActions(local)).resolves.toEqual({});
+      expect(listener).toHaveBeenLastCalledWith({ offline: false, reason: '', retryAttempt: 0 });
+    } finally {
+      subscription.dispose();
+    }
+  });
+
+  it('never requests the redirect destination when a local topology failure induces a probe', async () => {
+    const requested: string[] = [];
+    const server = createServer((request, response) => {
+      const path = request.url ?? '';
+      requested.push(path);
+      if (path === '/redirect-destination') {
+        response.writeHead(200).end('{}');
+      } else {
+        response.writeHead(302, { Location: '/redirect-destination' }).end();
+      }
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const listener = vi.fn();
+    const subscription = subscribeConnectivity(listener);
+    try {
+      const address = server.address();
+      if (address === null || typeof address === 'string') throw new Error('Expected a loopback test server');
+      const origin = `http://127.0.0.1:${address.port}`;
+      // Map the jsdom page's logical origin to the fixture; the real Fetch
+      // implementation handles redirect policy for both requests.
+      const pending: Promise<Response>[] = [];
+      vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input), window.location.href);
+        const result = transportFetch(`${origin}${url.pathname}`, init);
+        pending.push(result);
+        return result;
+      });
+      await expect(getTopologyActions(localTopologyNodeAddress('Display'))).rejects.toThrow();
+      await Promise.allSettled(pending);
+      expect(requested).toEqual(['/nodes/Display/REST/actions', '/REST']);
+      expect(listener).toHaveBeenCalledExactlyOnceWith({ offline: false, reason: '', retryAttempt: 0 });
+    } finally {
+      subscription.dispose();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+
+  it.each([200, 403])('bounds topology, local inventory and discovery body reads at HTTP %i', async (status) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: status === 200,
+      status,
+      statusText: '',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: () => new Promise(() => undefined),
+      text: () => new Promise(() => undefined)
+    })) as unknown as typeof fetch);
+    const pending = Promise.allSettled([
+      getTopologyActions(localTopologyNodeAddress('Display')),
+      import('../src/api/nodel-host-client').then(({ getLocalRest }) => getLocalRest()),
+      searchNodeUrlsDetailed()
+    ]);
+    await vi.advanceTimersByTimeAsync(30_000);
+    const results = await pending;
+    expect(results).toHaveLength(3);
+    expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected', 'rejected']);
+    expect(results.map((result) => result.status === 'rejected' ? (result.reason as Error).name : '')).toEqual(['TimeoutError', 'TimeoutError', 'TimeoutError']);
+  });
+
+  it('does not dispatch topology or inventory reads for a pre-aborted signal', async () => {
+    const caller = new AbortController();
+    const reason = new DOMException('Aborted before dispatch', 'AbortError');
+    caller.abort(reason);
+    const { getLocalRest } = await import('../src/api/nodel-host-client');
+    const opts = { signal: caller.signal };
+    await Promise.all([
+      expect(getTopologyActions(localTopologyNodeAddress('Display'), opts)).rejects.toBe(reason),
+      expect(getLocalRest(opts)).rejects.toBe(reason),
+      expect(searchNodeUrlsDetailed('', opts)).rejects.toBe(reason)
+    ]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns bounded redacted discovery diagnostics while retaining legacy array behavior', async () => {
+    const legacyDisplay = { node: '', name: 'Display', address: 'https://display.example/nodes/Display/' };
+    const rows = [
+      { node: 'Good', address: 'https://good.example/nodes/Good/' },
+      { node: 'Offline', address: 'https://user:password@bad.example/private?token=secret' },
+      { node: 'NoAddress' },
+      { node: 'Bad\u0000name', address: 'https://bad.example/' },
+      legacyDisplay
+    ];
+    const discoveryFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.method).toBe('POST');
+      const payload = JSON.parse(String(init?.body));
+      if (String(input) === '/REST/nodeURLsForNode') {
+        expect(payload).toEqual({ name: 'Display' });
+      } else {
+        expect(String(input)).toBe('/REST/nodeURLs');
+        expect(payload).toEqual({ filter: payload.filter === 'Display' ? 'Display' : '' });
+      }
+      return new Response(JSON.stringify(payload.filter === '' ? rows : [legacyDisplay]));
+    });
+    vi.stubGlobal('fetch', discoveryFetch);
+    const detailed = await searchNodeUrlsDetailed();
+    expect(detailed.entries.map(({ node, address }) => ({ node, address }))).toEqual([
+      { node: 'Good', address: 'https://good.example/nodes/Good/' },
+      { node: 'Offline', address: undefined },
+      { node: 'NoAddress', address: undefined }
+    ]);
+    expect(detailed.diagnostics).toEqual({
+      discardedCount: 2,
+      discarded: [{ index: 3, reason: 'unsafe-name' }, { index: 4, reason: 'missing-name' }],
+      unusableAddressCount: 2,
+      unusableAddresses: [{ index: 1, reason: 'unusable-address' }, { index: 2, reason: 'unusable-address' }],
+      nameIssueCount: 0,
+      nameIssues: []
+    });
+    expect(JSON.stringify(detailed)).not.toContain('password');
+    expect(JSON.stringify(detailed)).not.toContain('token');
+    await expect(searchNodeUrls('')).resolves.toEqual([rows[0], legacyDisplay]);
+    await expect(getNodeUrlsForNode('Display')).resolves.toEqual([legacyDisplay]);
+    await expect(new BindingLookupService().searchNodeOptions('Display', new AbortController().signal)).resolves.toEqual([
+      { label: 'Display', value: 'Display', address: legacyDisplay.address, detail: 'display.example' }
+    ]);
   });
 
   afterEach(() => {

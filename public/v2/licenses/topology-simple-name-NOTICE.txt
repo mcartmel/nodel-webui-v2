@@ -1,0 +1,42 @@
+Nodel Web UI — topology SimpleName data and comparator notices
+
+Transliteration data: topology-simple-name-transliterations.json
+----------------------------------------------------------------
+Adapted from CIRCLE's answer to “How do I remove diacritics (accents) from
+a string in .NET?” on Stack Overflow:
+  Author: https://stackoverflow.com/users/2011284/circle
+  Answer: https://stackoverflow.com/a/34272324
+  Used revision: https://stackoverflow.com/revisions/34272324/2 (2015-12-14)
+
+That revision and this data adaptation are licensed under Creative Commons
+Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0):
+  https://creativecommons.org/licenses/by-sa/3.0/
+  Offline terms: CC-BY-SA-3.0.txt (in this directory)
+
+Changes: extracted only the ordered foreign_characters table into JSON and
+lowercased the ASCII replacements to match Java SimpleName under Locale.ROOT.
+As in Java, later rows override earlier rows; e.g. Ä maps to a, but ä to ae.
+No material from the 2024 revision is used. The JSON shipped beside this notice
+is the editable data corresponding to the build-time copy in the topology
+JavaScript. CC BY-SA applies to the table adaptation, not the application.
+
+CIRCLE's answer describes the CodeIgniter origin. The corresponding table
+appears in CodeIgniter 3.0.3 as application/config/foreign_chars.php:
+  https://github.com/bcit-ci/CodeIgniter/blob/e7f0e7aa3d48778b5ad926eda14c825f62f421eb/application/config/foreign_chars.php
+It has an additional Þ/þ row that is not in CIRCLE's revision or in Nodel.
+The project's MIT copyright and license notice is retained in
+CodeIgniter-MIT.txt in this directory. No PHP or C# functions are incorporated.
+
+Comparator code: src/features/topology/topology-simple-name.ts
+---------------------------------------------------------------
+The comparator adapts Nodel.reduce and SimpleName.flatten into a single UTF-16
+pass. The Java compatibility reference is museumsvictoria/nodel, revision
+1138409965a6c694dccf02c9846dd99137e0fa04 (the same source files as the local
+oracle checkout e720d279c63d6b77dc9777ea6e4740148fd22edf):
+  https://github.com/museumsvictoria/nodel/blob/1138409965a6c694dccf02c9846dd99137e0fa04/nodel-framework/src/main/java/org/nodel/core/Nodel.java
+  https://github.com/museumsvictoria/nodel/blob/1138409965a6c694dccf02c9846dd99137e0fa04/nodel-framework/src/main/java/org/nodel/SimpleName.java
+
+The comparator source retains the Java files' Mozilla Public License 2.0
+notice. Offline terms: MPL-2.0.txt (in this directory). The corresponding
+frontend source is available in the source checkout for this release at
+https://github.com/mcartmel/nodel-webui-v2.

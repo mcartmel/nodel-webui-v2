@@ -1,6 +1,9 @@
+import { isNodelVisibleNow } from './data/visibility-scope';
+
 const componentLoaders = {
   'nodel-description': () => import('./components/nodel-description'),
   'nodel-node-list': () => import('./components/nodel-node-list'),
+  'nodel-topology': () => import('./components/nodel-topology'),
   'nodel-add-node': () => import('./components/nodel-add-node'),
   'nodel-node-menu': () => import('./components/nodel-node-menu'),
   'nodel-diagnostics': () => import('./components/nodel-diagnostics'),
@@ -227,6 +230,12 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
   const requestAutomaticLoad = (element: HTMLElement) => {
     const tagName = element.localName;
     if (!loaders.has(tagName) || !element.isConnected) return;
+    // The topology feature ships a graph-renderer dependency. Do not fetch its
+    // controller/canvas chunk until navigation actually activates that page.
+    if (tagName === 'nodel-topology') {
+      const page = element.closest<HTMLElement>('nodel-page');
+      if (page && !isNodelVisibleNow(element, { suspendOnDocumentHidden: false, suspendOnConnectivity: false })) return;
+    }
     const state = getState(tagName);
     state.instances.add(element);
     if (state.status === 'failed') {
@@ -255,13 +264,17 @@ export function createNodelComponentLoader(options: NodelComponentLoaderOptions 
     scanRoot(root);
     observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.target instanceof Element) {
+          scanRoot(mutation.target);
+          continue;
+        }
         for (const node of mutation.addedNodes) {
           if (node instanceof Element || node instanceof Document || node instanceof DocumentFragment) scanRoot(node);
         }
       }
       scanRemoved();
     });
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { attributes: true, attributeFilter: ['active', 'hidden', 'data-active-page'], childList: true, subtree: true });
   };
 
   return {

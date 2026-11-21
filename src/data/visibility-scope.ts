@@ -66,6 +66,14 @@ function isVisibleInTree(element: HTMLElement, options: Required<NodelVisibility
   return true;
 }
 
+/** Synchronously applies the same tree/active-page rule used by observers. */
+export function isNodelVisibleNow(element: HTMLElement, options: NodelVisibilityObserverOptions = {}) {
+  return isVisibleInTree(element, {
+    suspendOnDocumentHidden: options.suspendOnDocumentHidden ?? true,
+    suspendOnConnectivity: options.suspendOnConnectivity ?? true
+  });
+}
+
 function syncEntries() {
   for (const entry of entries) {
     const nextVisible = isVisibleInTree(entry.element, entry.options);

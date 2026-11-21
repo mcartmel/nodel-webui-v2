@@ -20,9 +20,15 @@ import {
   decodeLocalRest,
   decodeNodeDetails,
   decodeNodeUrls,
+  decodeNodeUrlsDetailed,
   decodeRecipes,
   decodeRecord,
   decodeRemoteBindings,
+  decodeTopologyRemoteBindings,
+  MAX_DETAIL_NAME_LENGTH,
+  MAX_DETAIL_TEXT_PER_INTERFACE,
+  MAX_TOPOLOGY_NAMES_PER_INTERFACE,
+  TopologyDetailLimitError,
   decodeRestartStatus,
   decodeSchema,
   decodeSignals,
@@ -245,6 +251,77 @@ describe('Nodel API response codecs', () => {
     }
   });
 
+  it('uses the advertised node identity only in detailed discovery, preserving legacy array fields', () => {
+    const address = 'https://display.test/nodes/Real/';
+    const rows = [
+      { node: 'Real', name: 'Wrong Name', address, ignored: 'private metadata' },
+      { name: 'Fallback', address },
+      { node: 'Only Node', address },
+      { node: 'Same', name: 'Same', address },
+      { node: 'Primary', name: 42, address },
+      { node: 'broken\ud800', name: 'Untrusted fallback', address },
+      { node: 42, name: 'Untrusted fallback', address },
+      { node: '', name: 'Display', address },
+      { node: 'Display', name: '', address }
+    ];
+    const detailed = decodeNodeUrlsDetailed(rows, 'node urls');
+    expect(detailed.entries).toEqual([
+      { node: 'Real', address }, { name: 'Fallback', address }, { node: 'Only Node', address },
+      { node: 'Same', name: 'Same', address }, { node: 'Primary', address }, { node: 'Display', address }
+    ]);
+    expect(detailed.diagnostics).toMatchObject({
+      nameIssueCount: 3,
+      nameIssues: [{ index: 0, reason: 'name-conflict' }, { index: 4, reason: 'unsafe-name' }, { index: 8, reason: 'unsafe-name' }],
+      discardedCount: 3,
+      discarded: [{ index: 5, reason: 'unsafe-name' }, { index: 6, reason: 'unsafe-name' }, { index: 7, reason: 'missing-name' }]
+    });
+    expect(decodeNodeUrls(rows, 'node urls')).toEqual([rows[0], rows[1], rows[2], rows[3], rows[5], rows[7]]);
+  });
+
+  it('retains names with no route when address type, edge controls or host are invalid', () => {
+    const rows = [
+      { node: 'Number Address', address: 42 },
+      { name: 'Control Address', address: 'https://private.example/nodes/Display/\n' },
+      { node: 'Mismatched Host', address: 'https://private.example/nodes/Display/', host: 'different.example' },
+      { node: 'Malformed Host', address: 'https://private.example/nodes/Display/', host: { value: 'private' } }
+    ];
+    for (const { node, name, ...fields } of rows) {
+      const identity = node ? { node } : { name };
+      expect(decodeNodeUrlsDetailed([{ ...identity, ...fields }], 'node urls').entries).toEqual([identity]);
+    }
+    expect(decodeNodeUrls(rows, 'node urls')).toEqual([{ name: 'Control Address', address: 'https://private.example/nodes/Display/' }]);
+    const result = decodeNodeUrlsDetailed(rows, 'node urls');
+    expect(result.diagnostics).toMatchObject({
+      discarded: [], discardedCount: 0, unusableAddressCount: 4,
+      unusableAddresses: [
+        { index: 0, reason: 'unusable-address' }, { index: 1, reason: 'unusable-address' },
+        { index: 2, reason: 'host-mismatch' }, { index: 3, reason: 'host-mismatch' }
+      ]
+    });
+    expect(JSON.stringify(result)).not.toMatch(/private|different\.example/);
+  });
+
+  it('keeps strict topology-only address filtering separate from legacy canonicalization', () => {
+    const base = 'https://display.test/nodes/Display/';
+    const rows = ['?', '#', '\u0085'].map((suffix) => ({ node: 'Display', address: `${base}${suffix}` }));
+    expect(decodeNodeUrls(rows, 'node urls').map(({ address }) => address)).toEqual([`${base}?`, `${base}#`, `${base}%C2%85/`]);
+    expect(decodeNodeUrlsDetailed(rows, 'node urls')).toMatchObject({
+      entries: rows.map(({ node }) => ({ node })),
+      diagnostics: { discardedCount: 0, unusableAddressCount: 3 }
+    });
+  });
+
+  it('caps detail samples without losing issue counts or treating wholly malformed inventory as empty', () => {
+    const rows = [null, [], { node: 'one', name: 'wrong' }, { node: 'two', name: 'also wrong', address: 42 }];
+    expect(decodeNodeUrlsDetailed(rows, 'node urls', 1).diagnostics).toEqual({
+      discardedCount: 2, discarded: [{ index: 0, reason: 'invalid-entry' }],
+      unusableAddressCount: 2, unusableAddresses: [{ index: 2, reason: 'unusable-address' }],
+      nameIssueCount: 2, nameIssues: [{ index: 2, reason: 'name-conflict' }]
+    });
+    expect(decodeNodeUrlsDetailed([], 'node urls').entries).toEqual([]);
+    expect(() => decodeNodeUrlsDetailed([{ node: '\u0000', name: 'Wrong' }, {}], 'node urls')).toThrow('no usable node names');
+  });
+
   it('preserves Java IPv6 ports and address hextets during node URL decoding', () => {
     expect(decodeNodeUrls([
       { node: 'Port Eight', address: 'http://::1:8/nodes/PortEight/', host: '::1' },
@@ -333,6 +410,36 @@ describe('Nodel API response codecs', () => {
     expect(decoded.metadata).toEqual(metadata);
     expect(decoded.metadata).not.toBe(metadata);
     expect((decoded.actions as Record<string, any>).Row.metadata).toEqual(metadata);
+  });
+
+  it('isolates malformed topology rows without retaining their fields or treating them as cleared aliases', () => {
+    const actions = {
+      Power: { node: 'Display', action: 'Run' }, Clear: {}, BrokenNumber: 12,
+      BrokenField: { node: 42, action: 'Run' }, WrongDirection: { node: 'Display', event: 'Run' },
+      Extra: { node: 'Display', action: 'Run', metadata: 'x'.repeat(100_000) },
+      ExtraOnly: { metadata: 42 }, Array: [{ node: 'Display', action: 'Run' }],
+      ['__proto__']: { node: 'Display', action: 'Proto' }
+    };
+    const decoded = decodeTopologyRemoteBindings({ actions, events: { Listen: { node: 'Display', event: 'State' } } }, 'topology bindings');
+    expect(decoded).toEqual({
+      actions: { Power: actions.Power, Clear: {}, BrokenNumber: null, BrokenField: null, WrongDirection: null,
+        Extra: null, ExtraOnly: null, Array: null, ['__proto__']: actions.__proto__ },
+      events: { Listen: { node: 'Display', event: 'State' } }
+    });
+    expect(Object.getPrototypeOf(decoded.actions)).toBe(Object.prototype);
+    expect(decodeRemoteBindings({ actions: { Extra: actions.Extra } }, 'legacy bindings').actions?.Extra).toEqual(actions.Extra);
+    expect(() => decodeRemoteBindings({ actions: { BrokenNumber: actions.BrokenNumber } }, 'legacy bindings')).toThrow('expected an object');
+  });
+
+  it('keeps topology envelope, row count, and total text limits despite row isolation', () => {
+    const decode = (value: unknown) => decodeTopologyRemoteBindings(value, 'topology bindings');
+    const text = 'x'.repeat(MAX_DETAIL_NAME_LENGTH);
+    const section = (count: number, field: string) => Object.fromEntries(Array.from({ length: count }, (_, index) => [`Alias${index}`, { [field]: text }]));
+    expect(() => decode({ actions: [] })).toThrow('expected an object');
+    expect(() => decode({ actions: { WrongDirection: { event: `${text}x` } } })).toThrow(TopologyDetailLimitError);
+    expect(() => decode({ actions: Object.fromEntries(Array.from({ length: MAX_TOPOLOGY_NAMES_PER_INTERFACE + 1 }, (_, index) => [index, 0])) })).toThrow(TopologyDetailLimitError);
+    const half = Math.floor(MAX_DETAIL_TEXT_PER_INTERFACE / (2 * MAX_DETAIL_NAME_LENGTH)) + 1;
+    expect(() => decode({ actions: section(half, 'action'), events: section(half, 'event') })).toThrow(TopologyDetailLimitError);
   });
 
   it('uses bounded structural errors without reflecting hostile payload values', () => {

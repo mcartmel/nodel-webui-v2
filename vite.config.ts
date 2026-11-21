@@ -80,6 +80,22 @@ function componentContractPlugin(): Plugin {
   };
 }
 
+function topologyNameLicenseAssetsPlugin(): Plugin {
+  return {
+    name: 'nodel-topology-name-license-assets',
+    generateBundle() {
+      // Keep the editable data next to the offline notices in the support tree,
+      // even though the runtime also imports the entries at build time.
+      for (const [fileName, source] of [
+        ['topology-simple-name-transliterations.json', 'src/features/topology/topology-simple-name-transliterations.json'],
+        ['MPL-2.0.txt', 'LICENSE']
+      ] as const) {
+        this.emitFile({ type: 'asset', fileName: `v2/licenses/${fileName}`, source: readFileSync(resolve(projectRoot, source)) });
+      }
+    }
+  };
+}
+
 function cssBeforeEntryScriptPlugin(): Plugin {
   return {
     name: 'nodel-css-before-entry-script',
@@ -122,7 +138,7 @@ export function createViteConfig(mode = 'public'): UserConfig {
   const bundleGraphPath = resolve(projectRoot, proLocalBuild ? 'build/pro-reports/bundle-graph.json' : 'build/bundle-graph.json');
   return {
     base: './',
-    plugins: [iconAssetsPlugin({ iconProfile, iconAssetRoot, proLocalBuild }), componentContractPlugin(), cssBeforeEntryScriptPlugin(), bundleGraphPlugin(projectRoot, resolve(projectRoot, outputRoot), bundleGraphPath)],
+    plugins: [iconAssetsPlugin({ iconProfile, iconAssetRoot, proLocalBuild }), componentContractPlugin(), topologyNameLicenseAssetsPlugin(), cssBeforeEntryScriptPlugin(), bundleGraphPlugin(projectRoot, resolve(projectRoot, outputRoot), bundleGraphPath)],
     server: {
       host: '0.0.0.0'
     },
@@ -156,6 +172,7 @@ export function createViteConfig(mode = 'public'): UserConfig {
     test: {
       environment: 'jsdom',
       globals: true,
+      server: { deps: { inline: ['@antv/x6'] } },
       exclude: [...configDefaults.exclude, 'e2e/**', '.kilo/**'],
       testTimeout: 30000,
       coverage: {

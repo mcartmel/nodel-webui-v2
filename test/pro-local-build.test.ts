@@ -405,6 +405,17 @@ describe('parallel real-build isolation', () => {
       for (const output of proGraph.outputs) await expect(access(join(proFixture.root, 'build/pro-dist', output.path))).resolves.toBeUndefined();
       expect(JSON.parse(await readFile(join(publicFixture.root, 'dist/v2/nodel-icons.json'), 'utf8'))).toMatchObject({ profile: 'free' });
       expect(JSON.parse(await readFile(join(proFixture.root, 'build/pro-dist/v2/nodel-icons.json'), 'utf8'))).toMatchObject({ profile: 'pro-local' });
+      const topologyLicenseAssets = [
+        ['MPL-2.0.txt', 'LICENSE'],
+        ['topology-simple-name-transliterations.json', 'src/features/topology/topology-simple-name-transliterations.json'],
+        ...['CC-BY-SA-3.0.txt', 'CodeIgniter-MIT.txt', 'topology-simple-name-NOTICE.txt']
+          .map(name => [name, `public/v2/licenses/${name}`] as const)
+      ] as const;
+      for (const [file, source] of topologyLicenseAssets) {
+        const expected = await readFile(new URL(`../${source}`, import.meta.url));
+        expect(await readFile(join(publicFixture.root, 'dist/v2/licenses', file)), file).toEqual(expected);
+        expect(await readFile(join(proFixture.root, 'build/pro-dist/v2/licenses', file)), file).toEqual(expected);
+      }
       await expect(readFile(join(proFixture.root, 'build/bundle-graph.json'))).resolves.toEqual(publicSentinel);
       await expect(treeHash(proPublicDist)).resolves.toBe(proPublicBefore);
       await expect(readFile(join(publicFixture.root, 'dist/preexisting'))).rejects.toThrow();

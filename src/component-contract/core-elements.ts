@@ -22,6 +22,15 @@ export const coreElements: NodelElementDefinition[] = [
     snippet: '<nodel-node-list scope="local"></nodel-node-list>'
   },
   {
+    name: 'nodel-topology',
+    description: 'Read-only host topology viewer with accessible node and binding inspection.',
+    attributes: [
+      { name: 'show-candidates', description: 'Compatibility flag; include any legacy candidate identities where available.' },
+      { name: 'show-placeholders', description: 'Compatibility flag; configured unresolved targets are included by default.' }
+    ],
+    snippet: '<nodel-topology></nodel-topology>'
+  },
+  {
     name: 'nodel-add-node',
     description: 'Create or duplicate a node.',
     attributes: [

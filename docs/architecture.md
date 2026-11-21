@@ -75,6 +75,31 @@ The bindings controller owns presence-aware saved baselines, editable drafts, st
 
 Bindings uses the existing app-owned restart refresh path. Dirty drafts return `dirty-preserved` without destructive reload, preserving local editing context and reporting that bindings were not reloaded; clean instances refresh normally. Shared restart reporting is component-neutral and retains existing failure/conflict precedence. This aligns edit preservation with the editor without copying its file-specific reconciliation or pre-save conflict checks. Preserving a draft does not establish server agreement or make unconditional binding writes transactional.
 
+### Topology Layout Investigation (Stage 1)
+
+The 2026-11-20 isolated topology prototype tested ELK.js output as X6 edge vertices, with X6 port terminals and the `normal` router/connector. The evidence does not establish correct initial terminal alignment or orthogonal appearance: the fixture showed diagonal segments and ELK bend anchors that did not consistently match the X6 port terminals. Moving a node also changed its anchored endpoint while old bends remained fixed, producing further diagonals. X6 can consume supplied vertices, but this experiment did not qualify ELK routes as a correct or self-updating route solution; preserving orthogonality would require recomputing routes after movement and validating anchor alignment.
+
+The fixture also included parallel edges, fanout, and a cycle. The quoted 24-node/96-edge sample represented **24 unique source-target pairs**, with repeated parallel edge rows; it was not 96 distinct graph connections. Parallel edges with identical terminals received the same ELK bends and overlapped in the rendered graph. Parallel-edge separation therefore needs explicit handling; ELK output plus X6 normal routing did not provide it automatically.
+
+The isolated prototypes used ELK 0.12.1, Dagre 3.1.3, Node 24.15.0, and X6 3.1.8 in headless Chromium. ELK's bundled runtime (1,646,241 raw / 479,985 gzip bytes) and minified worker (1,631,868 raw / 475,055 gzip) do not fit the budget. ELK is dual-licensed EPL-2.0 OR GPL-3.0-or-later. Its browser worker is a local asset, not a remote service, but would require packaging, URL resolution, and a compatible host `worker-src` CSP that this project does not establish. Neither the ELK runtime nor its routes were adopted.
+
+The MIT-licensed Dagre 3.1.3 tarball exports one bundled ESM runtime, not per-module JavaScript; the apparent per-module files are typings and maps. In a minimal Vite production bundle importing and calling `layout` with a `Graph`, switching from the default import to named `Graph` and `layout` cut level-9 gzip from 16,969 to 16,740 bytes. The older 1.1.8 modular CommonJS entry (15,564 bytes) and 2.0.4 bundled ESM entry (15,470 bytes) did not save enough either: the integrated preview was 1,224 bytes over budget before stage fixes, and reaching 5,000 bytes of spare capacity required at least 6,224 bytes of savings. Neither Dagre nor Graphlib remains in the production lockfile, generated license evidence or SBOM, or preview bundle graph.
+
+Placement uses the directed fallback without another layout dependency. Large or dense components use left-to-right longest-path ranks on the graph of strongly connected components. For components with at most 120 nodes, 800 unique directed pairs, and eight pairs per node, placement ignores DFS back edges only as rank constraints, pulls branches toward their first consumer, centers columns using actual card heights, and runs up to four barycentric sweeps, retaining the order with the lowest measured crossing count between edges spanning the same two ranks. This is a heuristic, not a global crossing optimum. Self-loops and repeated parallel input rows do not affect rank constraints; X6 still owns actual port-to-port routing for every wire. The incremental all-retained fast path, manual pins, and collision handling remain in place.
+
+Placement geometry compared on the same card sizes and link pairs, before any viewport scaling. Crossing counts are proper intersections of straight node-center segments, **not** counts of X6-rendered wire crossings. All placements in this comparison were non-overlapping.
+
+| Diagram | Dagre bounds | Current bounds | Crossings (both) | Forward links (both) |
+| --- | ---: | ---: | ---: | ---: |
+| Three-way fanout | 608 × 458 | 608 × 458 | 0 | 3/3 |
+| Crossed fan-in/out | 608 × 434 | 608 × 434 | 0 | 4/4 |
+| Reconvergent diamond with a bypass | 968 × 324 | 968 × 300 | 0 | 5/5 |
+| Seven-node workspace feedback graph | 1,328 × 616 | 1,328 × 616 | 0 | 7/10 |
+
+The same Vitest benchmark on Node 24.15.0 measured mean placement time before → after: 24 nodes / 24 unique pairs (96 input rows) **6.66 → 0.14 ms**; 250 nodes / 500 unique pairs **1.01 → 1.04 ms**; incremental no-op with 1,001 retained nodes and 20,000 wires **0.30 → 0.34 ms**. These in-process measurements are environment-specific, not latency guarantees.
+
+The integration preview with compact placement passed the unchanged bundle verifier at **11,999,238 raw / 2,934,914 gzip bytes** for `dist/v2`, leaving **110,762 raw / 15,086 gzip bytes** against the 12,110,000 / 2,950,000 ceilings. The verifier included offline license assets and used its normal per-file gzip accounting. This preview included concurrent stage work; the whole-inventory delta is not an isolated import-size measurement.
+
 ## Input Boundaries
 
 Treat all REST, WebSocket, discovery, build metadata, authored attributes, and signal values as untrusted at the browser boundary.

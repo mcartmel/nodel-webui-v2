@@ -1,0 +1,125 @@
+.nodel-topology-canvas {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background-color: rgb(var(--nodel-surface, 255 255 255));
+  background-image: radial-gradient(circle, rgb(var(--nodel-border, 212 212 212) / 62%) 1px, transparent 1px);
+  background-size: 20px 20px;
+  color: rgb(var(--nodel-fg, 23 23 23));
+  touch-action: none;
+}
+
+.nodel-topology-canvas .x6-graph {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+}
+
+.nodel-topology-canvas .x6-graph-svg,
+.nodel-topology-canvas .x6-graph-svg-stage {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  user-select: none;
+}
+
+.nodel-topology-canvas .x6-node {
+  cursor: move;
+  -webkit-user-drag: none;
+}
+
+.nodel-topology-canvas .x6-node text,
+.nodel-topology-canvas .x6-port text {
+  paint-order: stroke;
+  stroke: rgb(var(--nodel-surface, 255 255 255));
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  user-select: none;
+  pointer-events: none;
+}
+
+.nodel-topology-canvas .x6-node text {
+  font-family: inherit;
+}
+
+.nodel-topology-canvas .x6-port text {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.nodel-topology-canvas .x6-port circle {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 18%));
+}
+
+.nodel-topology-canvas .x6-port.is-selected circle {
+  stroke: rgb(var(--nodel-accent, 7 89 133));
+  stroke-width: 4;
+  filter: drop-shadow(0 0 4px rgb(var(--nodel-accent, 7 89 133) / 75%));
+}
+
+.nodel-topology-canvas .x6-node.is-selected rect {
+  stroke: rgb(var(--nodel-accent, 7 89 133));
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 3px rgb(var(--nodel-accent, 7 89 133) / 38%));
+}
+
+.nodel-topology-canvas .x6-edge .connection {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+}
+
+.nodel-topology-canvas .x6-edge .connection-wrap {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.nodel-topology-canvas .x6-edge:hover .connection,
+.nodel-topology-canvas .x6-edge.is-selected .connection {
+  stroke: rgb(var(--nodel-accent, 7 89 133));
+  stroke-width: 3;
+}
+
+.nodel-topology-canvas .x6-edge.is-selected .connection {
+  filter: drop-shadow(0 0 3px rgb(var(--nodel-accent, 7 89 133) / 72%));
+}
+
+.nodel-topology-canvas .x6-node [magnet='true'] {
+  cursor: default;
+}
+
+@media (forced-colors: active) {
+  .nodel-topology-canvas {
+    background-image: radial-gradient(circle, CanvasText 1px, transparent 1px);
+  }
+
+  .nodel-topology-canvas .x6-node rect,
+  .nodel-topology-canvas .x6-port circle,
+  .nodel-topology-canvas .x6-edge .connection {
+    forced-color-adjust: auto;
+  }
+
+  .nodel-topology-canvas .x6-node.is-selected rect {
+    stroke: Highlight;
+  }
+
+  .nodel-topology-canvas .x6-edge:hover .connection,
+  .nodel-topology-canvas .x6-edge.is-selected .connection {
+    stroke: Highlight;
+  }
+
+  .nodel-topology-canvas .x6-port.is-selected circle {
+    stroke: Highlight;
+  }
+}

@@ -10,6 +10,8 @@ export const attributeDefaultMetadata: Record<string, AttributeDefaultMetadata> 
   'nodel-node-list.scope': { defaultValue: 'local' },
   'nodel-node-list.poll-interval': { defaultDescription: 'Derived: 2000 ms for local scope and 10000 ms for network scope.' },
   'nodel-node-list.page-size': { defaultValue: '20' },
+  'nodel-topology.show-candidates': { defaultValue: 'false' },
+  'nodel-topology.show-placeholders': { defaultValue: 'true' },
   'nodel-add-node.redirect': { defaultValue: 'true' },
   'nodel-add-node.recipes': { defaultValue: 'true' },
   'nodel-add-node.duplicate': { defaultValue: 'true' },

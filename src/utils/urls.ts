@@ -262,6 +262,11 @@ export function canonicalRemoteNodeHref(value: string) {
   return `${parts.scheme}${parts.authority}${parts.pathname.endsWith('/') ? parts.pathname : `${parts.pathname}/`}`;
 }
 
+/** Check topology addresses before URL parsing can discard controls or empty delimiters. */
+export function canonicalTopologyNodeHref(value: string) {
+  return /[\p{Cc}?#]/u.test(value) ? null : canonicalRemoteNodeHref(value);
+}
+
 /** Return a display host without claiming that a scoped host is fetchable. */
 export function remoteNodeDisplayHost(value: string) {
   const canonical = canonicalJavaAbsoluteHttpHref(value);

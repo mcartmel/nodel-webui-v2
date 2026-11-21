@@ -99,6 +99,45 @@ describe('nodel component loader', () => {
     loader.dispose();
   });
 
+  it('defers topology imports until the containing page is active', async () => {
+    const definitions = new Set<string>();
+    const registry = {
+      get: (name: string) => definitions.has(name) ? class extends HTMLElement {} : undefined,
+      whenDefined: async () => undefined
+    } as unknown as CustomElementRegistry;
+    const importer = vi.fn(async () => { definitions.add('nodel-topology'); });
+    const loader = createNodelComponentLoader({ loaders: { 'nodel-topology': importer }, customElements: registry });
+    const page = document.createElement('nodel-page');
+    page.hidden = true;
+    page.dataset.activePage = 'false';
+    page.append(document.createElement('nodel-topology'));
+    document.body.append(page);
+    loader.bootstrapNodelComponentLoader();
+    await Promise.resolve();
+    expect(importer).not.toHaveBeenCalled();
+    page.hidden = false;
+    page.dataset.activePage = 'true';
+    page.setAttribute('active', '');
+    await vi.waitFor(() => expect(importer).toHaveBeenCalledTimes(1));
+    loader.dispose();
+  });
+
+  it('loads topology on a visible standalone page without requiring app navigation attributes', async () => {
+    const definitions = new Set<string>();
+    const registry = {
+      get: (name: string) => definitions.has(name) ? class extends HTMLElement {} : undefined,
+      whenDefined: async () => undefined
+    } as unknown as CustomElementRegistry;
+    const importer = vi.fn(async () => { definitions.add('nodel-topology'); });
+    const loader = createNodelComponentLoader({ loaders: { 'nodel-topology': importer }, customElements: registry });
+    const page = document.createElement('nodel-page');
+    page.append(document.createElement('nodel-topology'));
+    document.body.append(page);
+    loader.bootstrapNodelComponentLoader();
+    await vi.waitFor(() => expect(importer).toHaveBeenCalledTimes(1));
+    loader.dispose();
+  });
+
   it('keeps the generic fallback while a retry succeeds and removes every fallback after definition', async () => {
     const tag = tagName();
     let attempt = 0;

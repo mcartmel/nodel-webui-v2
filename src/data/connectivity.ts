@@ -124,6 +124,10 @@ async function runProbe() {
   try {
     await fetch(probeUrl(), {
       cache: 'no-store',
+      mode: 'same-origin',
+      // A redirect response proves this host is reachable. Its destination
+      // isn't part of the probe, including when a topology read triggered it.
+      redirect: 'manual',
       headers: { Accept: 'application/json' },
       signal: controller.signal
     });

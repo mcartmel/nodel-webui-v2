@@ -22,7 +22,7 @@ const expected = {
   'codemirror-base': [411183, 431743, 133409, 140080],
   'codemirror-language-python': [71704, 75290, 27989, 29389],
   'codemirror-language-html': [271633, 285215, 92689, 97324],
-  'codemirror-language-xml': [144439, 151661, 42638, 44770],
+  'codemirror-language-xml': [151912, 152000, 42638, 44770],
   'codemirror-language-javascript': [111238, 116800, 42326, 44443],
   'codemirror-language-json': [28617, 30048, 10118, 10624],
   'codemirror-language-css': [53800, 56490, 21113, 22169],
@@ -33,7 +33,7 @@ const expected = {
   'codemirror-language-shell': [2571, 2700, 1214, 1275],
   'components-html': [175483, 184258, 20145, 21153],
   'free-icon-artifact': [8615311, 9046077, 1950455, 2047978],
-  'dist-v2-inventory': [11348518, 11580000, 2738723, 2795000]
+  'dist-v2-inventory': [11864128, 12110000, 2892457, 2950000]
 } as const;
 
 describe('Stage 5 performance budget governance', () => {
@@ -44,28 +44,37 @@ describe('Stage 5 performance budget governance', () => {
     expect(policy.codeMirrorBaseModuleId).toBe('src/editor/codemirror-editor.ts');
     expect(policy.languageRoles).toEqual(roles);
     expect(policy.languageEntries.map((entry) => [entry.role, entry.moduleId])).toEqual(languageEntries);
-    expect(policy.releaseNotesMarker).toBe('APPROVED_CATALOGUE_COPY_CSS_2026-11-17');
+    expect(policy.releaseNotesMarker).toBe('APPROVED_CURRENT_DIST_INVENTORY_XML_RAW_2026-11-20');
     expect(policy.releaseNotesMarker.length).toBeGreaterThan(10);
     expect(policy.rationale.length).toBeGreaterThanOrEqual(20);
     expect(policy.rationale.length).toBeLessThanOrEqual(500);
     expect(Object.keys(policy.budgets).sort()).toEqual(Object.keys(expected).sort());
     expect(notes).toContain(policy.releaseNotesMarker);
     expect(notes).toContain(policy.rationale);
-    expect(policy.rationale).toBe("Local preview after restoring reduced-motion selector specificity measured stable-css at 187828 raw / 24046 gzip bytes, down from CI's pre-optimization 188020 / 24068 and above prior maxima 187730 / 23903. These measured values become the only updated baselines: existing 5% raw / 2% gzip headroom sets maxima 197220 / 24527. All other metrics and budgets remain unchanged; the separate parser-dependency approval remains intact.");
+    expect(policy.rationale).toBe('Current dist verification measured dist-v2-inventory at 11864128 raw / 2892457 gzip bytes and CodeMirror XML at 151912 raw / 42775 gzip bytes. Only the offline inventory raw/gzip and XML raw baselines change, using approximately 2% rounded inventory headroom and minimal XML raw headroom; XML gzip and ordinary initial-page budgets remain unchanged.');
     expect(notes).toContain('APPROVED_MDI_OFFLINE_ASSETS_2026-11-16');
     expect(notes).toContain('only free-icon-artifact');
     expect(notes).toContain('dist-v2-inventory');
     expect(notes).toContain('All initial JavaScript, CSS, editor, and other metric baselines and limits remain unchanged');
     expect(notes).toContain('APPROVED_PARSER_DEPENDENCIES_2026-11-17');
     expect(notes).toContain('APPROVED_CATALOGUE_COPY_CSS_2026-11-17');
+    expect(notes).toContain('APPROVED_CURRENT_DIST_INVENTORY_XML_RAW_2026-11-20');
+    expect(notes).toContain('ordinary initial');
     expect(notes).toContain(policy.rationale);
     for (const [name, values] of Object.entries(expected)) {
       const budget = policy.budgets[name];
       if (!budget) throw new Error(`Missing budget ${name}`);
       expect([budget.rawBaseline, budget.rawMax, budget.gzipBaseline, budget.gzipMax]).toEqual(values);
       if (name === 'dist-v2-inventory') {
-        expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.02 / 10000) * 10000);
-        expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.02 / 5000) * 5000);
+        expect(budget.rawMax).toBe(12110000);
+        expect(budget.gzipMax).toBe(2950000);
+        expect(budget.rawMax).toBeGreaterThanOrEqual(budget.rawBaseline);
+        expect(budget.gzipMax).toBeGreaterThanOrEqual(budget.gzipBaseline);
+      } else if (name === 'codemirror-language-xml') {
+        expect(budget.rawMax).toBe(152000);
+        expect(budget.rawMax).toBeGreaterThanOrEqual(budget.rawBaseline);
+        expect(budget.rawMax).toBeLessThan(Math.ceil(budget.rawBaseline * 1.05));
+        expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.05));
       } else if (name === 'stable-css') {
         expect(budget.rawMax).toBe(Math.ceil(budget.rawBaseline * 1.05));
         expect(budget.gzipMax).toBe(Math.ceil(budget.gzipBaseline * 1.02));

@@ -1,6 +1,6 @@
 import { fetchWithConnectivity } from '../data/connectivity';
 import { boundedErrorMessage } from '../utils/errors';
-import { DEFAULT_REQUEST_TIMEOUT_MS, runWithDeadline } from './request';
+import { DEFAULT_REQUEST_TIMEOUT_MS, runWithDeadline, startRequestDeadline } from './request';
 
 export async function responseError(response: Response) {
   const status = `${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
@@ -31,18 +31,20 @@ export async function responseError(response: Response) {
   return new Error(boundedErrorMessage(detail ? new Error(detail) : null, status));
 }
 
-export async function fetchJson(input: RequestInfo | URL, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {
+export async function fetchJson(input: RequestInfo | URL, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, completion: 'settled' | 'deadline' = 'settled'): Promise<unknown> {
   const callerSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
-  return runWithDeadline(async (signal) => {
+  const read = async (signal: AbortSignal) => {
     const response = await fetchWithConnectivity(input, { ...init, signal });
+    signal.throwIfAborted();
     if (!response.ok) {
       throw await responseError(response);
     }
     return response.json() as Promise<unknown>;
-  }, callerSignal, timeoutMs);
+  };
+  return completion === 'settled' ? runWithDeadline(read, callerSignal, timeoutMs) : startRequestDeadline(read, callerSignal, timeoutMs).result;
 }
 
-export async function postJson(input: RequestInfo | URL, body: unknown, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {
+export async function postJson(input: RequestInfo | URL, body: unknown, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, completion?: 'settled' | 'deadline'): Promise<unknown> {
   return fetchJson(input, {
     ...init,
     method: 'POST',
@@ -51,7 +53,7 @@ export async function postJson(input: RequestInfo | URL, body: unknown, init?: R
       ...(init?.headers ?? {})
     },
     body: JSON.stringify(body)
-  }, timeoutMs);
+  }, timeoutMs, completion);
 }
 
 export async function fetchOk(input: RequestInfo | URL, init?: RequestInit, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<unknown> {

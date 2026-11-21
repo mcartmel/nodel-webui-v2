@@ -22,7 +22,7 @@ import type {
   NodelNumericConstraint
 } from './types';
 
-const coreNames = new Set(['nodel-description', 'nodel-node-list', 'nodel-add-node', 'nodel-node-menu', 'nodel-diagnostics', 'nodel-host-log', 'nodel-diagnostic-charts', 'nodel-toolkit', 'nodel-console', 'nodel-log', 'nodel-actsig', 'nodel-params', 'nodel-bindings', 'nodel-editor', 'nodel-link']);
+const coreNames = new Set(['nodel-description', 'nodel-node-list', 'nodel-topology', 'nodel-add-node', 'nodel-node-menu', 'nodel-diagnostics', 'nodel-host-log', 'nodel-diagnostic-charts', 'nodel-toolkit', 'nodel-console', 'nodel-log', 'nodel-actsig', 'nodel-params', 'nodel-bindings', 'nodel-editor', 'nodel-link']);
 const internalHosts = new Set(['nodel-toast-host', 'nodel-confirm-host', 'nodel-connectivity-host']);
 
 const binding = (phases: string[], defaultPhase?: string): Omit<ComponentActionBindingContract, 'attribute'> => ({ phases, ...(defaultPhase ? { defaultPhase } : {}) });
@@ -120,6 +120,7 @@ const historicalContractOrder: string[] = [
   'nodel-theme-toggle',
   'nodel-host-icon',
   'nodel-node-list',
+  'nodel-topology',
   'nodel-add-node',
   'nodel-node-menu',
   'nodel-diagnostics',

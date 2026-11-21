@@ -1,0 +1,72 @@
+.nodel-topology {
+  --topology-available-height: calc(100dvh - 10rem);
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: .5rem;
+  height: max(20rem, var(--topology-available-height));
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  color: rgb(var(--nodel-fg));
+}
+.nodel-topology *, .nodel-topology *::before, .nodel-topology *::after { box-sizing: border-box; }
+.nodel-topology-heading { min-width: 0; }
+.nodel-topology-toolbar { min-width: 0; display: flex; align-items: center; flex-wrap: nowrap; gap: .5rem; }
+.nodel-topology-search { position: relative; flex: 1 1 18rem; min-width: 9rem; }
+.nodel-topology-search-results { position: absolute; z-index: 20; inset: calc(100% + .25rem) 0 auto; max-height: min(22rem, 45dvh); overflow: auto; border: 1px solid rgb(var(--nodel-border)); border-radius: .5rem; background: rgb(var(--nodel-surface)); box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.nodel-topology-search-results[hidden] { display: none; }
+.nodel-topology-search-result { display: block; width: 100%; padding: .5rem .75rem; text-align: left; border-bottom: 1px solid rgb(var(--nodel-border)); }
+.nodel-topology-search-result[aria-selected="true"], .nodel-topology-search-result:hover { background: rgb(var(--nodel-accent) / .12); }
+.nodel-topology-status { min-width: 0; padding: .3rem .65rem; border: 1px solid rgb(var(--nodel-border)); border-radius: .4rem; background: rgb(var(--nodel-surface)); font-size: .75rem; }
+.nodel-topology-workspace { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: .5rem; min-width: 0; min-height: 0; width: 100%; max-width: 100%; overflow: hidden; }
+.nodel-topology-sidebar, .nodel-topology-inspector { min-width: 0; min-height: 0; overflow: auto; padding: .7rem; border: 1px solid rgb(var(--nodel-border)); border-radius: .55rem; background: rgb(var(--nodel-surface)); }
+.nodel-topology .nodel-topology-sidebar[hidden], .nodel-topology .nodel-topology-inspector[hidden] { display: none !important; }
+.nodel-topology-sidebar { display: flex; flex-direction: column; gap: .85rem; }
+.nodel-topology-palette { display: grid; gap: .45rem; min-width: 0; padding-top: .5rem; border-top: 1px solid rgb(var(--nodel-border)); }
+.nodel-topology-palette-entries { display: grid; gap: .35rem; max-height: min(34dvh, 22rem); overflow: auto; }
+.nodel-topology-palette-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .25rem; padding: .25rem 0; border-bottom: 1px solid rgb(var(--nodel-border) / .55); font-size: .75rem; }
+.nodel-topology-palette-pager { display: flex; align-items: center; justify-content: space-between; gap: .25rem; }
+.nodel-topology-focus-controls { display: inline-flex; gap: .25rem; }
+.nodel-topology-focus-controls[hidden] { display: none; }
+.nodel-topology-sidebar-head, .nodel-topology-inspector-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.nodel-topology-sidebar-head > button { display: none; }
+.nodel-topology-facets, .nodel-topology-toggles { min-width: 0; margin: 0; padding: 0; border: 0; }
+.nodel-topology-facets legend, .nodel-topology-toggles legend { margin-bottom: .4rem; }
+.nodel-topology-facet { display: flex; align-items: center; gap: .45rem; min-width: 0; padding: .25rem 0; font-size: .82rem; }
+.nodel-topology-facet > span:nth-child(2) { flex: 1; }
+.nodel-topology-facet-count { color: rgb(var(--nodel-muted)); font-variant-numeric: tabular-nums; }
+.nodel-topology-filter-note { margin: 0; }
+.nodel-topology-graph { position: relative; min-width: 0; min-height: 0; max-width: 100%; height: 100%; overflow: hidden; border: 1px solid rgb(var(--nodel-border)); border-radius: .55rem; background-color: rgb(var(--nodel-surface)); background-image: radial-gradient(rgb(var(--nodel-muted) / .3) .8px, transparent .8px); background-size: 20px 20px; }
+.nodel-topology-empty { position: absolute; z-index: 2; inset: 0; display: grid; place-content: center; padding: 1rem; color: rgb(var(--nodel-muted)); text-align: center; pointer-events: none; }
+.nodel-topology-empty[hidden] { display: none; }
+.nodel-topology-inspector { display: flex; flex-direction: column; gap: .7rem; }
+.nodel-topology-inspector[hidden] { display: none; }
+.nodel-topology-inspector-tabs { display: flex; gap: .25rem; border-bottom: 1px solid rgb(var(--nodel-border)); }
+.nodel-topology-inspector-tabs button { padding: .4rem .5rem; border-bottom: 2px solid transparent; font-size: .8rem; }
+.nodel-topology-inspector-tabs button[aria-selected="true"] { border-color: rgb(var(--nodel-accent)); color: rgb(var(--nodel-accent)); }
+.nodel-topology-inspector-content { min-height: 0; overflow: auto; }
+.nodel-topology-zoom-controls { display: flex; align-items: center; gap: .25rem; }
+.nodel-topology-zoom-level { min-width: 2.5rem; text-align: center; }
+.nodel-topology-drawer { display: block; min-width: 0; min-height: 0; width: 100%; max-width: 100%; overflow-x: clip; }
+.nodel-topology-drawer details { border: 1px solid rgb(var(--nodel-border)); border-radius: .4rem; background: rgb(var(--nodel-surface)); }
+.nodel-topology-drawer-summary { display: flex; gap: .8rem; padding: .4rem .7rem; cursor: pointer; font-size: .8rem; }
+.nodel-topology-drawer-preview { overflow: hidden; color: rgb(var(--nodel-muted)); text-overflow: ellipsis; white-space: nowrap; }
+.nodel-topology-drawer-content { display: none; max-height: min(15rem, 25dvh); overflow: auto; padding: .5rem .7rem; border-top: 1px solid rgb(var(--nodel-border)); font-size: .75rem; }
+.nodel-topology-drawer details[open] .nodel-topology-drawer-content { display: block; }
+.nodel-topology [data-topology-advanced], .nodel-topology > div:not(.nodel-topology-toolbar):not(.nodel-topology-status):not(.nodel-topology-workspace), .nodel-topology > details { display: none; }
+@media (max-width: 900px) {
+  .nodel-topology { --topology-available-height: calc(100dvh - 8rem); height: max(18rem, var(--topology-available-height)); }
+  .nodel-topology-toolbar { flex-wrap: wrap; }
+  .nodel-topology-search { order: 1; flex-basis: 100%; }
+  .nodel-topology-workspace { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .nodel-topology-graph { grid-row: 1; }
+  .nodel-topology-sidebar, .nodel-topology-inspector { position: absolute; z-index: 10; top: 0; bottom: 0; width: min(22rem, 88vw); box-shadow: 0 8px 28px rgb(0 0 0 / .22); }
+  .nodel-topology-sidebar { left: 0; }
+  .nodel-topology-inspector { right: 0; }
+  .nodel-topology-sidebar-head > button { display: inline-flex; }
+}
+@media (max-width: 540px) {
+  .nodel-topology { height: max(18rem, var(--topology-available-height)); }
+  .nodel-topology-toolbar > button { padding-inline: .45rem; }
+}
