@@ -2,8 +2,8 @@ import Konva from 'konva';
 import './style.css';
 import { getStoredTheme, getSystemThemeMediaQuery, isNodelTheme, storeTheme, THEME_STORAGE_KEY, type NodelTheme } from '../../theme/theme';
 import {
-  CARD_HEADER_HEIGHT, PORTS_TOP, PORT_ROW_HEIGHT, cardHeight, curveArrow, edgeCurves, fixtureEdges, fixtureNodes,
-  type Curve, type FixtureEdge, type FixtureNode
+  CARD_HEADER_HEIGHT, FIXTURE_NODE_COUNTS, PORTS_TOP, PORT_ROW_HEIGHT, cardHeight, createFixture, curveArrow, edgeCurves,
+  type Curve, type FixtureEdge, type FixtureNode, type FixtureNodeCount
 } from './fixture';
 
 const host = document.querySelector<HTMLElement>('#diagram');
@@ -13,13 +13,15 @@ stageHost.className = 'canvas-stage';
 if (host) host.append(stageHost);
 
 let colors = readColors();
-const nodes = fixtureNodes.map((node) => ({ ...node, ports: [...node.ports] }));
+const requestedNodeCount = Number(new URLSearchParams(window.location.search).get('nodes'));
+const nodeCount: FixtureNodeCount = FIXTURE_NODE_COUNTS.includes(requestedNodeCount as FixtureNodeCount) ? requestedNodeCount as FixtureNodeCount : 9;
+const { nodes, edges } = createFixture(nodeCount);
 const nodeById = new Map(nodes.map((node) => [node.id, node]));
-const initialNodeById = new Map(fixtureNodes.map((node) => [node.id, node]));
-const edgeById = new Map(fixtureEdges.map((edge) => [edge.id, edge]));
+const initialNodeById = new Map(nodes.map((node) => [node.id, node]));
+const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
 const incidentEdges = new Map<string, Set<string>>();
 const wireGeometry = new Map<string, { curves: Curve[]; arrow: ReturnType<typeof curveArrow> }>();
-for (const edge of fixtureEdges) {
+for (const edge of edges) {
   for (const nodeId of [edge.from.nodeId, edge.to.nodeId]) {
     const incident = incidentEdges.get(nodeId) ?? new Set<string>();
     incident.add(edge.id);
@@ -264,14 +266,14 @@ function refreshSelection(): void {
 
 function centerCamera(): void {
   if (!stage) return;
-  const allCurves = fixtureEdges.flatMap((edge) => edgeCurves(edge, initialNodeById));
-  const graphLeft = Math.min(...fixtureNodes.map((node) => node.x), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
-  const graphRight = Math.max(...fixtureNodes.map((node) => node.x + node.width), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
+  const allCurves = edges.flatMap((edge) => edgeCurves(edge, initialNodeById));
+  const graphLeft = Math.min(...nodes.map((node) => node.x), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
+  const graphRight = Math.max(...nodes.map((node) => node.x + node.width), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
   const graphWidth = graphRight - graphLeft;
-  const graphTop = Math.min(...fixtureNodes.map((node) => node.y));
+  const graphTop = Math.min(...nodes.map((node) => node.y));
   const graphBottom = Math.max(
-    ...fixtureNodes.map((node) => node.y + cardHeight(node)),
-    ...fixtureEdges.flatMap((edge) => {
+    ...nodes.map((node) => node.y + cardHeight(node)),
+    ...edges.flatMap((edge) => {
       return edgeCurves(edge, initialNodeById).flatMap((curve) => [curve.start.y, curve.control1.y, curve.control2.y, curve.end.y]);
     })
   );
@@ -284,7 +286,7 @@ function centerCamera(): void {
 
 function setZoom(nextScale: number, anchor = { x: viewportWidth / 2, y: viewportHeight / 2 }): void {
   if (!stage) return;
-  const scale = Math.max(0.55, Math.min(1.6, nextScale));
+  const scale = Math.max(0.04, Math.min(1.6, nextScale));
   const world = { x: (anchor.x - stage.x()) / stage.scaleX(), y: (anchor.y - stage.y()) / stage.scaleY() };
   stage.scale({ x: scale, y: scale });
   stage.position({ x: anchor.x - world.x * scale, y: anchor.y - world.y * scale });
@@ -301,7 +303,7 @@ function initialize(): void {
     wireLayer = new Konva.Layer({ name: 'wires' });
     cardLayer = new Konva.Layer({ name: 'cards' });
     stage.add(wireLayer, cardLayer);
-    for (const edge of fixtureEdges) {
+    for (const edge of edges) {
       const shape = makeWire(edge);
       wireLayer.add(shape);
     }
@@ -345,6 +347,18 @@ function initialize(): void {
       }
     };
     document.addEventListener('keydown', onKeyDown);
+    const sizeSelect = document.querySelector<HTMLSelectElement>('[data-node-count]');
+    if (sizeSelect) sizeSelect.value = String(nodeCount);
+    const summary = document.querySelector<HTMLElement>('[data-fixture-summary]');
+    if (summary) summary.textContent = `${nodes.length} nodes · ${edges.length} edges`;
+    const onSizeChange = () => {
+      if (!sizeSelect) return;
+      if (!FIXTURE_NODE_COUNTS.some((count) => String(count) === sizeSelect.value)) return;
+      const url = new URL(window.location.href);
+      url.searchParams.set('nodes', sizeSelect.value);
+      window.location.assign(url);
+    };
+    sizeSelect?.addEventListener('change', onSizeChange);
     const zoomOut = document.querySelector<HTMLButtonElement>('[data-view="zoom-out"]');
     const zoomIn = document.querySelector<HTMLButtonElement>('[data-view="zoom-in"]');
     const reset = document.querySelector<HTMLButtonElement>('[data-view="reset"]');
@@ -364,6 +378,7 @@ function initialize(): void {
       zoomOut?.removeEventListener('click', onZoomOut);
       zoomIn?.removeEventListener('click', onZoomIn);
       reset?.removeEventListener('click', onReset);
+      sizeSelect?.removeEventListener('change', onSizeChange);
       stage?.destroy();
       stage = undefined;
     };

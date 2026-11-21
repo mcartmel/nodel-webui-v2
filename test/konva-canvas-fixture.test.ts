@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ARROW_TIP_INSET, cardHeight, curveArrow, curvePoint, edgeCurve, edgeCurves, fixtureEdges, fixtureNodes, portPoint, validateFixture
+  ARROW_TIP_INSET, cardHeight, createFixture, curveArrow, curvePoint, edgeCurve, edgeCurves, fixtureEdges, fixtureNodes, portPoint, validateFixture
 } from '../src/experiments/konva-canvas/fixture';
 
 const byId = new Map(fixtureNodes.map((node) => [node.id, node]));
@@ -13,6 +13,24 @@ describe('Konva synthetic fixture geometry', () => {
       'Projector A', 'Projector B', 'Lighting', 'Room Status'
     ]);
     expect(fixtureEdges).toHaveLength(14);
+  });
+
+  it.each([
+    [9, 14], [50, 77], [150, 232], [450, 700]
+  ] as const)('builds a deterministic %i-card fixture with %i fully-connected edges', (nodeCount, edgeCount) => {
+    const graph = createFixture(nodeCount);
+    expect(graph).toEqual(createFixture(nodeCount));
+    expect(graph.nodes).toHaveLength(nodeCount);
+    expect(graph.edges).toHaveLength(edgeCount);
+    expect(graph.nodes.slice(0, 9).map(({ id }) => id)).toEqual(fixtureNodes.map(({ id }) => id));
+    expect(graph.edges.slice(0, 14).map(({ id }) => id)).toEqual(fixtureEdges.map(({ id }) => id));
+    const ids = new Set(graph.nodes.map(({ id }) => id));
+    expect(new Set(graph.nodes.map(({ id }) => id)).size).toBe(nodeCount);
+    for (const edge of graph.edges) {
+      expect(ids.has(edge.from.nodeId), edge.id).toBe(true);
+      expect(ids.has(edge.to.nodeId), edge.id).toBe(true);
+    }
+    expect(graph.edges.length / nodeCount).toBeGreaterThan(1.5);
   });
 
   it('keeps the authored cards separated in a compact 1126px-wide composition', () => {

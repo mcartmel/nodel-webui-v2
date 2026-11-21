@@ -61,6 +61,41 @@ export const fixtureEdges: readonly FixtureEdge[] = [
   { id: 'panel-status', from: { nodeId: 'touch-panel', portId: 'status' }, to: { nodeId: 'room-status', portId: 'panel' } }
 ];
 
+export const FIXTURE_NODE_COUNTS = [9, 50, 150, 450] as const;
+export type FixtureNodeCount = typeof FIXTURE_NODE_COUNTS[number];
+
+/** Repeats the authored nine-card motif on a deterministic grid; partial motifs retain only fully-connected edges. */
+export function createFixture(nodeCount: FixtureNodeCount): { nodes: FixtureNode[]; edges: FixtureEdge[] } {
+  const motifCount = Math.ceil(nodeCount / fixtureNodes.length);
+  const columns = Math.ceil(Math.sqrt(motifCount));
+  const tileWidth = 1320;
+  const tileHeight = 1100;
+  const nodes: FixtureNode[] = [];
+  const edges: FixtureEdge[] = [];
+
+  for (let tile = 0; tile < motifCount; tile += 1) {
+    const prefix = tile === 0 ? '' : `tile-${String(tile + 1).padStart(2, '0')}-`;
+    const dx = (tile % columns) * tileWidth;
+    const dy = Math.floor(tile / columns) * tileHeight;
+    const included = Math.min(fixtureNodes.length, nodeCount - nodes.length);
+    const nodeIds = new Set(fixtureNodes.slice(0, included).map((node) => node.id));
+
+    for (const node of fixtureNodes.slice(0, included)) {
+      nodes.push({ ...node, id: `${prefix}${node.id}`, x: node.x + dx, y: node.y + dy, ports: [...node.ports] });
+    }
+    for (const edge of fixtureEdges) {
+      if (!nodeIds.has(edge.from.nodeId) || !nodeIds.has(edge.to.nodeId)) continue;
+      edges.push({
+        ...edge,
+        id: `${prefix}${edge.id}`,
+        from: { ...edge.from, nodeId: `${prefix}${edge.from.nodeId}` },
+        to: { ...edge.to, nodeId: `${prefix}${edge.to.nodeId}` }
+      });
+    }
+  }
+  return { nodes, edges };
+}
+
 export function cardHeight(node: FixtureNode): number {
   const rowCount = Math.max(...(['left', 'right'] as const).map((side) => node.ports.filter((item) => item.side === side).length));
   return PORTS_TOP + rowCount * PORT_ROW_HEIGHT + 14;

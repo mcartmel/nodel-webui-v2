@@ -30,13 +30,21 @@
     <main class="experiment-shell">
       <header class="experiment-header">
         <div>
-          <p class="eyebrow">Synthetic rendering experiment</p>
+          <p class="eyebrow">Synthetic rendering experiment <span data-fixture-summary>9 nodes · 14 edges</span></p>
           <h1>Room network</h1>
         </div>
         <div class="view-controls" aria-label="Canvas view controls">
           <button type="button" data-view="zoom-out" aria-label="Zoom out">−</button>
           <button type="button" data-view="zoom-in" aria-label="Zoom in">+</button>
           <button type="button" data-view="reset">Reset view</button>
+          <label class="size-control">Nodes
+            <select aria-label="Synthetic graph size" data-node-count>
+              <option value="9">9</option>
+              <option value="50">50</option>
+              <option value="150">150</option>
+              <option value="450">450</option>
+            </select>
+          </label>
           <label class="theme-control">Theme
             <select aria-label="Theme" data-theme-select>
               <option value="system">System</option>
