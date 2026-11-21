@@ -13,6 +13,7 @@
     "eslint.config.mjs",
     "postcss.config.cjs",
     "vite.config.ts",
+    "vite.konva.config.ts",
     "playwright.config.ts",
     "playwright.deployment.config.ts",
     "tailwind.config.ts"

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = root.dataset.theme;
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            const stored = window.localStorage.getItem('nodel.theme');
+            theme = stored === 'light' || stored === 'dark' ? stored : undefined;
+          } catch {}
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        root.dataset.theme = theme;
+      })();
+    </script>
+    <title>Konva topology canvas experiment</title>
+  </head>
+  <body>
+    <main class="experiment-shell">
+      <header class="experiment-header">
+        <div>
+          <p class="eyebrow">Synthetic rendering experiment</p>
+          <h1>Room network</h1>
+        </div>
+        <div class="view-controls" aria-label="Canvas view controls">
+          <button type="button" data-view="zoom-out" aria-label="Zoom out">−</button>
+          <button type="button" data-view="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" data-view="reset">Reset view</button>
+          <label class="theme-control">Theme
+            <select aria-label="Theme" data-theme-select>
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
+      </header>
+      <section id="diagram" class="diagram" aria-label="Room network diagram">
+        <p class="canvas-failure" role="status" hidden>Canvas rendering is unavailable in this browser.</p>
+      </section>
+    </main>
+    <script type="module" src="/src/experiments/konva-canvas/main.ts"></script>
+  </body>
+</html>
