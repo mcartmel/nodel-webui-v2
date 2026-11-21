@@ -16,8 +16,12 @@ let colors = readColors();
 const requestedNodeCount = Number(new URLSearchParams(window.location.search).get('nodes'));
 const nodeCount: FixtureNodeCount = FIXTURE_NODE_COUNTS.includes(requestedNodeCount as FixtureNodeCount) ? requestedNodeCount as FixtureNodeCount : 9;
 const { nodes, edges } = createFixture(nodeCount);
+const authoredNodes: readonly FixtureNode[] = nodes.map((node) => Object.freeze({
+  ...node,
+  ports: Object.freeze([...node.ports])
+}));
 const nodeById = new Map(nodes.map((node) => [node.id, node]));
-const initialNodeById = new Map(nodes.map((node) => [node.id, node]));
+const initialNodeById = new Map(authoredNodes.map((node) => [node.id, node]));
 const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
 const incidentEdges = new Map<string, Set<string>>();
 const wireGeometry = new Map<string, { curves: Curve[]; arrow: ReturnType<typeof curveArrow> }>();
@@ -267,12 +271,12 @@ function refreshSelection(): void {
 function centerCamera(): void {
   if (!stage) return;
   const allCurves = edges.flatMap((edge) => edgeCurves(edge, initialNodeById));
-  const graphLeft = Math.min(...nodes.map((node) => node.x), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
-  const graphRight = Math.max(...nodes.map((node) => node.x + node.width), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
+  const graphLeft = Math.min(...authoredNodes.map((node) => node.x), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
+  const graphRight = Math.max(...authoredNodes.map((node) => node.x + node.width), ...allCurves.flatMap((curve) => [curve.start.x, curve.control1.x, curve.control2.x, curve.end.x]));
   const graphWidth = graphRight - graphLeft;
-  const graphTop = Math.min(...nodes.map((node) => node.y));
+  const graphTop = Math.min(...authoredNodes.map((node) => node.y));
   const graphBottom = Math.max(
-    ...nodes.map((node) => node.y + cardHeight(node)),
+    ...authoredNodes.map((node) => node.y + cardHeight(node)),
     ...edges.flatMap((edge) => {
       return edgeCurves(edge, initialNodeById).flatMap((curve) => [curve.start.y, curve.control1.y, curve.control2.y, curve.end.y]);
     })

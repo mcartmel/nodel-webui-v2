@@ -93,6 +93,7 @@ async function canvasStats(page: Page): Promise<LayerStats[]> {
 
 type NativeShapeIdentity = { id: string; nativeId: number; className: string };
 type NativeSceneIdentity = { cards: NativeShapeIdentity[]; wires: NativeShapeIdentity[] };
+type NativeSceneState = { camera: { x: number; y: number; scaleX: number; scaleY: number }; nodes: { id: string; x: number; y: number }[] };
 
 async function nativeSceneIdentity(page: Page): Promise<NativeSceneIdentity> {
   return page.evaluate(() => {
@@ -105,6 +106,21 @@ async function nativeSceneIdentity(page: Page): Promise<NativeSceneIdentity> {
       .map((shape) => ({ id: shape.id(), nativeId: shape._id, className: shape.getClassName() }))
       .sort((a, b) => a.id.localeCompare(b.id));
     return { cards: read('.topology-card'), wires: read('.topology-wire') };
+  });
+}
+
+async function nativeSceneState(page: Page): Promise<NativeSceneState> {
+  return page.evaluate(() => {
+    type NativeShape = { id(): string; x(): number; y(): number };
+    type NativeStage = { position(): Point; scaleX(): number; scaleY(): number; find(selector: string): NativeShape[] };
+    const stages = (window as Window & { Konva?: { stages?: NativeStage[] } }).Konva?.stages;
+    const stage = stages?.[0];
+    if (!stage) throw new Error('Konva native stage registry is unavailable');
+    const position = stage.position();
+    return {
+      camera: { x: position.x, y: position.y, scaleX: stage.scaleX(), scaleY: stage.scaleY() },
+      nodes: stage.find('.topology-card').map((shape) => ({ id: shape.id(), x: shape.x(), y: shape.y() })).sort((a, b) => a.id.localeCompare(b.id))
+    };
   });
 }
 
@@ -465,7 +481,14 @@ test('saved nine-card plan remains interactive and visually stable', async ({ pa
   const afterGestures = await canvasStats(page);
   expect(afterGestures.map((layer) => layer.id)).toEqual(canvasIdentities.map((layer) => layer.id));
   expect(await nativeSceneIdentity(page)).toEqual(nativeIdentities);
+  const movedState = await nativeSceneState(page);
+  const schedulePosition = movedState.nodes.find((node) => node.id === 'schedule')!;
+  expect(schedulePosition.x).not.toBe(fixtureNodes[0]!.x);
+  expect(schedulePosition.y).not.toBe(fixtureNodes[0]!.y);
   await page.getByRole('button', { name: 'Reset view' }).click();
+  const resetState = await nativeSceneState(page);
+  expect(resetState.camera).toEqual({ x: camera.x, y: camera.y, scaleX: camera.scale, scaleY: camera.scale });
+  expect(resetState.nodes).toEqual(movedState.nodes);
   const afterReset = await canvasStats(page);
   expect(afterReset.map((layer) => layer.id)).toEqual(canvasIdentities.map((layer) => layer.id));
   expect(await nativeSceneIdentity(page)).toEqual(nativeIdentities);
@@ -550,6 +573,28 @@ test('saved nine-card plan remains interactive and visually stable', async ({ pa
   expect(unexpectedRequests).toEqual([]);
   await assertNoPageScroll(page);
   console.log(`Konva resolved selection accent RGB ${sourceAccent.join(',')}`);
+});
+
+test('size selector navigates between complete deterministic fixtures', async ({ page }) => {
+  const url = new URL(experimentPath, process.env.KONVA_EXPERIMENT_URL);
+  url.searchParams.set('nodes', '9');
+  await page.goto(url.href, { waitUntil: 'networkidle' });
+  await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+  await expect(page.locator('[data-fixture-summary]')).toHaveText('9 nodes · 14 edges');
+  expect((await nativeSceneIdentity(page)).cards).toHaveLength(9);
+  expect((await nativeSceneIdentity(page)).wires).toHaveLength(14);
+
+  await page.getByLabel('Synthetic graph size').selectOption('50');
+  await expect(page).toHaveURL(/(?:\?|&)nodes=50(?:&|$)/);
+  await expect(page.locator('[data-fixture-summary]')).toHaveText('50 nodes · 77 edges');
+  expect((await nativeSceneIdentity(page)).cards).toHaveLength(50);
+  expect((await nativeSceneIdentity(page)).wires).toHaveLength(77);
+
+  await page.getByLabel('Synthetic graph size').selectOption('9');
+  await expect(page).toHaveURL(/(?:\?|&)nodes=9(?:&|$)/);
+  await expect(page.locator('[data-fixture-summary]')).toHaveText('9 nodes · 14 edges');
+  expect((await nativeSceneIdentity(page)).cards).toHaveLength(9);
+  expect((await nativeSceneIdentity(page)).wires).toHaveLength(14);
 });
 
 test('System stays selected and repaints the canvas until a stored theme overrides it', async ({ page, context }) => {
