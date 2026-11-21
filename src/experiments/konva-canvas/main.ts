@@ -199,7 +199,7 @@ function makeWire(edge: FixtureEdge): Konva.Shape {
 function makeCard(node: FixtureNode): Konva.Group {
   const height = cardHeight(node);
   const group = new Konva.Group({ x: node.x, y: node.y, draggable: true, id: node.id, name: 'topology-card' });
-  const rect = new Konva.Rect({ x: 0, y: 0, width: node.width, height, fill: colors.surface, stroke: colors.border, strokeWidth: 1, cornerRadius: 10, shadowColor: '#142536', shadowBlur: 11, shadowOpacity: 0.1, shadowOffsetY: 3 });
+  const rect = new Konva.Rect({ x: 0, y: 0, width: node.width, height, fill: colors.surface, stroke: colors.border, strokeWidth: 1, cornerRadius: 10, shadowColor: '#142536', shadowBlur: 11, shadowOpacity: 0.1, shadowOffsetY: 3, ...(nodes.length > 9 ? { shadowForStrokeEnabled: false } : {}) });
   group.add(rect);
   group.add(new Konva.Rect({ x: 1, y: 1, width: node.width - 2, height: CARD_HEADER_HEIGHT - 1, fill: colors.surface, cornerRadius: [9, 9, 0, 0], listening: false }));
   group.add(new Konva.Circle({ x: 18, y: 22, radius: 4, fill: node.status === 'online' ? '#39a779' : '#d79a3b', listening: false }));
