@@ -59,8 +59,9 @@ export interface NodelCustomUiEntry {
   title: string;
 }
 
-export async function getLocalRest(init?: RequestInit): Promise<NodelLocalRestResponse> {
-  return decodeLocalRest(await fetchJson('/REST', init), 'GET /REST');
+/** Pass 0 to use a caller-managed deadline via init.signal. */
+export async function getLocalRest(init?: RequestInit, timeoutMs?: number): Promise<NodelLocalRestResponse> {
+  return decodeLocalRest(await fetchJson('/REST', init, timeoutMs), 'GET /REST');
 }
 
 export async function getDiagnostics(init?: RequestInit): Promise<NodelDiagnosticsResponse> {

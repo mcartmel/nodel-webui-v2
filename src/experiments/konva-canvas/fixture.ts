@@ -6,6 +6,8 @@ export interface FixturePort {
   label: string;
   direction: PortDirection;
   side: PortSide;
+  /** Local-graph endpoint role; intentionally absent on synthetic fixtures. */
+  localKind?: 'remote-action' | 'remote-event' | 'local-action' | 'local-event';
 }
 
 export interface FixtureNode {
@@ -15,13 +17,27 @@ export interface FixtureNode {
   y: number;
   width: number;
   ports: readonly FixturePort[];
-  status: 'online' | 'standby';
+  status?: 'online' | 'standby';
+  /** Real-data presentation; intentionally separate from synthetic health. */
+  displayStatus?: string;
+  statusKind?: 'local' | 'partial' | 'referenced';
 }
 
 export interface FixtureEdge {
   id: string;
   from: { nodeId: string; portId: string };
   to: { nodeId: string; portId: string };
+  selfLoop?: boolean;
+  /** Local projection found a connection in the opposite direction. */
+  reciprocal?: boolean;
+  /** Top-to-bottom target socket rank among bindings with the same ordered node pair. */
+  laneIndex?: number;
+  laneCount?: number;
+  /** Reserve a separate band for the other direction in a shared vertical corridor. */
+  oppositeLaneCount?: number;
+  /** Binding identity metadata; intentionally absent on synthetic fixtures. */
+  bindingKind?: 'action' | 'event';
+  ownerId?: string;
 }
 
 const port = (id: string, label: string, direction: PortDirection, side: PortSide): FixturePort => ({ id, label, direction, side });
@@ -97,36 +113,74 @@ export function createFixture(nodeCount: FixtureNodeCount): { nodes: FixtureNode
 }
 
 export function cardHeight(node: FixtureNode): number {
-  const rowCount = Math.max(...(['left', 'right'] as const).map((side) => node.ports.filter((item) => item.side === side).length));
+  const { rowCounts } = portLayout(node.ports);
+  return cardHeightForPortCounts(rowCounts.left, rowCounts.right);
+}
+
+/** Card height when only the number of rows per side is known. */
+export function cardHeightForPortCounts(left: number, right: number): number {
+  const rowCount = Math.max(left, right);
   return PORTS_TOP + rowCount * PORT_ROW_HEIGHT + 14;
 }
 
 export interface Point { x: number; y: number }
 export interface Curve { start: Point; control1: Point; control2: Point; end: Point }
 
-export function portPoint(node: FixtureNode, portId: string, position: Point = node): Point {
-  const sidePorts = node.ports.filter((item) => item.side === node.ports.find((candidate) => candidate.id === portId)?.side);
-  const index = sidePorts.findIndex((item) => item.id === portId);
-  const item = sidePorts[index];
-  if (!item) throw new Error(`Unknown port ${portId} on ${node.id}`);
+interface PortLayoutEntry {
+  port: FixturePort;
+  row: number;
+}
+
+interface PortLayout {
+  byId: ReadonlyMap<string, PortLayoutEntry>;
+  rowCounts: Readonly<Record<PortSide, number>>;
+}
+
+// Port arrays are treated as immutable after node creation, so their row layout
+// remains stable while node positions continue to be read live during drags.
+const portLayouts = new WeakMap<readonly FixturePort[], PortLayout>();
+
+function portLayout(ports: readonly FixturePort[]): PortLayout {
+  const cached = portLayouts.get(ports);
+  if (cached) return cached;
+
+  const byId = new Map<string, PortLayoutEntry>();
+  const rowCounts: Record<PortSide, number> = { left: 0, right: 0 };
+  for (const item of ports) {
+    const row = rowCounts[item.side];
+    byId.set(item.id, { port: item, row });
+    rowCounts[item.side] = row + 1;
+  }
+  const layout = { byId, rowCounts };
+  portLayouts.set(ports, layout);
+  return layout;
+}
+
+function portPointAt(node: FixtureNode, entry: PortLayoutEntry, position: Point): Point {
   return {
-    x: position.x + (item.side === 'left' ? 0 : node.width),
-    y: position.y + PORTS_TOP + index * PORT_ROW_HEIGHT + PORT_ROW_HEIGHT / 2
+    x: position.x + (entry.port.side === 'left' ? 0 : node.width),
+    y: position.y + PORTS_TOP + entry.row * PORT_ROW_HEIGHT + PORT_ROW_HEIGHT / 2
   };
+}
+
+export function portPoint(node: FixtureNode, portId: string, position: Point = node): Point {
+  const entry = portLayout(node.ports).byId.get(portId);
+  if (!entry) throw new Error(`Unknown port ${portId} on ${node.id}`);
+  return portPointAt(node, entry, position);
 }
 
 export function edgeCurve(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve {
   const source = nodes.get(edge.from.nodeId);
   const target = nodes.get(edge.to.nodeId);
   if (!source || !target) throw new Error(`Unknown endpoint for edge ${edge.id}`);
-  const sourcePort = source.ports.find((item) => item.id === edge.from.portId);
-  const targetPort = target.ports.find((item) => item.id === edge.to.portId);
+  const sourcePort = portLayout(source.ports).byId.get(edge.from.portId);
+  const targetPort = portLayout(target.ports).byId.get(edge.to.portId);
   if (!sourcePort || !targetPort) throw new Error(`Unknown port on edge ${edge.id}`);
-  const start = portPoint(source, edge.from.portId, positions?.get(source.id));
-  const end = portPoint(target, edge.to.portId, positions?.get(target.id));
+  const start = portPointAt(source, sourcePort, positions?.get(source.id) ?? source);
+  const end = portPointAt(target, targetPort, positions?.get(target.id) ?? target);
   const handle = Math.max(44, Math.min(128, Math.abs(end.x - start.x) * 0.42));
-  const sourceTangent = sourcePort.side === 'right' ? 1 : -1;
-  const targetTangent = targetPort.side === 'left' ? 1 : -1;
+  const sourceTangent = sourcePort.port.side === 'right' ? 1 : -1;
+  const targetTangent = targetPort.port.side === 'left' ? 1 : -1;
   return {
     start, end,
     control1: { x: start.x + sourceTangent * handle, y: start.y },
@@ -134,8 +188,196 @@ export function edgeCurve(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureN
   };
 }
 
+const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const lineCurve = (start: Point, end: Point): Curve => ({ start, control1: lerp(start, end, 1 / 3), control2: lerp(start, end, 2 / 3), end });
+
+/** Round the elbows of an orthogonal rail without overshooting its clearances. */
+function roundedRail(start: Point, end: Point, exitX: number, entryX: number, y: number, maxRadius = 12): Curve[] {
+  const points = [start, { x: exitX, y: start.y }, { x: exitX, y }, { x: entryX, y }, { x: entryX, y: end.y }, end];
+  const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+  const curves: Curve[] = [];
+  let tail = start;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const corner = points[i]!;
+    const prev = points[i - 1]!;
+    const next = points[i + 1]!;
+    const incoming = distance(corner, prev);
+    const outgoing = distance(corner, next);
+    const radius = Math.min(maxRadius, incoming / 2, outgoing / 2);
+    const before = lerp(corner, prev, incoming ? radius / incoming : 0);
+    const after = lerp(corner, next, outgoing ? radius / outgoing : 0);
+    curves.push(lineCurve(tail, before), { start: before, control1: lerp(before, corner, 2 / 3), control2: lerp(after, corner, 2 / 3), end: after });
+    tail = after;
+  }
+  curves.push(lineCurve(tail, end));
+  return curves;
+}
+
+/** Subdivide the direct cubic to blend into a rail while still in a clear horizontal gap. */
+function blendRail(direct: Curve, rail: Curve[], weight: number): Curve[] {
+  let rest = direct;
+  return rail.map((part, index) => {
+    const t = 1 / (rail.length - index);
+    const a = lerp(rest.start, rest.control1, t);
+    const b = lerp(rest.control1, rest.control2, t);
+    const c = lerp(rest.control2, rest.end, t);
+    const d = lerp(a, b, t);
+    const e = lerp(b, c, t);
+    const split = lerp(d, e, t);
+    const result = { start: lerp(rest.start, part.start, weight), control1: lerp(a, part.control1, weight), control2: lerp(d, part.control2, weight), end: lerp(split, part.end, weight) };
+    rest = { start: split, control1: e, control2: c, end: rest.end };
+    return result;
+  });
+}
+
+function facingCurve(direct: Curve, gap: number): Curve {
+  // Keep the controls ordered in X, even when edgeCurve's minimum handle is
+  // wider than half the gap. Neither card can then cover the cubic.
+  const handle = Math.min(direct.control1.x - direct.start.x, gap / 2);
+  return { ...direct, control1: { x: direct.start.x + handle, y: direct.start.y }, control2: { x: direct.end.x - handle, y: direct.end.y } };
+}
+
+function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number, above: boolean): Curve[] {
+  const { start, end } = direct;
+  const gap = end.x - start.x;
+  const directGap = 40;
+  if (gap >= directGap) return [facingCurve(direct, gap)];
+
+  const lead = 24;
+  const halfLaneSpacing = Math.min(8, (lowerTop - upperBottom) / 3);
+  const y = (upperBottom + lowerTop) / 2 + (above ? -halfLaneSpacing : halfLaneSpacing);
+  const radius = Math.max(0, Math.min(8, y - upperBottom - 1, lowerTop - y - 1));
+  // Leave each socket on its own side, with room for the card's stroke and
+  // the arrow. The legs stop in the Y corridor: extending them past it (or
+  // trying to reach the far side of both cards first) can cross the peer.
+  const rail = roundedRail(start, end, start.x + lead, end.x - lead, y, radius);
+  if (gap <= lead) return rail;
+
+  // Both paths' control hulls now fit in the horizontal gap, so the morph
+  // remains clear and converges to exactly the direct cubic during a drag.
+  const t = (directGap - gap) / (directGap - lead);
+  return blendRail(facingCurve(direct, gap), rail, t * t * (3 - 2 * t));
+}
+
+const LANE_SPACING = 12;
+
+function exteriorRoute(
+  edge: FixtureEdge,
+  start: Point,
+  end: Point,
+  target: FixtureNode,
+  sourcePosition: Point,
+  targetPosition: Point,
+  sourceBottom: number,
+  targetBottom: number,
+  above: boolean,
+  direct: Curve,
+  gap: number
+): Curve[] {
+  const margin = 32;
+  const index = edge.laneIndex ?? 0;
+  // From above, the bottom rows need the outermost rails; from below, it's
+  // the top rows. Outer legs also have to reach farther out in X to wrap
+  // around both ends of the inner rail rather than crossing it.
+  const offset = (above ? index : (edge.laneCount ?? 1) - 1 - index) * LANE_SPACING;
+  const y = (above ? Math.min(sourcePosition.y, targetPosition.y) - margin : Math.max(sourceBottom, targetBottom) + margin + 20)
+    + (above ? -offset : offset);
+  const clearance = above ? margin : margin + 20;
+  const rail = roundedRail(start, end,
+    Math.max(start.x, targetPosition.x + target.width) + clearance + offset,
+    Math.min(sourcePosition.x, end.x) - clearance - offset, y, (edge.laneCount ?? 1) > 1 ? 5 : 12);
+  return edge.reciprocal ? rail : gap >= -margin ? blendRail(direct, rail, -gap / margin) : rail;
+}
+
 export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve[] {
-  return [edgeCurve(edge, nodes, positions)];
+  if (edge.selfLoop) {
+    const node = nodes.get(edge.from.nodeId);
+    if (!node) throw new Error(`Unknown endpoint for edge ${edge.id}`);
+    const position = positions?.get(node.id);
+    const start = portPoint(node, edge.from.portId, position);
+    const end = portPoint(node, edge.to.portId, position);
+    const left = position?.x ?? node.x;
+    const right = left + node.width;
+    const outerLeft = left - 76;
+    const outerRight = right + 76;
+    const top = (position?.y ?? node.y) - 42;
+    const acrossY = top - 24;
+    const apexRight = { x: outerRight, y: acrossY };
+    const apexLeft = { x: outerLeft, y: acrossY };
+    return [
+      { start, control1: { x: start.x + 64, y: start.y }, control2: { x: outerRight, y: acrossY }, end: apexRight },
+      { start: apexRight, control1: { x: outerRight, y: acrossY - 32 }, control2: { x: outerLeft, y: acrossY - 32 }, end: apexLeft },
+      { start: apexLeft, control1: { x: outerLeft, y: end.y }, control2: { x: end.x - 64, y: end.y }, end }
+    ];
+  }
+  const source = nodes.get(edge.from.nodeId);
+  const target = nodes.get(edge.to.nodeId);
+  if (!source || !target) throw new Error(`Unknown endpoint for edge ${edge.id}`);
+  const sourcePort = portLayout(source.ports).byId.get(edge.from.portId);
+  const targetPort = portLayout(target.ports).byId.get(edge.to.portId);
+  if (!sourcePort || !targetPort) throw new Error(`Unknown port on edge ${edge.id}`);
+  const sourcePosition = positions?.get(source.id) ?? source;
+  const targetPosition = positions?.get(target.id) ?? target;
+  const start = portPointAt(source, sourcePort, sourcePosition);
+  const end = portPointAt(target, targetPort, targetPosition);
+  const direct = () => edgeCurve(edge, nodes, positions);
+  const gap = end.x - start.x;
+  const margin = 32;
+  if (sourcePort.port.side !== 'right' || targetPort.port.side !== 'left') return [direct()];
+
+  const sourceBottom = sourcePosition.y + cardHeight(source);
+  const targetBottom = targetPosition.y + cardHeight(target);
+  const upperBottom = Math.min(sourceBottom, targetBottom);
+  const lowerTop = Math.max(sourcePosition.y, targetPosition.y);
+  const verticallySeparated = upperBottom <= lowerTop;
+  const above = source.id > target.id;
+  if (verticallySeparated && gap >= 40 && gap < 2 * margin) return [facingCurve(direct(), gap)];
+  const count = edge.laneCount ?? 1;
+  const oppositeCount = edge.oppositeLaneCount ?? 0;
+  const corridorCount = count + oppositeCount;
+  if (!edge.reciprocal && verticallySeparated && gap < 0 && gap >= -margin && corridorCount === 1) {
+    const lead = Math.min(16, Math.max(12, Math.abs(gap)));
+    const curve = direct();
+    return [{ ...curve, control1: { x: start.x + lead, y: start.y }, control2: { x: end.x - lead, y: end.y } }];
+  }
+  if (verticallySeparated && gap < 40 && corridorCount > 1 && edge.laneIndex !== undefined) {
+    // Keep selectable rails 12px apart and at least 12px from both cards.
+    if (lowerTop - upperBottom < (corridorCount + 1) * LANE_SPACING) {
+      return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap);
+    }
+    const sourceAbove = sourceBottom <= targetPosition.y;
+    // The top rows wrap around the bottom of the upper card's fan and come
+    // into the top of the lower card's fan, regardless of wire direction.
+    const rank = count - 1 - edge.laneIndex;
+    const y = upperBottom + (1 + (above ? oppositeCount : 0) + rank) * LANE_SPACING;
+    // Downward legs run farther out for lower rails; upward legs do the
+    // reverse. A common fan order on both sides would cross at one end.
+    const downLead = 24 + rank * LANE_SPACING;
+    const upLead = 24 + (count - 1 - rank) * LANE_SPACING;
+    return roundedRail(start, end, start.x + (sourceAbove ? downLead : upLead), end.x - (sourceAbove ? upLead : downLead), y, 5);
+  }
+  if (edge.reciprocal) {
+    if (verticallySeparated) return reciprocalCorridor(direct(), upperBottom, lowerTop, above);
+    if (gap >= 0) return [facingCurve(direct(), gap)];
+  }
+  if (gap >= 2 * margin) return [direct()];
+  if (verticallySeparated) {
+    const corridorY = (upperBottom + lowerTop) / 2;
+    // A backward route still needs a short horizontal socket stub before
+    // turning into the corridor, otherwise its vertical leg hugs the card.
+    const backwardGap = gap < 0 && gap >= -margin;
+    const exitLead = gap > 0 ? Math.min(margin, gap / 3) : Math.min(24, Math.max(12, Math.abs(gap)));
+    const entryLead = backwardGap ? Math.min(16, Math.max(12, Math.abs(gap))) : margin;
+    const radius = Math.max(0, Math.min(12, corridorY - upperBottom - 1, lowerTop - corridorY - 1));
+    const rail = roundedRail(start, end, start.x + exitLead, end.x - entryLead, corridorY, radius);
+    return gap > margin ? blendRail(direct(), rail, (2 * margin - gap) / margin) : rail;
+  }
+  if (gap >= 0) return [direct()];
+
+  // If there is no vertical corridor, use the stable exterior lane instead.
+  // Subdivide/blend near the reversal so dragging through the cards doesn't
+  // abruptly introduce a loop or detach the rendered path from its sockets.
+  return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap);
 }
 
 export function curvePoint(curve: Curve, t: number): Point {
@@ -150,10 +392,10 @@ export function curvePoint(curve: Curve, t: number): Point {
   };
 }
 
-export function curveArrow(curve: Curve): { t: number; tip: Point; left: Point; right: Point } | undefined {
+export function curveArrow(curve: Curve, socket = curve.end): { t: number; tip: Point; left: Point; right: Point } | undefined {
   const distanceToSocket = (t: number) => {
     const point = curvePoint(curve, t);
-    return Math.hypot(point.x - curve.end.x, point.y - curve.end.y);
+    return Math.hypot(point.x - socket.x, point.y - socket.y);
   };
   // Find the inset on the final approach, not on an extension of the socket tangent.
   // Search backwards first so a bend further up the wire doesn't pick the bracket.

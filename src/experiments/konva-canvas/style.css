@@ -8,6 +8,10 @@
   --nodel-border: 215 222 229;
   --nodel-accent: 40 115 200;
   --nodel-surface-raised: 255 255 255;
+  --nodel-topology-action: 37 99 235;
+  --nodel-topology-action-strong: 29 78 216;
+  --nodel-topology-event: 13 148 136;
+  --nodel-topology-event-strong: 15 118 110;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,6 +28,10 @@
   --nodel-border: 63 63 70;
   --nodel-accent: 99 169 239;
   --nodel-surface-raised: 39 39 42;
+  --nodel-topology-action: 96 165 250;
+  --nodel-topology-action-strong: 147 197 253;
+  --nodel-topology-event: 45 212 191;
+  --nodel-topology-event-strong: 94 234 212;
 }
 
 * { box-sizing: border-box; }

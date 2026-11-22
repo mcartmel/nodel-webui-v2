@@ -408,6 +408,8 @@ test('saved nine-card plan remains interactive and visually stable', async ({ pa
   await assertNoPageScroll(page);
 
   const bounds = await stageBounds(page);
+  // Self-loop fit bounds must not move the historical synthetic composition.
+  expect(graphTop).toBe(100);
   const camera = initialCamera(bounds);
   const positions = new Map<string, Point>();
   const canvasIdentities = await canvasStats(page);
@@ -584,13 +586,13 @@ test('size selector navigates between complete deterministic fixtures', async ({
   expect((await nativeSceneIdentity(page)).cards).toHaveLength(9);
   expect((await nativeSceneIdentity(page)).wires).toHaveLength(14);
 
-  await page.getByLabel('Synthetic graph size').selectOption('50');
+  await page.getByLabel('Graph source').selectOption('50');
   await expect(page).toHaveURL(/(?:\?|&)nodes=50(?:&|$)/);
   await expect(page.locator('[data-fixture-summary]')).toHaveText('50 nodes · 77 edges');
   expect((await nativeSceneIdentity(page)).cards).toHaveLength(50);
   expect((await nativeSceneIdentity(page)).wires).toHaveLength(77);
 
-  await page.getByLabel('Synthetic graph size').selectOption('9');
+  await page.getByLabel('Graph source').selectOption('9');
   await expect(page).toHaveURL(/(?:\?|&)nodes=9(?:&|$)/);
   await expect(page.locator('[data-fixture-summary]')).toHaveText('9 nodes · 14 edges');
   expect((await nativeSceneIdentity(page)).cards).toHaveLength(9);

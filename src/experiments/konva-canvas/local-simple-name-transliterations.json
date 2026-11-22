@@ -1,0 +1,33 @@
+{
+  "license": "CC-BY-SA-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "source": {
+    "title": "How do I remove diacritics (accents) from a string in .NET?",
+    "author": "CIRCLE",
+    "authorUrl": "https://stackoverflow.com/users/2011284/circle",
+    "answerUrl": "https://stackoverflow.com/a/34272324",
+    "revisionUrl": "https://stackoverflow.com/revisions/34272324/2",
+    "revisionDate": "2015-12-14"
+  },
+  "changes": "Extracted the ordered foreign_characters data into JSON and lowercased the ASCII replacements to match Java SimpleName under Locale.ROOT. Later rows override earlier rows. No 2024 revision material is used.",
+  "distributionNotice": "v2/licenses/topology-simple-name-NOTICE.txt",
+  "entries": [
+    ["äæǽ", "ae"], ["öœ", "oe"], ["ü", "ue"], ["Ä", "ae"], ["Ü", "ue"], ["Ö", "oe"],
+    ["ÀÁÂÃÄÅǺĀĂĄǍΑΆẢẠẦẪẨẬẰẮẴẲẶА", "a"], ["àáâãåǻāăąǎªαάảạầấẫẩậằắẵẳặа", "a"],
+    ["Б", "b"], ["б", "b"], ["ÇĆĈĊČ", "c"], ["çćĉċč", "c"], ["Д", "d"], ["д", "d"],
+    ["ÐĎĐΔ", "dj"], ["ðďđδ", "dj"], ["ÈÉÊËĒĔĖĘĚΕΈẼẺẸỀẾỄỂỆЕЭ", "e"], ["èéêëēĕėęěέεẽẻẹềếễểệеэ", "e"],
+    ["Ф", "f"], ["ф", "f"], ["ĜĞĠĢΓГҐ", "g"], ["ĝğġģγгґ", "g"], ["ĤĦ", "h"], ["ĥħ", "h"],
+    ["ÌÍÎÏĨĪĬǏĮİΗΉΊΙΪỈỊИЫ", "i"], ["ìíîïĩīĭǐįıηήίιϊỉịиыї", "i"],
+    ["Ĵ", "j"], ["ĵ", "j"], ["ĶΚК", "k"], ["ķκк", "k"], ["ĹĻĽĿŁΛЛ", "l"], ["ĺļľŀłλл", "l"],
+    ["М", "m"], ["м", "m"], ["ÑŃŅŇΝН", "n"], ["ñńņňŉνн", "n"],
+    ["ÒÓÔÕŌŎǑŐƠØǾΟΌΩΏỎỌỒỐỖỔỘỜỚỠỞỢО", "o"], ["òóôõōŏǒőơøǿºοόωώỏọồốỗổộờớỡởợо", "o"],
+    ["П", "p"], ["п", "p"], ["ŔŖŘΡР", "r"], ["ŕŗřρр", "r"], ["ŚŜŞȘŠΣС", "s"], ["śŝşșšſσςс", "s"],
+    ["ȚŢŤŦτТ", "t"], ["țţťŧт", "t"],
+    ["ÙÚÛŨŪŬŮŰŲƯǓǕǗǙǛŨỦỤỪỨỮỬỰУ", "u"], ["ùúûũūŭůűųưǔǖǘǚǜυύϋủụừứữửựу", "u"],
+    ["ÝŸŶΥΎΫỲỸỶỴЙ", "y"], ["ýÿŷỳỹỷỵй", "y"], ["В", "v"], ["в", "v"], ["Ŵ", "w"], ["ŵ", "w"],
+    ["ŹŻŽΖЗ", "z"], ["źżžζз", "z"], ["ÆǼ", "ae"], ["ß", "ss"], ["Ĳ", "ij"], ["ĳ", "ij"], ["Œ", "oe"], ["ƒ", "f"],
+    ["ξ", "ks"], ["π", "p"], ["β", "v"], ["μ", "m"], ["ψ", "ps"], ["Ё", "yo"], ["ё", "yo"], ["Є", "ye"], ["є", "ye"],
+    ["Ї", "yi"], ["Ж", "zh"], ["ж", "zh"], ["Х", "kh"], ["х", "kh"], ["Ц", "ts"], ["ц", "ts"], ["Ч", "ch"], ["ч", "ch"],
+    ["Ш", "sh"], ["ш", "sh"], ["Щ", "shch"], ["щ", "shch"], ["ЪъЬь", ""], ["Ю", "yu"], ["ю", "yu"], ["Я", "ya"], ["я", "ya"]
+  ]
+}

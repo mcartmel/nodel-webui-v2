@@ -9,12 +9,14 @@
     "src",
     "test",
     "e2e",
+    "experiments/konva-browser/local-mode.pw.ts",
     "scripts/**/*.mjs",
     "eslint.config.mjs",
     "postcss.config.cjs",
     "vite.config.ts",
     "vite.konva.config.ts",
     "playwright.config.ts",
+    "playwright.konva-local.config.ts",
     "playwright.deployment.config.ts",
     "tailwind.config.ts"
   ]

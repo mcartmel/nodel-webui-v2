@@ -46,6 +46,7 @@
     "build:pro": "npm run lint && npm run typecheck && npm run check:jsviews && npm run test && node ./scripts/pro-local-build.mjs",
     "test:browser": "npm run build:preview && npm run test:browser:dist --",
     "test:browser:dist": "node ./scripts/run-browser-tests.mjs",
+    "test:browser:konva-local": "playwright test --config playwright.konva-local.config.ts",
     "test:browser:preflight": "node ./scripts/run-browser-tests.mjs --preflight-only",
     "test:visual-baselines": "node ./scripts/audit-visual-baselines.mjs",
     "build": "npm run lint && npm run typecheck && npm run check:jsviews && npm run test && vite build --mode public && node ./scripts/verify-release-gate.mjs && npm run verify:review-impact",

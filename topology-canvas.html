@@ -30,19 +30,20 @@
     <main class="experiment-shell">
       <header class="experiment-header">
         <div>
-          <p class="eyebrow">Synthetic rendering experiment <span data-fixture-summary>9 nodes · 14 edges</span></p>
+          <p class="eyebrow"><span data-experiment-label>Synthetic rendering experiment</span> <span data-fixture-summary role="status" aria-live="polite"></span></p>
           <h1>Room network</h1>
         </div>
         <div class="view-controls" aria-label="Canvas view controls">
           <button type="button" data-view="zoom-out" aria-label="Zoom out">−</button>
           <button type="button" data-view="zoom-in" aria-label="Zoom in">+</button>
           <button type="button" data-view="reset">Reset view</button>
-          <label class="size-control">Nodes
-            <select aria-label="Synthetic graph size" data-node-count>
-              <option value="9">9</option>
-              <option value="50">50</option>
-              <option value="150">150</option>
-              <option value="450">450</option>
+          <label class="size-control">Graph
+            <select aria-label="Graph source" data-node-count>
+              <option value="9">Synthetic · 9 nodes</option>
+              <option value="50">Synthetic · 50 nodes</option>
+              <option value="150">Synthetic · 150 nodes</option>
+              <option value="450">Synthetic · 450 nodes</option>
+              <option value="local">Local configuration</option>
             </select>
           </label>
           <label class="theme-control">Theme
@@ -55,7 +56,7 @@
         </div>
       </header>
       <section id="diagram" class="diagram" aria-label="Room network diagram">
-        <p class="canvas-failure" role="status" hidden>Canvas rendering is unavailable in this browser.</p>
+        <p class="canvas-failure" role="status" aria-live="polite" hidden>Canvas rendering is unavailable in this browser.</p>
       </section>
     </main>
     <script type="module" src="/src/experiments/konva-canvas/main.ts"></script>

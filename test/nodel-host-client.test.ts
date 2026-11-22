@@ -3,6 +3,7 @@ import {
   duplicateNode,
   getDiagnosticMeasurements,
   getHostLogs,
+  getLocalRest,
   getNodeEventBinding,
   getNodeConsoleLogs,
   getNodeUrlsForNode,
@@ -36,6 +37,27 @@ describe('nodel host client', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('keeps the default local inventory timeout unless the caller supplies its own', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const checkDefault = expect(getLocalRest()).rejects.toMatchObject({ name: 'TimeoutError' });
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await checkDefault;
+
+    const controller = new AbortController();
+    const checkCaller = expect(getLocalRest({ signal: controller.signal }, 0)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock.mock.calls[1]?.[1]?.signal).toBe(controller.signal);
+    expect(vi.getTimerCount()).toBe(0);
+    controller.abort();
+    await checkCaller;
   });
 
   it('propagates cancellation through node creation, readiness, and duplication', async () => {
