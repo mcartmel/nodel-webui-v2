@@ -71,8 +71,10 @@ h1 { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 650; letter-spac
 .diagram { position: relative; min-height: 0; flex: 1; overflow: hidden; margin-top: 14px; border: 1px solid rgb(var(--nodel-border)); border-radius: 10px; background-color: rgb(var(--nodel-bg)); background-image: radial-gradient(rgb(var(--nodel-border) / .75) .75px, transparent .75px); background-size: 20px 20px; }
 
 .canvas-stage { position: absolute; inset: 0; touch-action: none; }
+.canvas-stage:focus-visible { outline: 2px solid rgb(var(--nodel-accent)); outline-offset: -2px; }
 
 .canvas-failure { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: rgb(var(--nodel-muted)); font-size: 14px; }
+.canvas-failure.is-visually-hidden { position: fixed !important; inset: auto !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; display: block !important; }
 
 .canvas-failure[hidden] { display: none; }
 

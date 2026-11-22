@@ -1,0 +1,10 @@
+{
+  "initialMountElapsedMs": 412.8,
+  "betaCommitAfterReleaseMs": 96.1,
+  "alphaCommitAfterReleaseMs": 19.1,
+  "totalPatchElapsedMs": 115.2,
+  "initialMountedShapes": 28,
+  "retainedExistingShapes": 28,
+  "touchedExistingShapes": 3,
+  "insertedShapes": 16
+}

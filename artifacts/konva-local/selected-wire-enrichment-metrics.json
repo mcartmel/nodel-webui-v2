@@ -1,0 +1,18 @@
+{
+  "initialMountFirstActualKonvaDrawAtMs": 158.5,
+  "betaCompletionToVisibleDrawMs": 29.900001525878906,
+  "alphaCompletionToVisibleDrawMs": 4.899999618530273,
+  "betaDrawMethod": "drawImage",
+  "alphaDrawMethod": "drawImage",
+  "initialMountedShapes": 37,
+  "retainedExistingShapes": 29,
+  "touchedExistingShapes": 3,
+  "insertedShapes": 27,
+  "selectedWireId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a006f0077006e006500720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c0061006c0070006800610022005d",
+  "cameraBeforePatch": {
+    "x": 447.01000000000005,
+    "y": 249.46,
+    "scaleX": 1.07,
+    "scaleY": 1.07
+  }
+}

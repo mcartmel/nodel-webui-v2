@@ -1,7 +1,21 @@
-import { buildLocalGraph, graphInputFromLocalSnapshot, type LocalSnapshot } from '../src/experiments/konva-canvas/local-graph';
+import { vi } from 'vitest';
+import {
+  applyRemoteOwnerDelta,
+  applyRemoteEnrichmentResult,
+  applyRemoteOwnerInspection,
+  buildLocalGraph,
+  graphInputFromLocalSnapshot,
+  localNodeKey,
+  prepareRemoteOwnerInspection,
+  remoteInspectionSummary,
+  setRemoteOwnerState,
+  type LocalGraphConflict,
+  type LocalSnapshot
+} from '../src/experiments/konva-canvas/local-graph';
 import { closestFeasibleY, indexLocalGraphGeometry, localGraphGeometryForPositions, localPortsForNode, placeLocalGraph } from '../src/experiments/konva-canvas/local-placement';
 import { projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
 import { cardHeight, curvePoint, edgeCurve, edgeCurves, portPoint } from '../src/experiments/konva-canvas/fixture';
+import { createRemoteEnrichmentReaders, startRemoteEnrichment } from '../src/experiments/konva-canvas/remote-enrichment';
 
 function sample(): LocalSnapshot {
   return {
@@ -128,7 +142,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     const graph = buildLocalGraph(sample());
     const projector = [...graph.nodes.values()].find((node) => node.name === 'Projector Left')!;
     const controller = [...graph.nodes.values()].find((node) => node.name === 'Controller')!;
-    expect(graph.nodes.size).toBe(5); // Spare is a retained referenced block; shared projector is one node.
+    expect(graph.nodes.size).toBe(4); // A target-only unset alias does not create a referenced block.
     expect([...graph.nodes.values()].some((node) => node.name === 'Idle Node')).toBe(true);
     expect(projector.origin).toBe('local');
     expect(projector.bindingsRead).toBe('unread');
@@ -140,7 +154,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect(graph.ports.get(event.toPortId)).toMatchObject({ nodeId: controller.id, kind: 'remote-event' });
     expect([...graph.ports.values()].filter((port) => port.nodeId === projector.id && port.name === 'Power On')).toHaveLength(1);
     expect(graph.conflicts).toEqual([{ ownerId: controller.id, alias: 'conflict', kind: 'action', rows: 2 }]);
-    expect(graph.incompleteAssignments).toBe(1);
+    expect(graph.incompleteAssignments).toBe(0);
   });
 
   it('models the two reciprocal Example Frontend and Example 2 bindings with distinct endpoint kinds', () => {
@@ -235,9 +249,9 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect([...projected.nodes.map((node) => node.id), ...projected.socketIds.values()]
       .every((id) => /^[a-z0-9-]+$/.test(id))).toBe(true);
     expect(projected.edges.some((edge) => edge.selfLoop)).toBe(true);
-    expect(projected.nodes.find((node) => node.name === 'Projector Left')?.displayStatus).toBe('Local · bindings unread');
-    expect(projected.nodes.find((node) => node.name === 'Controller')?.displayStatus).toBe('Local · bindings partial');
-    expect(projected.nodes.find((node) => node.name === 'Spare')?.displayStatus).toBe('Referenced · not inspected');
+    expect(projected.nodes.find((node) => node.name === 'Projector Left')?.displayStatus).toBe('Not inspected');
+    expect(projected.nodes.find((node) => node.name === 'Controller')?.displayStatus).toBe('Bindings partially loaded');
+    expect(projected.nodes.some((node) => node.name === 'Spare')).toBe(false);
     const positions = placeLocalGraph(first);
     for (const point of positions.values()) expect(Number.isFinite(point.x) && Number.isFinite(point.y)).toBe(true);
     for (let i = 0; i < projected.nodes.length; i += 1) {
@@ -258,8 +272,10 @@ describe('local topology graph, layout, and renderer projection', () => {
 
   it('retains unread and successful-empty owners as different statuses', () => {
     const projection = projectLocalGraph(buildLocalGraph(sample()));
-    expect(projection.nodes.find((node) => node.name === 'Unread Owner')?.displayStatus).toBe('Local · bindings unread');
-    expect(projection.nodes.find((node) => node.name === 'Idle Node')?.displayStatus).toBe('Local');
+    expect(projection.nodes.find((node) => node.name === 'Unread Owner')?.displayStatus).toBe('Not inspected');
+    expect(projection.nodes.find((node) => node.name === 'Idle Node')?.displayStatus).toBe('');
+    expect(projection.nodes.find((node) => node.name === 'Idle Node')?.displayQualifier).toBe('');
+    expect(projection.nodes.find((node) => node.name === 'Idle Node')?.tooltip).toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
     expect(projection.summary).toContain('2 local unread');
   });
 
@@ -273,9 +289,11 @@ describe('local topology graph, layout, and renderer projection', () => {
     ] });
     const graph = buildLocalGraph(input);
     expect([...graph.nodes.values()].some((node) => node.name === 'Failed Owner' && node.bindingsRead === 'unread')).toBe(true);
-    expect([...graph.nodes.values()].some((node) => node.name === 'Other')).toBe(true);
+    expect([...graph.nodes.values()].some((node) => node.name === 'Other')).toBe(false);
     expect(graph.connections.size).toBe(2);
-    expect(graph.incompleteAssignments).toBe(2);
+    expect(graph.incompleteAssignments).toBe(0);
+    expect(graph.nodes.get(JSON.stringify(['node', localNodeKey('Owner')]))?.bindingCounts).toEqual({ set: 2, total: 5 });
+    expect(projectLocalGraph(graph).summary).not.toContain('incomplete');
   });
 
   it('keeps opaque delimiter and Unicode strings out of renderer IDs', () => {
@@ -345,7 +363,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     ] });
     expect(graph.connections.size).toBe(0);
     expect(graph.ports.size).toBe(0);
-    expect([...graph.nodes.values()].map((node) => node.name).sort()).toEqual(['---', 'Owner', 'Target', 'Target 2']);
+    expect([...graph.nodes.values()].map((node) => node.name).sort()).toEqual(['---', 'Owner']);
     expect([...graph.nodes.values()].filter((node) => node.name === '---')).toHaveLength(1);
     expect(graph.incompleteAssignments).toBe(3);
   });
@@ -466,5 +484,364 @@ describe('local topology graph, layout, and renderer projection', () => {
 
     expect(traversals).toBe(1);
     expect(projection.edges).toHaveLength(1);
+  });
+
+  it('freezes only complete unique eligible logical owners from accepted local rows', () => {
+    const snapshot: LocalSnapshot = { locals: [
+      { name: 'Room', readState: 'read', actions: [
+        { alias: 'Alpha', node: 'Alpha', endpoint: 'Run' },
+        { alias: 'Alpha again', node: 'A-lpha', endpoint: 'Hold' },
+        { alias: 'Beta target-only', node: 'Beta' },
+        { alias: 'bad', node: 'Disputed', endpoint: 'On' },
+        { alias: 'bad', node: 'Other', endpoint: 'Off' },
+        { alias: 'invalid', node: '---', endpoint: 'Run' }
+      ] },
+      { name: 'Alpha local inventory', readState: 'unread' },
+      { name: 'A-lpha', readState: 'read' }
+    ] };
+    const graph = buildLocalGraph(snapshot);
+    expect(graph.eligibleRemoteOwners).toEqual([]);
+    expect(Object.isFrozen(graph.eligibleRemoteOwners)).toBe(true);
+    expect(graph.eligibleRemoteOwners.every(Object.isFrozen)).toBe(true);
+    expect(graph.nodes.get(JSON.stringify(['node', localNodeKey('Disputed')]))).toBeUndefined();
+  });
+
+  it('classifies complete-empty, partial reconstruction, and failed inspection distinctly', () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Room', readState: 'read', actions: [{ alias: 'A', node: 'Alpha', endpoint: 'Set' }, { alias: 'B', node: 'Beta', endpoint: 'Set' }] }
+    ] });
+    const [alpha, beta] = graph.eligibleRemoteOwners;
+    expect(alpha).toBeDefined();
+    expect(beta).toBeDefined();
+    const empty = prepareRemoteOwnerInspection(alpha!, {});
+    expect(empty.outcome).toBe('read');
+    expect([...empty.prepared.connections]).toHaveLength(0);
+    applyRemoteOwnerDelta(graph, alpha!.id, empty.prepared, empty.outcome);
+    expect(graph.nodes.get(alpha!.id)?.inspectionState).toBe('read');
+
+    const partial = prepareRemoteOwnerInspection(beta!, { actions: {
+      Good: { node: 'Gamma', action: 'Set' },
+      Invalid: { node: '---', action: '---' },
+      Unbound: {}
+    } });
+    expect(partial.outcome).toBe('partial');
+    expect(partial.prepared.connections.size).toBe(1);
+    const mutation = applyRemoteOwnerDelta(graph, beta!.id, partial.prepared, partial.outcome);
+    expect(graph.nodes.get(beta!.id)?.inspectionState).toBe('partial');
+    expect(mutation.connectionIds).toHaveLength(1);
+    expect(graph.connections.has(mutation.connectionIds[0]!)).toBe(true);
+    expect(mutation.geometryChanged).toBe(true);
+    expect(remoteInspectionSummary(graph)).toMatchObject({ eligible: 2, inspected: 2, partial: 1, notInspected: 0 });
+
+    const before = [...graph.connections.keys()];
+    const failed = applyRemoteOwnerInspection(graph, beta!.id, { status: 'failed' });
+    expect(failed.connectionIds).toEqual([]);
+    expect(failed.geometryChanged).toBe(false);
+    expect(graph.nodes.get(beta!.id)?.inspectionState).toBe('failed');
+    expect([...graph.connections.keys()]).toEqual(before);
+    const cutoff = setRemoteOwnerState(graph, alpha!.id, { lookup: 'no-route', inspection: 'cutoff' });
+    expect(cutoff).toMatchObject({ nodeIds: [alpha!.id], geometryChanged: false });
+    expect(remoteInspectionSummary(graph)).toEqual({
+      eligible: 2, inspected: 0, partial: 0, failed: 1, cutoff: 1, notInspected: 0,
+      lookup: { pending: 1, found: 0, 'no-route': 1, failed: 0, blocked: 0, invalid: 0 }
+    });
+  });
+
+  it('merges new shared targets non-destructively and deterministically by accepted owner order', () => {
+    const initial = () => buildLocalGraph({ locals: [
+      { name: 'Room', readState: 'read', actions: [
+        { alias: 'Alpha ref', node: 'Alpha', endpoint: 'Incoming' },
+        { alias: 'Beta ref', node: 'Beta', endpoint: 'Incoming' }
+      ] }
+    ] });
+    const seed = initial();
+    const [alpha, beta] = seed.eligibleRemoteOwners;
+    const alphaDelta = prepareRemoteOwnerInspection(alpha!, { actions: { ToGamma: { node: 'Gamma', action: 'Power' } } });
+    const betaDelta = prepareRemoteOwnerInspection(beta!, { events: { Listen: { node: 'G-amma', event: 'Changed' } } });
+    const make = (reverse: boolean) => {
+      const graph = initial();
+      const originalLocalConnections = [...graph.connections.keys()];
+      const results = [
+        [alpha!.id, alphaDelta] as const,
+        [beta!.id, betaDelta] as const
+      ];
+      for (const [ownerId, delta] of reverse ? [...results].reverse() : results) {
+        applyRemoteOwnerDelta(graph, ownerId, delta.prepared, delta.outcome);
+      }
+      return { graph, originalLocalConnections };
+    };
+    const left = make(false);
+    const right = make(true);
+    const canonical = (graph: typeof left.graph) => JSON.stringify({
+      nodes: [...graph.nodes].map(([id, node]) => [id, node.key, node.name, node.origin]).sort(([a], [b]) => String(a).localeCompare(String(b))),
+      ports: [...graph.ports].map(([id, port]) => [id, port.nodeId, port.kind, port.name]).sort(([a], [b]) => String(a).localeCompare(String(b))),
+      connections: [...graph.connections].map(([id, edge]) => [id, edge.ownerId, edge.alias, edge.kind, edge.fromPortId, edge.toPortId]).sort(([a], [b]) => String(a).localeCompare(String(b)))
+    });
+    expect(canonical(left.graph)).toBe(canonical(right.graph));
+    expect([...left.graph.nodes.values()].filter((node) => node.key === localNodeKey('Gamma'))).toHaveLength(1);
+    expect([...left.graph.nodes.values()].find((node) => node.key === localNodeKey('Gamma'))?.name).toBe('G-amma');
+    expect(left.graph.eligibleRemoteOwners).toEqual(seed.eligibleRemoteOwners);
+    expect(left.graph.eligibleRemoteOwners.map(({ id }) => id)).toEqual([alpha!.id, beta!.id]);
+    expect(left.originalLocalConnections.every((id) => left.graph.connections.has(id))).toBe(true);
+    expect(remoteInspectionSummary(left.graph)).toMatchObject({ eligible: 2, inspected: 2, notInspected: 0 });
+    expect(remoteInspectionSummary(left.graph).lookup.pending).toBe(2);
+    expect(setRemoteOwnerState(left.graph, alpha!.id, { lookup: 'found' }).nodeIds).toEqual([alpha!.id]);
+  });
+
+  it('treats half-configured aliases as unset without diagnostics, nodes, or lookup eligibility', () => {
+    const owner = { id: JSON.stringify(['node', localNodeKey('Alpha')]), key: localNodeKey('Alpha'), name: 'Alpha' };
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [{ alias: 'Alpha', node: 'Alpha', endpoint: 'Use' }] }] });
+    const alpha = graph.eligibleRemoteOwners[0]!;
+    const halfConfigured = { actions: {
+      TargetOnly: { node: 'Unresolved Target' },
+      EndpointOnly: { action: 'Unresolved Endpoint' },
+      Unbound: {}
+    } };
+    const remote = prepareRemoteOwnerInspection(owner, halfConfigured);
+    expect(remote.outcome).toBe('read');
+    expect(remote.prepared.incompleteAssignments).toBe(0);
+    expect(remote.prepared.conflicts).toEqual([]);
+    expect(remote.prepared.connections.size).toBe(0);
+    expect([...remote.prepared.nodes.values()].map(({ name }) => name)).toEqual(['Alpha']);
+    expect(remote.prepared.eligibleRemoteOwners).toEqual([]);
+    expect(remote.prepared.nodes.get(owner.id)?.bindingCounts).toEqual({ set: 0, total: 3 });
+    applyRemoteOwnerInspection(graph, alpha.id, { status: 'read', bindings: halfConfigured });
+    const projection = projectLocalGraph(graph);
+    expect(projection.nodes.find(({ name }) => name === 'Alpha')?.displayStatus).toBe('');
+    expect(projection.nodes.find(({ name }) => name === 'Alpha')?.tooltip).toContain('Inspection succeeded; 3 configured bindings, 3 unassigned bindings.');
+    expect(projection.summary).not.toContain('incomplete');
+  });
+
+  it('keeps malformed assignment values partial instead of treating them as unset', () => {
+    const owner = { id: JSON.stringify(['node', localNodeKey('Alpha')]), key: localNodeKey('Alpha'), name: 'Alpha' };
+    const malformed = prepareRemoteOwnerInspection(owner, { actions: {
+      Broken: 'not an assignment' as unknown as { node: string; action: string },
+      Half: { node: 'Peer' }
+    } });
+    expect(malformed.outcome).toBe('partial');
+    expect(malformed.prepared.incompleteAssignments).toBe(1);
+    expect(malformed.prepared.connections.size).toBe(0);
+    expect(malformed.prepared.nodes.get(owner.id)?.bindingCounts).toEqual({ set: 0, total: 1 });
+    expect(malformed.prepared.eligibleRemoteOwners).toEqual([]);
+  });
+
+  it('deduplicates canonical aliases and reports the configured set count', () => {
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [
+      { alias: 'Power-On', node: 'Peer', endpoint: 'Set' },
+      { alias: 'Power On', node: 'Peer', endpoint: 'Set' },
+      { alias: 'Unset', node: 'Peer' }
+    ] }] });
+    const room = [...graph.nodes.values()].find(({ name }) => name === 'Room')!;
+    expect(room.bindingCounts).toEqual({ set: 1, total: 2 });
+    expect(projectLocalGraph(graph).nodes.find(({ name }) => name === 'Room')?.displayStatus).toBe('');
+    expect(projectLocalGraph(graph).nodes.find(({ name }) => name === 'Room')?.tooltip).toContain('Inspection succeeded; 2 configured bindings, 1 unassigned binding.');
+
+    const allSet = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', events: [
+      { alias: 'First', node: 'Peer', endpoint: 'Changed' },
+      { alias: 'Second', node: 'Peer', endpoint: 'Changed' }
+    ] }] });
+    expect(projectLocalGraph(allSet).nodes.find(({ name }) => name === 'Room')?.displayStatus).toBe('');
+    expect(projectLocalGraph(allSet).nodes.find(({ name }) => name === 'Room')?.tooltip).toContain('Inspection succeeded; 2 configured bindings, none unassigned.');
+  });
+
+  it('marks nonempty unusable assignment rows partial while leaving genuinely unbound aliases empty', () => {
+    const owner = { id: JSON.stringify(['node', localNodeKey('Alpha')]), key: localNodeKey('Alpha'), name: 'Alpha' };
+    const partial = prepareRemoteOwnerInspection(owner, { actions: {
+      Unbound: {},
+      InvalidTarget: { node: '---', action: '---' },
+      '---': { node: 'Gamma', action: 'Run' }
+    } });
+    expect(partial.outcome).toBe('partial');
+    expect(partial.prepared.incompleteAssignments).toBeGreaterThanOrEqual(1);
+    expect(partial.prepared.connections.size).toBe(0);
+    const empty = prepareRemoteOwnerInspection(owner, { actions: { Unbound: {} }, events: {} });
+    expect(empty.outcome).toBe('read');
+    expect(empty.prepared.incompleteAssignments).toBe(0);
+  });
+
+  it('prefers a usable discovery spelling and excludes unusable logical names consistently', () => {
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [
+      { alias: 'Unsafe spelling', node: 'Alpha\n', endpoint: 'Set' },
+      { alias: 'Usable spelling', node: 'Alpha', endpoint: 'Hold' },
+      { alias: 'Unusable only', node: 'Beta💡', endpoint: 'Set' }
+    ] }] });
+    expect(graph.eligibleRemoteOwners.map(({ name, key }) => [name, key])).toEqual([['Alpha', localNodeKey('Alpha')]]);
+    expect([...graph.nodes.values()].find((node) => node.key === localNodeKey('Alpha'))?.name).toBe('Alpha');
+    expect(graph.nodes.has(JSON.stringify(['node', localNodeKey('Beta💡')]))).toBe(true);
+  });
+
+  it('includes the owning card in keyed mutation sets whenever its port rows change', () => {
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [{ alias: 'Alpha', node: 'Alpha', endpoint: 'Set' }] }] });
+    const alpha = graph.eligibleRemoteOwners[0]!;
+    const delta = prepareRemoteOwnerInspection(alpha, { actions: { Existing: { node: 'Gamma', action: 'New' } } });
+    const mutation = applyRemoteOwnerDelta(graph, alpha.id, delta.prepared, delta.outcome);
+    expect(mutation.portIds.length).toBeGreaterThan(0);
+    expect(mutation.nodeIds).toContain(alpha.id);
+    expect(mutation.geometryChanged).toBe(true);
+    for (const portId of mutation.portIds) {
+      const port = graph.ports.get(portId)!;
+      expect(mutation.nodeIds).toContain(port.nodeId);
+    }
+  });
+
+  it('accounts for invalid nonempty siblings when deciding whether aliases agree', () => {
+    const graphFor = (actions: NonNullable<LocalSnapshot['locals'][number]['actions']>) => buildLocalGraph({ locals: [
+      { name: 'Room', readState: 'read', actions }
+    ] });
+    const invalidVsUsable = graphFor([
+      { alias: 'Bind', node: '\t', endpoint: 'Run' },
+      { alias: 'Bind', node: 'Gamma', endpoint: 'Run' }
+    ]);
+    expect(invalidVsUsable.conflicts).toEqual([
+      { ownerId: JSON.stringify(['node', localNodeKey('Room')]), alias: 'Bind', kind: 'action', rows: 2 }
+    ]);
+    expect(invalidVsUsable.connections.size).toBe(0);
+    expect(invalidVsUsable.nodes.has(JSON.stringify(['node', localNodeKey('Gamma')]))).toBe(false);
+    expect(invalidVsUsable.nodes.get(JSON.stringify(['node', localNodeKey('Room')]))?.bindingsRead).toBe('partial');
+
+    const invalidVsUnbound = graphFor([
+      { alias: 'Bind', node: '\t' },
+      { alias: 'Bind' }
+    ]);
+    expect(invalidVsUnbound.conflicts).toEqual([
+      { ownerId: JSON.stringify(['node', localNodeKey('Room')]), alias: 'Bind', kind: 'action', rows: 2 }
+    ]);
+    expect(invalidVsUnbound.connections.size).toBe(0);
+    expect(invalidVsUnbound.nodes.get(JSON.stringify(['node', localNodeKey('Room')]))?.bindingsRead).toBe('partial');
+  });
+
+  it.each([
+    ['Gamma', 'G-amma', 'G-amma', true],
+    ['Gamma💡', 'G-amma💡', 'G-amma💡', false]
+  ] as const)('chooses deterministic referenced spellings for equivalent target names %s/%s', (first, second, expected, eligible) => {
+    const build = (targets: string[]) => buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: targets.map((node) => ({
+      alias: 'Shared', node, endpoint: 'Run'
+    })) }] });
+    const forward = build([first, second]);
+    const reverse = build([second, first]);
+    const targetKey = localNodeKey(first);
+    const describe = (graph: ReturnType<typeof buildLocalGraph>) => ({
+      node: [...graph.nodes.values()].find(({ key }) => key === targetKey),
+      eligible: graph.eligibleRemoteOwners.filter(({ key }) => key === targetKey)
+    });
+    expect(describe(forward)).toEqual(describe(reverse));
+    expect(describe(forward).node?.name).toBe(expected);
+    expect(describe(forward).eligible.length).toBe(eligible ? 1 : 0);
+    expect(forward.connections.size).toBe(1);
+  });
+
+  it('keeps graph maps in place and does not scan them on an empty successful inspection', () => {
+    class IterationTrackedMap<K, V> extends Map<K, V> {
+      iterations = 0;
+      override [Symbol.iterator](): MapIterator<[K, V]> {
+        this.iterations += 1;
+        return super[Symbol.iterator]();
+      }
+    }
+    class IterationTrackedConflicts extends Array<LocalGraphConflict> {
+      iterations = 0;
+      override [Symbol.iterator](): ArrayIterator<LocalGraphConflict> {
+        this.iterations += 1;
+        return super[Symbol.iterator]();
+      }
+    }
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [
+      { alias: 'A', node: 'Alpha', endpoint: 'Run' },
+      { alias: 'B', node: 'Beta', endpoint: 'Run' },
+      { alias: 'Collision', node: 'Disputed', endpoint: 'On' },
+      { alias: 'Collision', node: 'Another', endpoint: 'Off' }
+    ] }] });
+    expect(graph.conflicts).toHaveLength(1);
+    const nodes = new IterationTrackedMap(graph.nodes);
+    const ports = new IterationTrackedMap(graph.ports);
+    const connections = new IterationTrackedMap(graph.connections);
+    nodes.iterations = ports.iterations = connections.iterations = 0;
+    graph.nodes = nodes;
+    graph.ports = ports;
+    graph.connections = connections;
+    const conflicts = new IterationTrackedConflicts(...graph.conflicts);
+    conflicts.iterations = 0;
+    graph.conflicts = conflicts;
+    const originalMapReferences = { nodes: graph.nodes, ports: graph.ports, connections: graph.connections, conflicts: graph.conflicts };
+    const owner = graph.eligibleRemoteOwners[0]!;
+    const empty = prepareRemoteOwnerInspection(owner, {});
+    const mutation = applyRemoteOwnerDelta(graph, owner.id, empty.prepared, empty.outcome);
+
+    expect(mutation.geometryChanged).toBe(false);
+    expect(graph.nodes.get(owner.id)?.inspectionState).toBe('read');
+    expect(graph.nodes).toBe(originalMapReferences.nodes);
+    expect(graph.ports).toBe(originalMapReferences.ports);
+    expect(graph.connections).toBe(originalMapReferences.connections);
+    expect(graph.conflicts).toBe(originalMapReferences.conflicts);
+    expect([nodes.iterations, ports.iterations, connections.iterations, conflicts.iterations]).toEqual([0, 0, 0, 0]);
+  });
+
+  it('hands bounded transport results into the graph once without discovering second-hop Gamma', async () => {
+    const origin = 'https://topology.test';
+    const local = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read',
+      actions: [
+        { alias: 'Configure Alpha', node: 'Alpha', endpoint: 'Set' },
+        { alias: 'Configure Beta', node: 'Beta', endpoint: 'Set' }
+      ],
+      events: [{ alias: 'Hear Beta', node: 'Beta', endpoint: 'Changed' }]
+    }] });
+    const frozenOwners = local.eligibleRemoteOwners;
+    expect(frozenOwners.map(({ name }) => name)).toEqual(['Alpha', 'Beta']);
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${origin}/REST/nodeURLsForNode`) {
+        const { name } = JSON.parse(String(init?.body)) as { name: string };
+        return new Response(JSON.stringify([{ node: name, address: `${origin}/nodes/${name}/` }]), { headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === `${origin}/nodes/Alpha/REST/remote`) return new Response(JSON.stringify({ actions: {
+        'To Beta': { node: 'Beta', action: 'Power' },
+        'To Gamma': { node: 'Gamma', action: 'Run' },
+        'Gamma only': { node: 'Gamma' }
+      } }), { headers: { 'Content-Type': 'application/json' } });
+      if (url === `${origin}/nodes/Beta/REST/remote`) return new Response(JSON.stringify({ events: {
+        'Gamma changed': { node: 'Gamma', event: 'Changed' }
+      } }), { headers: { 'Content-Type': 'application/json' } });
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const readResults: string[] = [];
+    const handle = startRemoteEnrichment({
+      owners: frozenOwners,
+      readers: createRemoteEnrichmentReaders(origin, fetcher),
+      prepare: prepareRemoteOwnerInspection,
+      apply: (batch) => {
+        for (const result of batch.results) {
+          readResults.push(`${result.owner.name}:${result.outcome}`);
+          applyRemoteEnrichmentResult(local, result);
+        }
+      }
+    });
+    await handle.idle;
+
+    expect(readResults.sort()).toEqual(['Alpha:read', 'Beta:read']);
+    expect(fetcher.mock.calls.map(([input, init]) => [init?.method, String(input)])).toEqual([
+      ['POST', `${origin}/REST/nodeURLsForNode`],
+      ['POST', `${origin}/REST/nodeURLsForNode`],
+      ['GET', `${origin}/nodes/Alpha/REST/remote`],
+      ['GET', `${origin}/nodes/Beta/REST/remote`]
+    ]);
+    expect(frozenOwners).toBe(local.eligibleRemoteOwners);
+    expect(frozenOwners.map(({ name }) => name)).toEqual(['Alpha', 'Beta']);
+    expect(local.nodes.has(JSON.stringify(['node', localNodeKey('Gamma')]))).toBe(true);
+    expect([...local.nodes.values()].filter((node) => node.key === localNodeKey('Gamma'))).toHaveLength(1);
+    expect(local.eligibleRemoteOwners.some(({ key }) => key === localNodeKey('Gamma'))).toBe(false);
+    expect([...local.connections.values()]).toHaveLength(6); // Three local + two Alpha + one Beta binding.
+    expect([...local.connections.values()].some((edge) => edge.ownerId === JSON.stringify(['node', localNodeKey('Alpha')]) && edge.alias === 'Gamma only')).toBe(false);
+    const summary = remoteInspectionSummary(local);
+    expect(summary).toMatchObject({ eligible: 2, inspected: 2, partial: 0, failed: 0, cutoff: 0, notInspected: 0 });
+    expect(summary.lookup.found).toBe(2);
+    expect(summary.lookup.pending).toBe(0);
+    const gamma = [...local.nodes.values()].find((node) => node.key === localNodeKey('Gamma'))!;
+    const beta = [...local.nodes.values()].find((node) => node.key === localNodeKey('Beta'))!;
+    const gammaEvent = [...local.connections.values()].find((edge) => edge.alias === 'Gamma changed')!;
+    expect(local.ports.get(gammaEvent.fromPortId)?.nodeId).toBe(gamma.id);
+    expect(local.ports.get(gammaEvent.toPortId)?.nodeId).toBe(beta.id);
+    const alphaAction = [...local.connections.values()].find((edge) => edge.alias === 'To Beta')!;
+    expect(local.ports.get(alphaAction.fromPortId)?.nodeId).toBe(JSON.stringify(['node', localNodeKey('Alpha')]));
+    expect(local.ports.get(alphaAction.toPortId)?.nodeId).toBe(beta.id);
   });
 });

@@ -458,6 +458,45 @@ describe('Konva synthetic fixture geometry', () => {
     expect(rails[0]).toBeLessThan(source.y);
   });
 
+  it('aligns mixed independent corridor and parallel-return legs on a 12px pitch', () => {
+    const upper: FixtureNode = { id: 'upper', name: 'Upper', x: 0, y: 0, width: 218,
+      ports: [{ id: 'out', label: 'out', direction: 'out', side: 'right' }] };
+    const lower: FixtureNode = { id: 'lower', name: 'Lower', x: 0, y: 300, width: 218,
+      ports: [
+        { id: 'in', label: 'in', direction: 'in', side: 'left' },
+        { id: 'return-a', label: 'return A', direction: 'out', side: 'right' },
+        { id: 'return-b', label: 'return B', direction: 'out', side: 'right' }
+      ] };
+    const peer: FixtureNode = { id: 'peer', name: 'Peer', x: -400, y: 300, width: 218,
+      ports: [
+        { id: 'return-a', label: 'return A', direction: 'in', side: 'left' },
+        { id: 'return-b', label: 'return B', direction: 'in', side: 'left' }
+      ] };
+    const nodes = new Map([[upper.id, upper], [lower.id, lower], [peer.id, peer]]);
+    const edges = [
+      { id: 'upper-to-lower', from: { nodeId: upper.id, portId: 'out' }, to: { nodeId: lower.id, portId: 'in' } },
+      { id: 'lower-return-a', from: { nodeId: lower.id, portId: 'return-a' }, to: { nodeId: peer.id, portId: 'return-a' }, laneIndex: 0, laneCount: 2 },
+      { id: 'lower-return-b', from: { nodeId: lower.id, portId: 'return-b' }, to: { nodeId: peer.id, portId: 'return-b' }, laneIndex: 1, laneCount: 2 }
+    ];
+    const routes = edges.map((edge) => ({ edge, curves: edgeCurves(edge, nodes) }));
+    const verticalLanes = routes.map(({ curves }) => {
+      const lines = curves.filter((curve) => curve.start.x === curve.end.x && curve.start.y !== curve.end.y);
+      return Math.max(...lines.map(({ start }) => start.x));
+    }).sort((a, b) => a - b);
+
+    // The corridor stub is 24px from the card; exterior returns start at
+    // 36px and their parallel rank adds exactly one 12px lane.
+    expect(verticalLanes).toEqual([242, 254, 266]);
+    for (const { edge, curves } of routes) {
+      expect(curves[0]!.start).toEqual(portPoint(nodes.get(edge.from.nodeId)!, edge.from.portId));
+      expect(curves.at(-1)!.end).toEqual(portPoint(nodes.get(edge.to.nodeId)!, edge.to.portId));
+      expectEndpointClearance(curves, [upper, lower, peer]);
+    }
+    // The parallel return's origin is shared only by its card, not its socket;
+    // the three turn lanes remain distinct even when routes use mixed branches.
+    expectSeparatePaths(routes, 'mixed independent corridor and returns:');
+  });
+
   it('uses disjoint 12px ranks for opposed corridor groups and falls back when two lanes cannot fit', () => {
     const sidePorts = (prefix: string, direction: 'in' | 'out', side: 'left' | 'right') =>
       Array.from({ length: 7 }, (_, index) => ({ id: `${prefix}${index}`, label: `${prefix}${index}`, direction, side }));

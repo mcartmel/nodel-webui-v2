@@ -20,7 +20,14 @@ export interface FixtureNode {
   status?: 'online' | 'standby';
   /** Real-data presentation; intentionally separate from synthetic health. */
   displayStatus?: string;
+  /** Compact real-card subtitle; no clean-state counts or redundant locality text. */
+  displayQualifier?: string;
   statusKind?: 'local' | 'partial' | 'referenced';
+  /** Real-data host evidence only; omitted for synthetic fixtures. */
+  hostKind?: 'local' | 'remote' | 'unknown';
+  hostDescription?: string;
+  /** Safe host + binding evidence for native/accessibility descriptions. */
+  tooltip?: string;
 }
 
 export interface FixtureEdge {
@@ -275,6 +282,9 @@ function exteriorRoute(
   gap: number
 ): Curve[] {
   const margin = 32;
+  // Keep the exterior turns on the same 12px pitch as corridor lanes. The
+  // routing margin above is deliberately distinct from this visual clearance.
+  const clearance = 36;
   const index = edge.laneIndex ?? 0;
   // From above, the bottom rows need the outermost rails; from below, it's
   // the top rows. Outer legs also have to reach farther out in X to wrap
@@ -282,7 +292,6 @@ function exteriorRoute(
   const offset = (above ? index : (edge.laneCount ?? 1) - 1 - index) * LANE_SPACING;
   const y = (above ? Math.min(sourcePosition.y, targetPosition.y) - margin : Math.max(sourceBottom, targetBottom) + margin + 20)
     + (above ? -offset : offset);
-  const clearance = above ? margin : margin + 20;
   const rail = roundedRail(start, end,
     Math.max(start.x, targetPosition.x + target.width) + clearance + offset,
     Math.min(sourcePosition.x, end.x) - clearance - offset, y, (edge.laneCount ?? 1) > 1 ? 5 : 12);

@@ -1,8 +1,13 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { createServer as createHttpsServer, type Server as HttpsServer } from 'node:https';
+import { tmpdir } from 'node:os';
+import { extname, relative, resolve, sep } from 'node:path';
 
 const artifactDir = resolve('artifacts/konva-local');
+const headerIndicatorArtifactDir = resolve(artifactDir, 'header-indicators');
 const localInventory = {
   nodes: {
     Controller: {},
@@ -16,7 +21,8 @@ const ownerBindings: Record<string, unknown> = {
   Controller: {
     actions: {
       'Power On': { node: 'Projector Left', action: 'Power On' },
-      'Self Call': { node: 'Controller', action: 'Self Call' }
+      'Self Call': { node: 'Controller', action: 'Self Call' },
+      Unassigned: { node: 'Unset Target' }
     },
     events: { 'Power State': { node: 'Projector Left', event: 'Power State' } }
   },
@@ -157,8 +163,13 @@ function apiPath(pathname: string): boolean {
   return pathname === '/REST' || pathname.startsWith('/REST/') || pathname.startsWith('/nodes/');
 }
 
-async function installGuard(page: Page, resolveApi: (route: Route, record: RequestRecord) => Promise<void>) {
+async function installGuard(
+  page: Page,
+  resolveApi: (route: Route, record: RequestRecord) => Promise<void>,
+  options: { emptyDiscoveryNames?: readonly string[] } = {}
+) {
   const requests: RequestRecord[] = [];
+  const emptyDiscoveryNames = new Set(options.emptyDiscoveryNames ?? []);
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -173,6 +184,15 @@ async function installGuard(page: Page, resolveApi: (route: Route, record: Reque
     const record = { method: request.method(), pathname: url.pathname, search: url.search };
     requests.push(record);
     if (request.method() !== 'GET') {
+      if (request.method() === 'POST' && url.pathname === '/REST/nodeURLsForNode') {
+        const body = request.postDataJSON() as { name?: unknown };
+        if (typeof body.name !== 'string' || !emptyDiscoveryNames.has(body.name)) {
+          await route.abort('blockedbyclient');
+          throw new Error(`Unfrozen discovery lookup blocked: ${String(body.name)}`);
+        }
+        await route.fulfill(jsonResponse([]));
+        return;
+      }
       await route.abort('blockedbyclient');
       throw new Error(`Non-GET local API request blocked: ${request.method()} ${url.pathname}`);
     }
@@ -185,6 +205,415 @@ function jsonResponse(body: unknown, status = 200) {
   return { status, contentType: 'application/json', body: JSON.stringify(body) };
 }
 
+type RemoteFixtureMode = 'allow' | 'deny' | 'redirect';
+
+async function listenLoopback(server: Server): Promise<string> {
+  await new Promise<void>((resolveListen, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolveListen);
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Loopback fixture did not receive a TCP port');
+  return `http://127.0.0.1:${address.port}`;
+}
+
+async function closeServer(server: Server): Promise<void> {
+  if (!server.listening) return;
+  await new Promise<void>((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
+}
+
+async function startBuiltHttpsPreview() {
+  const certificateDir = await mkdtemp(resolve(tmpdir(), 'konva-loopback-tls-'));
+  const keyPath = resolve(certificateDir, 'key.pem');
+  const certificatePath = resolve(certificateDir, 'certificate.pem');
+  execFileSync('openssl', [
+    'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certificatePath,
+    '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'
+  ], { stdio: 'ignore' });
+  const root = resolve('build/experiments/konva-canvas');
+  const key = await readFile(keyPath);
+  const cert = await readFile(certificatePath);
+  const contentTypes: Record<string, string> = {
+    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8'
+  };
+  const server: HttpsServer = createHttpsServer({ key, cert }, (request, response) => {
+    const pathname = new URL(request.url ?? '/', 'https://127.0.0.1').pathname;
+    const file = resolve(root, `.${pathname === '/' ? '/topology-canvas.html' : pathname}`);
+    const pathFromRoot = relative(root, file);
+    if (pathFromRoot.startsWith(`..${sep}`) || pathFromRoot === '..') {
+      response.writeHead(403).end();
+      return;
+    }
+    void readFile(file).then((body) => {
+      response.writeHead(200, { 'Content-Type': contentTypes[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' });
+      response.end(body);
+    }, () => response.writeHead(404).end());
+  });
+  await new Promise<void>((resolveListen, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolveListen);
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('HTTPS preview did not receive a loopback port');
+  return {
+    origin: `https://127.0.0.1:${address.port}`,
+    close: async () => {
+      await new Promise<void>((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
+      await rm(certificateDir, { recursive: true, force: true });
+    }
+  };
+}
+
+function waitGate() {
+  let release!: () => void;
+  const promise = new Promise<void>((resolveGate) => { release = resolveGate; });
+  return { promise, release };
+}
+
+function startRemoteHost(mode: RemoteFixtureMode, pageOrigin: string, responseOverrides: Partial<Record<'Alpha' | 'Beta', unknown>> = {}) {
+  const requests: Array<{ method: string; pathname: string; origin?: string; cookie?: string }> = [];
+  const arrivals = { Alpha: waitGate(), Beta: waitGate() };
+  const started = { Alpha: waitGate(), Beta: waitGate() };
+  const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    requests.push({ method: request.method ?? '', pathname: url.pathname, ...(request.headers.origin ? { origin: request.headers.origin } : {}), ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}) });
+    const owner = /^\/nodes\/(Alpha|Beta)\/REST\/remote$/.exec(url.pathname)?.[1] as 'Alpha' | 'Beta' | undefined;
+    if (request.method !== 'GET' || !owner) {
+      response.writeHead(404).end();
+      return;
+    }
+    if (mode !== 'deny') {
+      response.setHeader('Access-Control-Allow-Origin', pageOrigin);
+      response.setHeader('Vary', 'Origin');
+      response.setHeader('Timing-Allow-Origin', pageOrigin);
+    }
+    if (mode === 'redirect') {
+      response.writeHead(302, { Location: '/redirect-target' }).end();
+      return;
+    }
+    if (mode === 'allow' && owner in arrivals) {
+      started[owner].release();
+      void arrivals[owner].promise.then(() => {
+        const body = responseOverrides[owner] ?? (owner === 'Alpha'
+          ? { actions: { 'Start Gamma': { node: 'Gamma', action: 'Activate' } } }
+          : { events: { 'Gamma State': { node: 'Gamma', event: 'Changed' } } });
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        response.end(JSON.stringify(body));
+      });
+      return;
+    }
+    const body = responseOverrides[owner] ?? (owner === 'Alpha'
+      ? { actions: { 'Start Gamma': { node: 'Gamma', action: 'Activate' } } }
+      : { events: { 'Gamma State': { node: 'Gamma', event: 'Changed' } } });
+    response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    response.end(JSON.stringify(body));
+  });
+  return {
+    server,
+    requests,
+    arrivals,
+    started,
+    listen: () => listenLoopback(server),
+    close: () => closeServer(server)
+  };
+}
+
+async function installExactEnrichmentFixture(page: Page, remoteOrigin: string, routeOrigins: readonly string[] = [remoteOrigin]) {
+  const requests: RequestRecord[] = [];
+  const lookupNames: string[] = [];
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (routeOrigins.includes(url.origin)) {
+      await route.continue();
+      return;
+    }
+    if (url.origin !== experimentOrigin) {
+      await route.abort('blockedbyclient');
+      throw new Error(`Out-of-fixture network request blocked: ${request.method()} ${url.origin}${url.pathname}`);
+    }
+    if (!apiPath(url.pathname)) {
+      await route.continue();
+      return;
+    }
+    const record = { method: request.method(), pathname: url.pathname, search: url.search };
+    requests.push(record);
+    if (url.pathname === '/REST' && request.method() === 'GET') {
+      await route.fulfill(jsonResponse({ nodes: { Owner: {} } }));
+    } else if (url.pathname === '/nodes/Owner/REST/remote' && request.method() === 'GET') {
+      await route.fulfill(jsonResponse({ actions: {
+        'Call Alpha': { node: 'Alpha', action: 'Prepare' },
+        'Call Beta': { node: 'Beta', action: 'Prepare' }
+      } }));
+    } else if (url.pathname === '/REST/nodeURLsForNode' && request.method() === 'POST') {
+      const body = request.postDataJSON() as { name?: unknown };
+      const name = body.name;
+      if (name !== 'Alpha' && name !== 'Beta') {
+        throw new Error(`Discovery attempted for a non-frozen Stage-A owner: ${String(name)}`);
+      }
+      lookupNames.push(name);
+      await route.fulfill(jsonResponse(routeOrigins.map((origin) => ({ node: name, address: `${origin}/nodes/${name}` }))));
+    } else {
+      await route.abort('blockedbyclient');
+      throw new Error(`Unexpected local API request ${record.method} ${record.pathname}${record.search}`);
+    }
+  });
+  return { requests, lookupNames };
+}
+
+async function inspectKonvaScene(page: Page, saveBaseline = false) {
+  return page.evaluate((shouldSave) => {
+    type Point = { x: number; y: number };
+    type NativeNode = {
+      id(): string; name(): string; x(): number; y(): number; width(): number; height(): number;
+      text(): string; stroke(): string; strokeWidth(): number; isDragging(): boolean;
+      getClassName(): string; getAttrs(): Record<string, unknown>;
+      getAbsolutePosition(top?: NativeNode): Point; find(selector: string): NativeNode[];
+      getChildren?(): NativeNode[];
+    };
+    type Stage = NativeNode & {
+      getContent(): HTMLElement; getChildren(): NativeNode[];
+      x(): number; y(): number; scaleX(): number; scaleY(): number; width(): number; height(): number;
+    };
+    const state = window as Window & {
+      Konva?: { stages?: Stage[] };
+      __enrichmentRefs?: { stage: Stage; cards: Map<string, NativeNode>; sockets: Map<string, NativeNode>; wires: Map<string, NativeNode> };
+      __shapeAttrs?: Map<string, { shape: NativeNode; attrs: string }>;
+    };
+    const stage = state.Konva?.stages?.[0];
+    if (!stage) throw new Error('Konva stage registry is unavailable');
+    const cardGroups = stage.find('.topology-card');
+    const nameOf = (card: NativeNode) => card.find('Text').map((text) => text.text()).find((text) => ['Owner', 'Alpha', 'Beta', 'Gamma'].includes(text));
+    const cards = new Map<string, NativeNode>();
+    for (const card of cardGroups) {
+      const name = nameOf(card);
+      if (name) cards.set(name, card);
+    }
+    const sockets = new Map<string, NativeNode>();
+    for (const [owner, card] of cards) {
+      for (const socket of card.find('Circle').filter((circle) => circle.name().startsWith('socket-'))) {
+        sockets.set(`${owner}:${socket.name()}`, socket);
+      }
+    }
+    const wires = new Map(stage.find('.topology-wire').map((wire): [string, NativeNode] => [wire.id(), wire]));
+    const attrs = new Map<string, { shape: NativeNode; attrs: string }>();
+    const walk = (node: NativeNode, prefix: string) => {
+      const children = node.getChildren?.() ?? [];
+      children.forEach((child, index) => {
+        const childPath = `${prefix}/${child.getClassName()}[${child.id() || child.name() || index}]`;
+        if (!(child.getChildren?.() ?? []).length) {
+          const safeAttrs = Object.fromEntries(Object.entries(child.getAttrs()).sort(([a], [b]) => a.localeCompare(b)));
+          attrs.set(childPath, { shape: child, attrs: JSON.stringify(safeAttrs) });
+        }
+        walk(child, childPath);
+      });
+    };
+    walk(stage, 'stage');
+    if (shouldSave) {
+      state.__enrichmentRefs = { stage, cards, sockets, wires };
+      state.__shapeAttrs = attrs;
+    }
+    const rect = stage.getContent().getBoundingClientRect();
+    return {
+      camera: { x: stage.x(), y: stage.y(), scaleX: stage.scaleX(), scaleY: stage.scaleY() },
+      viewport: { width: stage.width(), height: stage.height(), left: rect.left, top: rect.top },
+      cardNames: [...cards.keys()].sort(),
+      cardCount: cards.size,
+      socketCount: sockets.size,
+      wireCount: wires.size,
+      shapeCount: attrs.size,
+      dragging: Object.fromEntries([...cards].map(([name, card]) => [name, card.isDragging()])),
+      selected: [...cards].filter(([, card]) => card.find('Rect')[0]?.strokeWidth() === 2.2).map(([name]) => name),
+      ...(shouldSave ? {} : (() => {
+        const baseline = state.__shapeAttrs;
+        if (!baseline) throw new Error('Shape baseline was not captured');
+        let touched = 0;
+        let retained = 0;
+        for (const [key, old] of baseline) {
+          const current = attrs.get(key);
+          if (current?.shape === old.shape) {
+            retained += 1;
+            if (current.attrs !== old.attrs) touched += 1;
+          }
+        }
+        return { retainedShapes: retained, touchedShapes: touched, addedShapes: attrs.size - retained };
+      })())
+    };
+  }, saveBaseline);
+}
+
+async function installKonvaDrawProbe(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    type Owner = 'Alpha' | 'Beta';
+    type Draw = { at: number; method: string };
+    type Response = { at: number; url: string };
+    type PatchPaint = { responseEndAt: number; visibleAt: number; method: string };
+    type Probe = {
+      firstDrawAt?: number;
+      draws: Draw[];
+      responses: Partial<Record<Owner, Response>>;
+      patches: Partial<Record<Owner, PatchPaint>>;
+      waitForPatch: (owner: Owner) => Promise<PatchPaint>;
+    };
+    const probe: Probe = { draws: [], responses: {}, patches: {}, waitForPatch: () => Promise.reject(new Error('invalid owner')) };
+    const waiters = new Map<Owner, Array<(patch: PatchPaint) => void>>();
+    probe.waitForPatch = (owner) => {
+      const complete = probe.patches[owner];
+      if (complete) return Promise.resolve(complete);
+      return new Promise((resolvePatch) => {
+        const pending = waiters.get(owner) ?? [];
+        pending.push(resolvePatch);
+        waiters.set(owner, pending);
+      });
+    };
+    (window as Window & { __konvaDrawProbe?: Probe }).__konvaDrawProbe = probe;
+
+    const assignVisibleDraws = () => {
+      for (const owner of ['Alpha', 'Beta'] as const) {
+        const response = probe.responses[owner];
+        if (!response || probe.patches[owner]) continue;
+        const draw = probe.draws.find((candidate) => candidate.at >= response.at);
+        if (!draw) continue;
+        const patch = { responseEndAt: response.at, visibleAt: draw.at, method: draw.method };
+        probe.patches[owner] = patch;
+        for (const resolvePatch of waiters.get(owner) ?? []) resolvePatch(patch);
+        waiters.delete(owner);
+      }
+    };
+    const captureResponses = () => {
+      for (const entry of performance.getEntriesByType('resource')) {
+        if (!(entry instanceof PerformanceResourceTiming) || entry.responseEnd <= 0) continue;
+        const match = /\/nodes\/(Alpha|Beta)\/REST\/remote$/.exec(new URL(entry.name).pathname);
+        if (!match) continue;
+        const owner = match[1] as Owner;
+        probe.responses[owner] ??= { at: entry.responseEnd, url: entry.name };
+      }
+      assignVisibleDraws();
+    };
+    const observer = new PerformanceObserver(captureResponses);
+    observer.observe({ type: 'resource', buffered: true });
+
+    const contextPrototype = CanvasRenderingContext2D.prototype as unknown as Record<string, unknown>;
+    for (const method of ['fill', 'stroke', 'fillRect', 'strokeRect', 'drawImage']) {
+      const original = contextPrototype[method];
+      if (typeof original !== 'function') continue;
+      contextPrototype[method] = function(this: CanvasRenderingContext2D, ...args: unknown[]) {
+        const result = Reflect.apply(original, this, args);
+        if (this.canvas.closest('.canvas-stage')) {
+          const draw = { at: performance.now(), method };
+          probe.firstDrawAt ??= draw.at;
+          probe.draws.push(draw);
+          captureResponses();
+          assignVisibleDraws();
+        }
+        return result;
+      };
+    }
+  });
+}
+
+async function readCardPosition(page: Page, title: string): Promise<{ x: number; y: number }> {
+  return page.evaluate((cardTitle) => {
+    type Point = { x: number; y: number };
+    type Shape = { text(): string; find(selector: string): Shape[]; getAbsolutePosition(top: Shape): Point };
+    type Stage = Shape & { find(selector: string): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const card = stage?.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === cardTitle));
+    if (!stage || !card) throw new Error(`${cardTitle} card is missing`);
+    return card.getAbsolutePosition(stage);
+  }, title);
+}
+
+async function readCardDescription(page: Page, title: string): Promise<string> {
+  return page.evaluate((cardTitle) => {
+    type Shape = { text(): string; find(selector: string): Shape[]; getAttr(name: string): unknown };
+    type Stage = Shape & { find(selector: string): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const card = stage?.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === cardTitle));
+    const description = card?.getAttr('accessibleDescription');
+    if (typeof description !== 'string') throw new Error(`${cardTitle} accessible description is missing`);
+    return description;
+  }, title);
+}
+
+async function findWireHit(page: Page, endpointNames: [string, string]) {
+  return page.evaluate((wantedNames) => {
+    type Point = { x: number; y: number };
+    type Curve = { start: Point; control1: Point; control2: Point; end: Point };
+    type Shape = {
+      id(): string; name(): string; text(): string; fill(): string; stroke(): string;
+      find(selector: string): Shape[]; getAbsolutePosition(top?: Shape): Point;
+      getSceneFunc(): (context: {
+        beginPath(): void; moveTo(x: number, y: number): void;
+        bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
+        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void;
+        strokeStyle: string; fillStyle: string; lineWidth: number;
+      }, shape: Shape) => void;
+    };
+    type Stage = Shape & {
+      find(selector: string): Shape[]; getContent(): HTMLElement; getIntersection(point: Point): Shape | null;
+      x(): number; y(): number; scaleX(): number; scaleY(): number;
+    };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    if (!stage) throw new Error('Konva stage unavailable while locating selected wire');
+    const sockets: Array<{ owner: string; shape: Shape; point: Point }> = [];
+    for (const card of stage.find('.topology-card')) {
+      const owner = card.find('Text').map((text) => text.text()).find((text) => ['Owner', 'Alpha', 'Beta', 'Gamma'].includes(text));
+      if (!owner) continue;
+      for (const socket of card.find('Circle').filter((circle) => circle.name().startsWith('socket-'))) {
+        sockets.push({ owner, shape: socket, point: socket.getAbsolutePosition(stage) });
+      }
+    }
+    const nearest = (point: Point) => sockets.reduce((best, candidate) => {
+      const currentDistance = Math.hypot(candidate.point.x - point.x, candidate.point.y - point.y);
+      return currentDistance < best.distance ? { ...candidate, distance: currentDistance } : best;
+    }, { owner: '', shape: null as Shape | null, point, distance: Number.POSITIVE_INFINITY });
+    for (const wire of stage.find('.topology-wire')) {
+      const curves: Curve[] = [];
+      let current: Partial<Curve> | undefined;
+      const context = {
+        strokeStyle: '', fillStyle: '', lineWidth: 0,
+        beginPath() { current = undefined; },
+        moveTo(x: number, y: number) { current = { start: { x, y } }; },
+        bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x: number, y: number) {
+          if (current?.start) { current.control1 = { x: x1, y: y1 }; current.control2 = { x: x2, y: y2 }; current.end = { x, y }; }
+        },
+        lineTo() {}, closePath() {}, fill() {},
+        stroke() { if (current?.start && current.control1 && current.control2 && current.end) curves.push(current as Curve); current = undefined; }
+      };
+      wire.getSceneFunc().call(wire, context, wire);
+      if (curves.length === 0) continue;
+      const first = nearest(curves[0]!.start);
+      const last = nearest(curves.at(-1)!.end);
+      if (!first.shape || !last.shape || first.distance > 1 || last.distance > 1) continue;
+      if (![first.owner, last.owner].every((owner) => wantedNames.includes(owner)) || first.owner === last.owner) continue;
+      const curve = curves[Math.floor(curves.length / 2)]!;
+      for (const t of [0.5, 0.4, 0.6]) {
+        const inverse = 1 - t;
+        const point = {
+          x: inverse ** 3 * curve.start.x + 3 * inverse ** 2 * t * curve.control1.x + 3 * inverse * t ** 2 * curve.control2.x + t ** 3 * curve.end.x,
+          y: inverse ** 3 * curve.start.y + 3 * inverse ** 2 * t * curve.control1.y + 3 * inverse * t ** 2 * curve.control2.y + t ** 3 * curve.end.y
+        };
+        const viewportPoint = { x: stage.x() + point.x * stage.scaleX(), y: stage.y() + point.y * stage.scaleY() };
+        const hit = stage.getIntersection(viewportPoint);
+        if (hit?.id() !== wire.id()) continue;
+        const rect = stage.getContent().getBoundingClientRect();
+        const strong = getComputedStyle(document.documentElement).getPropertyValue('--nodel-topology-action-strong').trim() || '29 78 216';
+        return {
+          wireId: wire.id(),
+          hitId: hit.id(),
+          screen: { x: rect.left + viewportPoint.x, y: rect.top + viewportPoint.y },
+          source: { owner: first.owner, socketId: first.shape.id(), fill: first.shape.fill(), stroke: first.shape.stroke() },
+          target: { owner: last.owner, socketId: last.shape.id(), fill: last.shape.fill(), stroke: last.shape.stroke() },
+          selectedStroke: `rgb(${strong})`
+        };
+      }
+    }
+    throw new Error(`No rendered wire hit point found between ${wantedNames.join(' and ')} under current transform`);
+  }, endpointNames);
+}
+
 async function waitForLocalCanvas(page: Page) {
   await expect(page.locator('[data-fixture-summary]')).toContainText('4 local');
   await expect(page.locator('.canvas-failure')).toBeHidden();
@@ -194,9 +623,11 @@ async function waitForLocalCanvas(page: Page) {
 async function openLocalFixture(page: Page, requests: RequestRecord[]) {
   await page.goto('/topology-canvas.html?source=local');
   await waitForLocalCanvas(page);
+  await expect.poll(() => requests.filter(({ pathname }) => pathname === '/REST/nodeURLsForNode').length).toBe(1);
   expect(requests).toEqual([
     { method: 'GET', pathname: '/REST', search: '' },
-    ...['Controller', 'IdleLocal', 'Scheduler', 'TouchPanel'].map((name) => ({ method: 'GET', pathname: `/nodes/${name}/REST/remote`, search: '' }))
+    ...['Controller', 'IdleLocal', 'Scheduler', 'TouchPanel'].map((name) => ({ method: 'GET', pathname: `/nodes/${name}/REST/remote`, search: '' })),
+    { method: 'POST', pathname: '/REST/nodeURLsForNode', search: '' }
   ]);
 }
 
@@ -211,8 +642,12 @@ async function installLocalFixture(page: Page, options: { stalledOwners?: string
     }
     const owner = decodeURIComponent(request.pathname.split('/')[2] ?? '');
     if (stalled.has(owner)) return;
-    await route.fulfill(jsonResponse(ownerBindings[owner === 'TouchPanel' ? 'Touch Panel' : owner] ?? {}));
-  });
+    const bindingOwner = ({ Controller: 'Controller', IdleLocal: 'Idle Local', Scheduler: 'Scheduler', TouchPanel: 'Touch Panel' } as const)[owner as 'Controller' | 'IdleLocal' | 'Scheduler' | 'TouchPanel'];
+    if (!bindingOwner || !Object.hasOwn(ownerBindings, bindingOwner)) {
+      throw new Error(`Unexpected local fixture owner route ${request.pathname}`);
+    }
+    await route.fulfill(jsonResponse(ownerBindings[bindingOwner]));
+  }, { emptyDiscoveryNames: ['Projector Left'] });
   return requests;
 }
 
@@ -266,7 +701,175 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   });
   await openLocalFixture(page, requests);
   await expect(page.locator('[data-fixture-summary]')).toContainText('5 configured');
+  await expect(page.locator('[data-fixture-summary]')).toContainText('1 no usable route');
   await expect(page.locator('.experiment-header h1')).toHaveText('Local network topology');
+  const initialHeaderScene = await page.evaluate(() => {
+    type Shape = {
+      name(): string; text(): string; x(): number; y(): number; width(): number; height(): number;
+      find(selector: string): Shape[]; getChildren(): Shape[]; getAttr(name: string): unknown;
+      strokeWidth(): number; points(): number[]; getClientRect(config?: { skipTransform?: boolean; relativeTo?: Shape }): { x: number; y: number; width: number; height: number };
+      getClassName(): string; getAbsolutePosition(top?: Shape): { x: number; y: number };
+      name(): string;
+    };
+    type Stage = Shape & { find(selector: string): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    if (!stage) throw new Error('Konva stage unavailable while inspecting host indicators');
+    const cards = stage.find('.topology-card').map((card) => {
+      const texts = card.find('Text').map((text) => text.text());
+      const title = texts.find((text) => ['Controller', 'Touch Panel', 'Scheduler', 'Idle Local', 'Projector Left'].includes(text));
+      const rect = card.find('Rect').find((shape) => shape.width() > 100);
+      if (!title || !rect) throw new Error('A fixture card is missing its title or body');
+      const titleShape = card.find('Text').find((shape) => shape.text() === title);
+      const glyph = card.getChildren().find((shape) => shape.name().startsWith('host-location-'));
+      if (!titleShape || (title !== 'Projector Left' && !glyph)) throw new Error('A fixture card is missing its title shape or host glyph');
+      // relativeTo the card returns card-local coordinates even when the camera
+      // is zoomed or panned; only visible children contribute stroke-inclusive bounds.
+      const rawGlyphBounds = glyph?.getChildren().filter((shape) => shape.getAttr('visible') !== false)
+        .map((shape) => shape.getClientRect({ relativeTo: card }))
+        .reduce((bounds, current) => {
+          if (!bounds) return current;
+          const left = Math.min(bounds.x, current.x);
+          const top = Math.min(bounds.y, current.y);
+          const right = Math.max(bounds.x + bounds.width, current.x + current.width);
+          const bottom = Math.max(bounds.y + bounds.height, current.y + current.height);
+          return { x: left, y: top, width: right - left, height: bottom - top };
+        }, undefined as { x: number; y: number; width: number; height: number } | undefined);
+      const glyphBounds = rawGlyphBounds;
+      const titleBounds = titleShape.getClientRect({ relativeTo: card });
+      return {
+        title, position: { x: card.x(), y: card.y() }, size: { width: rect.width(), height: rect.height() }, texts,
+        description: card.getAttr('accessibleDescription'), titleX: titleShape.x(), titleY: titleShape.y(),
+        titleInkCenterY: titleBounds.y + titleBounds.height / 2,
+        subtitleVisible: Boolean(card.find('Text').find((text) => text.text() === '' && text.getAttr('visible') !== false)),
+        glyphBounds, glyphY: glyph?.y(), glyphChildren: glyph?.getChildren().map((shape) => ({ name: shape.name(), className: shape.getClassName(), visible: shape.getAttr('visible'), points: shape.points?.() ?? [] })) ?? [], glyphName: glyph?.name()
+      };
+    });
+    const glyphs = stage.find('.topology-card').flatMap((card) => card.getChildren()).filter((shape) => shape.name().startsWith('host-location-'));
+    const state = window as Window & { __hostBadgeRefs?: Array<{ group: Shape; children: Shape[] }> };
+    state.__hostBadgeRefs = glyphs.map((group) => ({ group, children: group.getChildren() }));
+    return {
+      cards,
+    glyphs: glyphs.map((shape) => ({
+      name: shape.name(),
+      strokes: shape.getChildren().map((child) => child.getAttr('stroke')).filter((stroke): stroke is string => typeof stroke === 'string'),
+      childNames: shape.getChildren().map((child) => child.name()),
+      bounds: shape.getChildren().filter((child) => child.getAttr('visible') !== false)
+        .map((child) => child.getClientRect({ skipTransform: true }))
+        .reduce((bounds, current) => {
+          if (!bounds) return current;
+          const left = Math.min(bounds.x, current.x);
+          const top = Math.min(bounds.y, current.y);
+          const right = Math.max(bounds.x + bounds.width, current.x + current.width);
+          const bottom = Math.max(bounds.y + bounds.height, current.y + current.height);
+          return { x: left, y: top, width: right - left, height: bottom - top };
+        }, undefined as { x: number; y: number; width: number; height: number } | undefined)
+    })).sort((left, right) => left.name.localeCompare(right.name))
+    };
+  });
+  expect(initialHeaderScene.glyphs.map(({ name }) => name)).toEqual([
+    'host-location-local', 'host-location-local', 'host-location-local', 'host-location-local', 'host-location-unknown'
+  ]);
+  expect(initialHeaderScene.glyphs.every(({ childNames }) => !childNames.some((name) => name.startsWith('host-server')))).toBe(true);
+  const arrowCard = initialHeaderScene.cards.find(({ title }) => title === 'Touch Panel');
+  const arrow = arrowCard?.glyphChildren.filter(({ name, className }) => className === 'Line' && name === 'host-arrow');
+  expect(arrow?.map(({ points }) => points)).toEqual([[0, 6, 14, -8, 9, -8], [14, -8, 14, -3]]);
+  expect(arrow?.every(({ points }) => points.some((value, index) => index % 2 === 0 && value > 0)
+    && points.some((value, index) => index % 2 === 1 && value < 0))).toBe(true);
+  for (const card of initialHeaderScene.cards.filter(({ glyphBounds }) => glyphBounds)) {
+    const glyphCenterY = card.glyphBounds!.y + card.glyphBounds!.height / 2;
+    expect(card.glyphBounds!.y, `${card.title} visible top clearance`).toBeGreaterThanOrEqual(8);
+    expect(glyphCenterY).toBeCloseTo(card.titleInkCenterY, 0);
+    // Konva client rect includes the visible strokes; its right edge is inset
+    // by the same 16px as the card title's left edge.
+    const glyphRightInset = card.size.width - (card.glyphBounds!.x + card.glyphBounds!.width);
+    expect(glyphRightInset).toBeCloseTo(card.titleX, 0);
+  }
+  expect(initialHeaderScene.cards.filter(({ glyphBounds }) => glyphBounds).every(({ subtitleVisible }) => !subtitleVisible)).toBe(true);
+  const badgeStrokes = initialHeaderScene.glyphs.flatMap(({ strokes }) => strokes);
+  expect(new Set(badgeStrokes).size).toBe(1);
+  expect(badgeStrokes[0]).toMatch(/^rgb\(/);
+    expect(initialHeaderScene.cards.find(({ title }) => title === 'Controller')?.texts).toContain('');
+    expect(initialHeaderScene.cards.find(({ title }) => title === 'Projector Left')?.texts).toContain('No usable remote route');
+  expect(initialHeaderScene.cards.find(({ title }) => title === 'Projector Left')?.description).toContain('Host location is unknown');
+  expect(initialHeaderScene.cards.find(({ title }) => title === 'Idle Local')?.texts).toContain('');
+  expect(initialHeaderScene.cards.find(({ title }) => title === 'Controller')?.description).toContain('Inspection succeeded; 4 configured bindings, 1 unassigned binding.');
+  expect(initialHeaderScene.cards.find(({ title }) => title === 'Scheduler')?.description).toContain('Inspection succeeded; 1 configured binding, none unassigned.');
+  expect(initialHeaderScene.cards.find(({ title }) => title === 'Projector Left')?.description).toContain('No usable remote route.');
+
+  const alignCurrentGlyphs = async () => {
+    const current = await page.evaluate(() => {
+      type Shape = {
+        name(): string; text(): string; x(): number; y(): number; width(): number; height(): number;
+        find(selector: string): Shape[]; getChildren(): Shape[]; getAttr(name: string): unknown;
+        getClientRect(config?: { skipTransform?: boolean; relativeTo?: Shape }): { x: number; y: number; width: number; height: number };
+      };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage unavailable while rechecking host glyph alignment');
+      return stage.find('.topology-card').map((card) => {
+        const texts = card.find('Text');
+        const title = texts.find((text) => ['Controller', 'Touch Panel', 'Scheduler', 'Idle Local', 'Projector Left'].includes(text.text()));
+        const glyph = card.getChildren().find((shape) => shape.name().startsWith('host-location-'));
+        const rects = glyph?.getChildren().filter((shape) => shape.getAttr('visible') !== false)
+          .map((shape) => shape.getClientRect({ relativeTo: card }));
+        if (!title || !glyph || !rects?.length) return undefined;
+        const bounds = rects.reduce((result, current) => {
+          if (!result) return current;
+          const left = Math.min(result.x, current.x);
+          const top = Math.min(result.y, current.y);
+          const right = Math.max(result.x + result.width, current.x + current.width);
+          const bottom = Math.max(result.y + result.height, current.y + current.height);
+          return { x: left, y: top, width: right - left, height: bottom - top };
+        });
+        const titleRect = title.getClientRect({ relativeTo: card });
+        return {
+          title: title.text(), subtitleVisible: texts.some((text) => text !== title && text.name() === '' && text.text() !== '' && text.getAttr('visible') !== false),
+          glyphTop: bounds.y, glyphBottom: bounds.y + bounds.height,
+          glyphCenterY: bounds.y + bounds.height / 2,
+          titleInkCenterY: titleRect.y + titleRect.height / 2
+        };
+      }).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+    });
+    expect(current).toHaveLength(5);
+    for (const entry of current) {
+      expect(entry.glyphTop, `${entry.title} visible top clearance`).toBeGreaterThanOrEqual(8);
+      expect(Math.abs(entry.glyphCenterY - entry.titleInkCenterY), `${entry.title} visual center versus title ink`).toBeLessThanOrEqual(1);
+    }
+    return current;
+  };
+  const assertCurrentGlyphAlignment = async (subtitleVisible: boolean) => {
+    const current = await alignCurrentGlyphs();
+    expect(current.filter((entry) => entry.title === 'Idle Local').every((entry) => entry.subtitleVisible === subtitleVisible)).toBe(true);
+  };
+  const assertSubtitleToggleAlignment = async () => {
+    await page.evaluate(() => {
+      type Shape = { name(): string; text(value?: string): string | void; visible(value?: boolean): boolean | void; find(selector: string): Shape[] };
+      type Stage = Shape & { find(selector: string): Shape[]; batchDraw(): void };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      const card = stage?.find('.topology-card').find((entry) => entry.find('Text').some((text) => text.text() === 'Idle Local'));
+      const texts = card?.find('Text');
+      const title = texts?.find((text) => text.text() === 'Idle Local');
+        const subtitle = texts?.find((text) => text !== title && text.name() === '');
+      if (!stage || !subtitle) throw new Error('Idle Local subtitle shape is unavailable for transition test');
+      subtitle.text('Temporary subtitle');
+      subtitle.visible(true);
+      stage.batchDraw();
+    });
+    await assertCurrentGlyphAlignment(true);
+    await page.evaluate(() => {
+      type Shape = { name(): string; text(value?: string): string | void; visible(value?: boolean): boolean | void; find(selector: string): Shape[] };
+      type Stage = Shape & { find(selector: string): Shape[]; batchDraw(): void };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      const card = stage?.find('.topology-card').find((entry) => entry.find('Text').some((text) => text.text() === 'Idle Local'));
+      const texts = card?.find('Text');
+      const subtitle = texts?.find((text) => text.name() === '' && text !== texts.find((candidate) => candidate.text() === 'Idle Local'));
+      if (!stage || !subtitle) throw new Error('Temporary subtitle shape is unavailable for removal test');
+      subtitle.text('');
+      subtitle.visible(false);
+      stage.batchDraw();
+    });
+    await assertCurrentGlyphAlignment(false);
+  };
 
   // Screenshots are evidence outputs, not checked-in baselines.
   await mkdir(artifactDir, { recursive: true });
@@ -278,18 +881,117 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   await page.screenshot({ path: resolve(artifactDir, 'local-mode-1920x1080.png'), animations: 'disabled' });
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.getByRole('button', { name: 'Reset view' }).click();
+  await assertSubtitleToggleAlignment();
+  await mkdir(headerIndicatorArtifactDir, { recursive: true });
+  await page.screenshot({ path: resolve(headerIndicatorArtifactDir, 'after-light.png'), animations: 'disabled' });
+  await assertCurrentGlyphAlignment(false);
   await page.getByRole('combobox', { name: 'Theme' }).selectOption('dark');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const darkBadgePaint = await page.evaluate(() => {
+    type Shape = { name(): string; fill(): string; stroke(): string; getChildren(): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Array<{ find(selector: string): Shape[] }> } }).Konva?.stages?.[0];
+    if (!stage) throw new Error('Konva stage unavailable while checking dark badge paint');
+    const style = getComputedStyle(document.documentElement);
+    return {
+      muted: `rgb(${style.getPropertyValue('--nodel-muted').trim()})`,
+      surface: `rgb(${style.getPropertyValue('--nodel-surface').trim()})`,
+      glyphs: stage.find('.topology-card').flatMap((card) => card.getChildren()).filter((shape) => shape.name().startsWith('host-location-'))
+        .map((glyph) => ({ name: glyph.name(), children: glyph.getChildren().map((child) => ({ name: child.name(), fill: child.fill(), stroke: child.stroke() })) }))
+    };
+  });
+  expect(darkBadgePaint.glyphs).toHaveLength(5);
+  for (const glyph of darkBadgePaint.glyphs) {
+    for (const child of glyph.children) {
+      if (child.stroke) expect(child.stroke).toBe(darkBadgePaint.muted);
+        if (child.name === 'host-question-badge') expect(child.fill).toBe(darkBadgePaint.surface);
+        if (child.name === 'host-question-mark') expect(child.fill).toBe(darkBadgePaint.muted);
+    }
+  }
+  const stableBadgeChildren = await page.evaluate(() => {
+    const state = window as Window & { __hostBadgeRefs?: Array<{ group: object; children: object[] }>; Konva?: { stages?: Array<{ find(selector: string): Array<{ name(): string; getChildren(): object[] }> }> } };
+    const glyphs = state.Konva?.stages?.[0]?.find('.topology-card').flatMap((card) => card.getChildren()).filter((shape) => shape.name().startsWith('host-location-'));
+    return Boolean(glyphs && state.__hostBadgeRefs && glyphs.length === state.__hostBadgeRefs.length && glyphs.every((glyph, index) =>
+      glyph === state.__hostBadgeRefs![index]!.group && glyph.getChildren().every((child, childIndex) => child === state.__hostBadgeRefs![index]!.children[childIndex])
+    ));
+  });
+  expect(stableBadgeChildren).toBe(true);
   await page.screenshot({ path: resolve(artifactDir, 'local-mode-dark.png'), animations: 'disabled' });
+  await page.screenshot({ path: resolve(headerIndicatorArtifactDir, 'after-dark.png'), animations: 'disabled' });
+  await assertCurrentGlyphAlignment(false);
+
+  const stageHost = page.locator('.canvas-stage');
+  await page.getByRole('combobox', { name: 'Theme' }).selectOption('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const initialAccessibleDescription = await page.evaluate(() => {
+    const host = document.querySelector<HTMLElement>('.canvas-stage');
+    return { role: host?.getAttribute('role'), label: host?.getAttribute('aria-label'), title: host?.title };
+  });
+  expect(initialAccessibleDescription.role).toBe('img');
+  expect(initialAccessibleDescription.label).toContain('arrow keys to inspect nodes');
+  const compactSummary = await page.locator('[data-fixture-summary]').textContent();
+  await stageHost.focus();
+  // Move through the same card order used by keyboard navigation and land on
+  // the confirmed-empty local node; its full text description must be exposed.
+  const idleLocalIndex = initialHeaderScene.cards.findIndex(({ title }) => title === 'Idle Local');
+  if (idleLocalIndex < 0) throw new Error('Idle Local card is missing from the deterministic fixture');
+  for (let index = 1; index <= idleLocalIndex; index += 1) await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.locator('.canvas-stage').evaluate((element) => (element as HTMLElement).title))
+    .toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
+  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
+  await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
+  await expect(page.locator('.canvas-failure')).toHaveClass(/is-visually-hidden/);
+  await expect(page.locator('.canvas-failure')).toContainText('Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
   await page.getByRole('combobox', { name: 'Theme' }).selectOption('light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  const hoveredCardPoint = await page.evaluate(() => {
+    type Shape = { text(): string; find(selector: string): Shape[]; x(): number; y(): number; width(): number; height(): number; getAbsolutePosition(top: Shape): { x: number; y: number } };
+    type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number; container(): HTMLElement };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const card = stage?.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === 'Controller'));
+    if (!stage || !card) throw new Error('Controller card unavailable for tooltip priority check');
+    const position = card.getAbsolutePosition(stage);
+    const bounds = stage.container().getBoundingClientRect();
+    return { x: bounds.left + stage.x() + (position.x + card.width() / 2) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 22) * stage.scaleY() };
+  });
+  await page.mouse.move(hoveredCardPoint.x, hoveredCardPoint.y);
+  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
+  await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
+  await page.keyboard.press('ArrowRight');
+  await expect(stageHost).toHaveAttribute('aria-label', /^(?!Idle Local\.).+/);
+  await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
+  await page.keyboard.press('Escape');
+  const cameraBeforeZoom = await page.evaluate(() => {
+    const stage = (window as Window & { Konva?: { stages?: Array<{ scaleX(): number; x(): number; y(): number }> } }).Konva?.stages?.[0];
+    return stage ? { scale: stage.scaleX(), x: stage.x(), y: stage.y() } : undefined;
+  });
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { Konva?: { stages?: Array<{ scaleX(): number }> } }).Konva?.stages?.[0]?.scaleX())).not.toBe(cameraBeforeZoom?.scale);
+  await page.getByRole('button', { name: 'Zoom out' }).click();
+  const finalHeaderScene = await page.evaluate(() => {
+    type Shape = { name(): string; text(): string; x(): number; y(): number; width(): number; height(): number; find(selector: string): Shape[] };
+    type Stage = Shape & { find(selector: string): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    if (!stage) throw new Error('Konva stage unavailable after zoom');
+    return stage.find('.topology-card').map((card) => {
+      const texts = card.find('Text').map((text) => text.text());
+      const title = texts.find((text) => ['Controller', 'Touch Panel', 'Scheduler', 'Idle Local', 'Projector Left'].includes(text));
+      const rect = card.find('Rect').find((shape) => shape.width() > 100);
+      if (!title || !rect) throw new Error('A card disappeared while zooming');
+      return { title, position: { x: card.x(), y: card.y() }, size: { width: rect.width(), height: rect.height() } };
+    });
+  });
+  expect(finalHeaderScene).toEqual(initialHeaderScene.cards.map(({ title, position, size }) => ({ title, position, size })));
+  expect(requests.map(({ method, pathname }) => `${method} ${pathname}`)).toEqual([
+    'GET /REST', 'GET /nodes/Controller/REST/remote', 'GET /nodes/IdleLocal/REST/remote',
+    'GET /nodes/Scheduler/REST/remote', 'GET /nodes/TouchPanel/REST/remote', 'POST /REST/nodeURLsForNode'
+  ]);
 
   const labels = await page.evaluate(() => (window as Window & { __konvaLabels?: Array<{ text: string; x: number; y: number }> }).__konvaLabels ?? []);
   for (const name of ['Controller', 'Touch Panel', 'Scheduler', 'Idle Local', 'Projector Left']) {
     expect(labels.some((label) => label.text === name), `rendered card title ${name}`).toBe(true);
   }
-  for (const state of ['Local', 'Referenced · not inspected']) {
-    expect(labels.some((label) => label.text === state), `rendered state ${state}`).toBe(true);
+  for (const state of ['No usable remote route']) {
+    expect(labels.some((label) => label.text.toLowerCase() === state.toLowerCase()), `rendered state ${state}`).toBe(true);
   }
   // Five configured connections render as four ordinary curves plus the
   // three-segment exterior self-loop; both scene and hit canvases paint them.
@@ -339,7 +1041,7 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   expect(selectedLoop.toSocket.fill).toBe(selectedLoop.actionStrong);
   expect(selectedLoop.toSocket.stroke).toBe(selectedLoop.actionStrong);
   expect(selectedLoop.otherSocket.fill).not.toBe(selectedLoop.actionStrong);
-  expect(requests).toHaveLength(5);
+  expect(requests).toHaveLength(6);
 });
 
 test('physical wire selection keeps a shared socket highlighted through theme and view reset', async ({ page }) => {
@@ -351,7 +1053,7 @@ test('physical wire selection keeps a shared socket highlighted through theme an
     } else {
       throw new Error(`Unexpected shared-socket fixture request ${pathname}`);
     }
-  });
+  }, { emptyDiscoveryNames: ['Receiver'] });
   await page.goto('/topology-canvas.html?source=local');
   await expect(page.locator('[data-fixture-summary]')).toHaveText('2 local · 1 referenced · 2 configured');
   await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
@@ -467,7 +1169,8 @@ test('physical wire selection keeps a shared socket highlighted through theme an
   expect(requests).toEqual([
     { method: 'GET', pathname: '/REST', search: '' },
     { method: 'GET', pathname: '/nodes/Alpha/REST/remote', search: '' },
-    { method: 'GET', pathname: '/nodes/Bravo/REST/remote', search: '' }
+    { method: 'GET', pathname: '/nodes/Bravo/REST/remote', search: '' },
+    { method: 'POST', pathname: '/REST/nodeURLsForNode', search: '' }
   ]);
 });
 
@@ -2025,7 +2728,7 @@ test('single backward non-reciprocal edge has a visible socket stub before turni
   ]);
 });
 
-test('BFCache suspends and restores a local bootstrap without duplicate discovery', async ({ page }) => {
+test('BFCache restarts a suspended Stage-A local bootstrap after back navigation', async ({ page }) => {
   const requests: RequestRecord[] = [];
   await page.addInitScript(() => {
     window.addEventListener('pageshow', (event) => {
@@ -2055,6 +2758,672 @@ test('BFCache suspends and restores a local bootstrap without duplicate discover
   await expect(page.locator('[data-fixture-summary]')).toContainText('1 local unread');
   expect(requests).toEqual([
     { method: 'GET', pathname: '/REST', search: '' },
+    { method: 'GET', pathname: '/nodes/Controller/REST/remote', search: '' },
+    { method: 'GET', pathname: '/REST', search: '' },
     { method: 'GET', pathname: '/nodes/Controller/REST/remote', search: '' }
   ]);
+});
+
+test('source selector mid-Stage-A restores a suspended local bootstrap through BFCache', async ({ page }) => {
+  const requests: RequestRecord[] = [];
+  await page.addInitScript(() => {
+    window.addEventListener('pageshow', (event) => {
+      (window as Window & { __sourceSelectorBfCacheRestore?: boolean }).__sourceSelectorBfCacheRestore = event.persisted;
+    });
+  });
+  let ownerStarted!: () => void;
+  const started = new Promise<void>((resolveStarted) => { ownerStarted = resolveStarted; });
+  let ownerReads = 0;
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.origin !== experimentOrigin) {
+      await route.abort('blockedbyclient');
+      throw new Error(`Source-selector BFCache fixture blocked unplanned origin ${url.origin}`);
+    }
+    if (!apiPath(url.pathname)) return route.continue();
+    requests.push({ method: request.method(), pathname: url.pathname, search: url.search });
+    if (url.pathname === '/REST' && request.method() === 'GET') return route.fulfill(jsonResponse({ nodes: { Controller: {} } }));
+    if (url.pathname === '/nodes/Controller/REST/remote' && request.method() === 'GET') {
+      ownerReads += 1;
+      if (ownerReads === 1) {
+        ownerStarted();
+        return new Promise<void>(() => {});
+      }
+      return route.fulfill(jsonResponse({}));
+    }
+    await route.abort('blockedbyclient');
+    throw new Error(`Unexpected source-selector BFCache API request ${request.method()} ${url.pathname}`);
+  });
+  await page.goto('/topology-canvas.html?source=local');
+  await started;
+  // The real UI selector navigates while Stage A's owner fetch is outstanding.
+  await page.getByLabel('Graph source').selectOption('9');
+  await expect(page).toHaveURL(/nodes=9/);
+  await expect(page.locator('[data-fixture-summary]')).toHaveText('9 nodes · 14 edges');
+  await page.goBack({ waitUntil: 'commit' });
+  await expect.poll(() => page.evaluate(() => (window as Window & { __sourceSelectorBfCacheRestore?: boolean }).__sourceSelectorBfCacheRestore)).toBe(true);
+  await expect(page).toHaveTitle(/Local network topology/);
+  await expect(page.locator('.canvas-stage canvas')).toHaveCount(2, { timeout: 8_000 });
+  await expect(page.locator('[data-fixture-summary]')).toContainText('1 local');
+  expect(ownerReads).toBe(2);
+  expect(requests).toEqual([
+    { method: 'GET', pathname: '/REST', search: '' },
+    { method: 'GET', pathname: '/nodes/Controller/REST/remote', search: '' },
+    { method: 'GET', pathname: '/REST', search: '' },
+    { method: 'GET', pathname: '/nodes/Controller/REST/remote', search: '' }
+  ]);
+});
+
+for (const firstOwner of ['Beta', 'Alpha'] as const) {
+test(`built local scene applies one frozen hop with ${firstOwner} first without replacing live Konva objects`, async ({ page }) => {
+  const remote = startRemoteHost('allow', experimentOrigin);
+  const remoteOrigin = await remote.listen();
+  try {
+    await installKonvaDrawProbe(page);
+    await page.context().addCookies([{ name: 'remote-auth', value: 'must-not-cross-origin', url: remoteOrigin }]);
+    const local = await installExactEnrichmentFixture(page, remoteOrigin);
+    await page.goto('/topology-canvas.html?source=local');
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await expect(page.locator('[data-fixture-summary]')).toContainText('2 configured');
+    await Promise.all([remote.started.Alpha.promise, remote.started.Beta.promise]);
+    await expect.poll(() => local.lookupNames.length).toBe(2);
+
+    const beforeScene = await inspectKonvaScene(page, true);
+    expect(beforeScene.cardNames).toEqual(['Alpha', 'Beta', 'Owner']);
+    expect(beforeScene.wireCount).toBe(2);
+    await mkdir(artifactDir, { recursive: true });
+    const beforeScreenshotName = `enrichment-${firstOwner.toLowerCase()}-first-before.png`;
+    const beforeScreenshot = await page.screenshot({ path: resolve(artifactDir, beforeScreenshotName), animations: 'disabled' });
+    await test.info().attach(beforeScreenshotName, { body: beforeScreenshot, contentType: 'image/png' });
+    const initialMountFirstDrawAtMs = await page.evaluate(() => {
+      const probe = (window as Window & { __konvaDrawProbe?: { firstDrawAt?: number } }).__konvaDrawProbe;
+      if (!probe?.firstDrawAt) throw new Error('No actual Konva canvas draw was observed during initial mount');
+      return probe.firstDrawAt;
+    });
+
+    const dragStart = await page.evaluate(() => {
+      type Point = { x: number; y: number };
+      type Shape = { text(): string; find(selector: string): Shape[]; getAbsolutePosition(top: Shape): Point };
+      type Stage = Shape & { getContent(): HTMLElement; find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage unavailable before drag');
+      const card = stage.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === 'Alpha'));
+      if (!card) throw new Error('Alpha card unavailable before drag');
+      const position = card.getAbsolutePosition(stage);
+      const bounds = stage.getContent().getBoundingClientRect();
+      return { x: bounds.left + stage.x() + (position.x + 55) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 22) * stage.scaleY() };
+    });
+    await page.mouse.click(dragStart.x, dragStart.y);
+    await expect.poll(async () => (await inspectKonvaScene(page)).selected).toEqual(['Alpha']);
+    await page.mouse.move(dragStart.x, dragStart.y);
+    await page.mouse.down();
+    await page.mouse.move(dragStart.x + 34, dragStart.y + 26, { steps: 5 });
+    const activeDrag = await page.evaluate(() => {
+      type Shape = { text(): string; find(selector: string): Shape[]; isDragging(): boolean };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      const card = stage?.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === 'Alpha'));
+      return card?.isDragging() ?? false;
+    });
+    expect(activeDrag).toBe(true);
+    const dragBaseline = await inspectKonvaScene(page, true);
+    const firstOwnerVisible = page.evaluate((owner) => {
+      const probe = (window as Window & { __konvaDrawProbe?: { waitForPatch(ownerName: 'Alpha' | 'Beta'): Promise<{ responseEndAt: number; visibleAt: number; method: string }> } }).__konvaDrawProbe;
+      if (!probe) throw new Error('Konva draw probe is unavailable');
+      return probe.waitForPatch(owner);
+    }, firstOwner);
+    // Keep the card in a native drag while either response order paints.
+    remote.arrivals[firstOwner].release();
+    const firstPaint = await firstOwnerVisible;
+    await expect.poll(() => readCardDescription(page, firstOwner)).toContain(`Advertised host: ${new URL(remoteOrigin).host}.`);
+    const secondOwnerName = firstOwner === 'Alpha' ? 'Beta' : 'Alpha';
+    await expect.poll(() => readCardDescription(page, secondOwnerName)).toContain('Not inspected.');
+    expect((await inspectKonvaScene(page)).dragging.Alpha).toBe(true);
+    const gammaPositionAfterFirst = await readCardPosition(page, 'Gamma');
+
+    const secondOwner = firstOwner === 'Alpha' ? 'Beta' : 'Alpha';
+    const secondOwnerVisible = page.evaluate((owner) => {
+      const probe = (window as Window & { __konvaDrawProbe?: { waitForPatch(ownerName: 'Alpha' | 'Beta'): Promise<{ responseEndAt: number; visibleAt: number; method: string }> } }).__konvaDrawProbe;
+      if (!probe) throw new Error('Konva draw probe is unavailable');
+      return probe.waitForPatch(owner);
+    }, secondOwner);
+    remote.arrivals[secondOwner].release();
+    const secondPaint = await secondOwnerVisible;
+    await expect.poll(() => readCardDescription(page, firstOwner)).toContain('Inspection succeeded;');
+    await expect.poll(() => readCardDescription(page, secondOwner)).toContain('Inspection succeeded;');
+    const afterScene = await inspectKonvaScene(page);
+    expect(afterScene.cardNames).toEqual(['Alpha', 'Beta', 'Gamma', 'Owner']);
+    expect(afterScene.wireCount).toBe(4);
+    expect(afterScene.camera).toEqual(dragBaseline.camera);
+    expect(afterScene.dragging.Alpha).toBe(true);
+    expect(afterScene.selected).toEqual(['Alpha']);
+    expect(afterScene.retainedShapes).toBeGreaterThan(0);
+    expect(afterScene.touchedShapes + afterScene.addedShapes).toBeLessThan(dragBaseline.shapeCount);
+    expect(await readCardPosition(page, 'Gamma')).toEqual(gammaPositionAfterFirst);
+
+    const identity = await page.evaluate(() => {
+      type Shape = { id(): string; name(): string; find(selector: string): Shape[]; text(): string };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const state = window as Window & {
+        Konva?: { stages?: Stage[] };
+        __enrichmentRefs?: { stage: Stage; cards: Map<string, Shape>; sockets: Map<string, Shape>; wires: Map<string, Shape> };
+      };
+      const stage = state.Konva?.stages?.[0];
+      const before = state.__enrichmentRefs;
+      if (!stage || !before) throw new Error('Konva identity baseline was not saved');
+      const currentCards = new Map(stage.find('.topology-card').map((card): [string, Shape] => {
+        const name = card.find('Text').map((text) => text.text()).find((value) => ['Owner', 'Alpha', 'Beta', 'Gamma'].includes(value));
+        return [name ?? '', card];
+      }));
+      const currentSockets = new Map<string, Shape>();
+      for (const [owner, card] of currentCards) {
+        for (const socket of card.find('Circle').filter((shape) => shape.name().startsWith('socket-'))) currentSockets.set(`${owner}:${socket.name()}`, socket);
+      }
+      const currentWires = new Map(stage.find('.topology-wire').map((wire): [string, Shape] => [wire.id(), wire]));
+      const preserved = (old: Map<string, Shape>, current: Map<string, Shape>) => [...old].every(([key, shape]) => current.get(key) === shape);
+      return {
+        stage: stage === before.stage,
+        cards: preserved(before.cards, currentCards),
+        sockets: preserved(before.sockets, currentSockets),
+        wires: preserved(before.wires, currentWires)
+      };
+    });
+    expect(identity).toEqual({ stage: true, cards: true, sockets: true, wires: true });
+
+    await page.mouse.up();
+    expect((await inspectKonvaScene(page)).dragging.Alpha).toBe(false);
+    const afterScreenshotName = `enrichment-${firstOwner.toLowerCase()}-first-after.png`;
+    const afterScreenshot = await page.screenshot({ path: resolve(artifactDir, afterScreenshotName), animations: 'disabled' });
+    await test.info().attach(afterScreenshotName, { body: afterScreenshot, contentType: 'image/png' });
+
+    const metrics = {
+      initialMountFirstActualKonvaDrawAtMs: Number(initialMountFirstDrawAtMs.toFixed(2)),
+      firstOwner: { name: firstOwner, completionToVisibleKonvaDrawMs: Number((firstPaint.visibleAt - firstPaint.responseEndAt).toFixed(2)), drawMethod: firstPaint.method },
+      secondOwner: { name: secondOwner, completionToVisibleKonvaDrawMs: Number((secondPaint.visibleAt - secondPaint.responseEndAt).toFixed(2)), drawMethod: secondPaint.method },
+      responseOrder: [firstOwner, secondOwner],
+      initialMountedShapes: dragBaseline.shapeCount,
+      retainedExistingShapes: afterScene.retainedShapes,
+      touchedExistingShapes: afterScene.touchedShapes,
+      insertedShapes: afterScene.addedShapes
+    };
+    await test.info().attach(`enrichment-render-metrics-${firstOwner.toLowerCase()}-first.json`, { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
+    await writeFile(resolve(artifactDir, `enrichment-render-metrics-${firstOwner.toLowerCase()}-first.json`), `${JSON.stringify(metrics, null, 2)}\n`);
+
+    await page.getByRole('button', { name: 'Reset view' }).click();
+    const reset = await inspectKonvaScene(page);
+    expect(reset.camera).not.toEqual(afterScene.camera);
+    const visibility = await page.evaluate(() => {
+      type Point = { x: number; y: number };
+      type Shape = { text(): string; x(): number; y(): number; width(): number; height(): number; find(selector: string): Shape[]; getAbsolutePosition(top: Shape): Point };
+      type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; width(): number; height(): number };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage unavailable after Reset');
+      const visible = stage.find('.topology-card').map((card) => {
+        const title = card.find('Text').find((text) => ['Owner', 'Alpha', 'Beta', 'Gamma'].includes(text.text()));
+        const body = card.find('Rect').find((rect) => rect.width() > 100);
+        if (!title || !body) throw new Error('A live card lacks its title or body rectangle');
+        const point = card.getAbsolutePosition(stage);
+        return {
+          name: title.text(),
+          left: stage.x() + point.x * stage.scaleX(),
+          top: stage.y() + point.y * stage.scaleX(),
+          right: stage.x() + (point.x + body.width()) * stage.scaleX(),
+          bottom: stage.y() + (point.y + body.height()) * stage.scaleX()
+        };
+      });
+      return { viewport: { width: stage.width(), height: stage.height() }, cards: visible };
+    });
+    expect(visibility.cards.map(({ name }) => name).sort()).toEqual(['Alpha', 'Beta', 'Gamma', 'Owner']);
+    for (const card of visibility.cards) {
+      expect(card.left, `${card.name} left of Reset viewport`).toBeGreaterThanOrEqual(-1);
+      expect(card.top, `${card.name} above Reset viewport`).toBeGreaterThanOrEqual(-1);
+      expect(card.right, `${card.name} right of Reset viewport`).toBeLessThanOrEqual(visibility.viewport.width + 1);
+      expect(card.bottom, `${card.name} below Reset viewport`).toBeLessThanOrEqual(visibility.viewport.height + 1);
+    }
+    expect(local.lookupNames.sort()).toEqual(['Alpha', 'Beta']);
+    expect(remote.requests.map(({ pathname }) => pathname).sort()).toEqual([
+      '/nodes/Alpha/REST/remote', '/nodes/Beta/REST/remote'
+    ]);
+    expect(remote.requests.every(({ origin }) => origin === experimentOrigin)).toBe(true);
+    expect(remote.requests.every(({ cookie }) => cookie === undefined)).toBe(true);
+    expect(local.requests.map(({ method, pathname }) => `${method} ${pathname}`).sort()).toEqual([
+      'GET /REST', 'GET /nodes/Owner/REST/remote', 'POST /REST/nodeURLsForNode', 'POST /REST/nodeURLsForNode'
+    ]);
+  } finally {
+    await remote.close();
+  }
+});
+}
+
+test('host header indicators expose vetted remote and complete-empty evidence without layout or request churn', async ({ page }) => {
+  const remote = startRemoteHost('allow', experimentOrigin, { Alpha: {}, Beta: {} });
+  const remoteOrigin = await remote.listen();
+  try {
+    const local = await installExactEnrichmentFixture(page, remoteOrigin);
+    await page.goto('/topology-canvas.html?source=local');
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await Promise.all([remote.started.Alpha.promise, remote.started.Beta.promise]);
+    await expect.poll(() => local.lookupNames.length).toBe(2);
+    const initial = await page.evaluate(() => {
+      type Shape = { id(): string; name(): string; text(): string; x(): number; y(): number; width(): number; height(): number; find(selector: string): Shape[]; getAttr(name: string): unknown };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage is unavailable before empty remote reads');
+      return stage.find('.topology-card').map((card) => {
+        const title = card.find('Text').map((text) => text.text()).find((text) => ['Owner', 'Alpha', 'Beta'].includes(text));
+        const rect = card.find('Rect').find((shape) => shape.width() > 100);
+        if (!title || !rect) throw new Error('A local or referenced card is missing its header');
+        return { title, position: { x: card.x(), y: card.y() }, size: { width: rect.width(), height: rect.height() }, description: card.getAttr('accessibleDescription') };
+      });
+    });
+    expect(initial.find(({ title }) => title === 'Owner')?.description).toContain('Hosted on this page’s Nodel server.');
+    expect(initial.filter(({ title }) => title === 'Alpha' || title === 'Beta').every(({ description }) =>
+      typeof description === 'string' && description.includes('Host location is unknown')
+    )).toBe(true);
+    const stageHost = page.locator('.canvas-stage');
+    const compactSummaryBeforeRead = await page.locator('[data-fixture-summary]').textContent();
+    await page.evaluate(() => {
+      type Shape = { id(): string; text(): string; find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Array<{ find(selector: string): Shape[] }> } }).Konva?.stages?.[0];
+      const alpha = stage?.find('.topology-card').find((card) => card.find('Text').some((text) => text.text() === 'Alpha'));
+      if (!alpha) throw new Error('Alpha card unavailable for stable identity check');
+      (window as Window & { __activeHeaderAlpha?: Shape }).__activeHeaderAlpha = alpha;
+      return alpha.id();
+    });
+    await stageHost.focus();
+    const alphaIndex = initial.findIndex(({ title }) => title === 'Alpha');
+    for (let index = 0; index < alphaIndex; index += 1) await page.keyboard.press('ArrowRight');
+    await expect(stageHost).toHaveAttribute('aria-label', new RegExp('^Alpha\\.'));
+    const betaPoint = await page.evaluate(() => {
+      type Shape = { text(): string; find(selector: string): Shape[]; width(): number; getAbsolutePosition(top: Shape): { x: number; y: number } };
+      type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number; container(): HTMLElement };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      const beta = stage?.find('.topology-card').find((card) => card.find('Text').some((text) => text.text() === 'Beta'));
+      if (!stage || !beta) throw new Error('Beta card unavailable for pointer-priority check');
+      const position = beta.getAbsolutePosition(stage);
+      const bounds = stage.container().getBoundingClientRect();
+      return { x: bounds.left + stage.x() + (position.x + beta.width() / 2) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 22) * stage.scaleY() };
+    });
+    await page.mouse.move(betaPoint.x, betaPoint.y);
+    await expect(stageHost).toHaveAttribute('aria-label', new RegExp('^Alpha\\.'));
+    expect(await page.locator('[data-fixture-summary]').textContent()).toBe(compactSummaryBeforeRead);
+    await expect(page.locator('.canvas-failure')).toHaveClass(/is-visually-hidden/);
+    await expect(page.locator('.canvas-failure')).toContainText('Alpha.');
+    remote.arrivals.Alpha.release();
+    await expect.poll(() => stageHost.getAttribute('title')).toContain(`Advertised host: ${new URL(remoteOrigin).host}. Inspection succeeded; 0 configured bindings, none unassigned.`);
+    expect((await stageHost.getAttribute('title'))?.length ?? 321).toBeLessThanOrEqual(320);
+    await expect(stageHost).toHaveAttribute('aria-label', new RegExp(`^Alpha\\. Advertised host: ${new URL(remoteOrigin).host.replaceAll('.', '\\.')}\\.`));
+    const identityAfterPatch = await page.evaluate(() => {
+      type Shape = { text(): string; find(selector: string): Shape[] };
+      const state = window as Window & { __activeHeaderAlpha?: Shape; Konva?: { stages?: Array<{ find(selector: string): Shape[] }> } };
+      const alpha = state.Konva?.stages?.[0]?.find('.topology-card').find((card) => card.find('Text').some((text) => text.text() === 'Alpha'));
+      return Boolean(alpha && alpha === state.__activeHeaderAlpha);
+    });
+    expect(identityAfterPatch).toBe(true);
+    remote.arrivals.Beta.release();
+    await expect(page.locator('[data-fixture-summary]')).toContainText('2 inspected');
+    const compactSummary = await page.locator('[data-fixture-summary]').textContent();
+
+    const completed = await page.evaluate(() => {
+      type Shape = { id(): string; name(): string; text(): string; x(): number; y(): number; width(): number; height(): number; find(selector: string): Shape[]; getAttr(name: string): unknown };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage is unavailable after empty remote reads');
+      const cards = stage.find('.topology-card').map((card) => {
+        const texts = card.find('Text').map((text) => text.text());
+        const title = texts.find((text) => ['Owner', 'Alpha', 'Beta'].includes(text));
+        const rect = card.find('Rect').find((shape) => shape.width() > 100);
+        if (!title || !rect) throw new Error('A local or referenced card is missing its header');
+        const hostGlyph = card.find('Group').find((group) => group.name().startsWith('host-location-'));
+        return { title, position: { x: card.x(), y: card.y() }, size: { width: rect.width(), height: rect.height() }, description: card.getAttr('accessibleDescription'), hostGlyph: hostGlyph?.name(), texts };
+      });
+      return cards;
+    });
+    const alpha = completed.find(({ title }) => title === 'Alpha');
+    const beta = completed.find(({ title }) => title === 'Beta');
+    expect(alpha?.hostGlyph).toBe('host-location-remote');
+    expect(beta?.hostGlyph).toBe('host-location-remote');
+    for (const card of [alpha, beta]) {
+      expect(card?.description).toContain(`Advertised host: ${new URL(remoteOrigin).host}.`);
+      expect(card?.description).not.toContain('http');
+      expect(card?.description).not.toContain('/nodes/');
+      expect(card?.description).toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
+    }
+    expect(completed.map(({ title, position, size }) => ({ title, position, size }))).toEqual(
+      initial.map(({ title, position, size }) => ({ title, position, size }))
+    );
+
+    await expect(stageHost).toHaveAttribute('aria-label', new RegExp(`^Alpha\\. Advertised host: ${new URL(remoteOrigin).host.replaceAll('.', '\\.')}\\.`));
+    await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
+    await page.getByRole('button', { name: 'Reset view' }).focus();
+    await expect(stageHost).toHaveAttribute('aria-label', new RegExp(`^Beta\\. Advertised host: ${new URL(remoteOrigin).host.replaceAll('.', '\\.')}\\.`));
+    const requestsBeforeControls = [...local.requests];
+    await page.getByRole('combobox', { name: 'Theme' }).selectOption('dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.getByRole('button', { name: 'Zoom out' }).click();
+    expect(local.requests).toEqual(requestsBeforeControls);
+    expect(remote.requests.map(({ pathname }) => pathname).sort()).toEqual(['/nodes/Alpha/REST/remote', '/nodes/Beta/REST/remote']);
+    expect(local.lookupNames.sort()).toEqual(['Alpha', 'Beta']);
+  } finally {
+    await remote.close();
+  }
+});
+
+test('partially reconstructed remote assignments keep a distinct neutral host badge', async ({ page }) => {
+  const partialBindings = { actions: {
+    'Run Gamma': { node: 'Gamma', action: 'Run' },
+    'run gamma': { node: 'Gamma', action: 'Stop' }
+  } };
+  const remote = startRemoteHost('allow', experimentOrigin, { Alpha: partialBindings, Beta: partialBindings });
+  const remoteOrigin = await remote.listen();
+  try {
+    const local = await installExactEnrichmentFixture(page, remoteOrigin);
+    await page.goto('/topology-canvas.html?source=local');
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await Promise.all([remote.started.Alpha.promise, remote.started.Beta.promise]);
+    await expect.poll(() => local.lookupNames.length).toBe(2);
+    remote.arrivals.Alpha.release();
+    remote.arrivals.Beta.release();
+    await expect(page.locator('[data-fixture-summary]')).toContainText('2 partial');
+
+    const cards = await page.evaluate(() => {
+      type Shape = { name(): string; text(): string; find(selector: string): Shape[]; getAttr(name: string): unknown };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage unavailable after partial remote reconstruction');
+      return stage.find('.topology-card').map((card) => {
+        const texts = card.find('Text').map((text) => text.text());
+        const title = texts.find((text) => ['Owner', 'Alpha', 'Beta'].includes(text));
+        const host = card.find('Group').find((group) => group.name().startsWith('host-location-'));
+        return { title, texts, host: host?.name(), description: card.getAttr('accessibleDescription') };
+      });
+    });
+    for (const name of ['Alpha', 'Beta']) {
+      const card = cards.find(({ title }) => title === name);
+      expect(card?.texts).toContain('Bindings partially loaded');
+      expect(card?.host).toBe('host-location-remote');
+      expect(card?.description).toContain(`Advertised host: ${new URL(remoteOrigin).host}.`);
+      expect(card?.description).toContain('Bindings partially loaded.');
+      expect(card?.description).not.toMatch(/\b\d+ set, \d+ unset of \d+ bindings/);
+      expect(card?.description).not.toContain('none unassigned');
+      expect(card?.description).not.toContain('http');
+      expect(card?.description).not.toContain('/nodes/');
+    }
+    expect(remote.requests.map(({ pathname }) => pathname).sort()).toEqual(['/nodes/Alpha/REST/remote', '/nodes/Beta/REST/remote']);
+    expect(local.lookupNames.sort()).toEqual(['Alpha', 'Beta']);
+  } finally {
+    await remote.close();
+  }
+});
+
+test('selected real wire survives enrichment under native pan and zoom', async ({ page }) => {
+  const remote = startRemoteHost('allow', experimentOrigin);
+  const remoteOrigin = await remote.listen();
+  try {
+    await installKonvaDrawProbe(page);
+    const local = await installExactEnrichmentFixture(page, remoteOrigin);
+    await page.goto('/topology-canvas.html?source=local');
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await expect(page.locator('[data-fixture-summary]')).toContainText('2 configured');
+    await Promise.all([remote.started.Alpha.promise, remote.started.Beta.promise]);
+
+    const initialCamera = (await inspectKonvaScene(page, true)).camera;
+    const findBlankPoint = () => page.evaluate(() => {
+      type Shape = { find(selector: string): Shape[] };
+      type Stage = Shape & { getContent(): HTMLElement; getIntersection(point: { x: number; y: number }): Shape | null; width(): number; height(): number };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Konva stage unavailable while selecting an empty pan point');
+      const bounds = stage.getContent().getBoundingClientRect();
+      for (let y = 18; y < stage.height() - 18; y += 18) {
+        for (let x = 18; x < stage.width() - 18; x += 18) {
+          if (!stage.getIntersection({ x, y })) return { x: bounds.left + x, y: bounds.top + y };
+        }
+      }
+      throw new Error('No empty stage point available for native pan');
+    });
+
+    // Exercise the actual stage handlers: wheel zoom at a pointer and drag an empty stage region to pan.
+    const zoomAnchor = await findBlankPoint();
+    await page.mouse.move(zoomAnchor.x, zoomAnchor.y);
+    await page.mouse.wheel(0, -420);
+    await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))));
+    const panStart = await findBlankPoint();
+    await page.mouse.move(panStart.x, panStart.y);
+    await page.mouse.down();
+    await page.mouse.move(panStart.x + 62, panStart.y + 41, { steps: 5 });
+    await page.mouse.up();
+    await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))));
+    const pannedZoomedCamera = (await inspectKonvaScene(page)).camera;
+    expect(pannedZoomedCamera.scaleX).not.toBe(initialCamera.scaleX);
+    expect(pannedZoomedCamera.x).not.toBe(initialCamera.x);
+    expect(pannedZoomedCamera.y).not.toBe(initialCamera.y);
+
+    const unselectedWire = await findWireHit(page, ['Owner', 'Alpha']);
+    expect(unselectedWire.hitId).toBe(unselectedWire.wireId);
+    await page.mouse.click(unselectedWire.screen.x, unselectedWire.screen.y);
+    const selectedWire = await findWireHit(page, ['Owner', 'Alpha']);
+    expect(selectedWire.wireId).toBe(unselectedWire.wireId);
+    expect(selectedWire.source.stroke).toBe(selectedWire.selectedStroke);
+    expect(selectedWire.target.stroke).toBe(selectedWire.selectedStroke);
+    expect(
+      selectedWire.source.fill !== unselectedWire.source.fill || selectedWire.source.stroke !== unselectedWire.source.stroke
+    ).toBe(true);
+    expect(
+      selectedWire.target.fill !== unselectedWire.target.fill || selectedWire.target.stroke !== unselectedWire.target.stroke
+    ).toBe(true);
+
+    const sceneBeforePatch = await inspectKonvaScene(page, true);
+    await mkdir(artifactDir, { recursive: true });
+    const before = await page.screenshot({ path: resolve(artifactDir, 'enrichment-selected-wire-before.png'), animations: 'disabled' });
+    await test.info().attach('enrichment-selected-wire-before.png', { body: before, contentType: 'image/png' });
+
+    const betaVisible = page.evaluate(() => {
+      const probe = (window as Window & { __konvaDrawProbe?: { waitForPatch(ownerName: 'Beta'): Promise<{ responseEndAt: number; visibleAt: number; method: string }> } }).__konvaDrawProbe;
+      if (!probe) throw new Error('Konva draw probe is unavailable');
+      return probe.waitForPatch('Beta');
+    });
+    remote.arrivals.Beta.release();
+    const betaPaint = await betaVisible;
+    await expect.poll(() => readCardDescription(page, 'Beta')).toContain(`Advertised host: ${new URL(remoteOrigin).host}.`);
+    await expect.poll(() => readCardDescription(page, 'Alpha')).toContain('Not inspected.');
+    const gammaPositionAfterBeta = await readCardPosition(page, 'Gamma');
+    const alphaVisible = page.evaluate(() => {
+      const probe = (window as Window & { __konvaDrawProbe?: { waitForPatch(ownerName: 'Alpha'): Promise<{ responseEndAt: number; visibleAt: number; method: string }> } }).__konvaDrawProbe;
+      if (!probe) throw new Error('Konva draw probe is unavailable');
+      return probe.waitForPatch('Alpha');
+    });
+    remote.arrivals.Alpha.release();
+    const alphaPaint = await alphaVisible;
+    await expect.poll(() => readCardDescription(page, 'Alpha')).toContain('Inspection succeeded;');
+    await expect.poll(() => readCardDescription(page, 'Beta')).toContain('Inspection succeeded;');
+
+    const sceneAfterPatch = await inspectKonvaScene(page);
+    expect(sceneAfterPatch.camera).toEqual(sceneBeforePatch.camera);
+    expect(sceneAfterPatch.cardNames).toEqual(['Alpha', 'Beta', 'Gamma', 'Owner']);
+    expect(await readCardPosition(page, 'Gamma')).toEqual(gammaPositionAfterBeta);
+    // Known-host badge glyphs are replaced as unresolved locations become
+    // confirmed; the diagram's remaining existing leaf shapes still survive.
+    expect(sceneAfterPatch.retainedShapes).toBeGreaterThan(sceneBeforePatch.shapeCount / 2);
+    expect(sceneAfterPatch.retainedShapes).toBeLessThan(sceneBeforePatch.shapeCount);
+    expect(sceneAfterPatch.touchedShapes + sceneAfterPatch.addedShapes).toBeLessThan(sceneBeforePatch.shapeCount);
+    const wireAfterPatch = await findWireHit(page, ['Owner', 'Alpha']);
+    expect(wireAfterPatch.wireId).toBe(selectedWire.wireId);
+    expect(wireAfterPatch.source.socketId).toBe(selectedWire.source.socketId);
+    expect(wireAfterPatch.target.socketId).toBe(selectedWire.target.socketId);
+    expect(wireAfterPatch.source.stroke).toBe(selectedWire.selectedStroke);
+    expect(wireAfterPatch.target.stroke).toBe(selectedWire.selectedStroke);
+    const identity = await page.evaluate(() => {
+      type Shape = { id(): string; name(): string; find(selector: string): Shape[]; text(): string };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const state = window as Window & {
+        Konva?: { stages?: Stage[] };
+        __enrichmentRefs?: { stage: Stage; cards: Map<string, Shape>; sockets: Map<string, Shape>; wires: Map<string, Shape> };
+      };
+      const stage = state.Konva?.stages?.[0];
+      const before = state.__enrichmentRefs;
+      if (!stage || !before) throw new Error('Selected wire identity baseline was not saved');
+      const cards = new Map(stage.find('.topology-card').map((card): [string, Shape] => [
+        card.find('Text').map((text) => text.text()).find((name) => ['Owner', 'Alpha', 'Beta', 'Gamma'].includes(name)) ?? '', card
+      ]));
+      const sockets = new Map<string, Shape>();
+      for (const [owner, card] of cards) for (const socket of card.find('Circle').filter((shape) => shape.name().startsWith('socket-'))) sockets.set(`${owner}:${socket.name()}`, socket);
+      const wires = new Map(stage.find('.topology-wire').map((wire): [string, Shape] => [wire.id(), wire]));
+      const retained = (prior: Map<string, Shape>, current: Map<string, Shape>) => [...prior].every(([key, shape]) => current.get(key) === shape);
+      return { stage: stage === before.stage, cards: retained(before.cards, cards), sockets: retained(before.sockets, sockets), wires: retained(before.wires, wires) };
+    });
+    expect(identity).toEqual({ stage: true, cards: true, sockets: true, wires: true });
+    const after = await page.screenshot({ path: resolve(artifactDir, 'enrichment-selected-wire-after.png'), animations: 'disabled' });
+    await test.info().attach('enrichment-selected-wire-after.png', { body: after, contentType: 'image/png' });
+
+    // Native wheel and stage-drag pan still operate after enrichment, without clearing selected wire/socket state.
+    const gesturePoint = await findBlankPoint();
+    await page.mouse.move(gesturePoint.x, gesturePoint.y);
+    await page.mouse.wheel(0, 300);
+    await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))));
+    const afterWheel = (await inspectKonvaScene(page)).camera;
+    expect(afterWheel.scaleX).not.toBe(sceneAfterPatch.camera.scaleX);
+    const postZoomPanPoint = await findBlankPoint();
+    await page.mouse.move(postZoomPanPoint.x, postZoomPanPoint.y);
+    await page.mouse.down();
+    await page.mouse.move(postZoomPanPoint.x - 45, postZoomPanPoint.y + 35, { steps: 5 });
+    await page.mouse.up();
+    await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))));
+    const afterNativeGestures = (await inspectKonvaScene(page)).camera;
+    expect(afterNativeGestures.x).not.toBe(afterWheel.x);
+    expect(afterNativeGestures.y).not.toBe(afterWheel.y);
+    const wireAfterGestures = await findWireHit(page, ['Owner', 'Alpha']);
+    expect(wireAfterGestures.wireId).toBe(selectedWire.wireId);
+    expect(wireAfterGestures.source.stroke).toBe(selectedWire.selectedStroke);
+    expect(wireAfterGestures.target.stroke).toBe(selectedWire.selectedStroke);
+
+    const probeMetrics = await page.evaluate(() => {
+      const probe = (window as Window & {
+        __konvaDrawProbe?: {
+          firstDrawAt?: number;
+          patches: Partial<Record<'Alpha' | 'Beta', { responseEndAt: number; visibleAt: number; method: string }>>;
+        };
+      }).__konvaDrawProbe;
+      if (!probe?.firstDrawAt || !probe.patches.Alpha || !probe.patches.Beta) throw new Error('Event-driven paint metrics are incomplete');
+      return {
+        initialMountFirstActualKonvaDrawAtMs: probe.firstDrawAt,
+        betaCompletionToVisibleDrawMs: probe.patches.Beta.visibleAt - probe.patches.Beta.responseEndAt,
+        alphaCompletionToVisibleDrawMs: probe.patches.Alpha.visibleAt - probe.patches.Alpha.responseEndAt,
+        betaDrawMethod: probe.patches.Beta.method,
+        alphaDrawMethod: probe.patches.Alpha.method
+      };
+    });
+    const metrics = {
+      ...probeMetrics,
+      initialMountedShapes: sceneBeforePatch.shapeCount,
+      retainedExistingShapes: sceneAfterPatch.retainedShapes,
+      touchedExistingShapes: sceneAfterPatch.touchedShapes,
+      insertedShapes: sceneAfterPatch.addedShapes,
+      selectedWireId: selectedWire.wireId,
+      cameraBeforePatch: sceneBeforePatch.camera
+    };
+    await test.info().attach('selected-wire-enrichment-metrics.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
+    await writeFile(resolve(artifactDir, 'selected-wire-enrichment-metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`);
+    expect(local.lookupNames.sort()).toEqual(['Alpha', 'Beta']);
+    expect(remote.requests.map(({ pathname }) => pathname).sort()).toEqual(['/nodes/Alpha/REST/remote', '/nodes/Beta/REST/remote']);
+    expect(remote.requests.every(({ origin, cookie }) => origin === experimentOrigin && cookie === undefined)).toBe(true);
+  } finally {
+    await remote.close();
+  }
+});
+
+for (const mode of ['deny', 'redirect'] as const) {
+  test(`built remote fetch rejects real loopback CORS ${mode} responses without following redirects`, async ({ page }) => {
+    const remote = startRemoteHost(mode, experimentOrigin);
+    const remoteOrigin = await remote.listen();
+    try {
+      const local = await installExactEnrichmentFixture(page, remoteOrigin);
+      await page.goto('/topology-canvas.html?source=local');
+      await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+      await expect(page.locator('[data-fixture-summary]')).toContainText('2 configured');
+      await expect(page.locator('[data-fixture-summary]')).toContainText('2 binding read failed');
+      const unreadableHeaders = await page.evaluate(() => {
+        type Shape = { name(): string; text(): string; find(selector: string): Shape[]; getAttr(name: string): unknown };
+        type Stage = Shape & { find(selector: string): Shape[] };
+        const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+        if (!stage) throw new Error('Konva stage unavailable after unreadable remote responses');
+        return stage.find('.topology-card').map((card) => {
+          const texts = card.find('Text').map((text) => text.text());
+          const title = texts.find((text) => ['Owner', 'Alpha', 'Beta'].includes(text));
+          const host = card.find('Group').find((group) => group.name().startsWith('host-location-'));
+          return { title, texts, host: host?.name(), description: card.getAttr('accessibleDescription') };
+        });
+      });
+      for (const name of ['Alpha', 'Beta']) {
+        const card = unreadableHeaders.find(({ title }) => title === name);
+        expect(card?.texts).toContain('Remote binding read failed');
+        expect(card?.host).toBe('host-location-remote');
+        expect(card?.description).toContain(`Advertised host: ${new URL(remoteOrigin).host}.`);
+        expect(card?.description).toContain('Remote binding read failed.');
+        expect(card?.description).not.toContain('http');
+      }
+      expect(local.lookupNames.sort()).toEqual(['Alpha', 'Beta']);
+      expect(remote.requests.map(({ pathname }) => pathname).sort()).toEqual([
+        '/nodes/Alpha/REST/remote', '/nodes/Beta/REST/remote'
+      ]);
+      expect(remote.requests.some(({ pathname }) => pathname === '/redirect-target')).toBe(false);
+      expect(local.requests.every(({ method }) => method === 'GET' || method === 'POST')).toBe(true);
+    } finally {
+      await remote.close();
+    }
+  });
+}
+
+test('built HTTPS local mode blocks an advertised HTTP loopback enrichment route as mixed content', async ({ browser }) => {
+  const secure = await startBuiltHttpsPreview();
+  const remote = startRemoteHost('allow', secure.origin);
+  const remoteOrigin = await remote.listen();
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await context.newPage();
+  const lookupNames: string[] = [];
+  const localRequests: string[] = [];
+  try {
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.origin !== secure.origin) {
+        await route.abort('blockedbyclient');
+        throw new Error(`HTTPS loopback fixture blocked an unplanned origin ${url.origin}`);
+      }
+      if (!apiPath(url.pathname)) {
+        await route.continue();
+        return;
+      }
+      localRequests.push(`${request.method()} ${url.pathname}`);
+      if (url.pathname === '/REST' && request.method() === 'GET') {
+        await route.fulfill(jsonResponse({ nodes: { Owner: {} } }));
+      } else if (url.pathname === '/nodes/Owner/REST/remote' && request.method() === 'GET') {
+        await route.fulfill(jsonResponse({ actions: { 'Call Alpha': { node: 'Alpha', action: 'Prepare' } } }));
+      } else if (url.pathname === '/REST/nodeURLsForNode' && request.method() === 'POST') {
+        const body = request.postDataJSON() as { name?: unknown };
+        if (body.name !== 'Alpha') throw new Error(`Mixed-content fixture discovered outside frozen worklist: ${String(body.name)}`);
+        lookupNames.push('Alpha');
+        await route.fulfill(jsonResponse([{ node: 'Alpha', address: `${remoteOrigin}/nodes/Alpha` }]));
+      } else {
+        await route.abort('blockedbyclient');
+        throw new Error(`Unexpected HTTPS local API request ${request.method()} ${url.pathname}`);
+      }
+    });
+    await page.goto(`${secure.origin}/topology-canvas.html?source=local`);
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await expect(page.locator('[data-fixture-summary]')).toContainText('1 route blocked');
+    expect(lookupNames).toEqual(['Alpha']);
+    expect(localRequests.sort()).toEqual(['GET /REST', 'GET /nodes/Owner/REST/remote', 'POST /REST/nodeURLsForNode'].sort());
+    // The page is genuinely HTTPS and the controlled second origin is HTTP;
+    // policy must quarantine it before the browser can issue mixed content.
+    expect(new URL(remoteOrigin).protocol).toBe('http:');
+    expect(new URL(page.url()).protocol).toBe('https:');
+    expect(remote.requests).toEqual([]);
+  } finally {
+    await page.close();
+    await context.close();
+    await remote.close();
+    await secure.close();
+  }
 });

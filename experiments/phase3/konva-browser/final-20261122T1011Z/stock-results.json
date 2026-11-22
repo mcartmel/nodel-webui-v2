@@ -1,0 +1,1745 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-22T10:12:32.506Z",
+  "completedAt": "2026-11-22T10:13:22.362Z",
+  "method": {
+    "sizes": [
+      9,
+      50,
+      150,
+      450
+    ],
+    "repeats": 3,
+    "roundOrders": [
+      [
+        9,
+        50,
+        150,
+        450
+      ],
+      [
+        50,
+        150,
+        450,
+        9
+      ],
+      [
+        150,
+        450,
+        9,
+        50
+      ]
+    ],
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "dpr": 1,
+    "baseUrl": "http://127.0.0.1:36455",
+    "cache": "one cold navigation per fresh context; Playwright route interception disables HTTP cache; no warm-HTTP samples"
+  },
+  "environment": {
+    "hostname": "VSCODE",
+    "platform": "linux",
+    "release": "6.12.86+deb13-amd64",
+    "arch": "x64",
+    "cpu": "Intel(R) Xeon(R) W-2235 CPU @ 3.80GHz",
+    "chromium": "/home/nodel/.cache/ms-playwright/chromium-1255/chrome-linux64/chrome",
+    "chromiumVersion": "159.0.8154.6",
+    "playwrightVersion": "1.65.1",
+    "completedAt": "2026-11-22T10:13:22.362Z"
+  },
+  "aggregate": [
+    {
+      "nodes": 9,
+      "edges": 14,
+      "samples": 3,
+      "renderReadyMs": {
+        "n": 3,
+        "p50": 439.67,
+        "p95": 473.57,
+        "max": 473.57
+      },
+      "idleTaskMs": {
+        "n": 3,
+        "p50": 0.32,
+        "p95": 0.35,
+        "max": 0.35
+      },
+      "idleCorePercentProxy": {
+        "n": 3,
+        "p50": 0.01,
+        "p95": 0.02,
+        "max": 0.02
+      },
+      "idleProcessCpuMs": {
+        "n": 3,
+        "p50": 0,
+        "p95": 80,
+        "max": 80
+      },
+      "idleProcessCorePercent": {
+        "n": 3,
+        "p50": 0,
+        "p95": 3.62,
+        "max": 3.62
+      },
+      "gestureTaskMs": {
+        "n": 3,
+        "p50": 936.38,
+        "p95": 955.97,
+        "max": 955.97
+      },
+      "gestureCorePercentProxy": {
+        "n": 3,
+        "p50": 63.77,
+        "p95": 64.36,
+        "max": 64.36
+      },
+      "gestureProcessCpuMs": {
+        "n": 3,
+        "p50": 1560,
+        "p95": 1560,
+        "max": 1560
+      },
+      "gestureProcessCorePercent": {
+        "n": 3,
+        "p50": 104.34,
+        "p95": 104.96,
+        "max": 104.96
+      },
+      "gestureFrameP50Ms": {
+        "n": 3,
+        "p50": 16.7,
+        "p95": 16.7,
+        "max": 16.7
+      },
+      "gestureFrameP95Ms": {
+        "n": 3,
+        "p50": 166.7,
+        "p95": 166.8,
+        "max": 166.8
+      },
+      "gestureFrameMaxMs": {
+        "n": 3,
+        "p50": 183.3,
+        "p95": 183.3,
+        "max": 183.3
+      },
+      "gestureLongTasks": {
+        "n": 3,
+        "p50": 4,
+        "p95": 4,
+        "max": 4
+      },
+      "gestureLongTaskDurationMs": {
+        "n": 3,
+        "p50": 691,
+        "p95": 700,
+        "max": 700
+      },
+      "postGcHeapInitialMiB": {
+        "n": 3,
+        "p50": 3.41,
+        "p95": 3.42,
+        "max": 3.42
+      },
+      "postGcHeapAfterGesturesMiB": {
+        "n": 3,
+        "p50": 3.8,
+        "p95": 3.8,
+        "max": 3.8
+      },
+      "postGcHeapDeltaMiB": {
+        "n": 3,
+        "p50": 0.39,
+        "p95": 0.39,
+        "max": 0.39
+      },
+      "initialAllFitScale": {
+        "n": 3,
+        "p50": 0.8,
+        "p95": 0.8,
+        "max": 0.8
+      },
+      "canvasBackingRgbaLowerBoundBytes": 6822528
+    },
+    {
+      "nodes": 50,
+      "edges": 77,
+      "samples": 3,
+      "renderReadyMs": {
+        "n": 3,
+        "p50": 187.34,
+        "p95": 212.48,
+        "max": 212.48
+      },
+      "idleTaskMs": {
+        "n": 3,
+        "p50": 5.59,
+        "p95": 5.95,
+        "max": 5.95
+      },
+      "idleCorePercentProxy": {
+        "n": 3,
+        "p50": 0.25,
+        "p95": 0.27,
+        "max": 0.27
+      },
+      "idleProcessCpuMs": {
+        "n": 3,
+        "p50": 10,
+        "p95": 20,
+        "max": 20
+      },
+      "idleProcessCorePercent": {
+        "n": 3,
+        "p50": 0.45,
+        "p95": 0.91,
+        "max": 0.91
+      },
+      "gestureTaskMs": {
+        "n": 3,
+        "p50": 199.68,
+        "p95": 203.33,
+        "max": 203.33
+      },
+      "gestureCorePercentProxy": {
+        "n": 3,
+        "p50": 62.6,
+        "p95": 64.3,
+        "max": 64.3
+      },
+      "gestureProcessCpuMs": {
+        "n": 3,
+        "p50": 420,
+        "p95": 420,
+        "max": 420
+      },
+      "gestureProcessCorePercent": {
+        "n": 3,
+        "p50": 125.02,
+        "p95": 128.73,
+        "max": 128.73
+      },
+      "gestureFrameP50Ms": {
+        "n": 3,
+        "p50": 16.7,
+        "p95": 16.7,
+        "max": 16.7
+      },
+      "gestureFrameP95Ms": {
+        "n": 3,
+        "p50": 16.8,
+        "p95": 16.8,
+        "max": 16.8
+      },
+      "gestureFrameMaxMs": {
+        "n": 3,
+        "p50": 16.8,
+        "p95": 16.8,
+        "max": 16.8
+      },
+      "gestureLongTasks": {
+        "n": 3,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "gestureLongTaskDurationMs": {
+        "n": 3,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "postGcHeapInitialMiB": {
+        "n": 3,
+        "p50": 5.46,
+        "p95": 5.47,
+        "max": 5.47
+      },
+      "postGcHeapAfterGesturesMiB": {
+        "n": 3,
+        "p50": 5.87,
+        "p95": 5.87,
+        "max": 5.87
+      },
+      "postGcHeapDeltaMiB": {
+        "n": 3,
+        "p50": 0.4,
+        "p95": 0.4,
+        "max": 0.4
+      },
+      "initialAllFitScale": {
+        "n": 3,
+        "p50": 0.33,
+        "p95": 0.33,
+        "max": 0.33
+      },
+      "canvasBackingRgbaLowerBoundBytes": 6822528
+    },
+    {
+      "nodes": 150,
+      "edges": 232,
+      "samples": 3,
+      "renderReadyMs": {
+        "n": 3,
+        "p50": 270.68,
+        "p95": 290.33,
+        "max": 290.33
+      },
+      "idleTaskMs": {
+        "n": 3,
+        "p50": 5.56,
+        "p95": 5.59,
+        "max": 5.59
+      },
+      "idleCorePercentProxy": {
+        "n": 3,
+        "p50": 0.25,
+        "p95": 0.25,
+        "max": 0.25
+      },
+      "idleProcessCpuMs": {
+        "n": 3,
+        "p50": 10,
+        "p95": 10,
+        "max": 10
+      },
+      "idleProcessCorePercent": {
+        "n": 3,
+        "p50": 0.45,
+        "p95": 0.45,
+        "max": 0.45
+      },
+      "gestureTaskMs": {
+        "n": 3,
+        "p50": 262.86,
+        "p95": 271.2,
+        "max": 271.2
+      },
+      "gestureCorePercentProxy": {
+        "n": 3,
+        "p50": 67.87,
+        "p95": 70.04,
+        "max": 70.04
+      },
+      "gestureProcessCpuMs": {
+        "n": 3,
+        "p50": 530,
+        "p95": 550,
+        "max": 550
+      },
+      "gestureProcessCorePercent": {
+        "n": 3,
+        "p50": 136.56,
+        "p95": 139.01,
+        "max": 139.01
+      },
+      "gestureFrameP50Ms": {
+        "n": 3,
+        "p50": 16.7,
+        "p95": 16.7,
+        "max": 16.7
+      },
+      "gestureFrameP95Ms": {
+        "n": 3,
+        "p50": 33.4,
+        "p95": 33.4,
+        "max": 33.4
+      },
+      "gestureFrameMaxMs": {
+        "n": 3,
+        "p50": 33.4,
+        "p95": 33.4,
+        "max": 33.4
+      },
+      "gestureLongTasks": {
+        "n": 3,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "gestureLongTaskDurationMs": {
+        "n": 3,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "postGcHeapInitialMiB": {
+        "n": 3,
+        "p50": 10.19,
+        "p95": 10.19,
+        "max": 10.19
+      },
+      "postGcHeapAfterGesturesMiB": {
+        "n": 3,
+        "p50": 10.61,
+        "p95": 10.61,
+        "max": 10.61
+      },
+      "postGcHeapDeltaMiB": {
+        "n": 3,
+        "p50": 0.42,
+        "p95": 0.42,
+        "max": 0.42
+      },
+      "initialAllFitScale": {
+        "n": 3,
+        "p50": 0.15,
+        "p95": 0.15,
+        "max": 0.15
+      },
+      "canvasBackingRgbaLowerBoundBytes": 6822528
+    },
+    {
+      "nodes": 450,
+      "edges": 700,
+      "samples": 3,
+      "renderReadyMs": {
+        "n": 3,
+        "p50": 523.56,
+        "p95": 525.62,
+        "max": 525.62
+      },
+      "idleTaskMs": {
+        "n": 3,
+        "p50": 0.38,
+        "p95": 0.39,
+        "max": 0.39
+      },
+      "idleCorePercentProxy": {
+        "n": 3,
+        "p50": 0.02,
+        "p95": 0.02,
+        "max": 0.02
+      },
+      "idleProcessCpuMs": {
+        "n": 3,
+        "p50": 10,
+        "p95": 10,
+        "max": 10
+      },
+      "idleProcessCorePercent": {
+        "n": 3,
+        "p50": 0.45,
+        "p95": 0.45,
+        "max": 0.45
+      },
+      "gestureTaskMs": {
+        "n": 3,
+        "p50": 514.3,
+        "p95": 521.46,
+        "max": 521.46
+      },
+      "gestureCorePercentProxy": {
+        "n": 3,
+        "p50": 77.03,
+        "p95": 77.82,
+        "max": 77.82
+      },
+      "gestureProcessCpuMs": {
+        "n": 3,
+        "p50": 910,
+        "p95": 930,
+        "max": 930
+      },
+      "gestureProcessCorePercent": {
+        "n": 3,
+        "p50": 135.36,
+        "p95": 138.96,
+        "max": 138.96
+      },
+      "gestureFrameP50Ms": {
+        "n": 3,
+        "p50": 16.7,
+        "p95": 16.8,
+        "max": 16.8
+      },
+      "gestureFrameP95Ms": {
+        "n": 3,
+        "p50": 66.8,
+        "p95": 66.8,
+        "max": 66.8
+      },
+      "gestureFrameMaxMs": {
+        "n": 3,
+        "p50": 66.8,
+        "p95": 83.3,
+        "max": 83.3
+      },
+      "gestureLongTasks": {
+        "n": 3,
+        "p50": 4,
+        "p95": 4,
+        "max": 4
+      },
+      "gestureLongTaskDurationMs": {
+        "n": 3,
+        "p50": 277,
+        "p95": 279,
+        "max": 279
+      },
+      "postGcHeapInitialMiB": {
+        "n": 3,
+        "p50": 24.26,
+        "p95": 24.26,
+        "max": 24.26
+      },
+      "postGcHeapAfterGesturesMiB": {
+        "n": 3,
+        "p50": 24.8,
+        "p95": 24.81,
+        "max": 24.81
+      },
+      "postGcHeapDeltaMiB": {
+        "n": 3,
+        "p50": 0.53,
+        "p95": 0.55,
+        "max": 0.55
+      },
+      "initialAllFitScale": {
+        "n": 3,
+        "p50": 0.08,
+        "p95": 0.08,
+        "max": 0.08
+      },
+      "canvasBackingRgbaLowerBoundBytes": 6822528
+    }
+  ],
+  "limitations": [
+    "No production/live host is contacted; REST and external network requests are blocked.",
+    "CDP TaskDuration is a browser main-thread task-time proxy, not whole-process CPU or power measurement; gesture windows include bounded page-side probes/redraws, while Playwright driver waiting is wall time.",
+    "SystemInfo cpuTime summed over the Chromium process tree is independent of renderer-main-thread TaskDuration.",
+    "Frame sampling runs only during pointer gestures and reflects browser scheduling/compositor effects, not direct input latency.",
+    "JS heap is reported as absolute post-GC bytes before idle and after gestures; canvas RGBA is a lower bound excluding hit canvases, GPU copies and compositor storage.",
+    "Every cold navigation uses a fresh context; static server startup is excluded."
+  ],
+  "samples": [
+    {
+      "nodes": 9,
+      "edges": 14,
+      "repetition": 0,
+      "orderPosition": 0,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 473.57,
+      "idle": {
+        "wallMs": 2213.2,
+        "taskMs": 0.32,
+        "taskCorePercentProxy": 0.01,
+        "processCpuMs": 0,
+        "processCorePercent": 0,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 1489.8,
+        "taskMs": 936.38,
+        "taskCorePercentProxy": 62.85,
+        "processCpuMs": 1560,
+        "processWallMs": 1503.93,
+        "processCorePercent": 103.73,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 39.89610389610391,
+          "y": 29.922077922077904
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 20,
+          "p50": 16.7,
+          "p95": 166.7,
+          "max": 183.3
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 691
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 3572311,
+        "afterForcedGcGestures": 3980380
+      },
+      "camera": {
+        "initial": {
+          "x": 169,
+          "y": -62,
+          "scale": 0.8020833333333334
+        },
+        "afterGestures": {
+          "x": 76.1191,
+          "y": -114.3089,
+          "scale": 0.9183052083333334
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 50,
+      "edges": 77,
+      "repetition": 0,
+      "orderPosition": 1,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 212.48,
+      "idle": {
+        "wallMs": 2209.4,
+        "taskMs": 5.95,
+        "taskCorePercentProxy": 0.27,
+        "processCpuMs": 20,
+        "processCorePercent": 0.91,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 324.7,
+        "taskMs": 199.68,
+        "taskCorePercentProxy": 61.5,
+        "processCpuMs": 420,
+        "processWallMs": 335.95,
+        "processCorePercent": 125.02,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 97.03896103896102,
+          "y": 72.7792207792208
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 18,
+          "p50": 16.7,
+          "p95": 16.8,
+          "max": 16.8
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 5735960,
+        "afterForcedGcGestures": 6151851
+      },
+      "camera": {
+        "initial": {
+          "x": 19,
+          "y": -15,
+          "scale": 0.3297644539614561
+        },
+        "afterGestures": {
+          "x": -95.61590000000001,
+          "y": -60.49860000000007,
+          "scale": 0.37754732334047114
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 150,
+      "edges": 232,
+      "repetition": 0,
+      "orderPosition": 2,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 270.5,
+      "idle": {
+        "wallMs": 2209.91,
+        "taskMs": 5.56,
+        "taskCorePercentProxy": 0.25,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 387.3,
+        "taskMs": 262.86,
+        "taskCorePercentProxy": 67.87,
+        "processCpuMs": 550,
+        "processWallMs": 395.66,
+        "processCorePercent": 139.01,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 211.32467532467535,
+          "y": 158.49350649350652
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 19,
+          "p50": 16.7,
+          "p95": 33.4,
+          "max": 33.4
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 10681727,
+        "afterForcedGcGestures": 11120288
+      },
+      "camera": {
+        "initial": {
+          "x": 163,
+          "y": 3,
+          "scale": 0.15142576204523106
+        },
+        "afterGestures": {
+          "x": 69.24969999999996,
+          "y": -39.89040000000006,
+          "scale": 0.17336735496558506
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 450,
+      "edges": 700,
+      "repetition": 0,
+      "orderPosition": 3,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 523.56,
+      "idle": {
+        "wallMs": 2209.54,
+        "taskMs": 0.35,
+        "taskCorePercentProxy": 0.02,
+        "processCpuMs": 0,
+        "processCorePercent": 0,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 660.9,
+        "taskMs": 514.3,
+        "taskCorePercentProxy": 77.82,
+        "processCpuMs": 930,
+        "processWallMs": 669.27,
+        "processCorePercent": 138.96,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 382.75324675324646,
+          "y": 287.064935064935
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 19,
+          "p50": 16.8,
+          "p95": 66.8,
+          "max": 66.8
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 279
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 25443457,
+        "afterForcedGcGestures": 26015464
+      },
+      "camera": {
+        "initial": {
+          "x": 217,
+          "y": 10,
+          "scale": 0.08360477741585233
+        },
+        "afterGestures": {
+          "x": 131.0743,
+          "y": -31.87609999999995,
+          "scale": 0.09571910966340934
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 50,
+      "edges": 77,
+      "repetition": 1,
+      "orderPosition": 0,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 187.34,
+      "idle": {
+        "wallMs": 2209.63,
+        "taskMs": 5.59,
+        "taskCorePercentProxy": 0.25,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 324.8,
+        "taskMs": 203.33,
+        "taskCorePercentProxy": 62.6,
+        "processCpuMs": 420,
+        "processWallMs": 336.15,
+        "processCorePercent": 124.94,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 97.03896103896102,
+          "y": 72.7792207792208
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 18,
+          "p50": 16.7,
+          "p95": 16.8,
+          "max": 16.8
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 5728302,
+        "afterForcedGcGestures": 6150691
+      },
+      "camera": {
+        "initial": {
+          "x": 19,
+          "y": -15,
+          "scale": 0.3297644539614561
+        },
+        "afterGestures": {
+          "x": -95.61590000000001,
+          "y": -60.49860000000007,
+          "scale": 0.37754732334047114
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 150,
+      "edges": 232,
+      "repetition": 1,
+      "orderPosition": 1,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 270.68,
+      "idle": {
+        "wallMs": 2209.1,
+        "taskMs": 5.59,
+        "taskCorePercentProxy": 0.25,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 379.2,
+        "taskMs": 254.75,
+        "taskCorePercentProxy": 67.18,
+        "processCpuMs": 530,
+        "processWallMs": 388.1,
+        "processCorePercent": 136.56,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 211.32467532467535,
+          "y": 158.49350649350652
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 19,
+          "p50": 16.7,
+          "p95": 33.4,
+          "max": 33.4
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 10684479,
+        "afterForcedGcGestures": 11122328
+      },
+      "camera": {
+        "initial": {
+          "x": 163,
+          "y": 3,
+          "scale": 0.15142576204523106
+        },
+        "afterGestures": {
+          "x": 69.24969999999996,
+          "y": -39.89040000000006,
+          "scale": 0.17336735496558506
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 450,
+      "edges": 700,
+      "repetition": 1,
+      "orderPosition": 2,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 499.66,
+      "idle": {
+        "wallMs": 2209.48,
+        "taskMs": 0.38,
+        "taskCorePercentProxy": 0.02,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 649.2,
+        "taskMs": 500.07,
+        "taskCorePercentProxy": 77.03,
+        "processCpuMs": 890,
+        "processWallMs": 657.49,
+        "processCorePercent": 135.36,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 382.75324675324646,
+          "y": 287.064935064935
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 19,
+          "p50": 16.7,
+          "p95": 66.8,
+          "max": 66.8
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 269
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 25441285,
+        "afterForcedGcGestures": 26000172
+      },
+      "camera": {
+        "initial": {
+          "x": 217,
+          "y": 10,
+          "scale": 0.08360477741585233
+        },
+        "afterGestures": {
+          "x": 131.0743,
+          "y": -31.87609999999995,
+          "scale": 0.09571910966340934
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 9,
+      "edges": 14,
+      "repetition": 1,
+      "orderPosition": 3,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 439.67,
+      "idle": {
+        "wallMs": 2210.61,
+        "taskMs": 0.29,
+        "taskCorePercentProxy": 0.01,
+        "processCpuMs": 80,
+        "processCorePercent": 3.62,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 1457.6,
+        "taskMs": 929.56,
+        "taskCorePercentProxy": 63.77,
+        "processCpuMs": 1540,
+        "processWallMs": 1467.21,
+        "processCorePercent": 104.96,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 39.89610389610391,
+          "y": 29.922077922077904
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 20,
+          "p50": 16.7,
+          "p95": 166.6,
+          "max": 183.3
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 686
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 3575419,
+        "afterForcedGcGestures": 3979164
+      },
+      "camera": {
+        "initial": {
+          "x": 169,
+          "y": -62,
+          "scale": 0.8020833333333334
+        },
+        "afterGestures": {
+          "x": 76.1191,
+          "y": -114.3089,
+          "scale": 0.9183052083333334
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 150,
+      "edges": 232,
+      "repetition": 2,
+      "orderPosition": 0,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 290.33,
+      "idle": {
+        "wallMs": 2213.07,
+        "taskMs": 5.37,
+        "taskCorePercentProxy": 0.24,
+        "processCpuMs": 0,
+        "processCorePercent": 0,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 387.2,
+        "taskMs": 271.2,
+        "taskCorePercentProxy": 70.04,
+        "processCpuMs": 520,
+        "processWallMs": 396.79,
+        "processCorePercent": 131.05,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 211.32467532467535,
+          "y": 158.49350649350652
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 19,
+          "p50": 16.7,
+          "p95": 33.4,
+          "max": 33.4
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 10685225,
+        "afterForcedGcGestures": 11122640
+      },
+      "camera": {
+        "initial": {
+          "x": 163,
+          "y": 3,
+          "scale": 0.15142576204523106
+        },
+        "afterGestures": {
+          "x": 69.24969999999996,
+          "y": -39.89040000000006,
+          "scale": 0.17336735496558506
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 450,
+      "edges": 700,
+      "repetition": 2,
+      "orderPosition": 1,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 525.62,
+      "idle": {
+        "wallMs": 2209.56,
+        "taskMs": 0.39,
+        "taskCorePercentProxy": 0.02,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 680.7,
+        "taskMs": 521.46,
+        "taskCorePercentProxy": 76.61,
+        "processCpuMs": 910,
+        "processWallMs": 692.73,
+        "processCorePercent": 131.36,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 382.75324675324646,
+          "y": 287.064935064935
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 20,
+          "p50": 16.7,
+          "p95": 66.7,
+          "max": 83.3
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 277
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 25442537,
+        "afterForcedGcGestures": 26002208
+      },
+      "camera": {
+        "initial": {
+          "x": 217,
+          "y": 10,
+          "scale": 0.08360477741585233
+        },
+        "afterGestures": {
+          "x": 131.0743,
+          "y": -31.87609999999995,
+          "scale": 0.09571910966340934
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 9,
+      "edges": 14,
+      "repetition": 2,
+      "orderPosition": 2,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 415.82,
+      "idle": {
+        "wallMs": 2210.31,
+        "taskMs": 0.35,
+        "taskCorePercentProxy": 0.02,
+        "processCpuMs": 0,
+        "processCorePercent": 0,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 1485.4,
+        "taskMs": 955.97,
+        "taskCorePercentProxy": 64.36,
+        "processCpuMs": 1560,
+        "processWallMs": 1495.14,
+        "processCorePercent": 104.34,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 39.89610389610391,
+          "y": 29.922077922077904
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 21,
+          "p50": 16.7,
+          "p95": 166.8,
+          "max": 183.3
+        },
+        "longTasks": 4,
+        "longTaskDurationMs": 700
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 3584319,
+        "afterForcedGcGestures": 3980392
+      },
+      "camera": {
+        "initial": {
+          "x": 169,
+          "y": -62,
+          "scale": 0.8020833333333334
+        },
+        "afterGestures": {
+          "x": 76.1191,
+          "y": -114.3089,
+          "scale": 0.9183052083333334
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    },
+    {
+      "nodes": 50,
+      "edges": 77,
+      "repetition": 2,
+      "orderPosition": 3,
+      "cacheState": "cold-fresh-context",
+      "renderReadyMs": 180.32,
+      "idle": {
+        "wallMs": 2209.5,
+        "taskMs": 5.5,
+        "taskCorePercentProxy": 0.25,
+        "processCpuMs": 10,
+        "processCorePercent": 0.45,
+        "processCountBefore": 7,
+        "processCountAfter": 7
+      },
+      "gestures": {
+        "wallMs": 292.4,
+        "taskMs": 188.02,
+        "taskCorePercentProxy": 64.3,
+        "processCpuMs": 390,
+        "processWallMs": 302.97,
+        "processCorePercent": 128.73,
+        "dragRequestedPx": {
+          "x": 32,
+          "y": 24
+        },
+        "dragAchievedWorld": {
+          "x": 97.03896103896102,
+          "y": 72.7792207792208
+        },
+        "panRequestedPxPerGesture": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "panAchievedPx": [
+          {
+            "x": -28,
+            "y": -19
+          },
+          {
+            "x": 28,
+            "y": 19
+          }
+        ],
+        "wheelDeltaYPerGesture": -180,
+        "wheelZoomRatios": [
+          1.07,
+          1.07
+        ],
+        "zoomRatio": 1.1449,
+        "frameIntervalsMs": {
+          "n": 16,
+          "p50": 16.6,
+          "p95": 16.8,
+          "max": 16.8
+        },
+        "longTasks": 0,
+        "longTaskDurationMs": 0
+      },
+      "heapBytes": {
+        "afterForcedGcInitial": 5728950,
+        "afterForcedGcGestures": 6152027
+      },
+      "camera": {
+        "initial": {
+          "x": 19,
+          "y": -15,
+          "scale": 0.3297644539614561
+        },
+        "afterGestures": {
+          "x": -95.61590000000001,
+          "y": -60.49860000000007,
+          "scale": 0.37754732334047114
+        }
+      },
+      "canvasBacking": {
+        "layers": [
+          {
+            "width": 1308,
+            "height": 652
+          },
+          {
+            "width": 1308,
+            "height": 652
+          }
+        ],
+        "backingPixels": 1705632,
+        "rgbaBytesLowerBound": 6822528,
+        "limitation": "Visible RGBA canvas backing lower bound only; excludes Konva hit canvases, GPU duplicates and compositor storage."
+      },
+      "errors": [],
+      "blockedRest": [],
+      "external": [],
+      "localRequestCount": 3
+    }
+  ],
+  "failures": []
+}

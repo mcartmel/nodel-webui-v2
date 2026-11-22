@@ -1,0 +1,21 @@
+{
+  "initialMountFirstActualKonvaDrawAtMs": 148.9,
+  "firstOwner": {
+    "name": "Alpha",
+    "completionToVisibleKonvaDrawMs": 23.9,
+    "drawMethod": "drawImage"
+  },
+  "secondOwner": {
+    "name": "Beta",
+    "completionToVisibleKonvaDrawMs": 7,
+    "drawMethod": "drawImage"
+  },
+  "responseOrder": [
+    "Alpha",
+    "Beta"
+  ],
+  "initialMountedShapes": 37,
+  "retainedExistingShapes": 29,
+  "touchedExistingShapes": 3,
+  "insertedShapes": 27
+}

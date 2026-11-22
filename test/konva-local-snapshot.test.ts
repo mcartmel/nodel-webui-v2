@@ -245,13 +245,14 @@ describe('Konva local snapshot terminal state', () => {
     expect(Object.isFrozen((readOwner.bindings.actions?.Send as { extra: number[] }).extra)).toBe(true);
     expect(projection.summary).toBe('8 local · 1 referenced · 1 configured · 6 local unread');
     expect(projection.nodes).toHaveLength(9);
-    expect(projection.nodes.find((node) => node.name === 'B')?.displayStatus).toBe('Local');
+    expect(projection.nodes.find((node) => node.name === 'B')?.displayStatus).toBe('');
+    expect(projection.nodes.find((node) => node.name === 'B')?.tooltip).toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
     for (const name of ['C', 'D', 'E', 'F', 'G', 'H']) {
-      expect(projection.nodes.find((node) => node.name === name)?.displayStatus).toBe('Local · bindings unread');
+      expect(projection.nodes.find((node) => node.name === name)?.displayStatus).toBe('Not inspected');
     }
     const source = projection.nodes.find((node) => node.name === 'A')!;
     const target = projection.nodes.find((node) => node.name === 'Referenced')!;
-    expect(target.displayStatus).toBe('Referenced · not inspected');
+    expect(target.displayStatus).toBe('Not inspected');
     expect(source.ports[0]).toMatchObject({ label: 'Send', direction: 'out' });
     expect(target.ports[0]).toMatchObject({ label: 'Run', direction: 'in' });
     expect(projection.edges).toEqual([expect.objectContaining({
@@ -348,7 +349,7 @@ describe('Konva local snapshot terminal state', () => {
     const projection = await result;
     expect(planningStartedAt).toBe(9_999);
     expect(projection.nodes.map(({ name, displayStatus }) => [name, displayStatus])).toEqual([
-      ['Alpha', 'Local · bindings unread'], ['Beta', 'Local · bindings unread']
+      ['Alpha', 'Not inspected'], ['Beta', 'Not inspected']
     ]);
     expect(projection.edges).toEqual([]);
     expect(vi.getTimerCount()).toBe(0);

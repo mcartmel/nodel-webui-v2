@@ -152,6 +152,10 @@ export interface LocalGraphGeometry {
   heightsByNode: ReadonlyMap<string, number>;
 }
 
+export function compareLocalPorts(a: LocalGraphPort, b: LocalGraphPort): number {
+  return compare(a.kind, b.kind) || compare(a.name, b.name) || compare(a.id, b.id);
+}
+
 const geometryByPositions = new WeakMap<ReadonlyMap<string, Point>, { graph: LocalGraph; geometry: LocalGraphGeometry }>();
 
 /** Reuse layout's geometry index when the projection receives its positions. */
@@ -176,7 +180,7 @@ export function indexLocalGraphGeometry(graph: LocalGraph): LocalGraphGeometry {
     if (port.kind === 'local-action' || port.kind === 'remote-event') count.left += 1;
     else count.right += 1;
   }
-  for (const rows of byNode.values()) rows.sort((a, b) => compare(a.kind, b.kind) || compare(a.name, b.name) || compare(a.id, b.id));
+  for (const rows of byNode.values()) rows.sort(compareLocalPorts);
   const heightsByNode = new Map<string, number>();
   for (const [nodeId, count] of counts) heightsByNode.set(nodeId, cardHeightForPortCounts(count.left, count.right));
   return { portsByNode: byNode, heightsByNode };
