@@ -828,7 +828,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     const handle = startRemoteEnrichment({
       owners: frozenOwners,
       readers: createRemoteEnrichmentReaders(origin, fetcher),
-      prepare: prepareRemoteOwnerInspection,
+      prepare: (owner, bindings) => prepareRemoteOwnerInspection(owner, bindings),
       apply: (batch) => {
         for (const result of batch.results) {
           readResults.push(`${result.owner.name}:${result.outcome}`);

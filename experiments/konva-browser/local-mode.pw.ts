@@ -3283,6 +3283,131 @@ test('host header indicators expose vetted remote and complete-empty evidence wi
   }
 });
 
+test('opt-in depth two inspects shared cyclic targets once without opening a third hop', async ({ page }) => {
+  const remoteRequests: string[] = [];
+  const arrivals = { Alpha: waitGate(), Beta: waitGate() };
+  const started = { Alpha: waitGate(), Beta: waitGate() };
+  const bindings: Record<string, unknown> = {
+    Alpha: { actions: {
+      'Call Gamma': { node: 'Gamma', action: 'Activate' },
+      'Cycle to Beta': { node: 'Beta', action: 'Back' }
+    } },
+    Beta: { actions: {
+      'Share Gamma': { node: 'Gamma', action: 'Start' },
+      'Cycle to Alpha': { node: 'Alpha', action: 'Back' }
+    } },
+    Gamma: { actions: { 'Third hop Delta': { node: 'Delta', action: 'Run' } } }
+  };
+  const remoteServer = createServer((request: IncomingMessage, response: ServerResponse) => {
+    const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+    remoteRequests.push(`${request.method ?? ''} ${path}`);
+    const owner = /^\/nodes\/(Alpha|Beta|Gamma)\/REST\/remote$/.exec(path)?.[1];
+    if (request.method !== 'GET' || !owner) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.setHeader('Access-Control-Allow-Origin', experimentOrigin);
+    response.setHeader('Vary', 'Origin');
+    response.setHeader('Content-Type', 'application/json');
+    const send = () => {
+      response.writeHead(200, { 'Cache-Control': 'no-store' });
+      response.end(JSON.stringify(bindings[owner]));
+    };
+    if (owner === 'Alpha' || owner === 'Beta') {
+      started[owner].release();
+      void arrivals[owner].promise.then(send);
+    } else send();
+  });
+  const remoteOrigin = await listenLoopback(remoteServer);
+  const localRequests: RequestRecord[] = [];
+  const lookups: string[] = [];
+  try {
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.origin === remoteOrigin) return route.continue();
+      if (url.origin !== experimentOrigin) {
+        await route.abort('blockedbyclient');
+        throw new Error(`Depth-two loopback fixture blocked unplanned origin ${url.origin}`);
+      }
+      if (!apiPath(url.pathname)) return route.continue();
+      localRequests.push({ method: request.method(), pathname: url.pathname, search: url.search });
+      if (url.pathname === '/REST' && request.method() === 'GET') {
+        await route.fulfill(jsonResponse({ nodes: { Owner: {} } }));
+      } else if (url.pathname === '/nodes/Owner/REST/remote' && request.method() === 'GET') {
+        await route.fulfill(jsonResponse({ actions: {
+          'Call Alpha': { node: 'Alpha', action: 'Prepare' },
+          'Call Beta': { node: 'Beta', action: 'Prepare' }
+        } }));
+      } else if (url.pathname === '/REST/nodeURLsForNode' && request.method() === 'POST') {
+        const name = (request.postDataJSON() as { name?: unknown }).name;
+        if (typeof name !== 'string' || !['Alpha', 'Beta', 'Gamma'].includes(name)) {
+          throw new Error(`Depth-two fixture attempted unexpected discovery: ${String(name)}`);
+        }
+        lookups.push(name);
+        await route.fulfill(jsonResponse([{ node: name, address: `${remoteOrigin}/nodes/${name}` }]));
+      } else {
+        await route.abort('blockedbyclient');
+        throw new Error(`Unexpected depth-two local API request ${request.method()} ${url.pathname}`);
+      }
+    });
+    await page.goto('/topology-canvas.html?source=local&depth=2');
+    await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+    await expect(page.locator('[data-fixture-summary]')).toContainText('2 configured');
+    await Promise.all([started.Alpha.promise, started.Beta.promise]);
+
+    const mounted = await inspectKonvaScene(page, true);
+    expect(mounted.cardNames).toEqual(['Alpha', 'Beta', 'Owner']);
+    expect(mounted.wireCount).toBe(2);
+    await page.evaluate(() => {
+      const stage = (window as Window & { Konva?: { stages?: unknown[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Depth-two stage unavailable before enrichment');
+      (window as Window & { __depthTwoStage?: unknown }).__depthTwoStage = stage;
+    });
+    arrivals.Alpha.release();
+    arrivals.Beta.release();
+    await expect(page.locator('[data-fixture-summary]')).toContainText('3 inspected');
+
+    const result = await inspectKonvaScene(page);
+    expect(result.camera).toEqual(mounted.camera);
+    expect(result.wireCount).toBe(7);
+    const scene = await page.evaluate(() => {
+      type Shape = { id(): string; text(): string; find(selector: string): Shape[] };
+      type Stage = Shape & { find(selector: string): Shape[] };
+      const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+      if (!stage) throw new Error('Depth-two Konva stage disappeared');
+      const cards = stage.find('.topology-card').map((card) => card.find('Text').map((text) => text.text()).find(Boolean)).filter((name): name is string => Boolean(name)).sort();
+      const wireIds = stage.find('.topology-wire').map((wire) => wire.id()).sort();
+      const original = (window as Window & { __depthTwoStage?: unknown }).__depthTwoStage;
+      return { sameStage: stage === original, cards, wireIds };
+    });
+    expect(scene.sameStage).toBe(true);
+    expect(scene.cards).toEqual(['Alpha', 'Beta', 'Delta', 'Gamma', 'Owner']);
+    // Binding IDs prove the two shared Gamma edges, reciprocal cycle edges,
+    // and Gamma's rendered third-hop edge without a third-hop network lookup.
+    const expectedWireIds = [
+      ['binding', 'simple:owner', 'action', 'simple:callalpha'],
+      ['binding', 'simple:owner', 'action', 'simple:callbeta'],
+      ['binding', 'simple:alpha', 'action', 'simple:callgamma'],
+      ['binding', 'simple:alpha', 'action', 'simple:cycletobeta'],
+      ['binding', 'simple:beta', 'action', 'simple:sharegamma'],
+      ['binding', 'simple:beta', 'action', 'simple:cycletoalpha'],
+      ['binding', 'simple:gamma', 'action', 'simple:thirdhopdelta']
+    ].map((parts) => `e-${Array.from(JSON.stringify(parts), (character) => character.charCodeAt(0).toString(16).padStart(4, '0')).join('')}`).sort();
+    expect(scene.wireIds).toEqual(expectedWireIds);
+    expect(lookups.sort()).toEqual(['Alpha', 'Beta', 'Gamma']);
+    expect(remoteRequests.sort()).toEqual([
+      'GET /nodes/Alpha/REST/remote', 'GET /nodes/Beta/REST/remote', 'GET /nodes/Gamma/REST/remote'
+    ]);
+    expect(localRequests.filter(({ pathname }) => pathname === '/REST/nodeURLsForNode').length).toBe(3);
+    expect(localRequests.some(({ pathname }) => pathname.includes('Delta'))).toBe(false);
+  } finally {
+    arrivals.Alpha.release();
+    arrivals.Beta.release();
+    await closeServer(remoteServer);
+  }
+});
+
 test('partially reconstructed remote assignments keep a distinct neutral host badge', async ({ page }) => {
   const partialBindings = { actions: {
     'Run Gamma': { node: 'Gamma', action: 'Run' },

@@ -65,8 +65,12 @@ export interface RemoteEnrichmentBatch<T> {
 
 interface RemoteEnrichmentOptions<T> {
   owners: readonly RemoteEnrichmentOwner[];
+  depth?: 1 | 2;
   /** Reconstruct assignment evidence without mutating the graph. */
-  prepare(this: void, owner: RemoteEnrichmentOwner, bindings: NodelRemoteBindings): PreparedEnrichment<T>;
+  prepare(this: void, owner: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, collectFollowUps: boolean): PreparedEnrichment<T> & {
+    /** Only complete, configured targets; omit local inventory identities. */
+    followUpOwners?: readonly RemoteEnrichmentOwner[];
+  };
   /** Commit one batch synchronously, including any scene/summary/final-draw updates. */
   apply(this: void, batch: RemoteEnrichmentBatch<T>): void;
   signal?: AbortSignal;
@@ -230,6 +234,7 @@ const waiting = new Set<() => void>();
 
 interface Work {
   owner: RemoteEnrichmentOwner;
+  wave: 1 | 2;
   lookupState: RemoteEnrichmentLookupState;
   routes: string[];
   issues: readonly PolicyIssue[];
@@ -252,24 +257,42 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
   const { signal, prepare, apply, timing = browserTiming } = options;
   const deadline = options.deadline ?? timing.now() + REMOTE_ENRICHMENT_BUDGET_MS;
   const work = new Map<string, Work>();
+  const seen = new Set<string>();
   const ids = new Set<string>();
-  for (const candidate of options.owners) {
-    if (!validOwner(candidate) || work.has(candidate.key) || ids.has(candidate.id)) continue;
-    const { id, key, name } = candidate;
-    work.set(key, { owner: Object.freeze({ id, key, name }), lookupState: 'pending', routes: [], issues: [], attempts: [] });
-    ids.add(id);
-  }
-  const owners = work.values();
+  const lookups: Work[] = [];
+  let nextLookup = 0;
+  let firstWaveRemaining = 0;
   const ready: Work[] = [];
   const pending = new Map<string, RemoteEnrichmentResult<T>>();
   const active = new Set<Operation>();
-  const counts = { read: 0, partial: 0, unsuccessful: 0, cutoff: 0, total: work.size };
+  const counts = { read: 0, partial: 0, unsuccessful: 0, cutoff: 0, total: 0 };
   let readers = options.readers;
   let state: 'open' | 'sealing' | 'retired' = 'open';
   let deadlineTimer: number | undefined;
   let frame: { handle: number } | undefined;
   let resolveIdle!: () => void;
   const idle = new Promise<void>((resolve) => { resolveIdle = resolve; });
+
+  function enqueue(candidate: RemoteEnrichmentOwner, wave: Work['wave']) {
+    if (!validOwner(candidate)) return;
+    const { id, key, name } = candidate;
+    if (seen.has(key) || ids.has(id)) {
+      // Second-wave lookups have not begun while any first-wave result is being accepted.
+      const queued = work.get(key);
+      if (wave === 2 && queued?.wave === 2 && queued.owner.id === id && name < queued.owner.name) {
+        queued.owner = Object.freeze({ id, key, name });
+      }
+      return;
+    }
+    const item: Work = { owner: Object.freeze({ id, key, name }), wave, lookupState: 'pending', routes: [], issues: [], attempts: [] };
+    work.set(key, item);
+    lookups.push(item);
+    seen.add(key);
+    ids.add(id);
+    if (wave === 1) firstWaveRemaining += 1;
+    counts.total += 1;
+  }
+  for (const candidate of options.owners) enqueue(candidate, 1);
 
   function stopOperation(operation: Operation) {
     if (operation.timer !== undefined) {
@@ -283,7 +306,10 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
     state = 'retired';
     waiting.delete(pump);
     ready.length = 0;
+    lookups.length = 0;
     work.clear();
+    seen.clear();
+    ids.clear();
     pending.clear();
     if (frame !== undefined) {
       timing.cancelFrame(frame.handle);
@@ -311,6 +337,7 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
   function record(item: Work, outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: RemoteEnrichmentFailure } | { outcome: 'cutoff' }) {
     // Deleting from unfinished marks it accepted before any frame is requested.
     if (!work.delete(item.owner.key)) return;
+    if (item.wave === 1) firstWaveRemaining -= 1;
     counts[outcome.outcome] += 1;
     pending.set(item.owner.key, { owner: item.owner, lookupState: item.lookupState, issues: item.issues, attempts: [...item.attempts], ...(item.hostEvidence ? { hostEvidence: item.hostEvidence } : {}), ...outcome });
   }
@@ -337,8 +364,13 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
     return state === 'open';
   }
 
-  function accept(item: Work, outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: RemoteEnrichmentFailure }) {
-    if (!isOpen()) return;
+  function accept(item: Work, outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: RemoteEnrichmentFailure }, followUps?: readonly RemoteEnrichmentOwner[]) {
+    if (!isOpen() || !work.has(item.owner.key)) return;
+    // Admit disclosed owners before settling the parent so a terminal drain
+    // sees both waves, but do not start their lookups until wave one settles.
+    if (followUps && item.wave === 1 && options.depth === 2) {
+      for (const candidate of followUps) enqueue(candidate, 2);
+    }
     record(item, outcome);
     if (work.size === 0) {
       finish('complete');
@@ -406,12 +438,15 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
           if (timing.now() >= expires) { expire(); return; }
           handled = true;
           let outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: 'prepare-failed' };
+          let followUps: readonly RemoteEnrichmentOwner[] | undefined;
           try {
-            outcome = prepare(item.owner, bindings);
+            const { followUpOwners, ...result } = prepare(item.owner, bindings, item.wave === 1 && options.depth === 2);
+            outcome = result;
+            followUps = followUpOwners;
           } catch {
             outcome = { outcome: 'unsuccessful', reason: 'prepare-failed' };
           }
-          accept(item, outcome);
+          accept(item, outcome, followUps);
         }
       } catch (error) {
         operation.settled = true;
@@ -444,9 +479,10 @@ export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
         const continuation = ready.shift();
         if (continuation) inspect(continuation, continuation.routes.shift());
         else {
-          const next = owners.next();
-          if (next.done) return;
-          inspect(next.value, undefined);
+          const next = lookups[nextLookup];
+          if (!next || (next.wave === 2 && firstWaveRemaining)) return;
+          nextLookup += 1;
+          inspect(next, undefined);
         }
       }
       if (state === 'open') waiting.add(pump);

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { decodeNodeUrls } from '../src/api/codecs/nodel-codecs';
 import type { NodelRemoteBindings } from '../src/api/nodel-types';
 import { createEnrichmentLifetime } from '../src/experiments/konva-canvas/enrichment-lifetime';
+import { applyRemoteEnrichmentResult, buildLocalGraph, prepareRemoteOwnerInspection, type LocalGraph } from '../src/experiments/konva-canvas/local-graph';
 import {
   createRemoteEnrichmentReaders, startRemoteEnrichment,
   type RemoteEnrichmentBatch, type RemoteEnrichmentOwner, type RemoteEnrichmentReaders, type RemoteEnrichmentTiming
@@ -57,7 +58,7 @@ async function drainMicrotasks() {
 
 function tracked(readers: RemoteEnrichmentReaders, names: RemoteEnrichmentOwner[], scheduler = clock(), signal?: AbortSignal) {
   const batches: RemoteEnrichmentBatch<string>[] = [];
-  const prepare = vi.fn((item: RemoteEnrichmentOwner, bindings: NodelRemoteBindings) => ({
+  const prepare = vi.fn((item: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, _collectFollowUps: boolean) => ({
     outcome: bindings.events?.incomplete ? 'partial' as const : 'read' as const,
     prepared: item.name
   }));
@@ -208,7 +209,7 @@ describe('remote enrichment transport — no host operations', () => {
     const run = tracked(readers, [alpha]);
     await run.handle.idle;
     expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(run.prepare.mock.calls).toEqual([[alpha, good]]);
+    expect(run.prepare.mock.calls).toEqual([[alpha, good, false]]);
     expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'partial', attempts: ['invalid-data'] });
   });
 
@@ -234,6 +235,110 @@ describe('remote enrichment transport — no host operations', () => {
 });
 
 describe('remote enrichment physical slots and generation settlement', () => {
+  it.each(['cutoff', 'freeze', 'revoke'] as const)('settles both waves at %s without late model mutation or a stale draw', async (stop) => {
+    const time = clock();
+    const source = new AbortController();
+    const graph = buildLocalGraph({ locals: [{ name: 'Local', readState: 'read', actions: [{ alias: 'Call', node: 'Alpha', endpoint: 'Go' }] }] });
+    const gate = deferred<NodelRemoteBindings>();
+    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
+    const read = vi.fn((route: string, _signal: AbortSignal) => route === 'Alpha'
+      ? Promise.resolve({ actions: { next: { node: 'Beta', action: 'Run' } } }) : gate.promise);
+    const prepare = vi.fn((owner: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, collect: boolean) =>
+      prepareRemoteOwnerInspection(owner, bindings, collect ? graph.nodes : undefined));
+    const batches: RemoteEnrichmentBatch<LocalGraph>[] = [];
+    time.jump(13_000); // Startup already spent part of the original paint budget.
+    const handle = startRemoteEnrichment({ depth: 2, owners: graph.eligibleRemoteOwners, deadline: 15_000,
+      signal: source.signal, timing: time.timing, readers: { lookup, read }, prepare,
+      apply(batch) {
+        batches.push(batch);
+        for (const result of batch.results) applyRemoteEnrichmentResult(graph, result);
+      }
+    });
+    await drainMicrotasks();
+    expect(lookup.mock.calls.map(([item]) => item.name)).toEqual(['Alpha', 'Beta']);
+    expect(read.mock.calls.map(([route]) => route)).toEqual(['Alpha', 'Beta']);
+    expect(batches).toEqual([]);
+    const saved = [...time.frames.values()][0]!;
+    expect(saved).toBeTypeOf('function');
+    if (stop === 'cutoff') time.advance(15_000);
+    else if (stop === 'freeze') handle.freeze();
+    else source.abort();
+
+    expect(read.mock.lastCall?.[1].aborted).toBe(true);
+    if (stop === 'revoke') {
+      expect(batches).toEqual([]);
+      expect(graph.connections.size).toBe(1);
+    } else {
+      expect(batches).toMatchObject([{ finish: stop, counts: { total: 2, read: 1, partial: 0, unsuccessful: 0, cutoff: 1 },
+        results: [{ owner: { name: 'Alpha' }, outcome: 'read' }, { owner: { name: 'Beta' }, lookupState: 'found', outcome: 'cutoff' }] }]);
+      expect([...graph.nodes.values()].find(({ name }) => name === 'Beta')?.inspectionState).toBe('cutoff');
+      expect(graph.connections.size).toBe(2);
+    }
+    saved();
+    gate.resolve({ actions: { late: { node: 'MustNotAppear', action: 'Run' } } });
+    await handle.idle;
+    handle.freeze();
+    expect(batches).toHaveLength(stop === 'revoke' ? 0 : 1);
+    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect([...graph.nodes.values()].some(({ name }) => name === 'MustNotAppear')).toBe(false);
+    expect(time.timers.size + time.frames.size).toBe(0);
+  });
+
+  it('admits known follow-ups before a freeze while the first wave is unsettled, without starting their lookup', async () => {
+    const time = clock();
+    const gate = deferred<NodelRemoteBindings>();
+    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
+    const batches: RemoteEnrichmentBatch<string>[] = [];
+    const handle = startRemoteEnrichment({ depth: 2, owners: [alpha, owner('Beta')], timing: time.timing,
+      readers: { lookup, read: (route) => route === 'Alpha' ? Promise.resolve({}) : gate.promise },
+      prepare: ({ name }) => ({ outcome: 'read', prepared: name, followUpOwners: [owner('Gamma')] }), apply: (batch) => batches.push(batch)
+    });
+    await drainMicrotasks();
+    expect(lookup.mock.calls.map(([item]) => item.name)).toEqual(['Alpha', 'Beta']);
+    handle.freeze();
+    expect(batches).toMatchObject([{ finish: 'freeze', counts: { total: 3, read: 1, cutoff: 2 }, results: [
+      { owner: alpha, outcome: 'read' }, { owner: owner('Beta'), outcome: 'cutoff' }, { owner: owner('Gamma'), lookupState: 'pending', outcome: 'cutoff' }
+    ] }]);
+    gate.resolve({});
+    await handle.idle;
+    expect(batches).toHaveLength(1);
+    expect(lookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives the second wave only the physical slots freed by abort-insensitive first-wave reads', async () => {
+    const time = clock();
+    const firstWave = [alpha, owner('Beta'), owner('Gamma'), owner('Delta')];
+    const secondWave = [owner('Echo'), owner('Foxtrot'), owner('Golf'), owner('Hotel')];
+    const gates = firstWave.slice(1).map(() => deferred<NodelRemoteBindings>());
+    const held = deferred<NodelRemoteBindings>();
+    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
+    const read = vi.fn((route: string, _signal: AbortSignal) => {
+      const index = firstWave.findIndex(({ name }) => name === route);
+      if (index === 0) return Promise.resolve({});
+      return index > 0 ? gates[index - 1]!.promise : held.promise;
+    });
+    const batches: RemoteEnrichmentBatch<string>[] = [];
+    const handle = startRemoteEnrichment({ depth: 2, owners: firstWave, timing: time.timing, readers: { lookup, read },
+      prepare: ({ name }, _bindings, collectFollowUps) => ({ outcome: 'read', prepared: name, ...(collectFollowUps ? { followUpOwners: secondWave } : {}) }),
+      apply: (batch) => batches.push(batch)
+    });
+    await drainMicrotasks();
+    expect(lookup).toHaveBeenCalledTimes(4);
+    time.advance(3_000);
+    await drainMicrotasks();
+    expect(read.mock.calls.slice(1, 4).every(([, signal]) => signal.aborted)).toBe(true);
+    expect(lookup.mock.calls.slice(4).map(([item]) => item.name)).toEqual(['Echo']);
+    gates[0]!.resolve({});
+    await drainMicrotasks();
+    expect(lookup.mock.calls.slice(4).map(([item]) => item.name)).toEqual(['Echo', 'Foxtrot']);
+    expect(read.mock.calls.slice(4).map(([route]) => route)).toEqual(['Echo', 'Foxtrot']);
+    for (const gate of gates) gate.resolve({});
+    held.resolve({});
+    await handle.idle;
+    expect(batches).toMatchObject([{ finish: 'complete', counts: { total: 8, read: 5, unsuccessful: 3, cutoff: 0 } }]);
+  });
+
   it.each([15_010, 15_011])('seals a startup at t=%d from the first paint with zero network operations', async (startup) => {
     const time = clock();
     const lifetime = createEnrichmentLifetime({ request: time.timing.requestFrame, cancel: time.timing.cancelFrame }, time.timing.now);
@@ -525,7 +630,7 @@ describe('remote enrichment physical slots and generation settlement', () => {
     expect(run.batches[0]).toMatchObject({ finish: 'complete', results: [{ outcome: 'read', attempts: ['timeout'] }] });
     first.resolve({ events: { incomplete: { node: 'Late' } } });
     await run.handle.idle;
-    expect(run.prepare.mock.calls).toEqual([[alpha, {}]]);
+    expect(run.prepare.mock.calls).toEqual([[alpha, {}, false]]);
     expect(run.batches).toHaveLength(1);
   });
 

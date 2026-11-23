@@ -74,7 +74,7 @@ export interface LocalGraphNode {
   bindingsRead: LocalReadState;
   /** Known canonical aliases and the subset with usable node+endpoint assignments. */
   bindingCounts?: { readonly set: number; readonly total: number };
-  /** Independent one-hop discovery/inspection state; local reads remain authoritative. */
+  /** Independent remote discovery/inspection state; local reads remain authoritative. */
   lookupState?: RemoteLookupState;
   inspectionState?: RemoteInspectionState;
   displayFailure?: string;
@@ -145,7 +145,7 @@ export interface LocalGraph {
   connections: Map<string, LocalGraphConnection>;
   conflicts: LocalGraphConflict[];
   incompleteAssignments: number;
-  /** Fixed Stage-A worklist. Enrichment must not append second-hop references here. */
+  /** Fixed Stage-A worklist. Any follow-up work is tracked by the scheduler, not here. */
   eligibleRemoteOwners: readonly RemoteEnrichmentOwner[];
 }
 
@@ -188,6 +188,10 @@ function stableRows(rows: readonly LocalAssignmentRow[] | undefined): LocalAssig
 
 /** Reconstruct configured topology without network access or renderer dependencies. */
 export function buildLocalGraph(snapshot: LocalSnapshot): LocalGraph {
+  return reconstructLocalGraph(snapshot);
+}
+
+function reconstructLocalGraph(snapshot: LocalSnapshot, followUpOwners?: Map<string, RemoteEnrichmentOwner>): LocalGraph {
   const nodes = new Map<string, LocalGraphNode>();
   const ports = new Map<string, LocalGraphPort>();
   const connections = new Map<string, LocalGraphConnection>();
@@ -305,6 +309,16 @@ export function buildLocalGraph(snapshot: LocalSnapshot): LocalGraph {
         const to = kind === 'action' ? endpointPort : aliasPort;
         const id = tupleId('binding', owner.key, kind, nameIdentity(alias));
         connections.set(id, { id, ownerId: owner.id, alias, kind, fromPortId: from.id, toPortId: to.id });
+        if (followUpOwners && target.origin === 'referenced') {
+          // A single non-conflicting row must disclose all three usable names.
+          // Display can merge equivalent spellings, but cannot grant discovery.
+          for (const row of group) {
+            const name = row.node;
+            if (!name || !isUsableNodeName(name) || !isUsableNodeName(row.alias) || !row.endpoint || !isUsableNodeName(row.endpoint)) continue;
+            const previous = followUpOwners.get(target.key);
+            if (!previous || name < previous.name) followUpOwners.set(target.key, { id: target.id, key: target.key, name });
+          }
+        }
       }
       const count = owner.bindingCounts ?? { set: 0, total: 0 };
       let total = count.total;
@@ -334,8 +348,10 @@ export function buildLocalGraph(snapshot: LocalSnapshot): LocalGraph {
 /** Decode a successful bindings body into the existing row-reconstruction input. */
 export function prepareRemoteOwnerInspection(
   owner: RemoteEnrichmentOwner,
-  bindings: NodelRemoteBindings
-): { outcome: 'read' | 'partial'; prepared: LocalGraph } {
+  bindings: NodelRemoteBindings,
+  /** Supply the live node index only when collecting follow-ups. */
+  inventory?: ReadonlyMap<string, LocalGraphNode>
+): { outcome: 'read' | 'partial'; prepared: LocalGraph; followUpOwners?: readonly RemoteEnrichmentOwner[] } {
   const rows = (section: Readonly<Record<string, unknown>> | undefined, kind: LocalBindingKind): LocalAssignmentRow[] =>
     Object.entries(section ?? {}).map(([alias, value]) => {
       if (value === null || typeof value !== 'object' || Array.isArray(value)) return { alias, malformed: true };
@@ -348,9 +364,14 @@ export function prepareRemoteOwnerInspection(
         ...((Object.hasOwn(record, 'node') && typeof record.node !== 'string') || (Object.hasOwn(record, kind) && typeof endpoint !== 'string') ? { malformed: true } : {})
       };
     });
-  const prepared = buildLocalGraph({ locals: [{ name: owner.name, readState: 'read', actions: rows(bindings.actions, 'action'), events: rows(bindings.events, 'event') }] });
+  const followUps = inventory ? new Map<string, RemoteEnrichmentOwner>() : undefined;
+  const prepared = reconstructLocalGraph({ locals: [{ name: owner.name, readState: 'read', actions: rows(bindings.actions, 'action'), events: rows(bindings.events, 'event') }] }, followUps);
   const localOwner = prepared.nodes.get(owner.id);
-  return { outcome: localOwner?.bindingsRead === 'partial' ? 'partial' : 'read', prepared };
+  // Inventory wins even if a local owner was unread or unaddressable.
+  const followUpOwners = localOwner && inventory && followUps?.size
+    ? [...followUps.values()].filter(({ id }) => inventory.get(id)?.origin !== 'local') : undefined;
+  return { outcome: localOwner?.bindingsRead === 'partial' ? 'partial' : 'read', prepared,
+    ...(followUpOwners?.length ? { followUpOwners } : {}) };
 }
 
 /** Set read status without changing connections or local binding state. */

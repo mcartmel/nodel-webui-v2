@@ -7,6 +7,11 @@ interface EnrichmentRun { freeze(): void }
 
 export const REMOTE_ENRICHMENT_BUDGET_MS = 15_000;
 
+export function localInspectionDepth(query: URLSearchParams): 1 | 2 {
+  const depth = query.getAll('depth');
+  return query.get('source') === 'local' && depth.length === 1 && depth[0] === '2' ? 2 : 1;
+}
+
 /** Stage A can recover an interrupted load in the same retained document, but mounts once. */
 export function createLocalSnapshotLifetime(load: (signal: AbortSignal) => Promise<void>) {
   let state: 'initial' | 'loading' | 'suspended' | 'settled' | 'disposed' = 'initial';

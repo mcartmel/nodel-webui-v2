@@ -1,18 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { NodelRemoteBindings } from '../src/api/nodel-types';
-import { createEnrichmentLifetime, createLocalSnapshotLifetime } from '../src/experiments/konva-canvas/enrichment-lifetime';
+import { createEnrichmentLifetime, createLocalSnapshotLifetime, localInspectionDepth } from '../src/experiments/konva-canvas/enrichment-lifetime';
 import { placeEnrichedPeer } from '../src/experiments/konva-canvas/enrichment-placement';
 import { cardHeight, edgeCurves, type FixtureNode } from '../src/experiments/konva-canvas/fixture';
 import { LocalEnrichmentProjection, type LocalCardPatch } from '../src/experiments/konva-canvas/local-enrichment-projection';
 import { LocalFraming } from '../src/experiments/konva-canvas/local-framing';
 import { buildLocalGraph, localNodeKey, prepareRemoteOwnerInspection, type LocalGraph } from '../src/experiments/konva-canvas/local-graph';
 import { localCardId, projectLocalGraph, type ProjectedLocalEdge } from '../src/experiments/konva-canvas/local-projection';
-import type { RemoteEnrichmentResult } from '../src/experiments/konva-canvas/remote-enrichment';
+import { createRemoteEnrichmentReaders, startRemoteEnrichment, type RemoteEnrichmentBatch, type RemoteEnrichmentResult } from '../src/experiments/konva-canvas/remote-enrichment';
 
 function harness() {
   const graph = buildLocalGraph({ locals: [
     { name: 'Owner', readState: 'read', actions: [{ alias: 'one', node: 'Alpha', endpoint: 'Zulu' }, { alias: 'two', node: 'Beta', endpoint: 'Go' }] },
-    { name: 'Independent', readState: 'read', actions: [{ alias: 'other', node: 'Self', endpoint: 'go' }] }
+    { name: 'Independent', readState: 'read', actions: [{ alias: 'other', node: 'Self', endpoint: 'go' }] },
+    { name: 'Unread Local', readState: 'unread', localPathName: null }
   ] });
   const initial = projectLocalGraph(graph);
   const projection = new LocalEnrichmentProjection(graph, initial);
@@ -35,6 +36,92 @@ function harness() {
 }
 
 describe('Konva enrichment projection', () => {
+  it.each([
+    ['source=local', 1], ['source=local&depth=2', 2], ['source=local&depth=1', 1],
+    ['source=local&depth=3', 1], ['source=local&depth=02', 1], ['source=local&depth=+2', 1],
+    ['source=local&depth=2&depth=1', 1], ['source=local&depth=', 1], ['depth=2', 1], ['source=synthetic&depth=2', 1]
+  ] as const)('selects inspection depth from %s', (query, depth) => {
+    expect(localInspectionDepth(new URLSearchParams(query))).toBe(depth);
+  });
+
+  it.each([1, 2] as const)('applies only disclosed configured targets at depth %d', async (depth) => {
+    const h = harness();
+    const origin = 'https://topology.test';
+    const peer = 'https://peer.test';
+    const bindings: Record<string, unknown> = {
+      Alpha: { actions: {
+        'Power On': { node: 'Gamma', action: 'Run' },
+        'Power-On': { node: 'Gamma', action: 'Run' },
+        Loop: { node: 'A-lpha', action: 'Echo' },
+        Cycle: { node: 'Beta', action: 'Echo' },
+        Local: { node: 'Unread-Local', action: 'Set' },
+        Half: { node: 'HalfTarget' },
+        'Conflicted Alias': { node: 'ConflictOne', action: 'Run' },
+        'Conflicted-Alias': { node: 'ConflictTwo', action: 'Run' },
+        'Invalid Alias\n': { node: 'InvalidAliasTarget', action: 'Run' },
+        InvalidEndpoint: { node: 'InvalidEndpointTarget', action: 'Go\n' },
+        InvalidNode: { node: 'InvalidNode\n', action: 'Run' },
+        '---': { node: 'NoAliasTarget', action: 'Run' }
+      } },
+      Beta: { events: { Listen: { node: 'GAMMA', event: 'Ready' }, Denied: { node: 'Denied', event: 'Ready' } } },
+      // A rejected whole response cannot disclose even syntactically valid siblings.
+      Self: { actions: { LooksGood: { node: 'FailedTarget', action: 'Run' }, Bad: { node: 7 } } },
+      GAMMA: { actions: { Back: { node: 'Alpha', action: 'Run' }, Forward: { node: 'ThirdHop', action: 'Run' } },
+        events: { Listen: { node: 'ThirdHop', event: 'Ready' } } }
+    };
+    const lookupNames: string[] = [];
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `${origin}/REST/nodeURLsForNode` && init?.method === 'POST') {
+        const { name } = JSON.parse(String(init.body)) as { name: string };
+        lookupNames.push(name);
+        return Response.json([{ node: name, address: `${peer}/nodes/${name}/` }]);
+      }
+      if (url === `${peer}/nodes/Denied/REST/remote`) return new Response(null, { status: 403 });
+      const name = /^https:\/\/peer\.test\/nodes\/([^/]+)\/REST\/remote$/.exec(url)?.[1];
+      if (!name || !Object.hasOwn(bindings, name)) throw new Error(`Unexpected request: ${url}`);
+      return Response.json(bindings[name]);
+    });
+    const batches: RemoteEnrichmentBatch<LocalGraph>[] = [];
+    const run = startRemoteEnrichment({
+      depth, owners: h.graph.eligibleRemoteOwners, readers: createRemoteEnrichmentReaders(origin, fetcher),
+      prepare: (owner, body, collect) => prepareRemoteOwnerInspection(owner, body, collect ? h.graph.nodes : undefined),
+      apply(batch) {
+        batches.push(batch);
+        for (const result of batch.results) h.projection.apply(result, h.scene);
+      }
+    });
+    await run.idle;
+
+    expect(lookupNames.slice(0, 3)).toEqual(['Alpha', 'Beta', 'Self']);
+    expect(lookupNames.slice(3).sort()).toEqual(depth === 2 ? ['Denied', 'GAMMA'] : []);
+    expect(fetcher).toHaveBeenCalledTimes(depth === 2 ? 10 : 6);
+    for (const [, init] of fetcher.mock.calls.filter(([, init]) => init?.method === 'GET')) {
+      expect(init).toMatchObject({ credentials: 'omit', mode: 'cors', redirect: 'error', referrerPolicy: 'no-referrer' });
+    }
+    expect(batches.filter(({ finish }) => finish).map(({ finish }) => finish)).toEqual(['complete']);
+    const final = batches.at(-1)!;
+    expect(final.counts).toEqual(depth === 2 ? { total: 5, read: 2, partial: 1, unsuccessful: 2, cutoff: 0 }
+      : { total: 3, read: 1, partial: 1, unsuccessful: 1, cutoff: 0 });
+    expect(h.projection.summary(final)).not.toContain('awaiting inspection');
+    expect(h.projection.summary(final)).toContain('1 invalid binding response');
+    expect(h.node('Alpha').displayStatus).toBe('Bindings partially loaded');
+    expect(h.node('Unread Local')).toMatchObject({ origin: 'local', displayStatus: 'Not inspected' });
+    expect(h.node('Denied').displayStatus).toBe(depth === 2 ? 'Remote binding read failed' : 'Not inspected');
+    expect(h.node('Gamma').displayStatus).toBe(depth === 2 ? '' : 'Not inspected');
+    expect(h.scene.addCard.mock.calls.filter(([node]) => localNodeKey(node.name) === localNodeKey('Gamma'))).toHaveLength(1);
+    expect(h.graph.eligibleRemoteOwners.map(({ name }) => name)).toEqual(['Alpha', 'Beta', 'Self']);
+    const wireCount = (owner: string, kind: 'action' | 'event', from: string, to: string) => [...h.edges.values()].filter((wire) =>
+      wire.ownerId === h.node(owner).id && wire.bindingKind === kind && wire.from.nodeId === h.node(from).id && wire.to.nodeId === h.node(to).id).length;
+    expect(wireCount('Alpha', 'action', 'Alpha', 'Gamma')).toBe(1);
+    expect(wireCount('Beta', 'event', 'Gamma', 'Beta')).toBe(1);
+    if (depth === 2) {
+      expect(h.node('ThirdHop').displayStatus).toBe('Not inspected');
+      expect(wireCount('Gamma', 'action', 'Gamma', 'ThirdHop')).toBe(1);
+      expect(wireCount('Gamma', 'event', 'ThirdHop', 'Gamma')).toBe(1);
+    } else expect(h.node('ThirdHop')).toBeUndefined();
+  });
+
   it('updates status and summary for empty, failed and cutoff reads without port or wire work', () => {
     const h = harness();
     const alphaPorts = h.node('Alpha').ports;

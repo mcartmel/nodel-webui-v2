@@ -10,7 +10,7 @@ import type { LocalCardPatch, LocalEnrichmentProjection } from './local-enrichme
 import type { RemoteEnrichmentBatch } from './remote-enrichment';
 import { graphBounds, selectionChanges, type Selection } from './camera-selection';
 import { LocalFraming } from './local-framing';
-import { createEnrichmentLifetime, createLocalSnapshotLifetime } from './enrichment-lifetime';
+import { createEnrichmentLifetime, createLocalSnapshotLifetime, localInspectionDepth } from './enrichment-lifetime';
 import { localNodePath } from '../../utils/urls';
 import { isUsableNodeName } from '../../utils/node-name';
 import { networkNodeSearchHref } from '../../navigation/node-links';
@@ -18,7 +18,9 @@ import { networkNodeSearchHref } from '../../navigation/node-links';
 const host = document.querySelector<HTMLElement>('#diagram');
 const failure = host?.querySelector<HTMLElement>('.canvas-failure');
 const summary = document.querySelector<HTMLElement>('[data-fixture-summary]');
-const localMode = new URLSearchParams(window.location.search).get('source') === 'local';
+const query = new URLSearchParams(window.location.search);
+const localMode = query.get('source') === 'local';
+const inspectionDepth = localInspectionDepth(query);
 const stageHost = document.createElement('div');
 stageHost.className = 'canvas-stage';
 stageHost.tabIndex = localMode ? 0 : -1;
@@ -27,7 +29,7 @@ stageHost.setAttribute('aria-label', localMode ? 'Topology diagram. Focus and us
 if (host) host.append(stageHost);
 
 let colors = readColors();
-const requestedNodeCount = Number(new URLSearchParams(window.location.search).get('nodes'));
+const requestedNodeCount = Number(query.get('nodes'));
 const nodeCount: FixtureNodeCount = FIXTURE_NODE_COUNTS.includes(requestedNodeCount as FixtureNodeCount) ? requestedNodeCount as FixtureNodeCount : 9;
 const sizeSelect = document.querySelector<HTMLSelectElement>('[data-node-count]');
 const syncSizeSelect = () => { if (sizeSelect) sizeSelect.value = localMode ? 'local' : String(nodeCount); };
@@ -931,9 +933,10 @@ async function loadLocalGraph(signal: AbortSignal): Promise<void> {
         const liveProjection = new views.LocalEnrichmentProjection(graph, projection);
         lifetime.attach(scheduler.startRemoteEnrichment({
           owners: graph.eligibleRemoteOwners,
+          depth: inspectionDepth,
           signal: lifetime.signal,
           deadline,
-          prepare: prepareRemoteOwnerInspection,
+          prepare: (owner, bindings, collectFollowUps) => prepareRemoteOwnerInspection(owner, bindings, collectFollowUps ? graph.nodes : undefined),
           apply(changes) {
             try { applyEnrichment(changes, liveProjection); }
             catch { reportFailure(); }
