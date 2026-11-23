@@ -46,6 +46,10 @@ export interface FixtureEdge {
   laneCount?: number;
   /** Reserve a separate band for the other direction in a shared vertical corridor. */
   oppositeLaneCount?: number;
+  /** Scene-local lane adjustment. Omitted for authored and direct routes. */
+  routeOffset?: LaneOffset | undefined;
+  /** Route family owning the cached adjustment; mismatched families ignore it. */
+  routeOffsetFamily?: 'corridor' | 'exterior';
   /** Binding identity metadata; intentionally absent on synthetic fixtures. */
   bindingKind?: 'action' | 'event';
   ownerId?: string;
@@ -135,6 +139,18 @@ export function cardHeightForPortCounts(left: number, right: number): number {
 }
 
 export interface Point { x: number; y: number }
+export interface LaneOffset extends Point { entryX?: number }
+export interface RailGeometry {
+  family: 'exterior' | 'corridor';
+  start: Point;
+  end: Point;
+  exitX: number;
+  entryX: number;
+  y: number;
+  /** All translated ranks, including the reciprocal band, fit the current corridor. */
+  fanFits?: boolean;
+}
+type RailObserver = (rail: RailGeometry) => void;
 export interface Curve { start: Point; control1: Point; control2: Point; end: Point }
 
 interface PortLayoutEntry {
@@ -248,7 +264,7 @@ function facingCurve(direct: Curve, gap: number): Curve {
   return { ...direct, control1: { x: direct.start.x + handle, y: direct.start.y }, control2: { x: direct.end.x - handle, y: direct.end.y } };
 }
 
-function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number, above: boolean): Curve[] {
+function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number, above: boolean, laneOffset: LaneOffset, observe?: RailObserver): Curve[] {
   const { start, end } = direct;
   const gap = end.x - start.x;
   const directGap = 40;
@@ -256,12 +272,16 @@ function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number
 
   const lead = 24;
   const halfLaneSpacing = Math.min(8, (lowerTop - upperBottom) / 3);
-  const y = (upperBottom + lowerTop) / 2 + (above ? -halfLaneSpacing : halfLaneSpacing);
+  const appliedOffset = gap <= lead ? laneOffset : { x: 0, y: 0 };
+  const y = (upperBottom + lowerTop) / 2 + (above ? -halfLaneSpacing : halfLaneSpacing) + appliedOffset.y;
   const radius = Math.max(0, Math.min(8, y - upperBottom - 1, lowerTop - y - 1));
   // Leave each socket on its own side, with room for the card's stroke and
   // the arrow. The legs stop in the Y corridor: extending them past it (or
   // trying to reach the far side of both cards first) can cross the peer.
-  const rail = roundedRail(start, end, start.x + lead, end.x - lead, y, radius);
+  const exitX = start.x + lead + appliedOffset.x;
+  const entryX = end.x - lead - (appliedOffset.entryX ?? appliedOffset.x);
+  if (gap <= lead) observe?.({ family: 'corridor', start, end, exitX, entryX, y });
+  const rail = roundedRail(start, end, exitX, entryX, y, radius);
   if (gap <= lead) return rail;
 
   // Both paths' control hulls now fit in the horizontal gap, so the morph
@@ -271,6 +291,7 @@ function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number
 }
 
 const LANE_SPACING = 12;
+export const MIN_LANE_CLEARANCE = 12;
 
 function exteriorRoute(
   edge: FixtureEdge,
@@ -283,26 +304,29 @@ function exteriorRoute(
   targetBottom: number,
   above: boolean,
   direct: Curve,
-  gap: number
+  gap: number,
+  laneOffset: LaneOffset, observe?: RailObserver
 ): Curve[] {
   const margin = 32;
   // Keep the exterior turns on the same 12px pitch as corridor lanes. The
   // routing margin above is deliberately distinct from this visual clearance.
   const clearance = 36;
+  const appliedOffset = edge.reciprocal || gap < -margin ? laneOffset : { x: 0, y: 0 };
   const index = edge.laneIndex ?? 0;
   // From above, the bottom rows need the outermost rails; from below, it's
   // the top rows. Outer legs also have to reach farther out in X to wrap
   // around both ends of the inner rail rather than crossing it.
   const offset = (above ? index : (edge.laneCount ?? 1) - 1 - index) * LANE_SPACING;
   const y = (above ? Math.min(sourcePosition.y, targetPosition.y) - margin : Math.max(sourceBottom, targetBottom) + margin + 20)
-    + (above ? -offset : offset);
-  const rail = roundedRail(start, end,
-    Math.max(start.x, targetPosition.x + target.width) + clearance + offset,
-    Math.min(sourcePosition.x, end.x) - clearance - offset, y, (edge.laneCount ?? 1) > 1 ? 5 : 12);
+    + (above ? -offset : offset) + appliedOffset.y;
+  const exitX = Math.max(start.x, targetPosition.x + target.width) + clearance + offset + appliedOffset.x;
+  const entryX = Math.min(sourcePosition.x, end.x) - clearance - offset - (appliedOffset.entryX ?? appliedOffset.x);
+  if (edge.reciprocal || gap < -margin) observe?.({ family: 'exterior', start, end, exitX, entryX, y });
+  const rail = roundedRail(start, end, exitX, entryX, y, (edge.laneCount ?? 1) > 1 ? 5 : 12);
   return edge.reciprocal ? rail : gap >= -margin ? blendRail(direct, rail, -gap / margin) : rail;
 }
 
-export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve[] {
+function routeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>, observe?: RailObserver): Curve[] {
   if (edge.selfLoop) {
     const node = nodes.get(edge.from.nodeId);
     if (!node) throw new Error(`Unknown endpoint for edge ${edge.id}`);
@@ -335,6 +359,8 @@ export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, Fixture
   const end = portPointAt(target, targetPort, targetPosition);
   const direct = () => edgeCurve(edge, nodes, positions);
   const gap = end.x - start.x;
+  const laneOffsetFor = (family: 'corridor' | 'exterior'): LaneOffset =>
+    !edge.routeOffsetFamily || edge.routeOffsetFamily === family ? edge.routeOffset ?? { x: 0, y: 0 } : { x: 0, y: 0 };
   const margin = 32;
   if (sourcePort.port.side !== 'right' || targetPort.port.side !== 'left') return [direct()];
 
@@ -356,33 +382,48 @@ export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, Fixture
   if (verticallySeparated && gap < 40 && corridorCount > 1 && edge.laneIndex !== undefined) {
     // Keep selectable rails 12px apart and at least 12px from both cards.
     if (lowerTop - upperBottom < (corridorCount + 1) * LANE_SPACING) {
-      return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap);
+      return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap, laneOffsetFor('exterior'), observe);
     }
     const sourceAbove = sourceBottom <= targetPosition.y;
     // The top rows wrap around the bottom of the upper card's fan and come
     // into the top of the lower card's fan, regardless of wire direction.
     const rank = count - 1 - edge.laneIndex;
-    const y = upperBottom + (1 + (above ? oppositeCount : 0) + rank) * LANE_SPACING;
+    const laneOffset = laneOffsetFor('corridor');
+    const y = upperBottom + (1 + (above ? oppositeCount : 0) + rank) * LANE_SPACING + laneOffset.y;
     // Downward legs run farther out for lower rails; upward legs do the
     // reverse. A common fan order on both sides would cross at one end.
     const downLead = 24 + rank * LANE_SPACING;
     const upLead = 24 + (count - 1 - rank) * LANE_SPACING;
-    return roundedRail(start, end, start.x + (sourceAbove ? downLead : upLead), end.x - (sourceAbove ? upLead : downLead), y, 5);
+    const exitX = start.x + (sourceAbove ? downLead : upLead) + laneOffset.x;
+    const entryX = end.x - (sourceAbove ? upLead : downLead) - (laneOffset.entryX ?? laneOffset.x);
+    // A cached translation belongs to the whole fan. The bands (including
+    // the reverse direction) span ranks 1..corridorCount from upperBottom;
+    // both leg orders have an innermost lead of 24, regardless of direction.
+    // Evaluate the extreme ranks analytically, not by finding sibling edges.
+    observe?.({ family: 'corridor', start, end, exitX, entryX, y,
+      fanFits: LANE_SPACING + laneOffset.y >= MIN_LANE_CLEARANCE &&
+        lowerTop - upperBottom - corridorCount * LANE_SPACING - laneOffset.y >= MIN_LANE_CLEARANCE &&
+        24 + laneOffset.x >= MIN_LANE_CLEARANCE && 24 + (laneOffset.entryX ?? laneOffset.x) >= MIN_LANE_CLEARANCE });
+    return roundedRail(start, end, exitX, entryX, y, 5);
   }
   if (edge.reciprocal) {
-    if (verticallySeparated) return reciprocalCorridor(direct(), upperBottom, lowerTop, above);
+    if (verticallySeparated) return reciprocalCorridor(direct(), upperBottom, lowerTop, above, laneOffsetFor('corridor'), observe);
     if (gap >= 0) return [facingCurve(direct(), gap)];
   }
   if (gap >= 2 * margin) return [direct()];
   if (verticallySeparated) {
-    const corridorY = (upperBottom + lowerTop) / 2;
+    const appliedOffset = gap > margin ? { x: 0, y: 0 } : laneOffsetFor('corridor');
+    const corridorY = (upperBottom + lowerTop) / 2 + appliedOffset.y;
     // A backward route still needs a short horizontal socket stub before
     // turning into the corridor, otherwise its vertical leg hugs the card.
     const backwardGap = gap < 0 && gap >= -margin;
     const exitLead = gap > 0 ? Math.min(margin, gap / 3) : Math.min(24, Math.max(12, Math.abs(gap)));
     const entryLead = backwardGap ? Math.min(16, Math.max(12, Math.abs(gap))) : margin;
     const radius = Math.max(0, Math.min(12, corridorY - upperBottom - 1, lowerTop - corridorY - 1));
-    const rail = roundedRail(start, end, start.x + exitLead, end.x - entryLead, corridorY, radius);
+    const exitX = start.x + exitLead + appliedOffset.x;
+    const entryX = end.x - entryLead - (appliedOffset.entryX ?? appliedOffset.x);
+    if (gap <= margin) observe?.({ family: 'corridor', start, end, exitX, entryX, y: corridorY });
+    const rail = roundedRail(start, end, exitX, entryX, corridorY, radius);
     return gap > margin ? blendRail(direct(), rail, (2 * margin - gap) / margin) : rail;
   }
   if (gap >= 0) return [direct()];
@@ -390,7 +431,39 @@ export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, Fixture
   // If there is no vertical corridor, use the stable exterior lane instead.
   // Subdivide/blend near the reversal so dragging through the cards doesn't
   // abruptly introduce a loop or detach the rendered path from its sockets.
-  return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap);
+  return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap, laneOffsetFor('exterior'), observe);
+}
+
+/** Conservative continuous clearance: a cubic stays inside its control hull.
+ * Only the straight socket stub may touch its own endpoint's outline. */
+function clearRail(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions: ReadonlyMap<string, Point> | undefined, rail: RailGeometry, curves: Curve[]): boolean {
+  if (rail.fanFits === false || rail.exitX - rail.start.x < MIN_LANE_CLEARANCE || rail.end.x - rail.entryX < MIN_LANE_CLEARANCE) return false;
+  return [edge.from, edge.to].every(({ nodeId }, index) => {
+    const node = nodes.get(nodeId)!;
+    const { x, y } = positions?.get(nodeId) ?? node;
+    const bottom = y + cardHeight(node);
+    if (rail.y > y - MIN_LANE_CLEARANCE && rail.y < bottom + MIN_LANE_CLEARANCE) return false;
+    return curves.every((curve, i) => {
+      if (i === (index === 0 ? 0 : curves.length - 1)) return true;
+      const hull = [curve.start, curve.control1, curve.control2, curve.end];
+      return hull.every(p => p.x <= x - 1) || hull.every(p => p.x >= x + node.width + 1) ||
+        hull.every(p => p.y <= y - 1) || hull.every(p => p.y >= bottom + 1);
+    });
+  });
+}
+
+export function inspectRail(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>) {
+  let rail: RailGeometry | undefined;
+  const curves = routeCurves(edge, nodes, positions, value => { rail = value; });
+  return { curves, rail, safe: !rail || clearRail(edge, nodes, positions, rail, curves) };
+}
+
+export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve[] {
+  const offset = edge.routeOffset;
+  if (!offset || !(offset.x || offset.y || offset.entryX)) return routeCurves(edge, nodes, positions);
+  // A formerly legal cached offset may no longer fit a shrinking corridor during a drag.
+  const result = inspectRail(edge, nodes, positions);
+  return result.safe ? result.curves : routeCurves({ ...edge, routeOffset: undefined }, nodes, positions);
 }
 
 export function curvePoint(curve: Curve, t: number): Point {

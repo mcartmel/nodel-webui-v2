@@ -3,7 +3,7 @@ import './style.css';
 import { getStoredTheme, getSystemThemeMediaQuery, isNodelTheme, storeTheme, THEME_STORAGE_KEY, type NodelTheme } from '../../theme/theme';
 import {
   CARD_HEADER_HEIGHT, FIXTURE_NODE_COUNTS, PORTS_TOP, PORT_ROW_HEIGHT, cardHeight, createFixture, curveArrow, edgeCurves,
-  type Curve, type FixtureEdge, type FixtureNode, type FixtureNodeCount
+  type Curve, type FixtureEdge, type FixtureNode, type FixtureNodeCount, type Point
 } from './fixture';
 import type { LocalGraph } from './local-graph';
 import type { LocalCardPatch, LocalEnrichmentProjection } from './local-enrichment-projection';
@@ -14,6 +14,7 @@ import { createEnrichmentLifetime, createLocalSnapshotLifetime, localInspectionD
 import { localNodePath } from '../../utils/urls';
 import { isUsableNodeName } from '../../utils/node-name';
 import { networkNodeSearchHref } from '../../navigation/node-links';
+import { LocalLaneReservations } from './lane-reservations';
 
 const host = document.querySelector<HTMLElement>('#diagram');
 const failure = host?.querySelector<HTMLElement>('.canvas-failure');
@@ -70,6 +71,14 @@ const nodeById = new Map<string, FixtureNode>();
 const edgeById = new Map<string, FixtureEdge>();
 const incidentEdges = new Map<string, Set<string>>();
 const wireGeometry = new Map<string, { curves: Curve[]; arrow: ReturnType<typeof curveArrow> }>();
+const laneReservations = new LocalLaneReservations();
+interface ActiveCardDrag {
+  origin: Point;
+  didMove: boolean;
+  reservationsReleased: boolean;
+  deferredEdgeIds: Set<string>;
+}
+const activeDrags = new Map<string, ActiveCardDrag>();
 let authoredWorldBounds: ReturnType<typeof graphBounds>;
 
 let stage: Konva.Stage | undefined;
@@ -217,13 +226,35 @@ function drawArrow(context: Konva.Context, { tip, left, right }: NonNullable<Ret
   context.closePath();
 }
 
-function updateWireGeometry(edge: FixtureEdge): void {
+function updateWireGeometry(edge: FixtureEdge): boolean {
   const curves = edgeCurves(edge, nodeById);
   const socket = curves.at(-1)!.end;
   let arrow: ReturnType<typeof curveArrow>;
   for (let i = curves.length - 1; i >= 0 && !arrow; i -= 1) arrow = curveArrow(curves[i]!, socket);
+  const previous = wireGeometry.get(edge.id);
+  if (previous && sameWireGeometry(previous.curves, curves) && sameArrow(previous.arrow, arrow)) return false;
   wireGeometry.set(edge.id, { curves, arrow });
   localFraming?.updateRoute(edge.id, curves, arrow);
+  return true;
+}
+
+function sameWireGeometry(a: Curve[], b: Curve[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const first = a[index]!;
+    const second = b[index]!;
+    if (first.start.x !== second.start.x || first.start.y !== second.start.y ||
+      first.control1.x !== second.control1.x || first.control1.y !== second.control1.y ||
+      first.control2.x !== second.control2.x || first.control2.y !== second.control2.y ||
+      first.end.x !== second.end.x || first.end.y !== second.end.y) return false;
+  }
+  return true;
+}
+
+function sameArrow(a: ReturnType<typeof curveArrow>, b: ReturnType<typeof curveArrow>): boolean {
+  if (!a || !b) return a === b;
+  return a.t === b.t && a.tip.x === b.tip.x && a.tip.y === b.tip.y &&
+    a.left.x === b.left.x && a.left.y === b.left.y && a.right.x === b.right.x && a.right.y === b.right.y;
 }
 
 function makeWire(edge: FixtureEdge): Konva.Shape {
@@ -309,8 +340,10 @@ function positionRows(node: FixtureNode, visit: (port: FixtureNode['ports'][numb
   for (const port of node.ports) visit(port, rowCenter(sides[port.side]++));
 }
 
-function moveCard(node: FixtureNode, group: Konva.Group): void {
-  if (node.x === group.x() && node.y === group.y()) return;
+function moveCard(node: FixtureNode, group: Konva.Group): boolean {
+  if (node.x === group.x() && node.y === group.y()) return false;
+  const drag = activeDrags.get(node.id);
+  if (drag) drag.didMove = true;
   node.x = group.x();
   node.y = group.y();
   localFraming?.updateCard(node);
@@ -319,6 +352,37 @@ function moveCard(node: FixtureNode, group: Konva.Group): void {
     if (edge) updateWireGeometry(edge);
   }
   wireLayer?.batchDraw();
+  return true;
+}
+
+function releaseCardLaneReservations(node: FixtureNode): void {
+  for (const edgeId of incidentEdges.get(node.id) ?? []) laneReservations.remove(edgeId);
+}
+
+function settleCardLanes(node: FixtureNode, deferredEdgeIds: Iterable<string> = []): void {
+  const edgeIds = new Set(incidentEdges.get(node.id) ?? []);
+  for (const edgeId of deferredEdgeIds) edgeIds.add(edgeId);
+  const edges: FixtureEdge[] = [];
+  for (const edgeId of edgeIds) {
+    const edge = edgeById.get(edgeId);
+    if (!edge) continue;
+    const sourceDrag = activeDrags.get(edge.from.nodeId);
+    const targetDrag = activeDrags.get(edge.to.nodeId);
+    if (sourceDrag || targetDrag) {
+      sourceDrag?.deferredEdgeIds.add(edgeId);
+      targetDrag?.deferredEdgeIds.add(edgeId);
+      continue;
+    }
+    edges.push(edge);
+  }
+  if (!edges.length) return;
+  const result = laneReservations.settle(edges, nodeById);
+  let changed = false;
+  for (const edge of edges) changed = updateWireGeometry(edge) || changed;
+  if (changed) wireLayer?.batchDraw();
+  // Keep stats local to this allocator result; this is not exposed on the UI or DOM.
+  void result.bucketCount;
+  void result.candidateCount;
 }
 
 function updateHostGlyphKind(glyph: Konva.Group, kind: NonNullable<FixtureNode['hostKind']>): void {
@@ -517,7 +581,34 @@ function makeCard(node: FixtureNode): Konva.Group {
     const inTitle = Boolean(point && titleDestination(node) && point.x >= title.x() && point.x <= title.x() + visibleTitleWidth() && point.y >= title.y() && point.y <= title.y() + title.height());
     stage.container().style.cursor = inTitle ? 'pointer' : '';
   });
-  group.on('dragmove dragend', () => moveCard(node, group));
+  group.on('dragstart', () => {
+    if (!localMode) return;
+    if (activeDrags.has(node.id)) return;
+    releaseCardLaneReservations(node);
+    activeDrags.set(node.id, {
+      origin: { x: node.x, y: node.y },
+      didMove: false,
+      reservationsReleased: true,
+      deferredEdgeIds: new Set()
+    });
+  });
+  group.on('dragmove', () => {
+    // Konva emits dragstart before dragmove; pointer movement never allocates lanes.
+    moveCard(node, group);
+  });
+  group.on('dragend', () => {
+    if (!localMode) {
+      moveCard(node, group);
+      return;
+    }
+    const drag = activeDrags.get(node.id);
+    const movedAtEnd = moveCard(node, group);
+    const moved = movedAtEnd || Boolean(drag && (drag.didMove || drag.origin.x !== group.x() || drag.origin.y !== group.y()));
+    activeDrags.delete(node.id);
+    if (moved || drag?.reservationsReleased || drag?.deferredEdgeIds.size) {
+      settleCardLanes(node, drag?.deferredEdgeIds);
+    }
+  });
   return group;
 }
 
@@ -632,9 +723,14 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
 
   const dirtyWires = new Set<string>();
   const newWires = new Set<string>();
+  const changedGeometryWires = new Set<string>();
   const scene = {
     nodes: nodeById,
-    patchCard,
+    patchCard(card: LocalCardPatch) {
+      const incident = [...patchCard(card)];
+      for (const edgeId of incident) changedGeometryWires.add(edgeId);
+      return incident;
+    },
     addCard(node: FixtureNode) {
       nodes.push(node);
       nodeById.set(node.id, node);
@@ -655,6 +751,31 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
     const edge = edgeById.get(id)!;
     updateWireGeometry(edge);
     if (newWires.has(id)) wireLayer?.add(makeWire(edge));
+  }
+  const eligibleForSettlement = new Set([...newWires, ...dirtyWires, ...changedGeometryWires]);
+  const deferred = new Set<string>();
+  for (const id of eligibleForSettlement) {
+    const edge = edgeById.get(id);
+    if (!edge) continue;
+    const sourceDrag = activeDrags.get(edge.from.nodeId);
+    const targetDrag = activeDrags.get(edge.to.nodeId);
+    if (sourceDrag || targetDrag) {
+      deferred.add(id);
+      sourceDrag?.deferredEdgeIds.add(id);
+      targetDrag?.deferredEdgeIds.add(id);
+    }
+  }
+  if (eligibleForSettlement.size > deferred.size) {
+    const settlementEdges = [...eligibleForSettlement].filter((id) => !deferred.has(id)).map((id) => edgeById.get(id)!).filter(Boolean);
+    const settlement = laneReservations.settle(settlementEdges, nodeById);
+    for (const edge of settlementEdges) {
+      updateWireGeometry(edge);
+    }
+    void settlement.bucketCount;
+    void settlement.candidateCount;
+  }
+  for (const id of deferred) {
+    laneReservations.remove(id);
   }
   if (localFraming.revision !== before) localFraming.bounds();
   if (summary) summary.textContent = projection.summary(changes);
@@ -816,7 +937,7 @@ function initialize(): boolean {
     zoomOut?.addEventListener('click', onZoomOut);
     zoomIn?.addEventListener('click', onZoomIn);
     reset?.addEventListener('click', onReset);
-    const onPageHide = (event: PageTransitionEvent) => {
+  const onPageHide = (event: PageTransitionEvent) => {
       // The browser will revive this same document and stage on a cache hit.
       if (event.persisted) return;
       window.removeEventListener('pagehide', onPageHide);
@@ -827,6 +948,8 @@ function initialize(): boolean {
       zoomIn?.removeEventListener('click', onZoomIn);
       reset?.removeEventListener('click', onReset);
       sizeSelect?.removeEventListener('change', onSizeChange);
+      laneReservations.clear();
+      activeDrags.clear();
       stage?.destroy();
       stage = undefined;
     };
@@ -888,6 +1011,7 @@ function installGraph(nextNodes: FixtureNode[], nextEdges: FixtureEdge[]): boole
   edges = nextEdges;
   for (const node of nodes) nodeById.set(node.id, node);
   for (const edge of edges) rememberWire(edge);
+  if (localMode) laneReservations.seed(edges, nodeById);
   const mounted = initialize();
   if (!mounted) return false;
   function* initialRoutes(): IterableIterator<Curve[]> {
