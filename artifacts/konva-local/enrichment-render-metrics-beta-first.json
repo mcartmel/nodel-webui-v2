@@ -1,13 +1,13 @@
 {
-  "initialMountFirstActualKonvaDrawAtMs": 177.4,
+  "initialMountFirstActualKonvaDrawAtMs": 171.3,
   "firstOwner": {
     "name": "Beta",
-    "completionToVisibleKonvaDrawMs": 23,
+    "completionToVisibleKonvaDrawMs": 21.6,
     "drawMethod": "drawImage"
   },
   "secondOwner": {
     "name": "Alpha",
-    "completionToVisibleKonvaDrawMs": 6.1,
+    "completionToVisibleKonvaDrawMs": 19.4,
     "drawMethod": "drawImage"
   },
   "responseOrder": [

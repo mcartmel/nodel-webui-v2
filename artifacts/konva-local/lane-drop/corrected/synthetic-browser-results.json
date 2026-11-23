@@ -1,0 +1,440 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/home/nodel/source/nodel-webui-v2/node_modules/playwright/cli.js",
+      "test",
+      "--config",
+      "/home/nodel/source/nodel-webui-v2/experiments/konva-browser/playwright.config.ts",
+      "--output",
+      "/tmp/kilo/konva-corrected-browser-20261123.bDWTj5/synthetic-results",
+      "--reporter=list,json"
+    ],
+    "configFile": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser/playwright.config.ts",
+    "rootDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/kilo/konva-corrected-browser-20261123.bDWTj5/synthetic-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "1366x768",
+        "name": "1366x768",
+        "testDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "testIgnore": [],
+        "testMatch": [
+          "canvas.pw.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/tmp/kilo/konva-corrected-browser-20261123.bDWTj5/synthetic-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "1920x1080",
+        "name": "1920x1080",
+        "testDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "testIgnore": [],
+        "testMatch": [
+          "canvas.pw.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/kilo/konva-corrected-browser-20261123.bDWTj5/synthetic-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "1366x768",
+        "testDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "snapshotDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "testIgnore": [],
+        "testMatch": "canvas.pw.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4296",
+          "browserName": "chromium",
+          "channel": "chromium",
+          "launchOptions": {
+            "ignoreDefaultArgs": [
+              "--disable-back-forward-cache"
+            ]
+          },
+          "colorScheme": "light",
+          "deviceScaleFactor": 1,
+          "viewport": {
+            "width": 1366,
+            "height": 768
+          },
+          "screenshot": "off",
+          "trace": "off",
+          "video": "off"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "1366x768"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/kilo/konva-corrected-browser-20261123.bDWTj5/synthetic-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "1920x1080",
+        "testDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "snapshotDir": "/home/nodel/source/nodel-webui-v2/experiments/konva-browser",
+        "testIgnore": [],
+        "testMatch": "canvas.pw.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4296",
+          "browserName": "chromium",
+          "channel": "chromium",
+          "launchOptions": {
+            "ignoreDefaultArgs": [
+              "--disable-back-forward-cache"
+            ]
+          },
+          "colorScheme": "light",
+          "deviceScaleFactor": 1,
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "screenshot": "off",
+          "trace": "off",
+          "video": "off"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "1920x1080"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.65.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "canvas.pw.ts",
+      "file": "canvas.pw.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "saved nine-card plan remains interactive and visually stable",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1366x768",
+              "projectName": "1366x768",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11427,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "Konva evidence PNG: /tmp/kilo/konva-corrected-browser-20261123.bDWTj5/build/konva-evidence/konva-1366x768-unselected.png\n"
+                    },
+                    {
+                      "text": "Konva drag samples [{\"requestedAt\":1366.7999992370605,\"firstFrameMs\":6.30000114440918,\"frameIntervalMs\":16.600000000000136},{\"requestedAt\":1996.6000003814697,\"firstFrameMs\":9.799999237060547,\"frameIntervalMs\":16.700000000000045},{\"requestedAt\":2691.2000007629395,\"firstFrameMs\":6.5,\"frameIntervalMs\":16.59999999999991},{\"requestedAt\":3247.3999996185303,\"firstFrameMs\":9,\"frameIntervalMs\":16.699999999999818},{\"requestedAt\":5340,\"firstFrameMs\":5.600000381469727,\"frameIntervalMs\":16.699999999999818},{\"requestedAt\":5796.5,\"firstFrameMs\":9.899999618530273,\"frameIntervalMs\":16.600000000000364},{\"requestedAt\":6272.5,\"firstFrameMs\":6,\"frameIntervalMs\":16.599999999999454},{\"requestedAt\":6728.200000762939,\"firstFrameMs\":11.399999618530273,\"frameIntervalMs\":16.800000000000182}]\n"
+                    },
+                    {
+                      "text": "Konva metrics {\"viewport\":\"1366x768\",\"initialEdges\":14,\"initialEndpointChecks\":28,\"resolvedWireRGB\":[102,116,130],\"nativeCardShapes\":9,\"nativeWireShapes\":14,\"dragSamples\":8,\"firstFrameMedianMs\":7.75,\"firstFrameMaxMs\":11.4,\"frameIntervalMedianMs\":16.65,\"frameIntervalMaxMs\":16.8,\"idleIntervalMs\":1007,\"idleDraws\":{\"before\":[7,7],\"after\":[7,7],\"delta\":[0,0]},\"layerCanvasSizes\":[[1308,652],[1308,652]]}\n"
+                    },
+                    {
+                      "text": "Konva evidence PNG: /tmp/kilo/konva-corrected-browser-20261123.bDWTj5/build/konva-evidence/konva-1366x768-selected-node.png\n"
+                    },
+                    {
+                      "text": "Konva resolved selection accent RGB 40,115,200\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:17.878Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1920x1080",
+              "projectName": "1920x1080",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15102,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "Konva evidence PNG: /tmp/kilo/konva-corrected-browser-20261123.bDWTj5/build/konva-evidence/konva-1920x1080-unselected.png\n"
+                    },
+                    {
+                      "text": "Konva drag samples [{\"requestedAt\":1748.3999996185303,\"firstFrameMs\":13.799999237060547,\"frameIntervalMs\":16.800000000000182},{\"requestedAt\":2376.7999992370605,\"firstFrameMs\":12.299999237060547,\"frameIntervalMs\":16.59999999999991},{\"requestedAt\":3004.2999992370605,\"firstFrameMs\":14.100000381469727,\"frameIntervalMs\":16.699999999999818},{\"requestedAt\":3651.2999992370605,\"firstFrameMs\":12.799999237060547,\"frameIntervalMs\":16.59999999999991},{\"requestedAt\":7042.89999961853,\"firstFrameMs\":14.19999885559082,\"frameIntervalMs\":16.699999999999818},{\"requestedAt\":7874,\"firstFrameMs\":14.299999237060547,\"frameIntervalMs\":16.599999999999454},{\"requestedAt\":8690.099998474121,\"firstFrameMs\":13.600000381469727,\"frameIntervalMs\":16.600000000000364},{\"requestedAt\":9492,\"firstFrameMs\":15.099998474121094,\"frameIntervalMs\":16.80000000000109}]\n"
+                    },
+                    {
+                      "text": "Konva metrics {\"viewport\":\"1920x1080\",\"initialEdges\":14,\"initialEndpointChecks\":28,\"resolvedWireRGB\":[102,116,130],\"nativeCardShapes\":9,\"nativeWireShapes\":14,\"dragSamples\":8,\"firstFrameMedianMs\":13.95,\"firstFrameMaxMs\":15.1,\"frameIntervalMedianMs\":16.65,\"frameIntervalMaxMs\":16.8,\"idleIntervalMs\":1005.2,\"idleDraws\":{\"before\":[7,7],\"after\":[7,7],\"delta\":[0,0]},\"layerCanvasSizes\":[[1862,964],[1862,964]]}\n"
+                    },
+                    {
+                      "text": "Konva evidence PNG: /tmp/kilo/konva-corrected-browser-20261123.bDWTj5/build/konva-evidence/konva-1920x1080-selected-node.png\n"
+                    },
+                    {
+                      "text": "Konva resolved selection accent RGB 40,115,200\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:37.478Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b23225b4ca5a1756208f-65de8d6bd1ca9ace3cb6",
+          "file": "canvas.pw.ts",
+          "line": 362,
+          "column": 1
+        },
+        {
+          "title": "size selector navigates between complete deterministic fixtures",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1366x768",
+              "projectName": "1366x768",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1511,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:29.463Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1920x1080",
+              "projectName": "1920x1080",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1941,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:52.745Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b23225b4ca5a1756208f-270875c1b90cdaca7bb0",
+          "file": "canvas.pw.ts",
+          "line": 580,
+          "column": 1
+        },
+        {
+          "title": "System stays selected and repaints the canvas until a stored theme overrides it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1366x768",
+              "projectName": "1366x768",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2824,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:30.993Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1920x1080",
+              "projectName": "1920x1080",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4214,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:54.702Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b23225b4ca5a1756208f-8821d7559ba62881eadf",
+          "file": "canvas.pw.ts",
+          "line": 602,
+          "column": 1
+        },
+        {
+          "title": "Back and Forward restore the retained stage and live controls from BFCache",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1366x768",
+              "projectName": "1366x768",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3123,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:33.837Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "1920x1080",
+              "projectName": "1920x1080",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5488,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-23T02:49:58.944Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b23225b4ca5a1756208f-d9c79c419f28c1064420",
+          "file": "canvas.pw.ts",
+          "line": 652,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-23T02:49:17.286Z",
+    "duration": 47279.188,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

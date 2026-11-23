@@ -17,6 +17,7 @@
     "vite.konva.config.ts",
     "playwright.config.ts",
     "playwright.konva-local.config.ts",
+    "playwright.konva-lane-drop.config.ts",
     "playwright.deployment.config.ts",
     "tailwind.config.ts"
   ]

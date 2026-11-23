@@ -1,7 +1,7 @@
 {
-  "initialMountFirstActualKonvaDrawAtMs": 158.5,
-  "betaCompletionToVisibleDrawMs": 29.900001525878906,
-  "alphaCompletionToVisibleDrawMs": 4.899999618530273,
+  "initialMountFirstActualKonvaDrawAtMs": 168.70000076293945,
+  "betaCompletionToVisibleDrawMs": 14.700000762939453,
+  "alphaCompletionToVisibleDrawMs": 5.799999237060547,
   "betaDrawMethod": "drawImage",
   "alphaDrawMethod": "drawImage",
   "initialMountedShapes": 37,
