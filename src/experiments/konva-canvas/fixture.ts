@@ -25,6 +25,10 @@ export interface FixtureNode {
   statusKind?: 'local' | 'partial' | 'referenced';
   /** Real-data host evidence only; omitted for synthetic fixtures. */
   hostKind?: 'local' | 'remote' | 'unknown';
+  /** Origin provenance; omitted for synthetic fixtures. */
+  origin?: 'local' | 'referenced';
+  /** Exact unambiguous hosted-name evidence from the local snapshot. */
+  localPathName?: string;
   hostDescription?: string;
   /** Safe host + binding evidence for native/accessibility descriptions. */
   tooltip?: string;

@@ -11,6 +11,8 @@ export interface ProjectedLocalNode extends Omit<FixtureNode, 'status' | 'displa
   displayQualifier: string;
   statusKind: LocalStatusKind;
   hostKind: NonNullable<FixtureNode['hostKind']>;
+  origin: NonNullable<FixtureNode['origin']>;
+  localPathName?: string;
   hostDescription: string;
 }
 
@@ -121,7 +123,7 @@ function boundTooltip(text: string): string {
 
 export function projectLocalCard(node: LocalGraphNode, ports: FixturePort[], point: Point): ProjectedLocalNode {
   return { id: localCardId(node.id), name: node.name, x: point.x, y: point.y, width: NODE_WIDTH, ports,
-    ...projectLocalCardStatus(node) };
+    origin: node.origin, ...(node.localPathName ? { localPathName: node.localPathName } : {}), ...projectLocalCardStatus(node) };
 }
 
 export function projectLocalWire(graph: LocalGraph, connection: LocalGraphConnection, portIds: ReadonlyMap<string, string>): ProjectedLocalEdge {

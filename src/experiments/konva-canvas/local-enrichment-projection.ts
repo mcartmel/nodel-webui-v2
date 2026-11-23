@@ -8,7 +8,7 @@ import {
 } from './local-projection';
 import type { RemoteEnrichmentBatch, RemoteEnrichmentFailure, RemoteEnrichmentResult } from './remote-enrichment';
 
-export type LocalCardPatch = Pick<ProjectedLocalNode, 'id' | 'name' | 'displayStatus' | 'displayQualifier' | 'statusKind' | 'hostKind' | 'hostDescription' | 'tooltip'> & { ports?: ProjectedLocalNode['ports'] };
+export type LocalCardPatch = Pick<ProjectedLocalNode, 'id' | 'name' | 'displayStatus' | 'displayQualifier' | 'statusKind' | 'hostKind' | 'origin' | 'hostDescription' | 'tooltip'> & { localPathName?: ProjectedLocalNode['localPathName']; ports?: ProjectedLocalNode['ports'] };
 
 interface LiveLocalScene {
   readonly nodes: ReadonlyMap<string, FixtureNode>;
@@ -106,7 +106,7 @@ export class LocalEnrichmentProjection {
       const status = projectLocalCardStatus(node);
       status.displayStatus = this.displayOverrides.get(id) ?? status.displayStatus;
       if (scene.nodes.has(cardId)) {
-        const patch = { id: cardId, name: node.name, ...status, ...(rowsChanged.has(id) ? { ports: projectPorts(id) } : {}) };
+        const patch = { id: cardId, name: node.name, origin: node.origin, localPathName: node.localPathName, ...status, ...(rowsChanged.has(id) ? { ports: projectPorts(id) } : {}) };
         for (const dirty of scene.patchCard(patch)) dirtyWires.add(dirty);
       } else {
         insertions.push({ ...projectLocalCard(node, projectPorts(id), { x: 0, y: 0 }), ...status });

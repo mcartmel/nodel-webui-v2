@@ -28,7 +28,9 @@ const ownerBindings: Record<string, unknown> = {
   },
   'Touch Panel': { actions: { 'Turn Projector On': { node: 'Projector Left', action: 'Power On' } } },
   Scheduler: { events: { 'Controller Ready': { node: 'Controller', event: 'Ready' } } },
-  'Idle Local': {}
+  'Idle Local': {},
+  'Canonical Owner': {},
+  'Canonical Owner ()': {}
 };
 
 type RequestRecord = { method: string; pathname: string; search: string };
@@ -631,18 +633,18 @@ async function openLocalFixture(page: Page, requests: RequestRecord[]) {
   ]);
 }
 
-async function installLocalFixture(page: Page, options: { stalledOwners?: string[]; inventoryStatus?: number; emptyInventory?: boolean } = {}) {
+async function installLocalFixture(page: Page, options: { stalledOwners?: string[]; inventoryStatus?: number; emptyInventory?: boolean; inventory?: { nodes: Record<string, unknown> } } = {}) {
   const stalled = new Set(options.stalledOwners ?? []);
   const requests = await installGuard(page, async (route, request) => {
     if (request.pathname === '/REST') {
       await route.fulfill(options.inventoryStatus
         ? jsonResponse({ denied: true }, options.inventoryStatus)
-        : jsonResponse(options.emptyInventory ? { nodes: {} } : localInventory));
+        : jsonResponse(options.inventory ?? (options.emptyInventory ? { nodes: {} } : localInventory)));
       return;
     }
     const owner = decodeURIComponent(request.pathname.split('/')[2] ?? '');
     if (stalled.has(owner)) return;
-    const bindingOwner = ({ Controller: 'Controller', IdleLocal: 'Idle Local', Scheduler: 'Scheduler', TouchPanel: 'Touch Panel' } as const)[owner as 'Controller' | 'IdleLocal' | 'Scheduler' | 'TouchPanel'];
+    const bindingOwner = ({ Controller: 'Controller', IdleLocal: 'Idle Local', Scheduler: 'Scheduler', TouchPanel: 'Touch Panel', CanonicalOwner: 'Canonical Owner' } as const)[owner as 'Controller' | 'IdleLocal' | 'Scheduler' | 'TouchPanel' | 'CanonicalOwner'];
     if (!bindingOwner || !Object.hasOwn(ownerBindings, bindingOwner)) {
       throw new Error(`Unexpected local fixture owner route ${request.pathname}`);
     }
@@ -661,6 +663,174 @@ test('synthetic graph remains network-silent and unchanged', async ({ page }) =>
   await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
   await expect(page.getByLabel('Graph source')).toHaveValue('9');
   expect(requests).toEqual([]);
+  const syntheticTitles = await page.evaluate(() => {
+    type Shape = { text(): string; listening(): boolean; name(): string; find(selector: string): Shape[] };
+    const stage = (window as Window & { Konva?: { stages?: Array<{ find(selector: string): Shape[] }> } }).Konva?.stages?.[0];
+    return stage?.find('.topology-card').flatMap((card) => card.find('Text').filter((text) => text.name() === 'topology-node-title').map((text) => ({ title: text.text(), listening: text.listening(), name: text.name() }))) ?? [];
+  });
+  expect(syntheticTitles).toHaveLength(9);
+  expect(syntheticTitles.every(({ listening, name }) => !listening && name !== 'topology-node-title-link')).toBe(true);
+});
+
+test('real titles navigate safely by click and keyboard while drags remain card gestures', async ({ page }) => {
+  const requests = await installLocalFixture(page);
+  await page.route((url) => url.origin === experimentOrigin && url.pathname === '/nodes/Controller/', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'local node route' }));
+  await page.route((url) => url.origin === experimentOrigin && url.pathname === '/nodes/TouchPanel/', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'local special-name route' }));
+  await page.route((url) => url.origin === experimentOrigin && url.pathname === '/nodes.html', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'network search route' }));
+  await openLocalFixture(page, requests);
+  const resetLocal = async () => {
+    requests.length = 0;
+    await page.goto('/topology-canvas.html?source=local');
+    await waitForLocalCanvas(page);
+    await expect.poll(() => requests.filter(({ pathname }) => pathname === '/REST/nodeURLsForNode').length).toBe(1);
+  };
+  await page.evaluate(() => history.pushState(null, '', '/nested/experiment/topology-canvas.html?source=local'));
+
+  const titlePoint = (name: string) => page.evaluate((title) => {
+    type Shape = { text(): string; find(selector: string): Shape[]; getAbsolutePosition(top?: Shape): { x: number; y: number }; width(): number; height(): number };
+    type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number; getContent(): HTMLElement };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const card = stage?.find('.topology-card').find((candidate) => candidate.find('Text').some((text) => text.text() === title));
+    const label = card?.find('Text').find((text) => text.text() === title);
+    if (!stage || !label) throw new Error(`Missing ${title} title`);
+    const point = label.getAbsolutePosition(stage);
+    const local = { x: stage.x() + (point.x + Math.min(label.width() / 2, 20)) * stage.scaleX(), y: stage.y() + (point.y + label.height() / 2) * stage.scaleY() };
+    const bounds = stage.getContent().getBoundingClientRect();
+    return { x: bounds.left + local.x, y: bounds.top + local.y };
+  }, name);
+
+  const controllerTitle = await titlePoint('Controller');
+  const beforeDrag = await readCardPosition(page, 'Controller');
+  await page.mouse.move(controllerTitle.x, controllerTitle.y);
+  await page.mouse.down();
+  await page.mouse.move(controllerTitle.x + 45, controllerTitle.y + 28, { steps: 4 });
+  await page.mouse.up();
+  await expect(page).toHaveURL(/nested\/experiment\/topology-canvas\.html\?source=local/);
+  const afterDrag = await readCardPosition(page, 'Controller');
+  expect(afterDrag.x).not.toBe(beforeDrag.x);
+
+  const specialLocalTitle = await titlePoint('Touch Panel');
+  await page.mouse.click(specialLocalTitle.x, specialLocalTitle.y);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes/TouchPanel/');
+  expect(new URL(page.url()).origin).toBe(experimentOrigin);
+
+  await resetLocal();
+  await page.evaluate(() => history.pushState(null, '', '/nested/experiment/topology-canvas.html?source=local'));
+  const nextControllerTitle = await titlePoint('Controller');
+  await page.mouse.move(nextControllerTitle.x, nextControllerTitle.y);
+  const stageHost = page.locator('.canvas-stage');
+  expect(await stageHost.evaluate((element) => (element as HTMLElement).style.cursor)).toBe('pointer');
+  await expect(stageHost).toHaveAttribute('title', /Hosted on this page’s Nodel server\. .*Open Controller\./);
+  await expect(stageHost).toHaveAttribute('aria-label', /Controller\. Hosted on this page’s Nodel server\. .*Open Controller\./);
+  await page.mouse.move(0, 0);
+  expect(await stageHost.evaluate((element) => (element as HTMLElement).style.cursor)).toBe('');
+  await page.mouse.move(nextControllerTitle.x, nextControllerTitle.y);
+  await page.mouse.click(nextControllerTitle.x, nextControllerTitle.y, { button: 'right' });
+  await expect(page).toHaveURL(/nested\/experiment\/topology-canvas\.html\?source=local/);
+  await page.mouse.click(nextControllerTitle.x, nextControllerTitle.y);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes/Controller/');
+  expect(new URL(page.url()).origin).toBe(experimentOrigin);
+
+  await resetLocal();
+  const fallbackTitle = await titlePoint('Projector Left');
+  await page.mouse.move(fallbackTitle.x, fallbackTitle.y);
+  await expect(page.locator('.canvas-stage')).toHaveAttribute('aria-label', /Find Projector Left on Network/);
+  await page.mouse.click(fallbackTitle.x, fallbackTitle.y);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes.html');
+  expect(new URL(page.url()).searchParams.get('filter')).toBe('Projector Left');
+  expect(new URL(page.url()).hash).toBe('#Network');
+  expect(new URL(page.url()).origin).toBe(experimentOrigin);
+
+  await resetLocal();
+  await expect(stageHost).toHaveAttribute('aria-label', /press Enter to open the selected node title/);
+  await stageHost.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes/Controller/');
+
+  await resetLocal();
+  await stageHost.focus();
+  await page.keyboard.press('ArrowRight');
+  const touchPanelTitle = await titlePoint('Touch Panel');
+  await page.mouse.click(touchPanelTitle.x + 100, touchPanelTitle.y + 50);
+  await stageHost.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes/TouchPanel/');
+
+  await resetLocal();
+  await stageHost.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/topology-canvas.html');
+});
+
+test('canonical-ambiguous local titles have no fabricated local address', async ({ page }) => {
+  const requests = await installLocalFixture(page, { inventory: { nodes: { 'Canonical Owner': {}, 'Canonical Owner ()': {} } } });
+  await page.goto('/topology-canvas.html?source=local');
+  await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+  await expect.poll(() => requests.filter(({ pathname }) => pathname === '/REST').length).toBe(1);
+  await expect.poll(() => page.evaluate(() => {
+    type Title = { text(): string; name(): string; getAttr(name: string): unknown; find(selector: string): Title[] };
+    const stage = (window as Window & { Konva?: { stages?: Array<{ find(selector: string): Title[] }> } }).Konva?.stages?.[0];
+    return stage?.find('.topology-card').flatMap((card) => card.find('Text'))
+      .filter((shape) => shape.text() === 'Canonical Owner')
+      .map((shape) => ({ title: shape.text(), name: shape.name(), href: shape.getAttr('navigationHref') }))
+      .sort((a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
+  })).toEqual([
+    { title: 'Canonical Owner', name: 'topology-node-title', href: undefined }
+  ]);
+
+  const point = await page.evaluate(() => {
+    type Shape = { text(): string; find(selector: string): Shape[]; getAbsolutePosition(top: Shape): { x: number; y: number }; width(): number; height(): number };
+    type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number; getContent(): HTMLElement };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const title = stage?.find('.topology-card').flatMap((card) => card.find('Text')).find((shape) => shape.text() === 'Canonical Owner');
+    if (!stage || !title) throw new Error('Missing canonical-ambiguous title');
+    const position = title.getAbsolutePosition(stage);
+    const content = stage.getContent().getBoundingClientRect();
+    return {
+      x: content.left + stage.x() + (position.x + 20) * stage.scaleX(),
+      y: content.top + stage.y() + (position.y + title.height() / 2) * stage.scaleY()
+    };
+  });
+  await page.mouse.click(point.x, point.y);
+  await expect(page).toHaveURL(/topology-canvas\.html\?source=local/);
+});
+
+test('mouse card selection synchronizes Enter and Escape clears its target', async ({ page }) => {
+  await installLocalFixture(page);
+  await page.route((url) => url.origin === experimentOrigin && url.pathname === '/nodes/TouchPanel/', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'local node route' }));
+  await page.goto('/topology-canvas.html?source=local');
+  await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+  const stageHost = page.locator('.canvas-stage');
+  await stageHost.focus();
+  await page.keyboard.press('ArrowRight');
+
+  const bodyPoint = await page.evaluate(() => {
+    type Shape = { text(): string; find(selector: string): Shape[]; getAbsolutePosition(top: Shape): { x: number; y: number } };
+    type Stage = Shape & { find(selector: string): Shape[]; x(): number; y(): number; scaleX(): number; scaleY(): number; getContent(): HTMLElement };
+    const stage = (window as Window & { Konva?: { stages?: Stage[] } }).Konva?.stages?.[0];
+    const card = stage?.find('.topology-card').find((item) => item.find('Text').some((text) => text.text() === 'Touch Panel'));
+    if (!stage || !card) throw new Error('Touch Panel card is missing');
+    const position = card.getAbsolutePosition(stage);
+    const content = stage.getContent().getBoundingClientRect();
+    return {
+      x: content.left + stage.x() + (position.x + 100) * stage.scaleX(),
+      y: content.top + stage.y() + (position.y + 70) * stage.scaleY()
+    };
+  });
+  await page.mouse.click(bodyPoint.x, bodyPoint.y);
+  await stageHost.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/nodes/TouchPanel/');
+
+  await page.goto('/topology-canvas.html?source=local');
+  await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
+  await stageHost.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/topology-canvas.html');
 });
 
 test('local source is selected during pending inventory and can return to synthetic 9', async ({ page }) => {
@@ -937,7 +1107,7 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   for (let index = 1; index <= idleLocalIndex; index += 1) await page.keyboard.press('ArrowRight');
   await expect.poll(() => page.locator('.canvas-stage').evaluate((element) => (element as HTMLElement).title))
     .toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
-  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
+  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned. Open Idle Local.');
   await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
   await expect(page.locator('.canvas-failure')).toHaveClass(/is-visually-hidden/);
   await expect(page.locator('.canvas-failure')).toContainText('Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
@@ -954,7 +1124,7 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
     return { x: bounds.left + stage.x() + (position.x + card.width() / 2) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 22) * stage.scaleY() };
   });
   await page.mouse.move(hoveredCardPoint.x, hoveredCardPoint.y);
-  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned.');
+  await expect(stageHost).toHaveAttribute('aria-label', 'Idle Local. Hosted on this page’s Nodel server. Inspection succeeded; 0 configured bindings, none unassigned. Open Idle Local.');
   await expect(page.locator('[data-fixture-summary]')).toHaveText(compactSummary ?? '');
   await page.keyboard.press('ArrowRight');
   await expect(stageHost).toHaveAttribute('aria-label', /^(?!Idle Local\.).+/);
@@ -1008,11 +1178,13 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   await page.mouse.up();
   const updatedLabels = await page.evaluate(() => (window as Window & { __konvaLabels?: Array<{ text: string; x: number; y: number }> }).__konvaLabels ?? []);
   const controller = [...updatedLabels].reverse().find((label) => label.text === 'Controller');
+  const touchPanel = [...updatedLabels].reverse().find((label) => label.text === 'Touch Panel');
   expect(controller, 'Controller remains rendered after zoom and pan').toBeDefined();
-  if (!controller) return;
+  expect(touchPanel, 'Touch Panel remains rendered after zoom and pan').toBeDefined();
+  if (!controller || !touchPanel) return;
   const loopBeforeMove = await readControllerSelfLoop(page);
   const beforeSelection = await page.screenshot();
-  await page.mouse.click(controller.x + 35, controller.y - 10);
+  await page.mouse.click(touchPanel.x + 35, touchPanel.y + 45);
   const afterSelection = await page.screenshot();
   expect(afterSelection.equals(beforeSelection), 'physical card click changes selected rendering').toBe(false);
   await page.mouse.move(controller.x + 35, controller.y - 10);
@@ -2852,7 +3024,7 @@ test(`built local scene applies one frozen hop with ${firstOwner} first without 
       if (!card) throw new Error('Alpha card unavailable before drag');
       const position = card.getAbsolutePosition(stage);
       const bounds = stage.getContent().getBoundingClientRect();
-      return { x: bounds.left + stage.x() + (position.x + 55) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 22) * stage.scaleY() };
+      return { x: bounds.left + stage.x() + (position.x + 55) * stage.scaleX(), y: bounds.top + stage.y() + (position.y + 48) * stage.scaleY() };
     });
     await page.mouse.click(dragStart.x, dragStart.y);
     await expect.poll(async () => (await inspectKonvaScene(page)).selected).toEqual(['Alpha']);

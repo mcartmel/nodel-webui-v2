@@ -86,12 +86,12 @@ describe('Konva local snapshot read boundary', () => {
       });
     }
     expect(snapshot.owners).toMatchObject([
-      { key: 'cafeab', name: 'Café A ?# / \\ B', status: 'read', bindings: {
+      { key: 'cafeab', name: 'Café A ?# / \\ B', localPathName: 'Café A ?# / \\ B', status: 'read', bindings: {
         actions: { Power: { node: 'Referenced Only', action: 'Turn On' }, Unbound: {}, Incomplete: { node: 'Other Peer' } },
         events: { Playback: { node: 'Remote Player', event: 'Playing' } }
       } },
-      { name: 'Map key', status: 'read', bindings: {} },
-      { name: 'Touch Panel', status: 'read', bindings: {} }
+      { name: 'Map key', localPathName: 'Map key', status: 'read', bindings: {} },
+      { name: 'Touch Panel', localPathName: 'Touch Panel', status: 'read', bindings: {} }
     ]);
   });
 
@@ -104,12 +104,12 @@ describe('Konva local snapshot read boundary', () => {
     const second = await loadLocalSnapshot();
     expect(first).toEqual(second);
     expect(first.owners).toEqual([
-      { key: 'bad\ud800', name: 'Bad\ud800', status: 'unread', reason: 'unaddressable' },
-      { key: 'mixed', name: 'Mixed', status: 'unread', reason: 'ambiguous' },
-      { key: 'nosafepath😀', name: 'No Safe Path 😀', status: 'unread', reason: 'unaddressable' },
-      { key: 'panel', name: 'Panel (East)', status: 'read', bindings: {} },
-      { key: 'power', name: 'Power', status: 'unread', reason: 'ambiguous' },
-      { key: null, name: 'Ъь', status: 'unread', reason: 'unaddressable' }
+      { key: 'bad\ud800', name: 'Bad\ud800', localPathName: null, status: 'unread', reason: 'unaddressable' },
+      { key: 'mixed', name: 'Mixed', localPathName: null, status: 'unread', reason: 'ambiguous' },
+      { key: 'nosafepath😀', name: 'No Safe Path 😀', localPathName: null, status: 'unread', reason: 'unaddressable' },
+      { key: 'panel', name: 'Panel (East)', localPathName: null, status: 'read', bindings: {} },
+      { key: 'power', name: 'Power', localPathName: null, status: 'unread', reason: 'ambiguous' },
+      { key: null, name: 'Ъь', localPathName: null, status: 'unread', reason: 'unaddressable' }
     ]);
     expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
       '/REST', `${location.origin}/nodes/Panel/REST/remote`, '/REST', `${location.origin}/nodes/Panel/REST/remote`
@@ -142,10 +142,10 @@ describe('Konva local snapshot read boundary', () => {
       return json({});
     });
     expect((await loadLocalSnapshot()).owners).toEqual([
-      { key: 'denied', name: 'Denied', status: 'unread', reason: 'failed' },
-      { key: 'empty', name: 'Empty', status: 'read', bindings: {} },
-      { key: 'malformed', name: 'Malformed', status: 'unread', reason: 'failed' },
-      { key: 'valid', name: 'Valid', status: 'read', bindings: { events: { ToLocal: { node: 'Empty', event: 'Tick' } } } }
+      { key: 'denied', name: 'Denied', localPathName: 'Denied', status: 'unread', reason: 'failed' },
+      { key: 'empty', name: 'Empty', localPathName: 'Empty', status: 'read', bindings: {} },
+      { key: 'malformed', name: 'Malformed', localPathName: 'Malformed', status: 'unread', reason: 'failed' },
+      { key: 'valid', name: 'Valid', localPathName: 'Valid', status: 'read', bindings: { events: { ToLocal: { node: 'Empty', event: 'Tick' } } } }
     ]);
   });
 
@@ -161,7 +161,7 @@ describe('Konva local snapshot read boundary', () => {
 
     fetchMock.mockResolvedValueOnce(inventory('Redirected')).mockImplementationOnce(performRedirect);
     expect((await loadLocalSnapshot()).owners).toEqual([
-      { key: 'redirected', name: 'Redirected', status: 'unread', reason: 'failed' }
+      { key: 'redirected', name: 'Redirected', localPathName: 'Redirected', status: 'unread', reason: 'failed' }
     ]);
     expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
       '/REST', '/REST', `${location.origin}/nodes/Redirected/REST/remote`
@@ -302,7 +302,7 @@ describe('Konva local snapshot terminal state', () => {
     unresponsive.resolve(undefined);
     const snapshot = await result;
     expect(snapshot.owners.slice(0, 4)).toEqual(['A', 'B', 'C', 'D'].map((name) => ({
-      key: name.toLowerCase(), name, status: 'unread', reason: 'timed-out'
+      key: name.toLowerCase(), name, localPathName: name, status: 'unread', reason: 'timed-out'
     })));
     expect(snapshot.owners.slice(4)).toMatchObject([
       { name: 'E', status: 'read', bindings: {} },
@@ -368,7 +368,7 @@ describe('Konva local snapshot terminal state', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     now.mockReturnValue(10_000);
     owner.resolve({});
-    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', status: 'unread', reason: 'unfinished' }] });
+    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'unfinished' }] });
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -381,7 +381,7 @@ describe('Konva local snapshot terminal state', () => {
     await vi.advanceTimersByTimeAsync(0);
     now.mockReturnValue(3_000);
     owner.resolve({});
-    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', status: 'unread', reason: 'timed-out' }] });
+    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'timed-out' }] });
     expect(fetchMock.mock.calls[1]?.[1].signal?.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });

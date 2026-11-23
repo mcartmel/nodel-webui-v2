@@ -18,6 +18,8 @@ export interface LocalAssignmentRow {
 export interface LocalOwnerSnapshot {
   name: string;
   readState: LocalReadState;
+  /** Safe path name evidenced by the local inventory, or null when it was unaddressable/ambiguous. */
+  localPathName?: string | null;
   actions?: readonly LocalAssignmentRow[];
   events?: readonly LocalAssignmentRow[];
 }
@@ -50,6 +52,7 @@ export function graphInputFromLocalSnapshot(snapshot: BoundedLocalSnapshot): Loc
       return {
         name: owner.name,
         readState,
+        ...(owner.localPathName === undefined ? {} : { localPathName: owner.localPathName }),
         ...(owner.status === 'read' ? {
           actions: rows(owner.bindings.actions, 'action'),
           events: rows(owner.bindings.events, 'event')
@@ -66,6 +69,8 @@ export interface LocalGraphNode {
   key: string;
   name: string;
   origin: 'local' | 'referenced';
+  /** Exact, uniquely addressable owner name retained from the local snapshot. */
+  localPathName?: string;
   bindingsRead: LocalReadState;
   /** Known canonical aliases and the subset with usable node+endpoint assignments. */
   bindingCounts?: { readonly set: number; readonly total: number };
@@ -205,7 +210,12 @@ export function buildLocalGraph(snapshot: LocalSnapshot): LocalGraph {
       : group.owners.some((owner) => owner.readState === 'partial') ? 'partial'
         : group.owners.some((owner) => owner.readState === 'read') ? 'read' : 'not-requested';
     const id = tupleId('node', key);
-    nodes.set(id, { id, key, name: label, origin: 'local', bindingsRead: readState });
+    const pathEvidence = group.owners.map(({ localPathName }) => localPathName);
+    const pathBlocked = pathEvidence.some((pathName) => pathName === null);
+    const explicitPathNames = pathEvidence.filter((pathName): pathName is string => typeof pathName === 'string');
+    const pathNamesAgree = explicitPathNames.length === 0 || explicitPathNames.every((pathName) => pathName === label);
+    const localPathName = group.names.size === 1 && !pathBlocked && pathNamesAgree && isUsableNodeName(label) ? label : undefined;
+    nodes.set(id, { id, key, name: label, origin: 'local', ...(localPathName ? { localPathName } : {}), bindingsRead: readState });
   }
 
   const ensureReferenced = (name: string): LocalGraphNode => {

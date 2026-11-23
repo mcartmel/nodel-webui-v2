@@ -36,6 +36,27 @@ function sample(): LocalSnapshot {
 }
 
 describe('local topology graph, layout, and renderer projection', () => {
+  it('retains local title path evidence only for unique usable snapshot owners', () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Touch Panel', readState: 'read' },
+      { name: 'Canonical Owner', readState: 'read' },
+      { name: 'Canonical Owner ()', readState: 'read' },
+      { name: '!!!', readState: 'read' }
+    ] });
+    const projection = projectLocalGraph(graph, placeLocalGraph(graph));
+    const local = (name: string) => projection.nodes.find((node) => node.origin === 'local' && node.name === name)!;
+
+    expect(local('Touch Panel').localPathName).toBe('Touch Panel');
+    expect(local('Canonical Owner').localPathName).toBeUndefined();
+    expect(local('!!!').localPathName).toBeUndefined();
+
+    const snapshotGraph = buildLocalGraph(graphInputFromLocalSnapshot({ owners: [
+      { key: 'CanonicalOwner', name: 'Canonical Owner', localPathName: null, status: 'unread', reason: 'ambiguous' },
+      { key: null, name: '!!!', localPathName: null, status: 'unread', reason: 'unaddressable' }
+    ] }));
+    expect([...snapshotGraph.nodes.values()].every((node) => node.localPathName === undefined)).toBe(true);
+  });
+
   it('chooses the nearest free gap between occupied wire bands', () => {
     expect(closestFeasibleY(38, [{ start: 0, end: 40 }, { start: 80, end: 120 }])).toBe(41);
   });

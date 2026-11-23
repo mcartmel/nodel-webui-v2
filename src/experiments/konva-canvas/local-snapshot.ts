@@ -4,6 +4,7 @@ import { getLocalRest } from '../../api/nodel-host-client';
 import type { NodelRemoteBindings } from '../../api/nodel-types';
 import { hasOwn, isRecord } from '../../utils/records';
 import { localNodeUrl, remoteNodeEndpoint } from '../../utils/urls';
+import { isUsableNodeName } from '../../utils/node-name';
 import { javaSimpleNameKey } from './local-simple-name';
 
 const snapshotBudgetMs = 10_000;
@@ -15,6 +16,8 @@ type UnreadReason = 'unaddressable' | 'ambiguous' | 'failed' | 'timed-out' | 'un
 export type LocalSnapshotOwner = {
   readonly key: string | null;
   readonly name: string;
+  /** The exact inventory spelling is linkable only when this canonical owner is unambiguous. */
+  readonly localPathName?: string | null;
 } & (
   | { readonly status: 'read'; readonly bindings: Readonly<NodelRemoteBindings> }
   | { readonly status: 'unread'; readonly reason: UnreadReason }
@@ -44,6 +47,7 @@ function assignmentUrl(name: string, origin: string) {
 interface OwnerGroup {
   key: string | null;
   name: string;
+  names: Set<string>;
   routes: Set<string | null>;
 }
 
@@ -61,9 +65,10 @@ function planOwnerReads(names: string[], origin: string) {
     const id = key === null ? `unusable:${name}` : `key:${key}`;
     let group = groups.get(id);
     if (!group) {
-      group = { key, name, routes: new Set() };
+      group = { key, name, names: new Set(), routes: new Set() };
       groups.set(id, group);
     }
+    group.names.add(name);
     const url = key === null ? null : assignmentUrl(name, origin);
     if (url !== null && !group.routes.has(url)) {
       routeUseCounts.set(url, (routeUseCounts.get(url) ?? 0) + 1);
@@ -73,14 +78,15 @@ function planOwnerReads(names: string[], origin: string) {
 
   const reads: OwnerRead[] = [];
   const owners: LocalSnapshotOwner[] = [];
-  for (const { name, key, routes } of groups.values()) {
+  for (const { name, key, names, routes } of groups.values()) {
     const [url] = routes;
     // Require a single proven URL for this owner, and do not ascribe the
     // response from one path to different logical owners either.
     const ambiguous = routes.size > 1 || (url != null && routeUseCounts.get(url) !== 1);
     const reason = ambiguous ? 'ambiguous' : url == null ? 'unaddressable' : 'unfinished';
     if (!ambiguous && url != null) reads.push({ index: owners.length, url });
-    owners.push(Object.freeze({ name, key, status: 'unread', reason }));
+    const localPathName = names.size === 1 && !ambiguous && key !== null && isUsableNodeName(name) ? name : null;
+    owners.push(Object.freeze({ name, key, localPathName, status: 'unread', reason }));
   }
   return { owners, reads };
 }
@@ -155,10 +161,11 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
     async function readOwner({ index, url }: OwnerRead) {
       const controller = new AbortController();
       const ownerDeadline = performance.now() + ownerBudgetMs;
-      const { name, key } = owners![index]!;
+      const { name, key, localPathName } = owners![index]!;
+      const pathEvidence = localPathName === undefined ? {} : { localPathName };
       const expire = () => {
         if (!isOpen() || !owners || controller.signal.aborted) return;
-        owners[index] = Object.freeze({ name, key, status: 'unread', reason: 'timed-out' });
+        owners[index] = Object.freeze({ name, key, ...pathEvidence, status: 'unread', reason: 'timed-out' });
         controller.abort();
       };
       const ownerTimer = ownerDeadline < deadline
@@ -186,8 +193,8 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
       if (performance.now() >= ownerDeadline) expire();
       else if (!controller.signal.aborted) {
         owners[index] = Object.freeze(bindings === undefined
-          ? { key, name, status: 'unread', reason: 'failed' }
-          : { key, name, status: 'read', bindings });
+          ? { key, name, ...pathEvidence, status: 'unread', reason: 'failed' }
+          : { key, name, ...pathEvidence, status: 'read', bindings });
       }
       pump();
     }

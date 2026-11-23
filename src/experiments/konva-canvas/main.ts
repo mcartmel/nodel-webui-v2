@@ -11,6 +11,9 @@ import type { RemoteEnrichmentBatch } from './remote-enrichment';
 import { graphBounds, selectionChanges, type Selection } from './camera-selection';
 import { LocalFraming } from './local-framing';
 import { createEnrichmentLifetime, createLocalSnapshotLifetime } from './enrichment-lifetime';
+import { localNodePath } from '../../utils/urls';
+import { isUsableNodeName } from '../../utils/node-name';
+import { networkNodeSearchHref } from '../../navigation/node-links';
 
 const host = document.querySelector<HTMLElement>('#diagram');
 const failure = host?.querySelector<HTMLElement>('.canvas-failure');
@@ -20,7 +23,7 @@ const stageHost = document.createElement('div');
 stageHost.className = 'canvas-stage';
 stageHost.tabIndex = localMode ? 0 : -1;
 stageHost.setAttribute('role', 'img');
-stageHost.setAttribute('aria-label', localMode ? 'Topology diagram. Focus and use arrow keys to inspect nodes.' : 'Room network diagram.');
+stageHost.setAttribute('aria-label', localMode ? 'Topology diagram. Focus and use arrow keys to inspect nodes; press Enter to open the selected node title.' : 'Room network diagram.');
 if (host) host.append(stageHost);
 
 let colors = readColors();
@@ -376,26 +379,74 @@ function setCardAccessibleMessage(message: string): void {
   failure.hidden = false;
 }
 
+function headerTooltip(tooltip: string, linkLabel: string): string {
+  if (!linkLabel) return tooltip;
+  const cue = linkLabel.length > 318 ? `${linkLabel.slice(0, 317)}…` : linkLabel;
+  const combined = `${tooltip} ${cue}`;
+  if (combined.length <= 320) return combined;
+  const available = Math.max(0, 318 - cue.length);
+  return `${tooltip.slice(0, available)}… ${cue}`;
+}
+
 function refreshActiveCardDescription(): void {
   const activeId = keyboardCardId ?? hoveredCardId;
   const node = activeId ? nodeById.get(activeId) : undefined;
   const group = activeId ? cardGroups.get(activeId) : undefined;
   if (node && group && node.tooltip) {
-    const description = `${node.name}. ${node.tooltip}`;
-    stage?.container().setAttribute('title', node.tooltip);
+    const destination = titleDestination(node);
+    const linkLabel = destination?.fallback ? `Find ${node.name} on Network.` : destination ? `Open ${node.name}.` : '';
+    const detail = [node.tooltip, linkLabel].filter(Boolean).join(' ');
+    const description = `${node.name}. ${detail}`;
+    stage?.container().setAttribute('title', headerTooltip(node.tooltip, linkLabel));
     stageHost.setAttribute('aria-label', description);
-    group.setAttr('accessibleDescription', node.tooltip);
+    group.setAttr('accessibleDescription', description);
     setCardAccessibleMessage(description);
     return;
   }
   const container = stage?.container();
   container?.removeAttribute('title');
   if (activeId) cardGroups.get(activeId)?.setAttr('accessibleDescription', '');
-  stageHost.setAttribute('aria-label', localMode ? 'Topology diagram. Focus and use arrow keys to inspect nodes.' : 'Room network diagram.');
+  stageHost.setAttribute('aria-label', localMode ? 'Topology diagram. Focus and use arrow keys to inspect nodes; press Enter to open the selected node title.' : 'Room network diagram.');
   if (failure) {
     failure.classList.remove('is-visually-hidden');
     failure.hidden = true;
   }
+}
+
+type TitleDestination = { href: string; fallback: boolean };
+
+function titleDestination(node: FixtureNode): TitleDestination | undefined {
+  if (node.origin === 'local' && node.localPathName && isUsableNodeName(node.localPathName)) {
+    try { return { href: localNodePath(node.localPathName), fallback: false }; }
+    catch { return undefined; }
+  }
+  // Referenced nodes may not be hosted here. Keep navigation on the current
+  // Nodel origin unless an already-verified same-origin route is available.
+  // The experiment currently retains no verified remote admin route, so use
+  // the established Network search rather than triggering discovery here.
+  if (node.origin === 'referenced') {
+    const href = networkNodeSearchHref(node.name);
+    return href ? { href, fallback: true } : undefined;
+  }
+  return undefined;
+}
+
+function navigateToTitle(node: FixtureNode, event?: MouseEvent): void {
+  const destination = titleDestination(node);
+  if (!destination) return;
+  if (event && (event.button === 1 || event.ctrlKey || event.metaKey || event.shiftKey)) {
+    event.preventDefault();
+    window.open(destination.href, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  window.location.assign(destination.href);
+}
+
+function syncTitleLink(node: FixtureNode, shapes: CardShapes): void {
+  const destination = titleDestination(node);
+  shapes.title.name(destination ? 'topology-node-title-link' : 'topology-node-title');
+  if (destination) shapes.title.setAttr('navigationHref', destination.href);
+  else shapes.title.setAttr('navigationHref', undefined);
 }
 
 function makeCard(node: FixtureNode): Konva.Group {
@@ -407,7 +458,8 @@ function makeCard(node: FixtureNode): Konva.Group {
   group.add(header);
   const realNode = node.hostKind !== undefined;
   const dot = realNode ? undefined : new Konva.Circle({ x: 18, y: 22, radius: 4, fill: statusDot(node), listening: false });
-  const title = new Konva.Text({ x: realNode ? 16 : 30, y: realNode ? 12 : 13, width: node.width - (realNode ? 54 : 44), text: node.name, fontFamily: 'system-ui, sans-serif', fontSize: realNode ? 15 : 14, fontStyle: 'bold', fill: colors.foreground, listening: false, ellipsis: true, wrap: 'none' });
+  const destination = realNode ? titleDestination(node) : undefined;
+  const title = new Konva.Text({ x: realNode ? 16 : 30, y: realNode ? 12 : 13, width: node.width - (realNode ? 54 : 44), text: node.name, fontFamily: 'system-ui, sans-serif', fontSize: realNode ? 15 : 14, fontStyle: 'bold', fill: colors.foreground, listening: false, ellipsis: true, wrap: 'none', name: destination ? 'topology-node-title-link' : 'topology-node-title' });
   const status = new Konva.Text({ x: realNode ? 16 : 30, y: 35, width: node.width - (realNode ? 54 : 44), text: statusText(node), fontFamily: 'system-ui, sans-serif', fontSize: 11, fill: colors.muted, listening: false, ellipsis: true, wrap: 'none', visible: Boolean(statusText(node)) });
   const hostGlyph = realNode ? makeHostGlyph(node) : undefined;
   if (hostGlyph) positionHostGlyph(hostGlyph, node, title);
@@ -416,9 +468,15 @@ function makeCard(node: FixtureNode): Konva.Group {
   if (realNode) {
     if (node.tooltip) group.setAttr('accessibleDescription', node.tooltip);
     group.on('mouseenter', () => { hoveredCardId = node.id; refreshActiveCardDescription(); });
-    group.on('mouseleave', () => { if (hoveredCardId === node.id) hoveredCardId = undefined; refreshActiveCardDescription(); });
+    group.on('mouseleave', () => {
+      if (hoveredCardId === node.id) hoveredCardId = undefined;
+      if (stage) stage.container().style.cursor = '';
+      refreshActiveCardDescription();
+    });
   }
   cardShapes.set(node.id, { rect, header, divider, ...(dot ? { dot } : {}), title, status, ...(hostGlyph ? { host: hostGlyph } : {}) });
+  syncTitleLink(node, cardShapes.get(node.id)!);
+  const visibleTitleWidth = () => Math.min(title.width(), title.getTextWidth());
   group.add(divider);
   // Keep the existing left-then-right child order on the initial mount.
   for (const side of ['left', 'right'] as const) {
@@ -428,8 +486,34 @@ function makeCard(node: FixtureNode): Konva.Group {
     }
   }
   group.on('click tap', (event) => {
+    const mouseEvent = event.evt as MouseEvent;
+    if (mouseEvent.button === 2) {
+      mouseEvent.preventDefault();
+      event.cancelBubble = true;
+      return;
+    }
+    if (stage && titleDestination(node)) {
+      const pointer = stage.getPointerPosition();
+      if (pointer) {
+        const point = group.getAbsoluteTransform().copy().invert().point(pointer);
+        const titleEndX = title.x() + visibleTitleWidth();
+        const titleEndY = title.y() + title.height();
+        if (point.x >= title.x() && point.x <= titleEndX && point.y >= title.y() && point.y <= titleEndY) {
+          event.cancelBubble = true;
+          navigateToTitle(node, mouseEvent);
+          return;
+        }
+      }
+    }
     event.cancelBubble = true;
     setSelection({ nodeId: node.id });
+  });
+  group.on('mousemove', () => {
+    if (!stage) return;
+    const pointer = stage.getPointerPosition();
+    const point = pointer ? group.getAbsoluteTransform().copy().invert().point(pointer) : undefined;
+    const inTitle = Boolean(point && titleDestination(node) && point.x >= title.x() && point.x <= title.x() + visibleTitleWidth() && point.y >= title.y() && point.y <= title.y() + title.height());
+    stage.container().style.cursor = inTitle ? 'pointer' : '';
   });
   group.on('dragmove dragend', () => moveCard(node, group));
   return group;
@@ -443,6 +527,11 @@ function patchCard(patch: LocalCardPatch): Iterable<string> {
   if (node.name !== patch.name) {
     node.name = patch.name;
     shapes.title.text(patch.name);
+  }
+  if (node.origin !== patch.origin) node.origin = patch.origin;
+  if (node.localPathName !== patch.localPathName) {
+    if (patch.localPathName === undefined) delete node.localPathName;
+    else node.localPathName = patch.localPathName;
   }
   if (node.displayStatus !== patch.displayStatus) {
     node.displayStatus = patch.displayStatus;
@@ -484,6 +573,7 @@ function patchCard(patch: LocalCardPatch): Iterable<string> {
     shapes.title.x(30).width(node.width - 44).fontSize(14);
     shapes.status.x(30).width(node.width - 44);
   }
+  syncTitleLink(node, shapes);
   refreshActiveCardDescription();
   if (!patch.ports) return [];
 
@@ -574,6 +664,16 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
 
 function setSelection(next: Selection): void {
   const previous = { nodeId: selectedNode, edgeId: selectedEdge };
+  if (localMode) {
+    const selectedIndex = next.nodeId ? nodes.findIndex(({ id }) => id === next.nodeId) : -1;
+    if (selectedIndex >= 0) {
+      keyboardCardId = next.nodeId;
+      keyboardCardIndex = selectedIndex;
+    } else {
+      keyboardCardId = undefined;
+      keyboardCardIndex = -1;
+    }
+  }
   if (previous.nodeId === next.nodeId && previous.edgeId === next.edgeId) return;
   const changed = selectionChanges(previous, next, edgeById);
   selectedNode = next.nodeId;
@@ -633,6 +733,7 @@ function initialize(): boolean {
   }
   try {
     stage = new Konva.Stage({ container: stageHost, width: 1, height: 1, draggable: true });
+    stageHost.addEventListener('pointerleave', () => { if (stage) stage.container().style.cursor = ''; });
     wireLayer = new Konva.Layer({ name: 'wires' });
     cardLayer = new Konva.Layer({ name: 'cards' });
     stage.add(wireLayer, cardLayer);
@@ -674,7 +775,16 @@ function initialize(): boolean {
         setSelection({});
         return;
       }
-      if (!localMode || document.activeElement !== stageHost || !nodes.length || !['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(event.key)) return;
+      if (!localMode || document.activeElement !== stageHost || !nodes.length) return;
+      if (event.key === 'Enter' && keyboardCardId) {
+        const node = nodeById.get(keyboardCardId);
+        if (node && selectedNode === keyboardCardId && titleDestination(node)) {
+          event.preventDefault();
+          navigateToTitle(node);
+        }
+        return;
+      }
+      if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(event.key)) return;
       event.preventDefault();
       const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
       keyboardCardIndex = (keyboardCardIndex + step + nodes.length) % nodes.length;
@@ -688,7 +798,7 @@ function initialize(): boolean {
       if (keyboardCardIndex < 0) keyboardCardIndex = 0;
       const node = nodes[keyboardCardIndex];
       const card = node ? cardGroups.get(node.id) : undefined;
-      if (node && card) { keyboardCardId = node.id; refreshActiveCardDescription(); }
+      if (node && card) { keyboardCardId = node.id; setSelection({ nodeId: node.id }); refreshActiveCardDescription(); }
     });
     if (localMode) stageHost.addEventListener('blur', () => {
       keyboardCardId = undefined;
