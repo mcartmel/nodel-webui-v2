@@ -1,17 +1,17 @@
-import { decodeRemoteBindings } from '../../api/codecs/nodel-codecs';
-import { fetchJson } from '../../api/http-transport';
-import { getLocalRest } from '../../api/nodel-host-client';
+import { decodeLocalRest, decodeRemoteBindings, MAX_API_COLLECTION_ITEMS, NodelApiDecodeError } from '../../api/codecs/nodel-codecs';
 import type { NodelRemoteBindings } from '../../api/nodel-types';
 import { hasOwn, isRecord } from '../../utils/records';
 import { localNodeUrl, remoteNodeEndpoint } from '../../utils/urls';
 import { isUsableNodeName } from '../../utils/node-name';
 import { javaSimpleNameKey } from './local-simple-name';
+import type { EnrichmentLimiter } from './enrichment-limiter';
+import { enrichmentReadFailure, EnrichmentResponseLimit, fetchEnrichmentJson, InvalidEnrichmentJson } from './enrichment-transport';
 
-const snapshotBudgetMs = 10_000;
+export const localSnapshotBudgetMs = 10_000;
 const ownerBudgetMs = 3_000;
 const maxOwnerReads = 4;
 
-type UnreadReason = 'unaddressable' | 'ambiguous' | 'failed' | 'timed-out' | 'unfinished';
+type UnreadReason = 'unaddressable' | 'ambiguous' | 'invalid-data' | 'transport' | 'timed-out' | 'unfinished';
 
 export type LocalSnapshotOwner = {
   readonly key: string | null;
@@ -25,6 +25,32 @@ export type LocalSnapshotOwner = {
 
 export interface LocalSnapshot {
   readonly owners: readonly LocalSnapshotOwner[];
+  readonly inventory?: LocalInventoryEvidence;
+}
+
+/** Inventory-only membership snapshot; owner bindings arrive as scheduler results. */
+export type LocalInventoryMembership = Omit<LocalSnapshot, 'owners'> & {
+  readonly owners: readonly Extract<LocalSnapshotOwner, { status: 'unread' }>[];
+};
+
+/** Enforce the inventory/result boundary so names-only promotion cannot drop bindings. */
+export function assertLocalInventoryMembership(snapshot: LocalSnapshot): asserts snapshot is LocalInventoryMembership {
+  if (snapshot.owners.some((owner) => owner.status !== 'unread' || 'bindings' in owner)) {
+    throw new Error('Local inventory membership must not include binding results.');
+  }
+}
+
+interface LocalInventoryEvidence {
+  readonly state: 'complete' | 'limited';
+  readonly discardedRows: number;
+}
+
+interface LocalSnapshotOptions { readonly limiter?: EnrichmentLimiter }
+const deferredReads = new WeakMap<LocalSnapshot, ReadonlyMap<LocalSnapshotOwner, (signal: AbortSignal) => Promise<NodelRemoteBindings>>>();
+
+/** No credentialed request may be built from an advertisement, reference, or fabricated snapshot. */
+export function unfinishedLocalReader(snapshot: LocalSnapshot, owner: LocalSnapshotOwner) {
+  return deferredReads.get(snapshot)?.get(owner);
 }
 
 export class LocalSnapshotInventoryError extends Error {
@@ -32,6 +58,26 @@ export class LocalSnapshotInventoryError extends Error {
     super(timedOut ? 'Local inventory read timed out' : 'Local inventory could not be loaded');
     this.name = 'LocalSnapshotInventoryError';
   }
+}
+
+/** Check bounds before isolating row decode failures; no malformed row grants a local path. */
+function decodeInventory(value: unknown) {
+  if (!isRecord(value) || !hasOwn(value, 'nodes') || !isRecord(value.nodes)) throw new InvalidEnrichmentJson();
+  const entries = Object.entries(value.nodes);
+  if (entries.length > MAX_API_COLLECTION_ITEMS) throw new EnrichmentResponseLimit();
+  const names: string[] = [];
+  let discardedRows = 0;
+  for (const [key, row] of entries) {
+    try {
+      const decoded = decodeLocalRest({ nodes: { [key]: row } }, 'GET /REST');
+      names.push(decoded.nodes![key]!.name);
+    } catch (error) {
+      if (!(error instanceof NodelApiDecodeError)) throw error;
+      discardedRows += 1;
+    }
+  }
+  const evidence: LocalInventoryEvidence = Object.freeze({ state: discardedRows ? 'limited' : 'complete', discardedRows });
+  return { names, evidence };
 }
 
 function assignmentUrl(name: string, origin: string) {
@@ -104,38 +150,76 @@ function cancelled() {
   return new DOMException('Local snapshot cancelled', 'AbortError');
 }
 
+const localReadInit: RequestInit = {
+  method: 'GET', cache: 'no-store', credentials: 'same-origin', mode: 'same-origin', redirect: 'error',
+  headers: { Accept: 'application/json' }
+};
+
+function inventoryAt(signal: AbortSignal) {
+  return fetchEnrichmentJson(fetch, '/REST', { ...localReadInit, signal });
+}
+
+function planInventory(value: unknown) {
+  const { names, evidence } = decodeInventory(value);
+  return { ...planOwnerReads(names, window.location.origin), evidence };
+}
+
+async function bindingsAt(url: string, signal: AbortSignal) {
+  const value = await fetchEnrichmentJson(fetch, url, { ...localReadInit, signal });
+  signal.throwIfAborted();
+  const bindings = decodeRemoteBindings(value, 'GET local REST/remote');
+  freezeJson(bindings);
+  return bindings;
+}
+
+/** One inventory operation; the shared scheduler owns timeouts and assignment dispatch. */
+export async function readLocalInventory(signal: AbortSignal): Promise<LocalSnapshot> {
+  const value = await inventoryAt(signal);
+  signal.throwIfAborted();
+  const { owners, reads, evidence } = planInventory(value);
+  const snapshot = Object.freeze({ owners: Object.freeze(owners), inventory: evidence });
+  deferredReads.set(snapshot, new Map(reads.map(({ index, url }) => [owners[index]!, (signal) => bindingsAt(url, signal)])));
+  return snapshot;
+}
+
 /** Resolve exactly one terminal snapshot, or reject without one on cancellation or inventory failure. */
-export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> {
+export function loadLocalSnapshot(signal?: AbortSignal, { limiter }: LocalSnapshotOptions = {}): Promise<LocalSnapshot> {
   if (signal?.aborted) return Promise.reject(cancelled());
 
-  const deadline = performance.now() + snapshotBudgetMs;
-  const origin = window.location.origin;
+  const deadline = performance.now() + localSnapshotBudgetMs;
   const inventoryController = new AbortController();
-  const init: RequestInit = {
-    method: 'GET', cache: 'no-store', credentials: 'same-origin', mode: 'same-origin', redirect: 'error',
-    headers: { Accept: 'application/json' }
-  };
 
   return new Promise((resolve, reject) => {
     let owners: LocalSnapshotOwner[] | undefined;
+    let inventoryEvidence: LocalInventoryEvidence | undefined;
     let reads: OwnerRead[] = [];
     let nextRead = 0;
     // Keep a slot until fetch and body handling actually settle, even if the
     // owner has timed out and its signal has already been aborted.
-    const activeReads = new Map<AbortController, number | undefined>();
+    const activeReads = new Map<AbortController, { timer: number | undefined; index: number }>();
     let sealed = false;
+    let inventoryStarted = false;
+    let inventoryTimer: number | undefined;
 
     function finish(outcome: 'complete' | 'cutoff' | 'cancelled' | 'invalid-inventory') {
       if (sealed) return;
       sealed = true;
       window.clearTimeout(timer);
+      window.clearTimeout(inventoryTimer);
+      unsubscribe?.();
       signal?.removeEventListener('abort', cancel);
       const result = owners;
+      const resultReads = reads;
+      const next = nextRead;
       owners = undefined;
       reads = [];
 
-      for (const [controller, ownerTimer] of activeReads) {
+      for (const [controller, { timer: ownerTimer, index }] of activeReads) {
         window.clearTimeout(ownerTimer);
+        const owner = result?.[index];
+        if (outcome === 'cutoff' && owner?.status === 'unread' && owner.reason === 'unfinished') {
+          result![index] = Object.freeze({ ...owner, reason: 'timed-out' });
+        }
         controller.abort();
       }
       activeReads.clear();
@@ -145,7 +229,9 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
       } else if (result === undefined || outcome === 'invalid-inventory') {
         reject(new LocalSnapshotInventoryError(outcome === 'cutoff'));
       } else {
-        resolve(Object.freeze({ owners: Object.freeze(result) }));
+        const snapshot = Object.freeze({ owners: Object.freeze(result), inventory: inventoryEvidence! });
+        deferredReads.set(snapshot, new Map(resultReads.slice(next).map(({ index, url }) => [result[index]!, (signal) => bindingsAt(url, signal)])));
+        resolve(snapshot);
       }
     }
 
@@ -158,7 +244,7 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
       return !sealed;
     }
 
-    async function readOwner({ index, url }: OwnerRead) {
+    async function readOwner({ index, url }: OwnerRead, release?: () => void) {
       const controller = new AbortController();
       const ownerDeadline = performance.now() + ownerBudgetMs;
       const { name, key, localPathName } = owners![index]!;
@@ -171,56 +257,76 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
       const ownerTimer = ownerDeadline < deadline
         ? window.setTimeout(expire, Math.max(0, Math.ceil(ownerDeadline - performance.now())))
         : undefined;
-      activeReads.set(controller, ownerTimer);
+      activeReads.set(controller, { timer: ownerTimer, index });
 
       let bindings: NodelRemoteBindings | undefined;
+      let failure: 'invalid-data' | 'transport' = 'transport';
       try {
         // These timers are owned by the snapshot, not the cooperative
         // transport, so sealing can clear them without awaiting this read.
-        const value = await fetchJson(url, { ...init, signal: controller.signal }, 0);
+        const value = await bindingsAt(url, controller.signal);
         if (isOpen() && !controller.signal.aborted && performance.now() < ownerDeadline) {
-          bindings = decodeRemoteBindings(value, 'GET local REST/remote');
-          freezeJson(bindings);
+          bindings = value;
         }
-      } catch {
+      } catch (error) {
         // A bad owner must not turn into a successful empty configuration.
         bindings = undefined;
+        failure = enrichmentReadFailure(error);
       }
 
-      window.clearTimeout(activeReads.get(controller));
-      activeReads.delete(controller);
-      if (!isOpen() || !owners) return;
-      if (performance.now() >= ownerDeadline) expire();
-      else if (!controller.signal.aborted) {
-        owners[index] = Object.freeze(bindings === undefined
-          ? { key, name, ...pathEvidence, status: 'unread', reason: 'failed' }
-          : { key, name, ...pathEvidence, status: 'read', bindings });
+      try {
+        if (!isOpen() || !owners) return;
+        if (performance.now() >= ownerDeadline) expire();
+        else if (!controller.signal.aborted) {
+          owners[index] = Object.freeze(bindings === undefined
+            ? { key, name, ...pathEvidence, status: 'unread', reason: failure }
+            : { key, name, ...pathEvidence, status: 'read', bindings });
+        }
+      } finally {
+        window.clearTimeout(activeReads.get(controller)?.timer);
+        activeReads.delete(controller);
+        release?.();
+        pump();
       }
-      pump();
     }
 
     function pump() {
+      if (!owners) {
+        if (!isOpen() || inventoryStarted) return;
+        const release = limiter?.tryStart();
+        if (limiter && !release) return;
+        inventoryStarted = true;
+        if (limiter && performance.now() + ownerBudgetMs < deadline) inventoryTimer = window.setTimeout(() => finish('cutoff'), ownerBudgetMs);
+        void start(release);
+        return;
+      }
       while (isOpen() && activeReads.size < maxOwnerReads && nextRead < reads.length) {
+        const release = limiter?.tryStart();
+        if (limiter && !release) return;
         const read = reads[nextRead++]!;
-        void readOwner(read);
+        void readOwner(read, release);
       }
       if (isOpen() && activeReads.size === 0) finish('complete');
     }
 
-    async function start() {
-      const inventory = await getLocalRest({ ...init, signal: inventoryController.signal }, 0);
-      if (!isOpen()) return;
-      const nodes = inventory.nodes;
-      if (!hasOwn(inventory, 'nodes') || !isRecord(nodes)) {
-        finish('invalid-inventory');
-        return;
+    async function start(release?: () => void) {
+      const expires = Math.min(deadline, performance.now() + (limiter ? ownerBudgetMs : localSnapshotBudgetMs));
+      try {
+        const value = await inventoryAt(inventoryController.signal);
+        if (!isOpen()) return;
+        if (performance.now() >= expires) { finish('cutoff'); return; }
+        const plan = planInventory(value);
+        if (sealed) return;
+        // Keep known names even if route planning crossed the first-paint cutoff.
+        owners = plan.owners;
+        reads = plan.reads;
+        inventoryEvidence = plan.evidence;
+      } catch {
+        if (isOpen()) finish(performance.now() >= expires ? 'cutoff' : 'invalid-inventory');
+      } finally {
+        window.clearTimeout(inventoryTimer);
+        release?.();
       }
-      const plan = planOwnerReads(Object.values(nodes).map((node) => node.name), origin);
-      if (sealed) return;
-      // Inventory arrived in time. Keep its cards even if synchronous route
-      // planning crossed the cutoff; pump checks the deadline before any GET.
-      owners = plan.owners;
-      reads = plan.reads;
       pump();
     }
 
@@ -228,8 +334,7 @@ export function loadLocalSnapshot(signal?: AbortSignal): Promise<LocalSnapshot> 
     // before touching transport. A suspended task cannot reopen the queue.
     const timer = window.setTimeout(() => finish('cutoff'), Math.max(0, deadline - performance.now()));
     signal?.addEventListener('abort', cancel, { once: true });
-    void start().catch(() => {
-      if (isOpen()) finish('invalid-inventory');
-    });
+    const unsubscribe = limiter?.subscribe(pump);
+    pump();
   });
 }

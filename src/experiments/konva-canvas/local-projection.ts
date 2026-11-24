@@ -1,6 +1,8 @@
 import { NODE_WIDTH, portPoint, type FixtureEdge, type FixtureNode, type FixturePort, type Point } from './fixture';
 import type { LocalGraph, LocalGraphConnection, LocalGraphNode, LocalGraphPort, LocalPortKind } from './local-graph';
 import { indexLocalGraphGeometry, localGraphGeometryForPositions, localPortsForNode, placeLocalGraph, type LocalGraphGeometry } from './local-placement';
+import type { RemoteEnrichmentBatch } from './remote-enrichment';
+import { createCardFootprint, isFullyInspected } from './card-footprint';
 
 export type LocalStatusKind = NonNullable<FixtureNode['statusKind']>;
 
@@ -58,14 +60,21 @@ export function projectLocalCardStatus(node: LocalGraphNode): Pick<ProjectedLoca
       case 'read': status = { displayStatus: '', displayQualifier: '', statusKind: 'referenced' }; break;
       case 'partial': status = { displayStatus: 'Bindings partially loaded', displayQualifier: 'Bindings partially loaded', statusKind: 'partial' }; break;
       case 'failed': {
-        const failureText = failureStatus(node);
+        const failureText = inspectionDescription(node);
         status = { displayStatus: failureText, displayQualifier: failureText, statusKind: 'partial' };
         break;
       }
       case 'cutoff': status = { displayStatus: 'Inspection stopped at cutoff', displayQualifier: 'Inspection stopped at cutoff', statusKind: 'referenced' }; break;
-      default: status = { displayStatus: 'Not inspected', displayQualifier: 'Not inspected', statusKind: 'referenced' }; break;
+      default: {
+        const description = inspectionDescription(node);
+        status = { displayStatus: description, displayQualifier: description, statusKind: 'referenced' };
+        break;
+      }
     }
-  } else if (node.bindingsRead === 'unread' || node.bindingsRead === 'not-requested') status = { displayStatus: 'Not inspected', displayQualifier: 'Not inspected', statusKind: 'partial' };
+  } else if (node.bindingsRead === 'unread' || node.bindingsRead === 'not-requested') {
+    const description = inspectionDescription(node);
+    status = { displayStatus: description, displayQualifier: description, statusKind: 'partial' };
+  }
   else if (node.bindingsRead === 'partial') status = { displayStatus: 'Bindings partially loaded', displayQualifier: 'Bindings partially loaded', statusKind: 'partial' };
   else status = { displayStatus: '', displayQualifier: '', statusKind: 'local' };
   return { ...status, ...hostPresentation(node), tooltip: cardTooltip(node) };
@@ -81,7 +90,9 @@ function cardTooltip(node: LocalGraphNode): string {
   const host = hostPresentation(node).hostDescription;
   const complete = node.origin === 'local' ? node.bindingsRead === 'read' : node.inspectionState === 'read';
   if (!complete) {
-    return boundTooltip(`${host} ${inspectionDescription(node)}.`);
+    const outcome = inspectionDescription(node);
+    const detail = outcome === 'Unreachable' ? 'Unreachable from this view; this does not establish that the node is offline.' : `${outcome}.`;
+    return boundTooltip(`${host} ${detail}`);
   }
   if (!node.bindingCounts) return boundTooltip(`${host} Inspection succeeded; binding count is unavailable.`);
   const { set, total } = node.bindingCounts;
@@ -93,14 +104,17 @@ function cardTooltip(node: LocalGraphNode): string {
 function inspectionDescription(node: LocalGraphNode): string {
   if (node.origin === 'local') {
     if (node.bindingsRead === 'partial') return 'Bindings partially loaded';
-    return 'Not inspected';
+    switch (node.localReadFailure) {
+      case 'unreachable': return 'Unreachable';
+      case 'identity-unresolved': return 'Identity unresolved';
+      case 'invalid': return 'Invalid response';
+      default: return 'Not inspected';
+    }
   }
-  if (node.inspectionState === 'not-inspected' || node.inspectionState === undefined) {
-    if (node.lookupState === 'invalid') return 'Invalid discovery response';
-    if (node.lookupState === 'failed') return 'Discovery failed';
-    if (node.lookupState === 'blocked') return 'Remote route blocked';
-    if (node.lookupState === 'no-route') return 'No usable remote route';
-  }
+  if (node.lookupState === 'invalid') return 'Invalid discovery response';
+  if (node.lookupState === 'failed') return 'Lookup failed';
+  if (node.lookupState === 'blocked') return node.displayFailure === 'Identity unresolved' ? 'Identity unresolved' : 'Remote route blocked';
+  if (node.lookupState === 'no-route') return 'No advertised route';
   switch (node.inspectionState) {
     case 'read': return 'Inspection succeeded';
     case 'partial': return 'Bindings partially loaded';
@@ -112,7 +126,9 @@ function inspectionDescription(node: LocalGraphNode): string {
 }
 
 function failureStatus(node: LocalGraphNode): string {
+  if (node.lookupState === 'blocked' && node.displayFailure?.toLowerCase().includes('identity')) return 'Identity unresolved';
   if (node.lookupState === 'invalid' && node.displayFailure?.includes('lookup')) return 'Invalid discovery response';
+  if (node.lookupState === 'failed' && node.displayFailure?.toLowerCase().includes('discovery')) return 'Lookup failed';
   return node.displayFailure ?? 'Remote inspection failed';
 }
 
@@ -121,8 +137,9 @@ function boundTooltip(text: string): string {
   return characters.length <= 320 ? text : `${characters.slice(0, 317).join('')}…`;
 }
 
-export function projectLocalCard(node: LocalGraphNode, ports: FixturePort[], point: Point): ProjectedLocalNode {
+export function projectLocalCard(node: LocalGraphNode, ports: readonly FixturePort[], point: Point, viewportHeight?: number): ProjectedLocalNode {
   return { id: localCardId(node.id), name: node.name, x: point.x, y: point.y, width: NODE_WIDTH, ports,
+    ...(viewportHeight !== undefined ? { footprint: createCardFootprint(ports, isFullyInspected(node), viewportHeight) } : {}),
     origin: node.origin, ...(node.localPathName ? { localPathName: node.localPathName } : {}), ...projectLocalCardStatus(node) };
 }
 
@@ -136,6 +153,7 @@ export function projectLocalWire(graph: LocalGraph, connection: LocalGraphConnec
     selfLoop: from.nodeId === to.nodeId,
     reciprocal: false,
     bindingKind: connection.kind,
+    bindingAlias: connection.alias,
     ownerId: localCardId(connection.ownerId)
   };
 }
@@ -220,23 +238,81 @@ export function createLocalSummary(graph: LocalGraph): () => string {
   };
 }
 
+/** A disjoint tally over every logical card currently in the scene. */
+export type TopologySchedulerLifecycle = 'pending' | 'running' | 'paused' | 'settled';
+
+export function localTopologyProgressSummary(
+  graph: LocalGraph,
+  changes: RemoteEnrichmentBatch<LocalGraph>,
+  lifecycle?: TopologySchedulerLifecycle
+): string {
+  const totals = { complete: 0, partial: 0, notInspected: 0, noRoute: 0, unreachable: 0, invalid: 0, lookupFailed: 0, unresolved: 0, blocked: 0 };
+  for (const node of graph.nodes.values()) {
+    if (node.origin === 'local') {
+      if (node.bindingsRead === 'read') totals.complete += 1;
+      else if (node.bindingsRead === 'partial') totals.partial += 1;
+      else if (node.localReadFailure === 'unreachable') totals.unreachable += 1;
+      else if (node.localReadFailure === 'invalid') totals.invalid += 1;
+      else if (node.localReadFailure === 'identity-unresolved') totals.unresolved += 1;
+      else if (node.localReadFailure === 'not-inspected' ||
+        ((node.localReadFailure === 'queued' || node.localReadFailure === undefined) && changes.finish === 'complete' && changes.counts.pending === 0)) totals.notInspected += 1;
+      continue;
+    }
+    if (node.lookupState === 'no-route') { totals.noRoute += 1; continue; }
+    if (node.lookupState === 'invalid') { totals.invalid += 1; continue; }
+    if (node.lookupState === 'failed') { totals.lookupFailed += 1; continue; }
+    if (node.lookupState === 'blocked') {
+      if (node.displayFailure === 'Identity unresolved') totals.unresolved += 1;
+      else totals.blocked += 1;
+      continue;
+    }
+    if (node.inspectionState === 'read') totals.complete += 1;
+    else if (node.inspectionState === 'partial') totals.partial += 1;
+    else if (node.inspectionState === 'cutoff' || node.inspectionState === 'not-inspected') totals.notInspected += 1;
+    else if (node.inspectionState === 'failed' && node.displayFailure === 'Invalid response') totals.invalid += 1;
+    else if (node.inspectionState === 'failed') totals.unreachable += 1;
+    else if (changes.finish === 'complete' && changes.counts.pending === 0) totals.notInspected += 1;
+  }
+
+  const parts = [`${graph.nodes.size} nodes`, `${totals.complete} complete`, `${totals.partial} partial`, `${changes.counts.pending} queued`, `${totals.notInspected} terminal not inspected`];
+  if (totals.noRoute) parts.push(`${totals.noRoute} no-route`);
+  if (totals.unreachable) parts.push(`${totals.unreachable} unreachable`);
+  if (totals.invalid) parts.push(`${totals.invalid} invalid`);
+  if (totals.lookupFailed) parts.push(`${totals.lookupFailed} lookup failed`);
+  if (totals.unresolved) parts.push(`${totals.unresolved} identity unresolved`);
+  if (totals.blocked) parts.push(`${totals.blocked} route blocked`);
+
+  const localComplete = changes.inventory.local === 'known';
+  const httpComplete = changes.inventory.state === 'complete';
+  if (changes.inventory.local === 'unknown') parts.push('local inventory unavailable');
+  else if (changes.inventory.local === 'limited') parts.push('local inventory limited');
+  if (changes.inventory.state === 'pending') parts.push('HTTP inventory pending');
+  else if (changes.inventory.state === 'limited') parts.push('HTTP inventory limited');
+  else if (changes.inventory.state === 'failed') parts.push('HTTP inventory failed');
+  if (!localComplete || !httpComplete) parts.push('coverage limited');
+  else parts.push('inventory coverage complete');
+  const scheduler = lifecycle ?? (changes.paused ? 'paused' : changes.finish === 'complete' ? 'settled' : 'running');
+  parts.push(`scheduler ${scheduler}`);
+  return parts.join(' · ');
+}
+
 /** Initial projection; enrichment uses the same keyed helpers without visiting the whole graph. */
 export function projectLocalGraph(
   graph: LocalGraph,
   positions?: ReadonlyMap<string, Point>,
-  geometry: LocalGraphGeometry = positions
-    ? localGraphGeometryForPositions(graph, positions) ?? indexLocalGraphGeometry(graph)
-    : indexLocalGraphGeometry(graph)
+  geometry?: LocalGraphGeometry,
+  viewportHeight?: number
 ): LocalGraphProjection {
-  const placed = positions ?? placeLocalGraph(graph, {}, geometry);
+  const indexed = geometry ?? (positions ? localGraphGeometryForPositions(graph, positions) : undefined) ?? indexLocalGraphGeometry(graph, viewportHeight);
+  const placed = positions ?? placeLocalGraph(graph, {}, indexed);
   const portIds = new Map<string, string>();
   const nodes = [...graph.nodes.values()].sort((a, b) => compareText(a.key, b.key)).map((node) => {
-    const ports = localPortsForNode(graph, node.id, geometry).map((port) => {
+    const ports = localPortsForNode(graph, node.id, indexed).map((port) => {
       const projected = projectLocalPort(port);
       portIds.set(port.id, projected.id);
       return projected;
     });
-    return projectLocalCard(node, ports, placed.get(node.id) ?? { x: 0, y: 0 });
+    return projectLocalCard(node, ports, placed.get(node.id) ?? { x: 0, y: 0 }, viewportHeight ?? indexed.viewportHeight);
   });
   const pairs = new LocalWirePairs();
   const edges = [...graph.connections.values()].sort((a, b) => compareText(a.id, b.id)).map((connection) => {

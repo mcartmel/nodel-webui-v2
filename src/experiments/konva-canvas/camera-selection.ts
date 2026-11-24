@@ -64,3 +64,7 @@ export function selectionChanges(previous: Selection, next: Selection, edges: Re
   }
   return { nodeIds, edgeIds, socketIds };
 }
+/** Same usable viewport for the early-release estimate and actual camera fit. */
+export function fittedCameraScale(width: number, height: number, worldWidth: number, worldHeight: number): number {
+  return Math.min(1, (width - 40) / worldWidth, (height - 36) / worldHeight);
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeLaneRoute, LANE_LIMITS, laneSegmentsConflict, LocalLaneReservations, probeLaneBucket } from '../src/experiments/konva-canvas/lane-reservations';
-import { edgeCurves, inspectRail, type FixtureEdge, type FixtureNode } from '../src/experiments/konva-canvas/fixture';
+import { CardFootprint } from '../src/experiments/konva-canvas/card-footprint';
+import { edgeCurves, inspectRail, portPoint, portWindowEdgeRoute, type FixtureEdge, type FixtureNode } from '../src/experiments/konva-canvas/fixture';
 
 const card = (id: string, x: number, y: number, rows: number, side: 'left' | 'right'): FixtureNode => ({
   id, name: id, x, y, width: 218, ports: Array.from({ length: rows }, (_, i) => ({ id: String(i), label: String(i), side, direction: side === 'left' ? 'in' : 'out' }))
@@ -144,6 +145,34 @@ describe('side-local drop settlement', () => {
       new LocalLaneReservations().settle([unsafe], nodes);
       expect(inspectRail(unsafe, nodes).safe).toBe(true);
     }
+  });
+
+  it('reindexes a scrolled socket from its rendered path without moving or solving sibling lanes', () => {
+    const source = card('source', 850, 400, 20, 'right');
+    const target = card('target', 400, 400, 2, 'left');
+    source.footprint = new CardFootprint({ left: 0, right: 8 });
+    source.footprint.append(source.ports);
+    const nodes = map(source, target);
+    const changed = { ...wire('changed', source.id, target.id, 8), laneIndex: 0, laneCount: 2,
+      routeOffsetFamily: 'exterior' as const, routeOffset: { x: 12, y: 0 } };
+    const stable = { ...changed, id: 'stable', from: { nodeId: source.id, portId: '19' }, laneIndex: 1 };
+    const reservations = new LocalLaneReservations();
+    reservations.seed([changed, stable], nodes);
+    expect(reservations.size).toBe(2);
+    const old = edgeCurves(changed, nodes);
+    const untouched = edgeCurves(stable, nodes);
+    source.footprint.move('right', 1);
+    const route = portWindowEdgeRoute(changed, nodes);
+    expect(route.curves[0]?.start).toEqual(portPoint(source, '8'));
+    expect(route.curves[0]?.start).not.toEqual(old[0]?.start);
+    expect(route.rail?.exitX).toBe(inspectRail(changed, nodes).rail?.exitX);
+    expect(route.offset).toBe(changed.routeOffset);
+    expect(route.curves).toEqual(edgeCurves(changed, nodes));
+    reservations.replaceRenderedRail(changed, nodes, route.rail, route.offset);
+    expect(reservations.size).toBe(2);
+    expect(edgeCurves(stable, nodes)).toEqual(untouched);
+    reservations.remove(changed.id);
+    expect(reservations.size).toBe(1);
   });
 
   it('enforces a strict comparison budget when 600 endpoints share a crowded side', () => {

@@ -1,41 +1,22 @@
-import { decodeNodeUrls, decodeRemoteBindings, MAX_API_COLLECTION_ITEMS, NodelApiDecodeError } from '../../api/codecs/nodel-codecs';
 import type { NodelRemoteBindings } from '../../api/nodel-types';
-import { getVerySimpleName, isUsableNodeName } from '../../utils/node-name';
-import { remoteNodeEndpoint, safeRemoteNodeUrl } from '../../utils/urls';
-import { REMOTE_ENRICHMENT_BUDGET_MS } from './enrichment-lifetime';
-import { javaSimpleNameKey } from './local-simple-name';
+import { createEnrichmentLimiter, enrichmentClock, type EnrichmentClock, type EnrichmentLimiter } from './enrichment-limiter';
+import {
+  createRemoteEnrichmentReaders, enrichmentReadFailure, EnrichmentResponseLimit, maxEnrichmentOwners,
+  ownerFromName, routeLimit, validOwner, type PolicyIssue, type RemoteAdvertisement,
+  type RemoteEnrichmentOwner, type RemoteEnrichmentReaders, type RemoteHostEvidence, type RemoteInventory, type RemoteLookup
+} from './enrichment-transport';
+import { localSnapshotBudgetMs, unfinishedLocalReader, type LocalSnapshot, type LocalSnapshotOwner } from './local-snapshot';
 
-export interface RemoteEnrichmentOwner {
-  readonly id: string;
-  readonly key: string;
-  readonly name: string;
-}
+export { createEnrichmentLimiter, createRemoteEnrichmentReaders };
+export type { EnrichmentLimiter, RemoteEnrichmentOwner, RemoteEnrichmentReaders };
 
-type PolicyIssue = 'unsafe-route' | 'identity-conflict' | 'mixed-content';
 type AttemptFailure = 'timeout' | 'transport' | 'invalid-data';
 export type RemoteEnrichmentFailure =
-  | 'lookup-timeout' | 'lookup-transport' | 'lookup-invalid-data' | 'no-route' | 'policy-blocked'
-  | AttemptFailure | 'prepare-failed';
+  | 'lookup-timeout' | 'lookup-transport' | 'lookup-invalid-data' | 'lookup-limited' | 'lookup-interrupted'
+  | 'no-route' | 'policy-blocked' | AttemptFailure | 'prepare-failed';
 export type RemoteEnrichmentLookupState = 'pending' | 'found' | 'no-route' | 'failed' | 'blocked' | 'invalid';
 
-export interface RemoteLookup {
-  /** Canonical, vetted REST/remote endpoints; never published to the scene. */
-  readonly routes: readonly string[];
-  /** Sanitized hostname evidence only when every validated candidate agrees and differs from the page host. */
-  readonly hostEvidence?: string;
-  readonly issues?: readonly PolicyIssue[];
-}
-
-/** Reader promises must represent physical settlement, not race abort against I/O. */
-export interface RemoteEnrichmentReaders {
-  lookup(owner: RemoteEnrichmentOwner, signal: AbortSignal): Promise<RemoteLookup>;
-  read(route: string, signal: AbortSignal): Promise<NodelRemoteBindings>;
-}
-
-export interface RemoteEnrichmentTiming {
-  now(): number;
-  setTimer(callback: () => void, delay: number): number;
-  clearTimer(handle: number): void;
+export interface RemoteEnrichmentTiming extends EnrichmentClock {
   requestFrame(callback: () => void): number;
   cancelFrame(handle: number): void;
 }
@@ -45,460 +26,760 @@ export interface PreparedEnrichment<T> {
   readonly prepared: T;
 }
 
+type OwnerOutcome<T> = PreparedEnrichment<T> | { readonly outcome: 'unsuccessful'; readonly reason: RemoteEnrichmentFailure };
 export type RemoteEnrichmentResult<T> = {
   readonly owner: RemoteEnrichmentOwner;
-  /** Discovery evidence only: pending means no lookup outcome was available at settlement. */
   readonly lookupState: RemoteEnrichmentLookupState;
   readonly issues: readonly PolicyIssue[];
   readonly attempts: readonly AttemptFailure[];
-  /** Sanitized URL.host, never an address/path/credential. */
-  readonly hostEvidence?: string;
-} & (PreparedEnrichment<T>
-  | { readonly outcome: 'unsuccessful'; readonly reason: RemoteEnrichmentFailure }
-  | { readonly outcome: 'cutoff' });
+  readonly hostEvidence?: RemoteHostEvidence;
+} & ((OwnerOutcome<T> & { readonly source: 'local' | 'remote' }) | { readonly outcome: 'cutoff' });
+
+export interface RemoteDiscovery {
+  readonly owner: RemoteEnrichmentOwner;
+  readonly lookupState: RemoteEnrichmentLookupState;
+  readonly hostEvidence?: RemoteHostEvidence;
+}
+
+export interface RemoteInventoryProgress {
+  readonly coverage: 'HTTP advertisements only';
+  readonly state: 'pending' | 'complete' | 'limited' | 'failed';
+  readonly local: 'known' | 'limited' | 'unknown';
+  readonly rows: number;
+  readonly discardedRows: number;
+  readonly advertised: number;
+  /** Rejected admissions, not a count of distinct otherwise invisible owners. */
+  readonly omittedAdmissions: number;
+  readonly reason?: 'rows' | 'bytes' | 'malformed-rows' | 'capacity' | 'interrupted' | AttemptFailure;
+}
+
+export interface RemoteEnrichmentCounts {
+  readonly total: number;
+  readonly pending: number;
+  readonly read: number;
+  readonly partial: number;
+  readonly unsuccessful: number;
+  readonly unreachable: number;
+  readonly unresolved: number;
+  readonly invalid: number;
+  readonly lookupFailed: number;
+  readonly noRoute: number;
+}
 
 export interface RemoteEnrichmentBatch<T> {
+  /** Apply discoveries first. They can introduce isolated owners before their results. */
+  readonly discoveries: readonly RemoteDiscovery[];
   readonly results: readonly RemoteEnrichmentResult<T>[];
-  readonly counts: Readonly<Record<RemoteEnrichmentResult<T>['outcome'] | 'total', number>>;
-  readonly finish?: 'complete' | 'cutoff' | 'freeze';
+  readonly inventory: RemoteInventoryProgress;
+  readonly counts: RemoteEnrichmentCounts;
+  readonly paused: boolean;
+  /** Inventory names from the serving origin, published once before owner outcomes. */
+  readonly localSnapshot?: LocalSnapshot;
+  readonly preview?: {
+    readonly localSettled: boolean;
+    readonly localPrioritySettled: boolean;
+    readonly prioritySettled: boolean;
+  };
+  readonly finish?: 'complete';
 }
+
+type OperationKind = 'local-inventory' | 'inventory' | 'lookup' | 'remote-read' | 'local-read';
+export type RemoteEnrichmentMeasurement = {
+  readonly event: 'start' | 'settle';
+  readonly operation: OperationKind;
+  readonly at: number;
+  readonly physical: number;
+  readonly ownerId?: string;
+  readonly eligibleAgeMs?: number;
+  readonly ownerAgeMs?: number;
+  readonly referenceDistance?: number;
+  readonly dispatch?: 'priority' | 'oldest' | 'reserved';
+};
 
 interface RemoteEnrichmentOptions<T> {
   owners: readonly RemoteEnrichmentOwner[];
-  depth?: 1 | 2;
-  /** Reconstruct assignment evidence without mutating the graph. */
+  localSnapshot?: LocalSnapshot;
+  /** Opt in to the shared initial discovery pass rather than a terminal snapshot handoff. */
+  readLocalInventory?(this: void, signal: AbortSignal): Promise<LocalSnapshot>;
   prepare(this: void, owner: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, collectFollowUps: boolean): PreparedEnrichment<T> & {
-    /** Only complete, configured targets; omit local inventory identities. */
     followUpOwners?: readonly RemoteEnrichmentOwner[];
   };
-  /** Commit one batch synchronously, including any scene/summary/final-draw updates. */
   apply(this: void, batch: RemoteEnrichmentBatch<T>): void;
+  /** Read current priority cheaply; never inspects an unvalidated URL or name. */
+  priority?(this: void, owner: RemoteEnrichmentOwner): boolean;
+  measure?(this: void, event: RemoteEnrichmentMeasurement): void;
   signal?: AbortSignal;
-  /** Absolute deadline in the timing clock's monotonic domain; the page captures it at first paint. */
-  deadline?: number;
+  limiter?: EnrichmentLimiter;
   readers?: RemoteEnrichmentReaders;
   timing?: RemoteEnrichmentTiming;
 }
 
 const requestBudget = 3_000;
-const routeLimit = 2;
-const physicalLimit = 4;
-const exactLookupPath = '/REST/nodeURLsForNode';
-const rawAddress = Symbol('raw advertisement address');
-
-const byCodeUnit = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
-function ownerKey(name: string) {
-  const key = isUsableNodeName(name) ? javaSimpleNameKey(name) : '';
-  return key ? `simple:${key}` : '';
-}
-
-function validOwner(owner: RemoteEnrichmentOwner) {
-  return owner.id && owner.key && owner.key === ownerKey(owner.name);
-}
-
-class InvalidJson extends Error {}
-
-// Unlike the shared fetchJson, this does not report connectivity or start probes.
-// Its promise remains in flight until fetch and body handling have settled.
-async function fetchJson(fetcher: typeof fetch, url: string, init: RequestInit): Promise<unknown> {
-  const response = await fetcher(url, init);
-  if (!response.ok || response.redirected || response.type === 'opaque' || response.type === 'opaqueredirect' || init.signal?.aborted) {
-    await response.body?.cancel();
-    throw new Error('The response is not readable');
-  }
-  try {
-    return await response.json();
-  } catch (error) {
-    if (error instanceof SyntaxError) throw new InvalidJson();
-    throw error;
-  }
-}
-
-/** Check the wire spelling before WHATWG parsing can erase traversal or empty userinfo. */
-function advertisedPath(address: string): string | undefined {
-  // eslint-disable-next-line no-control-regex -- URL parsing can otherwise strip raw control bytes.
-  if (/[\\?#\u0000-\u0020\u007f]/.test(address)) return;
-  const path = /^[Hh][Tt][Tt][Pp][Ss]?:\/\/([^/]+)\/nodes\/([^/]+)\/?$/.exec(address);
-  if (!path || path[1]!.includes('@')) return;
-  try {
-    const segment = decodeURIComponent(path[2]!);
-    // eslint-disable-next-line no-control-regex -- This also disallows encoded control bytes.
-    if (segment !== '.' && segment !== '..' && !/[%/\\?#\u0000-\u0020\u007f-\u009f]/.test(segment)) return segment;
-  } catch {
-    // Invalid percent escape, or an invalid UTF-8 sequence.
-  }
-  return undefined;
-}
-
-function selectRoutes(value: unknown, owner: RemoteEnrichmentOwner, page: URL): RemoteLookup {
-  // The exact helper's codec canonicalizes and removes unsafe original spellings
-  // (e.g. /wrong/../nodes/Alpha/). Keep the wire address alongside each row through
-  // the same bounded decoder so those cannot pass validation after normalization.
-  const rows = Array.isArray(value) && value.length <= MAX_API_COLLECTION_ITEMS
-    ? value.map((row: unknown) => row && typeof row === 'object' && !Array.isArray(row)
-      ? { ...row, [rawAddress]: (row as Record<string, unknown>).address }
-      : row)
-    : value;
-  const advertisements = decodeNodeUrls(rows, `POST ${exactLookupPath}`);
-  const choices = new Map<string, { route: string; priority: number }>();
-  const conflicts = new Set<string>();
-  const issues = new Set<PolicyIssue>();
-  for (const row of advertisements) {
-    const original = (row as { [rawAddress]?: string })[rawAddress];
-    const nameInPath = typeof original === 'string' ? advertisedPath(original) : undefined;
-    const base = safeRemoteNodeUrl(row.address);
-    if (!nameInPath || !base || !/^\/nodes\/[^/]+\/$/.test(base.pathname)) {
-      issues.add('unsafe-route');
-      continue;
-    }
-    const route = remoteNodeEndpoint(base.href, 'REST/remote');
-    // The Java host resolves path segments as SimpleNames. Equivalent decoded
-    // segments on the same origin must share a quarantine/deduplication key,
-    // but a usable advertisement must still match its own exact path below.
-    const routeKey = `${base.origin}/${javaSimpleNameKey(nameInPath)}`;
-    const name = row.node ?? row.name;
-    if (name === undefined || ownerKey(name) !== owner.key || getVerySimpleName(name) !== nameInPath
-      || (row.node !== undefined && row.name !== undefined && ownerKey(row.name) !== owner.key)) {
-      // Quarantine this route even when another sibling makes a conflicting
-      // claim to it. Distinct validated addresses alone are not a contradiction.
-      conflicts.add(routeKey);
-      issues.add('identity-conflict');
-      continue;
-    }
-    if (page.protocol === 'https:' && base.protocol === 'http:') {
-      issues.add('mixed-content');
-      continue;
-    }
-    const old = choices.get(routeKey);
-    const priority = base.origin === page.origin ? 0 : base.protocol === 'https:' ? 1 : 2;
-    if (old === undefined || route < old.route) choices.set(routeKey, { route, priority });
-  }
-  const routes = [...choices].filter(([key]) => !conflicts.has(key)).map(([, candidate]) => candidate)
-    .sort((a, b) => a.priority - b.priority || byCodeUnit(a.route, b.route))
-    .slice(0, routeLimit).map(({ route }) => route);
-  // Keep only URL.host after every non-conflicting validated route agrees; differing aliases stay unknown.
-  // The graph receives this sanitized label, never the route (path, query, credentials, etc.).
-  const candidateHosts = new Set([...choices].filter(([key]) => !conflicts.has(key)).map(([, candidate]) => new URL(candidate.route).host));
-  const hostEvidence = candidateHosts.size === 1 ? [...candidateHosts][0] : undefined;
-  return {
-    routes,
-    ...(hostEvidence && hostEvidence !== page.host ? { hostEvidence } : {}),
-    issues: [...issues].sort(byCodeUnit)
-  };
-}
-
-/** The experiment-local transports intentionally do not affect host connectivity state. */
-export function createRemoteEnrichmentReaders(origin: string, fetcher: typeof fetch = fetch): RemoteEnrichmentReaders {
-  const page = new URL(origin);
-  const lookupUrl = new URL(exactLookupPath, page.origin).href;
-  const eligibleRoutes = new Set<string>();
-  return {
-    async lookup(owner, signal) {
-      if (!validOwner(owner)) throw new InvalidJson();
-      signal.throwIfAborted();
-      const value = await fetchJson(fetcher, lookupUrl, {
-        method: 'POST', mode: 'same-origin', credentials: 'same-origin', redirect: 'error',
-        cache: 'no-store', referrerPolicy: 'no-referrer', signal,
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: owner.name })
-      });
-      signal.throwIfAborted();
-      const lookup = selectRoutes(value, owner, page);
-      for (const route of lookup.routes) eligibleRoutes.add(route);
-      return lookup;
-    },
-    async read(route, signal) {
-      if (!eligibleRoutes.delete(route)) throw new Error('Remote route was not authorised by the exact lookup');
-      signal.throwIfAborted();
-      const value = await fetchJson(fetcher, route, {
-        method: 'GET', mode: 'cors', credentials: 'omit', redirect: 'error',
-        cache: 'no-store', referrerPolicy: 'no-referrer', signal, headers: { Accept: 'application/json' }
-      });
-      signal.throwIfAborted();
-      return decodeRemoteBindings(value, 'GET remote REST/remote');
-    }
-  };
-}
-
+const previewOwners = 8;
+const previewHops = 3;
+const sliceItems = 64;
+const sliceMs = 4;
 const browserTiming: RemoteEnrichmentTiming = {
-  now: () => performance.now(),
-  setTimer: (callback, delay) => window.setTimeout(callback, delay),
-  clearTimer: (handle) => window.clearTimeout(handle),
+  ...enrichmentClock,
   requestFrame: (callback) => window.requestAnimationFrame(callback),
   cancelFrame: (handle) => window.cancelAnimationFrame(handle)
 };
-
-// The page can replace a generation while old abort-insensitive work is still
-// running. All generations share physical slots, released only by settlement.
-let physical = 0;
-const waiting = new Set<() => void>();
+let browserLimiter: EnrichmentLimiter | undefined;
 
 interface Work {
   owner: RemoteEnrichmentOwner;
-  wave: 1 | 2;
+  local?: (signal: AbortSignal) => Promise<NodelRemoteBindings>;
+  readonly admittedAt: number;
+  eligibleAt: number;
+  direct: boolean;
+  distance: number;
+  references?: Set<Work>;
+  referenced: boolean;
+  discovery?: RemoteLookup;
   lookupState: RemoteEnrichmentLookupState;
-  routes: string[];
-  issues: readonly PolicyIssue[];
+  lookupStarted: boolean;
+  earlyLookupFailure?: RemoteEnrichmentFailure;
+  routeIndex: number;
+  terminal: boolean;
   attempts: AttemptFailure[];
-  hostEvidence?: string;
 }
 
 interface Operation {
-  controller: AbortController;
-  timer?: number;
-  settled?: boolean;
+  readonly kind: OperationKind;
+  readonly controller: AbortController;
+  readonly item?: Work;
+  abandon(): void;
 }
 
-function failureOf(error: unknown): AttemptFailure {
-  return error instanceof NodelApiDecodeError || error instanceof InvalidJson ? 'invalid-data' : 'transport';
+function localIdentity(owner: LocalSnapshotOwner) {
+  return owner.key ? `simple:${owner.key}` : `opaque:${owner.name}`;
 }
 
-/** Start once after local paint. Graph/scene changes are exclusively through apply. */
+/** A single expanding pass. Logical deadlines never release physical request leases. */
 export function startRemoteEnrichment<T>(options: RemoteEnrichmentOptions<T>) {
-  const { signal, prepare, apply, timing = browserTiming } = options;
-  const deadline = options.deadline ?? timing.now() + REMOTE_ENRICHMENT_BUDGET_MS;
+  const { signal, prepare, apply, priority, measure, readLocalInventory, timing = browserTiming } = options;
+  const concurrent = readLocalInventory !== undefined;
+  const limiter = options.limiter ?? (timing === browserTiming ? browserLimiter ??= createEnrichmentLimiter() : createEnrichmentLimiter(timing));
+  const readers = options.readers ?? createRemoteEnrichmentReaders(window.location.origin);
+  const locals = new Set(options.localSnapshot?.owners.map(localIdentity));
   const work = new Map<string, Work>();
-  const seen = new Set<string>();
-  const ids = new Set<string>();
-  const lookups: Work[] = [];
-  let nextLookup = 0;
-  let firstWaveRemaining = 0;
-  const ready: Work[] = [];
-  const pending = new Map<string, RemoteEnrichmentResult<T>>();
+  const ready = new Set<Work>();
+  // These already have discovery evidence but may become uncovered references
+  // before the rest of the queue settles. Publish just one terminal outcome.
+  const withoutRoute = new Set<Work>();
   const active = new Set<Operation>();
-  const counts = { read: 0, partial: 0, unsuccessful: 0, cutoff: 0, total: 0 };
-  let readers = options.readers;
-  let state: 'open' | 'sealing' | 'retired' = 'open';
-  let deadlineTimer: number | undefined;
+  const busy = new Set<Work>();
+  const discoveries = new Map<string, RemoteDiscovery>();
+  const results = new Map<string, RemoteEnrichmentResult<T>>();
+  const intake: Array<{ item: Work; prepared: PreparedEnrichment<T>; candidates: readonly RemoteEnrichmentOwner[]; next: number }> = [];
+  const priorityStarted = new Set<Work>();
+  const promotions = new Map<Work, Iterator<Work>>();
+  const counts = { total: 0, pending: 0, read: 0, partial: 0, unsuccessful: 0, unreachable: 0, unresolved: 0, invalid: 0, lookupFailed: 0, noRoute: 0 };
+  let inventory: RemoteInventoryProgress = {
+    state: 'pending', coverage: 'HTTP advertisements only',
+    local: options.localSnapshot ? options.localSnapshot.inventory?.state === 'limited' ? 'limited' : 'known' : 'unknown',
+    rows: 0, discardedRows: 0, advertised: 0, omittedAdmissions: 0
+  };
+  let incoming: RemoteInventory['advertisements'] = [];
+  let cursor = 0;
+  let inventoryStarted = false;
+  let localInventoryStarted = false;
+  let localAccepted = !concurrent;
+  let localInventoryDelta: LocalSnapshot | undefined;
+  let localDeadline = Infinity;
+  let localPending = 0;
+  let inventoryAccepted = false;
+  let inventoryRowsLimited = false;
+  let seedCursor: Iterator<Work> | undefined;
+  let dispatches = 0;
+  let state: 'running' | 'paused' | 'retired' = 'running';
+  let task: { handle: number } | undefined;
   let frame: { handle: number } | undefined;
+  let unsubscribe: (() => void) | undefined;
   let resolveIdle!: () => void;
   const idle = new Promise<void>((resolve) => { resolveIdle = resolve; });
 
-  function enqueue(candidate: RemoteEnrichmentOwner, wave: Work['wave']) {
-    if (!validOwner(candidate)) return;
-    const { id, key, name } = candidate;
-    if (seen.has(key) || ids.has(id)) {
-      // Second-wave lookups have not begun while any first-wave result is being accepted.
-      const queued = work.get(key);
-      if (wave === 2 && queued?.wave === 2 && queued.owner.id === id && name < queued.owner.name) {
-        queued.owner = Object.freeze({ id, key, name });
+  function observe(event: RemoteEnrichmentMeasurement) {
+    try { measure?.(event); } catch { /* Measurements cannot interrupt work. */ }
+  }
+
+  function reportOmission() {
+    inventory = { ...inventory, omittedAdmissions: inventory.omittedAdmissions + 1 };
+    if (inventory.state === 'complete') inventory = { ...inventory, state: 'limited', reason: 'capacity' };
+    publish();
+  }
+
+  function admit(candidate: RemoteEnrichmentOwner, direct: boolean, referenced: boolean, local?: Work['local']) {
+    if ((!local && !validOwner(candidate)) || (!local && locals.has(candidate.key))) return;
+    const current = work.get(candidate.key);
+    if (current) {
+      current.referenced ||= referenced;
+      if (local && !current.local) {
+        current.local = local;
+        current.owner = Object.freeze({ ...candidate });
+        delete current.discovery;
+        current.lookupState = 'pending';
+        withoutRoute.delete(current);
+        discoveries.delete(candidate.key);
       }
+      return current;
+    }
+    if (work.size + locals.size - localWork >= maxEnrichmentOwners && !local) { reportOmission(); return; }
+    const now = timing.now();
+    const item: Work = {
+      owner: Object.freeze({ ...candidate }), ...(local ? { local } : {}), admittedAt: now, eligibleAt: now,
+      direct, referenced, distance: local ? 0 : direct ? 1 : Infinity,
+      lookupState: 'pending', lookupStarted: false, routeIndex: 0, terminal: false, attempts: []
+    };
+    work.set(candidate.key, item);
+    counts.total += 1;
+    counts.pending += 1;
+    return item;
+  }
+
+  function promote(item: Work, distance: number) {
+    if (distance > previewHops || distance >= item.distance) return;
+    item.distance = distance;
+    // A shorter route can traverse already-inspected owners without re-reading them.
+    if (item.references?.size) promotions.set(item, item.references.values());
+  }
+
+  function preferred(item: Work) {
+    return concurrent ? item.distance <= previewHops && (priorityStarted.has(item) || priorityStarted.size < previewOwners)
+      : item.local || item.direct || priority?.(item.owner);
+  }
+
+  function finishLocal(snapshot?: LocalSnapshot) {
+    localAccepted = true;
+    localInventoryDelta = snapshot;
+    if (snapshot) {
+      inventory = { ...inventory, local: snapshot.inventory?.state === 'limited' ? 'limited' : 'known' };
+      for (const local of snapshot.owners) locals.add(localIdentity(local));
+      for (const local of snapshot.owners) {
+        const key = localIdentity(local);
+        const reader = unfinishedLocalReader(snapshot, local);
+        if (reader) {
+          const item = admit(ownerFromName(local.name, key), true, false, reader);
+          if (item) {
+            localWork += 1;
+            localPending += 1;
+            promote(item, 0);
+            enqueue(item);
+          }
+        } else {
+          // A local identity still wins even if ambiguous or unreadable.
+          const item = work.get(key);
+          if (item) {
+            work.delete(key);
+            ready.delete(item);
+            withoutRoute.delete(item);
+            counts.total -= 1;
+            counts.pending -= 1;
+          }
+          discoveries.delete(key);
+        }
+      }
+    }
+    publish();
+  }
+
+  function enqueue(item: Work) {
+    if (item.terminal || ready.has(item)) return;
+    if (!item.local && !item.referenced && !item.discovery?.routes.length) {
+      withoutRoute.add(item);
       return;
     }
-    const item: Work = { owner: Object.freeze({ id, key, name }), wave, lookupState: 'pending', routes: [], issues: [], attempts: [] };
-    work.set(key, item);
-    lookups.push(item);
-    seen.add(key);
-    ids.add(id);
-    if (wave === 1) firstWaveRemaining += 1;
-    counts.total += 1;
+    withoutRoute.delete(item);
+    item.eligibleAt = timing.now();
+    ready.add(item);
   }
-  for (const candidate of options.owners) enqueue(candidate, 1);
 
-  function stopOperation(operation: Operation) {
-    if (operation.timer !== undefined) {
-      timing.clearTimer(operation.timer);
-      delete operation.timer;
+  function applyDiscovery(item: Work) {
+    const evidence = item.discovery;
+    if (!evidence?.advertised) return;
+    const advertised = evidence.advertisedName ? ownerFromName(evidence.advertisedName, item.owner.key) : item.owner;
+    discoveries.set(item.owner.key, { owner: validOwner(advertised) ? advertised : item.owner, lookupState: item.lookupState,
+      ...(evidence.hostEvidence !== undefined ? { hostEvidence: evidence.hostEvidence } : {}) });
+    publish();
+  }
+
+  function acceptAdvertisement(advertisement: RemoteAdvertisement) {
+    const item = admit(advertisement.owner, false, false);
+    if (!item) return;
+    item.discovery = concurrent && item.lookupStarted ? combineEvidence(advertisement, item.discovery) : advertisement;
+    if (!item.terminal) item.lookupState = routeState(item.discovery.routes.length, item.discovery.issues, inventoryRowsLimited || advertisement.limited);
+    applyDiscovery(item);
+    enqueue(item);
+  }
+
+  function record(item: Work, outcome: OwnerOutcome<T>) {
+    if (state === 'retired' || item.terminal) return;
+    item.terminal = true;
+    if (concurrent && item.local) localPending -= 1;
+    counts.pending -= 1;
+    counts[outcome.outcome] += 1;
+    if (outcome.outcome === 'unsuccessful') {
+      switch (outcome.reason) {
+        case 'transport': case 'timeout': counts.unreachable += 1; break;
+        case 'invalid-data': case 'prepare-failed': counts.invalid += 1; break;
+        case 'no-route': counts.noRoute += 1; break;
+        case 'policy-blocked': counts.unresolved += 1; break;
+        default: counts.lookupFailed += 1;
+      }
     }
-    if (!operation.settled) operation.controller.abort();
+    const hostEvidence = item.discovery?.hostEvidence;
+    results.set(item.owner.key, { owner: item.owner, source: item.local ? 'local' : 'remote', lookupState: item.lookupState,
+      issues: item.discovery?.issues ?? [], attempts: [...item.attempts],
+      ...(hostEvidence !== undefined ? { hostEvidence } : {}), ...outcome });
+    publish();
+  }
+
+  function unsuccessful(item: Work, reason: RemoteEnrichmentFailure) { record(item, { outcome: 'unsuccessful', reason }); }
+
+  function routeState(routeCount: number, issues?: readonly PolicyIssue[], limited?: boolean): RemoteEnrichmentLookupState {
+    return routeCount ? 'found' : issues?.length ? 'blocked' : limited ? 'invalid' : 'no-route';
+  }
+
+  function settleWithoutRoute(item: Work) {
+    unsuccessful(item, item.lookupState === 'blocked' ? 'policy-blocked' : item.earlyLookupFailure ??
+      (item.lookupState === 'invalid' ? 'lookup-limited' : 'no-route'));
+  }
+
+  function combineEvidence(primary: RemoteLookup, other?: RemoteLookup): RemoteLookup {
+    if (!other) return primary;
+    const routes = new Map(primary.routes.map((route) => [route.url, route]));
+    for (const route of other.routes) if (!routes.has(route.url)) routes.set(route.url, route);
+    const hosts = new Set([...routes.values()].map((route) => new URL(route.url).host));
+    const { hostEvidence: _host, ...fields } = primary;
+    const host = hosts.size > 1 || primary.hostEvidence === null || other.hostEvidence === null ? null
+      : hosts.size === 1 ? primary.hostEvidence ?? other.hostEvidence : undefined;
+    return { ...fields, routes: [...routes.values()], issues: [...new Set([...primary.issues, ...other.issues])].sort(),
+      ...(host !== undefined ? { hostEvidence: host } : {}) };
+  }
+
+  function settleLookup(item: Work, evidence: RemoteLookup) {
+    const previous = item.discovery;
+    if (concurrent && item.distance === 1) {
+      if (evidence.advertised) item.discovery = previous ? combineEvidence(previous, evidence) : evidence;
+      const routes = item.discovery?.routes ?? [];
+      item.lookupState = routeState(routes.length, item.discovery?.issues, evidence.limited);
+      if (evidence.advertised && (!previous || previous.hostEvidence !== item.discovery?.hostEvidence)) applyDiscovery(item);
+      // The exact request can start early, but the bulk response can still
+      // supply fallback routes or quarantine the exact route before any GET.
+      enqueue(item);
+      return;
+    }
+    if (evidence.advertised) item.discovery = {
+      ...evidence, issues: [...new Set([...(previous?.issues ?? []), ...evidence.issues])].sort()
+    };
+    item.lookupState = routeState(evidence.routes.length, item.discovery?.issues, evidence.limited);
+    if (evidence.advertised && !previous) applyDiscovery(item);
+    if (evidence.routes.length) enqueue(item);
+    else settleWithoutRoute(item);
+  }
+
+  function settleBindings(item: Work, bindings: NodelRemoteBindings) {
+    let prepared: ReturnType<RemoteEnrichmentOptions<T>['prepare']>;
+    try { prepared = prepare(item.owner, bindings, true); }
+    catch { unsuccessful(item, 'prepare-failed'); return; }
+    if (state === 'retired') return;
+    const { followUpOwners = [], ...result } = prepared;
+    if (followUpOwners.length) intake.push({ item, prepared: result, candidates: followUpOwners, next: 0 });
+    else record(item, result);
+  }
+
+  function finishInventory(result?: RemoteInventory, failure?: RemoteInventoryProgress['reason']) {
+    inventoryAccepted = true;
+    if (result) {
+      incoming = result.advertisements;
+      const responseLimit = result.limited ?? (result.discardedRows ? 'malformed-rows' : undefined);
+      inventoryRowsLimited = Boolean(responseLimit);
+      const reason = responseLimit ?? (inventory.omittedAdmissions ? 'capacity' : undefined);
+      inventory = { ...inventory, rows: result.rows, discardedRows: result.discardedRows, advertised: result.advertisements.length,
+        state: reason ? 'limited' : 'complete', ...(reason ? { reason } : {}) };
+    } else {
+      inventory = { ...inventory, state: failure === 'bytes' ? 'limited' : 'failed', ...(failure ? { reason: failure } : {}) };
+    }
+    publish();
+  }
+
+  function alive() { return state !== 'retired' && !signal?.aborted; }
+  function runnable() { return state === 'running' && !signal?.aborted; }
+
+  function start<V>(kind: OperationKind, release: () => void, run: (signal: AbortSignal) => Promise<V>, success: (value: V) => void,
+    failure: (reason: AttemptFailure | 'bytes') => void, item?: Work, dispatch?: RemoteEnrichmentMeasurement['dispatch']) {
+    const controller = new AbortController();
+    const startedAt = timing.now();
+    // Keep the original local I/O guard for inspections already underway near
+    // the boundary. Unstarted local work continues in the same background queue.
+    const budget = kind === 'local-read' && startedAt < localDeadline ? Math.min(requestBudget, localDeadline - startedAt) : requestBudget;
+    const expires = startedAt + budget;
+    let handled = false;
+    const operation: Operation = { controller, kind, ...(item ? { item } : {}), abandon() {
+      handled = true;
+      timing.clearTimer(timer);
+    } };
+    const timer = timing.setTimer(expire, budget);
+    active.add(operation);
+    if (item) busy.add(item);
+
+    function expire() {
+      if (handled || !alive()) return;
+      handled = true;
+      controller.abort();
+      if (state !== 'retired' && !signal?.aborted) failure('timeout');
+      schedule();
+    }
+
+    async function execute() {
+      try {
+        observe({ event: 'start', operation: kind, at: startedAt, physical: limiter.active,
+          ...(item ? { ownerId: item.owner.id, eligibleAgeMs: startedAt - item.eligibleAt, ownerAgeMs: startedAt - item.admittedAt } : {}),
+          ...(concurrent && item && Number.isFinite(item.distance) ? { referenceDistance: item.distance } : {}),
+          ...(dispatch ? { dispatch } : {}) });
+        if (!alive() || controller.signal.aborted) return;
+        const value = await run(controller.signal);
+        if (handled || !alive()) return;
+        if (timing.now() >= expires) { expire(); return; }
+        handled = true;
+        success(value);
+      } catch (error) {
+        if (handled || !alive()) return;
+        if (timing.now() >= expires) { expire(); return; }
+        handled = true;
+        failure(error instanceof EnrichmentResponseLimit && (kind === 'inventory' || kind === 'lookup') ? 'bytes' : enrichmentReadFailure(error));
+      } finally {
+        timing.clearTimer(timer);
+        active.delete(operation);
+        if (item) busy.delete(item);
+        release();
+        observe({ event: 'settle', operation: kind, at: timing.now(), physical: limiter.active, ...(item ? { ownerId: item.owner.id } : {}) });
+        if (state === 'retired' && !active.size) resolveIdle();
+        schedule();
+      }
+    }
+    void execute();
+  }
+
+  function nextRoute(item: Work) {
+    const routes = item.discovery?.routes ?? [];
+    while (item.routeIndex < Math.min(routeLimit, routes.length)) {
+      const route = routes[item.routeIndex]!;
+      if (readers.allows?.(item.owner, route) !== false) {
+        item.lookupState = 'found';
+        return route;
+      }
+      item.routeIndex += 1;
+      item.lookupState = 'blocked';
+      if (item.discovery) item.discovery = { ...item.discovery, issues: [...new Set<PolicyIssue>([...item.discovery.issues, 'identity-conflict'])] };
+    }
+    return undefined;
+  }
+
+  function pick() {
+    type Lane = { oldest?: Work; preferred?: Work; oldestNormal?: Work };
+    const reserve = dispatches % 4 === 3;
+    const open: Lane = {};
+    const capped: Lane = {};
+    let cappedOrigin: string | undefined;
+    let contested = false;
+    for (const item of ready) {
+      if (busy.has(item)) continue;
+      if (concurrent && !item.local) {
+        if (!localAccepted) continue;
+        if (!inventoryAccepted || cursor < incoming.length) {
+          if (!item.referenced || item.distance !== 1 || item.lookupStarted || item.discovery?.routes.length) continue;
+        }
+      }
+      const origin = nextRoute(item)?.origin;
+      let lane = open;
+      if (origin && limiter.remoteActive(origin) >= 2) {
+        if (cappedOrigin && cappedOrigin !== origin) contested = true;
+        cappedOrigin ??= origin;
+        lane = capped;
+      }
+      lane.oldest ??= item;
+      const prioritized = preferred(item);
+      if (reserve && !prioritized) lane.oldestNormal ??= item;
+      if (prioritized && (!lane.preferred || (concurrent && (item.distance < lane.preferred.distance ||
+        (item.distance === lane.preferred.distance && item.owner.key < lane.preferred.owner.key))))) {
+        lane.preferred = item;
+      }
+      if (reserve ? open.oldestNormal : !concurrent && open.preferred) break;
+    }
+    // A sole busy origin may use spare physical slots, but only after applying
+    // the same priority and every-fourth oldest-normal reservation to its jobs.
+    const lane = open.oldest ? open : !contested ? capped : undefined;
+    const item = lane?.oldestNormal ?? lane?.preferred ?? lane?.oldest;
+    return item ? { item, dispatch: reserve ? 'reserved' as const : lane?.preferred ? 'priority' as const : 'oldest' as const } : undefined;
+  }
+
+  function dispatch(item: Work, lane: RemoteEnrichmentMeasurement['dispatch']) {
+    const route = nextRoute(item);
+    const lookup = !item.local && !route && item.referenced && !item.lookupStarted && !item.attempts.length;
+    if (!item.local && !route && !lookup) {
+      ready.delete(item);
+      if (!item.referenced && !item.lookupStarted) withoutRoute.add(item);
+      else settleWithoutRoute(item);
+      return true;
+    }
+    const release = limiter.tryStart(route?.origin);
+    if (!release) return false;
+    ready.delete(item);
+    dispatches += 1;
+    if (concurrent && preferred(item)) priorityStarted.add(item);
+    if (lookup) {
+      item.lookupStarted = true;
+      start('lookup', release, (signal) => readers.lookup(item.owner, signal), (result) => settleLookup(item, result), (reason) => {
+        item.lookupState = reason === 'invalid-data' || reason === 'bytes' ? 'invalid' : 'failed';
+        const outcome = reason === 'bytes' ? 'lookup-limited' : `lookup-${reason}` as const;
+        if (concurrent && item.distance === 1) {
+          item.earlyLookupFailure = outcome;
+          enqueue(item);
+        } else unsuccessful(item, outcome);
+      }, item, lane);
+    } else {
+      const revoked = () => route !== undefined && readers.allows?.(item.owner, route) === false;
+      const failed = (failure: AttemptFailure | 'bytes') => {
+        const reason = failure === 'bytes' ? 'invalid-data' : failure;
+        const routeRevoked = revoked();
+        if (!routeRevoked) {
+          item.attempts.push(reason);
+          if (route) item.routeIndex += 1;
+        }
+        // Recheck queued/active route authority after an exact reply quarantines a path.
+        if (nextRoute(item) || (routeRevoked && item.referenced && !item.lookupStarted && !item.attempts.length)) enqueue(item);
+        else unsuccessful(item, item.attempts.includes('invalid-data') ? 'invalid-data' : routeRevoked ? 'policy-blocked' : reason);
+      };
+      start(item.local ? 'local-read' : 'remote-read', release, (signal) => item.local ? item.local(signal) : readers.read(item.owner, route!, signal),
+        (bindings) => {
+          // The reader may have settled one microtask before a conflicting reply.
+          if (revoked()) failed('transport');
+          else settleBindings(item, bindings);
+        }, failed, item, lane);
+    }
+    return true;
+  }
+
+  function pump() {
+    if (!runnable()) return;
+    if (readLocalInventory && !localInventoryStarted) {
+      const release = limiter.tryStart();
+      if (!release) return;
+      localInventoryStarted = true;
+      localDeadline = timing.now() + localSnapshotBudgetMs;
+      start('local-inventory', release, readLocalInventory, finishLocal, () => finishLocal());
+    }
+    if (!inventoryStarted) {
+      const release = limiter.tryStart();
+      if (!release) return;
+      inventoryStarted = true;
+      start('inventory', release, (signal) => readers.inventory(signal), (result) => finishInventory(result), (reason) => finishInventory(undefined, reason));
+    }
+    if (!concurrent && !inventoryAccepted) return;
+    const expires = timing.now() + sliceMs;
+    let left = sliceItems;
+    // Starting local inspections never depends on a held POST or the size of
+    // its ready-to-admit advertisement payload.
+    if (concurrent && (!inventoryAccepted || cursor < incoming.length) && localPending) {
+      while (limiter.active < 4 && left > 0 && timing.now() < expires) {
+        const next = pick();
+        if (!next || !dispatch(next.item, next.dispatch)) break;
+        left -= 1;
+      }
+    }
+    while (cursor < incoming.length && left > 0 && timing.now() < expires && discoveries.size < sliceItems) {
+      acceptAdvertisement(incoming[cursor++]!);
+      left -= 1;
+    }
+    if (cursor < incoming.length && discoveries.size < sliceItems) schedule();
+    if (incoming.length && cursor === incoming.length) { incoming = []; cursor = 0; }
+    if (seedCursor) {
+      while (left > 0 && timing.now() < expires) {
+        const next = seedCursor.next();
+        if (next.done) { seedCursor = undefined; break; }
+        enqueue(next.value);
+        left -= 1;
+      }
+      if (seedCursor) { schedule(); return; }
+    }
+    while (promotions.size && left > 0 && timing.now() < expires) {
+      const [item, linked] = promotions.entries().next().value!;
+      const next = linked.next();
+      if (next.done) promotions.delete(item);
+      else promote(next.value, item.distance + 1);
+      left -= 1;
+    }
+    // Resume large positive binding deltas without holding up a single event-loop turn.
+    // Publish the prepared owner only after all its known follow-ups have been admitted.
+    while (intake.length && left > 0 && timing.now() < expires && results.size < sliceItems) {
+      const entry = intake[0]!;
+      const candidate = entry.candidates[entry.next++];
+      if (candidate) {
+        const existing = work.get(candidate.key);
+        const target = admit(candidate, false, true);
+        if (target) {
+          if (concurrent) {
+            (entry.item.references ??= new Set()).add(target);
+            promote(target, entry.item.distance + 1);
+          }
+          if (!existing || withoutRoute.delete(target)) enqueue(target);
+        }
+      }
+      if (entry.next >= entry.candidates.length) {
+        intake.shift();
+        record(entry.item, entry.prepared);
+      }
+      left -= 1;
+    }
+    if (intake.length || promotions.size) { if (results.size < sliceItems) schedule(); return; }
+    while (left > 0 && timing.now() < expires && runnable() && limiter.active < 4 && results.size < sliceItems && discoveries.size < sliceItems) {
+      const next = pick();
+      if (!next || !dispatch(next.item, next.dispatch)) break;
+      left -= 1;
+    }
+    if (inventoryAccepted && localAccepted && cursor >= incoming.length && !ready.size && !active.size) {
+      for (const item of withoutRoute) {
+        if (!runnable() || left <= 0 || timing.now() >= expires || results.size >= sliceItems) break;
+        withoutRoute.delete(item);
+        settleWithoutRoute(item);
+        left -= 1;
+      }
+    }
+    if (left === 0 || timing.now() >= expires) schedule();
+  }
+
+  function schedule() {
+    if (!runnable() || task) return;
+    const token = { handle: timing.setTimer(() => {
+      if (task !== token) return;
+      task = undefined;
+      pump();
+      if (isComplete()) publish();
+    }, 0) };
+    task = token;
+  }
+
+  function isComplete() { return inventoryAccepted && localAccepted && cursor >= incoming.length && !seedCursor && !counts.pending && !active.size; }
+
+  function prioritySettled() {
+    if (!localAccepted || !inventoryAccepted) return false;
+    if (priorityStarted.size === previewOwners) return [...priorityStarted].every(({ terminal }) => terminal);
+    if (cursor < incoming.length || promotions.size) return false;
+    for (const item of work.values()) if (!item.terminal && preferred(item)) return false;
+    return true;
   }
 
   function retire() {
     state = 'retired';
-    waiting.delete(pump);
-    ready.length = 0;
-    lookups.length = 0;
-    work.clear();
-    seen.clear();
-    ids.clear();
-    pending.clear();
-    if (frame !== undefined) {
-      timing.cancelFrame(frame.handle);
-      frame = undefined;
-    }
-    if (deadlineTimer !== undefined) timing.clearTimer(deadlineTimer);
+    if (task) timing.clearTimer(task.handle);
+    if (frame) timing.cancelFrame(frame.handle);
+    task = undefined;
+    frame = undefined;
+    unsubscribe?.();
+    unsubscribe = undefined;
     signal?.removeEventListener('abort', cancel);
-    if (active.size === 0) resolveIdle();
+    discoveries.clear();
+    results.clear();
+    intake.length = 0;
+    ready.clear();
+    withoutRoute.clear();
+    promotions.clear();
+    priorityStarted.clear();
+    work.clear();
+    locals.clear();
+    incoming = [];
+    localInventoryDelta = undefined;
+    seedCursor = undefined;
+    if (!active.size) resolveIdle();
+  }
+
+  function flush() {
+    if (state === 'retired' || signal?.aborted) return;
+    const settled = state === 'running' && isComplete();
+    const batch: RemoteEnrichmentBatch<T> = {
+      discoveries: [...discoveries.values()], results: [...results.values()], inventory: { ...inventory },
+      ...(localInventoryDelta ? { localSnapshot: localInventoryDelta } : {}),
+      ...(concurrent ? { preview: { localSettled: localAccepted,
+        localPrioritySettled: localAccepted && (!localPending || (priorityStarted.size === previewOwners &&
+          [...priorityStarted].every((item) => !item.local || item.terminal))),
+        prioritySettled: prioritySettled() } } : {}),
+      counts: { ...counts }, paused: state === 'paused', ...(settled ? { finish: 'complete' } : {})
+    };
+    localInventoryDelta = undefined;
+    discoveries.clear();
+    results.clear();
+    if (settled) retire();
+    try { apply(batch); }
+    catch (error) { cancel(); throw error; }
+    schedule();
+  }
+
+  function publish() {
+    if (!runnable() || frame) return;
+    const token = { handle: timing.requestFrame(() => {
+      if (frame !== token || !runnable()) return;
+      frame = undefined;
+      flush();
+    }) };
+    frame = token;
   }
 
   function cancel() {
     if (state === 'retired') return;
-    // Revoke before abort events; even a synchronous callback cannot flush.
     retire();
-    for (const operation of active) stopOperation(operation);
+    for (const operation of active) { operation.abandon(); operation.controller.abort(); }
   }
 
-  function flush(finish?: RemoteEnrichmentBatch<T>['finish']) {
-    if (state === 'retired' || (signal?.aborted ?? false)) return;
-    const results = [...pending.values()];
-    pending.clear();
-    if (results.length || finish) apply({ results, counts: { ...counts }, ...(finish ? { finish } : {}) });
-  }
-
-  function record(item: Work, outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: RemoteEnrichmentFailure } | { outcome: 'cutoff' }) {
-    // Deleting from unfinished marks it accepted before any frame is requested.
-    if (!work.delete(item.owner.key)) return;
-    if (item.wave === 1) firstWaveRemaining -= 1;
-    counts[outcome.outcome] += 1;
-    pending.set(item.owner.key, { owner: item.owner, lookupState: item.lookupState, issues: item.issues, attempts: [...item.attempts], ...(item.hostEvidence ? { hostEvidence: item.hostEvidence } : {}), ...outcome });
-  }
-
-  function finish(cause: NonNullable<RemoteEnrichmentBatch<T>['finish']>) {
-    if (state !== 'open') return;
-    state = 'sealing';
-    waiting.delete(pump);
-    try {
-      for (const operation of active) stopOperation(operation);
-      // Abort handlers can revoke the scene synchronously.
+  function freeze() {
+    if (!runnable()) return;
+    state = 'paused';
+    unsubscribe?.();
+    unsubscribe = undefined;
+    if (task) timing.clearTimer(task.handle);
+    if (frame) timing.cancelFrame(frame.handle);
+    task = undefined;
+    frame = undefined;
+    // Retained documents have the same generation and request authority. Do
+    // not issue duplicate inventory or owner operations on restoration.
+    if (concurrent) return;
+    for (const operation of active) {
+      const { item, kind, controller } = operation;
+      // Do not undo an already accepted timeout or put an exact POST back on the wire.
+      if (controller.signal.aborted) continue;
+      operation.abandon();
+      controller.abort();
       if (signal?.aborted) return;
-      for (const item of work.values()) record(item, { outcome: 'cutoff' });
-      flush(cause);
-    } finally {
-      // Never cancel a draw requested by apply; this is only our pending frame.
-      retire();
+      if (item && kind === 'lookup') {
+        item.lookupState = 'failed';
+        unsuccessful(item, 'lookup-interrupted');
+      } else if (item) enqueue(item);
+      else finishInventory(undefined, 'interrupted');
     }
+    flush();
   }
 
-  function isOpen() {
-    if (signal?.aborted) cancel();
-    if (state === 'open' && timing.now() >= deadline) finish('cutoff');
-    return state === 'open';
+  function resume() {
+    if (state !== 'paused' || signal?.aborted) return;
+    state = 'running';
+    unsubscribe = limiter.subscribe(schedule);
+    publish();
+    schedule();
   }
 
-  function accept(item: Work, outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: RemoteEnrichmentFailure }, followUps?: readonly RemoteEnrichmentOwner[]) {
-    if (!isOpen() || !work.has(item.owner.key)) return;
-    // Admit disclosed owners before settling the parent so a terminal drain
-    // sees both waves, but do not start their lookups until wave one settles.
-    if (followUps && item.wave === 1 && options.depth === 2) {
-      for (const candidate of followUps) enqueue(candidate, 2);
+  let localWork = 0;
+  if (signal?.aborted) cancel();
+  else {
+    for (const local of options.localSnapshot?.owners ?? []) {
+      const reader = unfinishedLocalReader(options.localSnapshot!, local);
+      if (reader && admit(ownerFromName(local.name, localIdentity(local)), true, false, reader)) localWork += 1;
     }
-    record(item, outcome);
-    if (work.size === 0) {
-      finish('complete');
-    } else if (frame === undefined) {
-      const token = { handle: timing.requestFrame(() => {
-        if (frame !== token || !isOpen()) return;
-        frame = undefined;
-        flush();
-      }) };
-      frame = token;
-    }
-  }
-
-  function inspect(item: Work, route: string | undefined) {
-    const controller = new AbortController();
-    const operation: Operation = { controller };
-    const expires = timing.now() + requestBudget;
-    let handled = false;
-    active.add(operation);
-    physical += 1;
-
-    function fail(reason: AttemptFailure) {
-      if (route === undefined) {
-        item.lookupState = reason === 'invalid-data' ? 'invalid' : 'failed';
-        accept(item, { outcome: 'unsuccessful', reason: `lookup-${reason}` });
-        return;
-      }
-      item.attempts.push(reason);
-      if (item.routes.length) ready.push(item);
-      else accept(item, { outcome: 'unsuccessful', reason });
-    }
-
-    function expire() {
-      if (handled || !isOpen()) return;
-      handled = true;
-      stopOperation(operation);
-      if (!isOpen()) return;
-      fail('timeout');
-      pump();
-    }
-    if (expires < deadline) operation.timer = timing.setTimer(expire, requestBudget);
-
-    async function run() {
-      try {
-        if (route === undefined) {
-          const lookup = await readers!.lookup(item.owner, controller.signal);
-          operation.settled = true;
-          if (handled || !isOpen()) return;
-          if (timing.now() >= expires) { expire(); return; }
-          handled = true;
-          item.issues = [...(lookup.issues ?? [])];
-          if (lookup.hostEvidence !== undefined) item.hostEvidence = lookup.hostEvidence;
-          item.routes = [...new Set(lookup.routes)].slice(0, routeLimit);
-          if (item.routes.length) {
-            item.lookupState = 'found';
-            ready.push(item);
-          } else {
-            item.lookupState = item.issues.length ? 'blocked' : 'no-route';
-            accept(item, { outcome: 'unsuccessful', reason: item.lookupState === 'blocked' ? 'policy-blocked' : 'no-route' });
-          }
-        } else {
-          const bindings = await readers!.read(route, controller.signal);
-          operation.settled = true;
-          if (handled || !isOpen()) return;
-          if (timing.now() >= expires) { expire(); return; }
-          handled = true;
-          let outcome: PreparedEnrichment<T> | { outcome: 'unsuccessful'; reason: 'prepare-failed' };
-          let followUps: readonly RemoteEnrichmentOwner[] | undefined;
-          try {
-            const { followUpOwners, ...result } = prepare(item.owner, bindings, item.wave === 1 && options.depth === 2);
-            outcome = result;
-            followUps = followUpOwners;
-          } catch {
-            outcome = { outcome: 'unsuccessful', reason: 'prepare-failed' };
-          }
-          accept(item, outcome, followUps);
-        }
-      } catch (error) {
-        operation.settled = true;
-        if (handled || !isOpen()) return;
-        if (timing.now() >= expires) expire();
-        else {
-          handled = true;
-          fail(failureOf(error));
-        }
-      } finally {
-        if (operation.timer !== undefined) timing.clearTimer(operation.timer);
-        active.delete(operation);
-        physical -= 1;
-        if (state === 'retired' && active.size === 0) resolveIdle();
-        // Give already waiting generations the newly freed slot first.
-        for (const waiter of [...waiting]) waiter();
-        pump();
-      }
-    }
-    void run();
-  }
-
-  let pumping = false;
-  function pump() {
-    if (pumping) return;
-    pumping = true;
-    try {
-      waiting.delete(pump);
-      while (isOpen() && physical < physicalLimit) {
-        const continuation = ready.shift();
-        if (continuation) inspect(continuation, continuation.routes.shift());
-        else {
-          const next = lookups[nextLookup];
-          if (!next || (next.wave === 2 && firstWaveRemaining)) return;
-          nextLookup += 1;
-          inspect(next, undefined);
-        }
-      }
-      if (state === 'open') waiting.add(pump);
-    } finally {
-      pumping = false;
-    }
-  }
-
-  if (signal?.aborted || !work.size) cancel();
-  else if (isOpen()) {
-    readers ??= createRemoteEnrichmentReaders(window.location.origin);
+    for (const owner of options.owners) admit(owner, true, true);
+    seedCursor = work.values();
     signal?.addEventListener('abort', cancel, { once: true });
-    deadlineTimer = timing.setTimer(() => finish('cutoff'), Math.max(0, deadline - timing.now()));
-    pump();
+    unsubscribe = limiter.subscribe(schedule);
+    publish();
+    schedule();
   }
-  // Network quiescence is separate from scene retirement: callers must not
-  // wait for idle before changing source, freezing, or disposing the scene.
-  return { cancel, freeze: () => { if (isOpen()) finish('freeze'); }, idle };
+  return { cancel, freeze, resume, idle };
 }

@@ -1,659 +1,574 @@
 import { describe, expect, it, vi } from 'vitest';
-import { decodeNodeUrls } from '../src/api/codecs/nodel-codecs';
 import type { NodelRemoteBindings } from '../src/api/nodel-types';
-import { createEnrichmentLifetime } from '../src/experiments/konva-canvas/enrichment-lifetime';
-import { applyRemoteEnrichmentResult, buildLocalGraph, prepareRemoteOwnerInspection, type LocalGraph } from '../src/experiments/konva-canvas/local-graph';
 import {
-  createRemoteEnrichmentReaders, startRemoteEnrichment,
-  type RemoteEnrichmentBatch, type RemoteEnrichmentOwner, type RemoteEnrichmentReaders, type RemoteEnrichmentTiming
+  createEnrichmentLimiter, createRemoteEnrichmentReaders, startRemoteEnrichment,
+  type RemoteEnrichmentBatch, type RemoteEnrichmentMeasurement, type RemoteEnrichmentReaders, type RemoteEnrichmentTiming
 } from '../src/experiments/konva-canvas/remote-enrichment';
+import { maxEnrichmentOwners, maxEnrichmentResponseBytes, ownerFromName, type RemoteInventory, type RemoteLookup } from '../src/experiments/konva-canvas/enrichment-transport';
+import { applyRemoteDiscovery, applyRemoteEnrichmentResult, buildLocalGraph, prepareRemoteOwnerInspection, type LocalGraph } from '../src/experiments/konva-canvas/local-graph';
+import { localTopologyProgressSummary, projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
+import { loadLocalSnapshot } from '../src/experiments/konva-canvas/local-snapshot';
 
-const owner = (name: string, key = name.toLowerCase()): RemoteEnrichmentOwner => ({ id: `id:${key}`, key: `simple:${key}`, name });
-const alpha = owner('Alpha');
 const page = 'https://serving.test';
 const other = 'https://remote.test';
-const bindingUrl = (origin: string, name = 'Alpha') => `${origin}/nodes/${name}/REST/remote`;
-const json = (value: unknown) => new Response(JSON.stringify(value));
-
-function deferred<T>() {
+const alpha = ownerFromName('Alpha');
+const beta = ownerFromName('Beta');
+const ad = (name: string, origin = other, path = name) => ({ node: name, address: `${origin}/nodes/${path}/` });
+const signal = () => new AbortController().signal;
+const json = (value: unknown) => Response.json(value);
+const emptyInventory = { advertisements: [], rows: 0, discardedRows: 0 };
+const noRoute: RemoteLookup = { advertised: false, routes: [], issues: [] };
+const route = (url: string, origin = other) => ({ url, origin });
+const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((yes) => { resolve = yes; });
   return { promise, resolve };
-}
+};
 
-function clock() {
-  let now = 0;
-  let next = 0;
-  const timers = new Map<number, { callback: () => void; due: number }>();
-  const frames = new Map<number, () => void>();
-  const timing: RemoteEnrichmentTiming = {
-    now: () => now,
-    setTimer(callback, delay) { timers.set(++next, { callback, due: now + delay }); return next; },
-    clearTimer(handle) { timers.delete(handle); },
-    requestFrame(callback) { frames.set(++next, callback); return next; },
-    cancelFrame(handle) { frames.delete(handle); }
-  };
-  return {
-    timing, timers, frames,
-    jump(time: number) { now = time; },
-    advance(time: number) {
-      while (true) {
-        const entry = [...timers].filter(([, timer]) => timer.due <= time).sort((a, b) => a[1].due - b[1].due)[0];
-        if (!entry) break;
-        timers.delete(entry[0]);
-        now = entry[1].due;
-        entry[1].callback();
-      }
-      now = time;
-    },
-    paint() {
-      for (const [handle, callback] of [...frames]) { frames.delete(handle); callback(); }
-    }
-  };
-}
+const timing: RemoteEnrichmentTiming = {
+  now: () => performance.now(), setTimer: (callback, delay) => window.setTimeout(callback, delay),
+  clearTimer: (handle) => window.clearTimeout(handle),
+  requestFrame: (callback) => window.setTimeout(callback, 16), cancelFrame: (handle) => window.clearTimeout(handle)
+};
 
-async function drainMicrotasks() {
-  for (let i = 0; i < 30; i += 1) await Promise.resolve();
-}
+beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] }));
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-function tracked(readers: RemoteEnrichmentReaders, names: RemoteEnrichmentOwner[], scheduler = clock(), signal?: AbortSignal) {
+function start(readers: Partial<RemoteEnrichmentReaders>, extras: Partial<Parameters<typeof startRemoteEnrichment<string>>[0]> = {}) {
   const batches: RemoteEnrichmentBatch<string>[] = [];
-  const prepare = vi.fn((item: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, _collectFollowUps: boolean) => ({
-    outcome: bindings.events?.incomplete ? 'partial' as const : 'read' as const,
-    prepared: item.name
-  }));
-  const handle = startRemoteEnrichment({
-    owners: names, timing: scheduler.timing, readers, prepare,
-    ...(signal ? { signal } : {}), apply: (batch) => batches.push(batch)
+  const measures: RemoteEnrichmentMeasurement[] = [];
+  const handle = startRemoteEnrichment<string>({
+    owners: [], timing, readers: { inventory: async () => emptyInventory, lookup: async () => noRoute, read: async () => ({}), ...readers },
+    prepare: (owner) => ({ outcome: 'read', prepared: owner.name }),
+    apply: (batch) => { batches.push(batch); }, measure: (event) => { measures.push(event); }, ...extras
   });
-  return { handle, batches, prepare };
+  return { handle, batches, measures, results: () => batches.flatMap(({ results }) => results), discoveries: () => batches.flatMap(({ discoveries }) => discoveries) };
 }
 
-describe('remote enrichment transport — no host operations', () => {
-  it('publishes only an unambiguous distinct URL.host from validated lookup advertisements', async () => {
-    const readHost = async (addresses: string[]) => {
-      const fetcher = vi.fn(async () => json(addresses.map((address) => ({ node: 'Alpha', address }))));
-      return createRemoteEnrichmentReaders('http://serving.test', fetcher).lookup(alpha, new AbortController().signal);
-    };
-    const sameHost = await readHost(['http://remote.test/nodes/Alpha/', 'https://remote.test/nodes/Alpha/']);
-    expect(sameHost.hostEvidence).toBe('remote.test');
-    const aliases = await readHost(['http://remote.test/nodes/Alpha/', 'http://alias.test/nodes/Alpha/']);
-    expect(aliases).not.toHaveProperty('hostEvidence');
-    const currentHost = await readHost(['http://serving.test/nodes/Alpha/']);
-    expect(currentHost).not.toHaveProperty('hostEvidence');
-    expect(sameHost.hostEvidence).toBe('remote.test');
-    expect(sameHost.hostEvidence).not.toContain('/');
-  });
-
-  it('uses one exact POST per frozen key and prefers anonymous same-origin reads over HTTPS then HTTP', async () => {
-    const origin = 'http://serving.test';
-    const fetcher = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) => {
-      if (String(url) === `${origin}/REST/nodeURLsForNode`) {
-        return json([
-          { node: 'Alpha', name: 'A lpha (comment)', address: 'http://alternate.test/nodes/Alpha/' },
-          { name: 'Alpha', address: `${other}/nodes/Alpha/` },
-          { node: 'Alpha', address: `${origin}/nodes/Alpha` },
-          { node: 'Alpha', address: 'http://SERVING.test:80/nodes/Alpha/' },
-          { node: 'Alpha', address: 'https://zzz.test/nodes/Alpha/' }
-        ]);
-      }
-      if (String(url) === bindingUrl(origin)) return new Response('denied', { status: 401 });
-      return json({ actions: { Accepted: { node: 'Gamma', action: 'Run' } } });
-    });
-    const run = tracked(createRemoteEnrichmentReaders(origin, fetcher), [alpha, owner('A lpha', 'alpha'), owner('!!!', '')]);
-    await run.handle.idle;
-    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${origin}/REST/nodeURLsForNode`, bindingUrl(origin), bindingUrl(other)]);
-    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
-      method: 'POST', credentials: 'same-origin', mode: 'same-origin', redirect: 'error', cache: 'no-store',
-      body: '{"name":"Alpha"}'
-    });
-    for (const [, init] of fetcher.mock.calls.slice(1)) {
-      expect(init).toEqual({
-        method: 'GET', credentials: 'omit', mode: 'cors', redirect: 'error', referrerPolicy: 'no-referrer',
-        cache: 'no-store', headers: { Accept: 'application/json' }, signal: expect.any(AbortSignal)
-      });
+describe('HTTP route inventory and narrow transport', () => {
+  it('posts exactly one unfiltered discovery request; quarantines cross-owner claims without losing names', async () => {
+    const rows = [
+      ad('Alpha', page), ad('A lpha (alt)', page, '%41lpha'), ad('Beta', page, 'ALPHA'),
+      ad('Alpha', other), ad('ALPHA', other), { node: 'No route' },
+      { node: 'Quarantine Me', name: 'Forged', address: `${other}/nodes/QuarantineMe/` },
+      { node: 'Unsafe', address: `https://@remote.test/nodes/Unsafe` },
+      { node: 'Traversal', address: `${other}/wrong/../nodes/Traversal/` },
+      { node: 'Scoped', address: 'http://[fe80::1%25eth0]:8085/nodes/Scoped/' },
+      { node: 'Mixed', address: 'http://remote.test/nodes/Mixed/' },
+      { node: 'HostConflict', address: `${other}/nodes/HostConflict/`, host: 'different.test' },
+      { name: 'Name field', address: `${other}/nodes/Namefield/` },
+      { node: false, name: 'Never infer from alias' }
+    ];
+    for (const payload of [rows, [...rows].reverse()]) {
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => String(input).endsWith('/REST/nodeURLs') ? json(payload) : json({}));
+      const readers = createRemoteEnrichmentReaders(page, fetcher);
+      const inventory = await readers.inventory(signal());
+      expect(inventory).toMatchObject({ rows: rows.length, limited: 'malformed-rows' });
+      expect(inventory.advertisements.map(({ owner }) => owner.key)).toEqual([
+        'simple:alpha', 'simple:beta', 'simple:hostconflict', 'simple:mixed', 'simple:namefield', 'simple:noroute',
+        'simple:quarantineme', 'simple:scoped', 'simple:traversal', 'simple:unsafe'
+      ]);
+      const found = inventory.advertisements[0]!;
+      expect(found).toMatchObject({ hostEvidence: 'remote.test', issues: ['identity-conflict'], routes: [{ url: `${other}/nodes/ALPHA/REST/remote` }] });
+      expect(inventory.advertisements[1]).toMatchObject({ routes: [], issues: ['identity-conflict'] });
+      expect(inventory.advertisements[5]).toMatchObject({ routes: [], issues: [] });
+      await expect(readers.inventory(signal())).rejects.toThrow('already requested');
+      const selected = found.routes[0]!;
+      await expect(readers.read(beta, selected, signal())).rejects.toThrow('not authorised');
+      await expect(readers.read(alpha, { ...selected }, signal())).rejects.toThrow('not authorised');
+      await expect(readers.read(alpha, selected, signal())).resolves.toEqual({});
+      expect(fetcher.mock.calls).toEqual([
+        [`${page}/REST/nodeURLs`, { method: 'POST', credentials: 'same-origin', mode: 'same-origin', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer', body: '{"filter":""}', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, signal: expect.any(AbortSignal) }],
+        [selected.url, { method: 'GET', credentials: 'omit', mode: 'cors', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer', headers: { Accept: 'application/json' }, signal: expect.any(AbortSignal) }]
+      ]);
     }
-    expect(run.batches[0]).toMatchObject({ finish: 'complete', results: [{ outcome: 'read', attempts: ['transport'] }] });
   });
 
-  it('blocks original-path aliases that the shared decoder normalizes, including traversal and empty userinfo', async () => {
-    const raw = [
-      'https://remote.test/wrong/../nodes/Alpha/',
-      'https://remote.test/nodes/erased/%2e%2e/Alpha/',
-      'https://@remote.test/nodes/Alpha/',
-      'https://remote.test/nodes/Alpha/?',
-      'https://remote.test/nodes/Alpha/#',
-      'https://remote.test/nodes/Alpha%2fREST/',
-      'https://remote.test/nodes/%2541lpha/',
-      'https://remote.test/nodes/Alpha%zz/',
-      'https://remote.test/nodes/Alpha/REST/',
-      'http://[fe80::1%25eth0]:8085/nodes/Alpha/'
-    ].map((address) => ({ node: 'Alpha', address }));
-    expect(decodeNodeUrls(raw.slice(0, 3), 'fixture').map((row) => row.address)).toEqual(Array(3).fill(`${other}/nodes/Alpha/`));
-    const fetcher = vi.fn(async () => json(raw));
-    const run = tracked(createRemoteEnrichmentReaders(page, fetcher), [alpha]);
-    await run.handle.idle;
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'unsuccessful', reason: 'policy-blocked', issues: ['unsafe-route'] });
+  it('reuses validated Java variants, quarantines alternate owners in exact replies, and never passes a wrong name as discovery', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      if (String(input).endsWith('/REST/nodeURLs')) return json([ad('Alpha', page)]);
+      return json([ad('Alpha', page, '%41lpha'), ad('Beta', other)]);
+    });
+    const readers = createRemoteEnrichmentReaders(page, fetcher);
+    const { advertisements: [known] } = await readers.inventory(signal());
+    expect(known!.routes).toHaveLength(1);
+    const lookup = await readers.lookup(beta, signal());
+    expect(lookup).toMatchObject({ advertised: true, routes: [{ url: `${other}/nodes/Beta/REST/remote` }] });
+    expect(readers.allows?.(alpha, known!.routes[0]!)).toBe(false);
+    expect(fetcher.mock.lastCall).toMatchObject([`${page}/REST/nodeURLsForNode`, { body: '{"name":"Beta"}' }]);
+    await expect(readers.lookup({ ...beta, name: 'unsafe\u0000' }, signal())).rejects.toBeInstanceOf(Error);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([true, false])('quarantines exact claims regardless of reply order (conflict first: %s)', async (conflictFirst) => {
+    const a = deferred<Response>();
+    const b = deferred<Response>();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation((_url, init) => String(init?.body).includes('Alpha') ? a.promise : b.promise);
+    const readers = createRemoteEnrichmentReaders(page, fetcher);
+    const valid = readers.lookup(alpha, signal());
+    const conflicting = readers.lookup(beta, signal());
+    const replyAlpha = () => a.resolve(json([ad('Alpha', page), ad('Alpha', other)]));
+    const replyBeta = () => b.resolve(json([ad('Beta', page, '%41lpha')]));
+    if (conflictFirst) {
+      replyBeta();
+      await conflicting;
+      replyAlpha();
+    } else {
+      replyAlpha();
+      expect((await valid).routes.map(({ origin }) => origin)).toEqual([page, other]);
+      replyBeta();
+      await conflicting;
+    }
+    const result = await valid;
+    expect(result.routes.filter((route) => readers.allows?.(alpha, route)).map(({ origin }) => origin)).toEqual([other]);
+    if (conflictFirst) expect(result).toMatchObject({ issues: ['identity-conflict'], routes: [{ origin: other }] });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed for existing and future routes when the pass-wide conflict capacity is exceeded', async () => {
+    const rows = Array.from({ length: maxEnrichmentOwners }, (_, i) => ad('Beta', page, `Conflict${i}`));
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => String(url).endsWith('/REST/nodeURLs') ? json([ad('Alpha')]) : json([]));
+    const readers = createRemoteEnrichmentReaders(page, fetcher);
+    const inventory = await readers.inventory(signal());
+    const openRoute = inventory.advertisements[0]!.routes[0]!;
+
+    fetcher.mockResolvedValueOnce(json(rows));
+    await readers.lookup(beta, signal());
+    expect(readers.allows?.(alpha, openRoute)).toBe(true);
+    fetcher.mockResolvedValueOnce(json([rows[0], rows.at(-1)]));
+    await readers.lookup(beta, signal());
+    expect(readers.allows?.(alpha, openRoute)).toBe(true); // repeated keys cost no additional capacity
+
+    const held = deferred<Response>();
+    fetcher.mockReturnValueOnce(held.promise);
+    const inFlight = readers.read(alpha, openRoute, signal());
+    fetcher.mockResolvedValueOnce(json([ad('Beta', page, 'OneMoreConflict')]));
+    await readers.lookup(beta, signal());
+    expect(readers.allows?.(alpha, openRoute)).toBe(false);
+    await expect(readers.read(alpha, openRoute, signal())).rejects.toThrow('not authorised');
+    held.resolve(json({}));
+    await expect(inFlight).rejects.toThrow('revoked');
+    fetcher.mockResolvedValueOnce(json([ad('Alpha', other)]));
+    await expect(readers.lookup(alpha, signal())).resolves.toMatchObject({
+      advertised: true, limited: true, routes: [], issues: ['identity-conflict']
+    });
+    expect(fetcher).toHaveBeenCalledTimes(6);
   });
 
   it.each([
-    ['%41lpha', { node: 'Alpha', name: 'Beta' }],
-    ['ALPHA', { node: 'Beta' }],
-    ['%C3%81lpha', { node: 'Beta' }]
-  ] as const)('quarantines a contradictory Java-equivalent %s path on the same origin only', async (equivalentPath, claim) => {
-    const ads = [
-      { node: 'Alpha', address: `${page}/nodes/Alpha/` },
-      { ...claim, address: `${page}/nodes/${equivalentPath}` },
-      { node: 'Alpha', address: 'https://wrong.test/nodes/Beta/' },
-      { node: 'Álpha (kiosk)', name: 'A lpha', address: `${other}/nodes/%C3%81lpha/` },
-      { node: 'Alpha', address: 'http://mixed.test/nodes/Alpha/' },
-      { node: false, address: 'https://bad.test/nodes/Alpha/' }
-    ];
-    for (const entries of [ads, [...ads].reverse()]) {
-      const fetcher = vi.fn(async (url: RequestInfo | URL) => String(url).includes('/REST/nodeURLsForNode') ? json(entries) : json({}));
-      const run = tracked(createRemoteEnrichmentReaders(page, fetcher), [alpha]);
-      await run.handle.idle;
-      expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${page}/REST/nodeURLsForNode`, bindingUrl(other, '%C3%81lpha')]);
-      expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'read', lookupState: 'found', issues: ['identity-conflict', 'mixed-content'] });
-    }
-  });
-
-  it('deduplicates agreeing Java-equivalent paths without collapsing the independent alternate origin', async () => {
-    const fetcher = vi.fn(async (url: RequestInfo | URL) => {
-      if (String(url).endsWith('/REST/nodeURLsForNode')) return json([
-        { node: 'ALPHA', address: `${page}/nodes/ALPHA/` },
-        { node: 'Alpha', address: `${page}/nodes/Alpha/` },
-        { node: 'Alpha', address: `${other}/nodes/Alpha/` }
-      ]);
-      if (String(url).startsWith(page)) return new Response(null, { status: 401 });
-      return json({});
-    });
-    const run = tracked(createRemoteEnrichmentReaders(page, fetcher), [alpha]);
-    await run.handle.idle;
-    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${page}/REST/nodeURLsForNode`, bindingUrl(page, 'ALPHA'), bindingUrl(other)]);
-    expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'read', lookupState: 'found', issues: [], attempts: ['transport'] });
-  });
-
-  it('separates empty discovery, mixed content, invalid discovery, and blocked lookup statuses', async () => {
-    const fixtures = [
-      [json([]), 'no-route', 'no-route'],
-      [json([{ node: 'Alpha', address: 'http://remote.test/nodes/Alpha/' }]), 'policy-blocked', 'blocked'],
-      [json([{ node: 'Alpha', address: 'https://user:secret@remote.test/nodes/Alpha/' }]), 'lookup-invalid-data', 'invalid'],
-      [json({ wrong: 'shape' }), 'lookup-invalid-data', 'invalid'],
-      [new Response('blocked', { status: 403 }), 'lookup-transport', 'failed'],
-      [new Response(null, { status: 302, headers: { Location: 'https://elsewhere.test/' } }), 'lookup-transport', 'failed']
-    ] as const;
-    for (const [response, reason, lookupState] of fixtures) {
-      const fetcher = vi.fn(async () => response);
-      const run = tracked(createRemoteEnrichmentReaders(page, fetcher), [alpha]);
-      await run.handle.idle;
-      expect(fetcher).toHaveBeenCalledTimes(1);
-      expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'unsuccessful', reason, lookupState });
-    }
-  });
-
-  it('applies no rows from a rejected whole binding response, tries at most two distinct routes, and passes only the decoded fallback to prepare', async () => {
-    const good = { events: { incomplete: { node: 'Gamma' } } };
-    const fetcher = vi.fn(async (url: RequestInfo | URL) => {
-      if (String(url) === `${page}/REST/nodeURLsForNode`) return json([
-        { node: 'Alpha', address: `${other}/nodes/Alpha/` },
-        { node: 'Alpha', address: `${page}/nodes/Alpha/` },
-        { node: 'Alpha', address: 'https://zzz.test/nodes/Alpha/' }
-      ]);
-      if (String(url) === bindingUrl(page)) return json({ actions: { LooksGood: { node: 'Other', action: 'Run' }, Bad: { node: 1 } } });
-      return json(good);
-    });
-    const readers = createRemoteEnrichmentReaders(page, fetcher);
-    await expect(readers.read(bindingUrl(other), new AbortController().signal)).rejects.toThrow('not authorised');
-    const run = tracked(readers, [alpha]);
-    await run.handle.idle;
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(run.prepare.mock.calls).toEqual([[alpha, good, false]]);
-    expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'partial', attempts: ['invalid-data'] });
-  });
-
-  it('does not confuse opaque, redirects, denied status, or broken JSON with an empty decoded config', async () => {
-    const cases: Array<[() => Response | never, string]> = [
-      [() => new Response('{broken json'), 'invalid-data'],
-      [() => new Response(null, { status: 204 }), 'invalid-data'],
-      [() => new Response('denied', { status: 401 }), 'transport'],
-      [() => new Response(null, { status: 302 }), 'transport'],
-      [() => Object.defineProperty(json({}), 'type', { value: 'opaque' }), 'transport'],
-      [() => Object.defineProperty(json({}), 'redirected', { value: true }), 'transport'],
-      [() => { throw new TypeError('CORS'); }, 'transport']
-    ];
-    for (const [response, reason] of cases) {
-      const fetcher = vi.fn(async (url: RequestInfo | URL) => String(url).endsWith('/REST/nodeURLsForNode')
-        ? json([{ node: 'Alpha', address: `${other}/nodes/Alpha/` }]) : response());
-      const run = tracked(createRemoteEnrichmentReaders(page, fetcher), [alpha]);
-      await run.handle.idle;
-      expect(run.prepare).not.toHaveBeenCalled();
-      expect(run.batches[0]?.results[0]).toMatchObject({ outcome: 'unsuccessful', reason, attempts: [reason] });
-    }
+    [() => json(new Array<null>(maxEnrichmentOwners + 1).fill(null)), 'limited', 'rows'],
+    [() => new Response('wrong', { headers: { 'Content-Length': String(maxEnrichmentResponseBytes + 1) } }), 'limited', 'bytes'],
+    [() => new Response(' '.repeat(maxEnrichmentResponseBytes + 1)), 'limited', 'bytes'],
+    [() => json({ wrong: 'shape' }), 'failed', 'invalid-data'],
+    [() => new Response('denied', { status: 401 }), 'failed', 'transport']
+  ] as const)('qualifies a limited/failed inventory, but still tries exact known references (%s)', async (reply, state, reason) => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => String(input).endsWith('/REST/nodeURLs') ? reply() : json([]));
+    const run = start(createRemoteEnrichmentReaders(page, fetcher), { owners: [alpha] });
+    await vi.runAllTimersAsync();
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', inventory: { coverage: 'HTTP advertisements only', state, reason, local: 'unknown' } });
+    expect(run.results()).toMatchObject([{ owner: alpha, reason: 'no-route' }]);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${page}/REST/nodeURLs`, `${page}/REST/nodeURLsForNode`]);
+    expect(run.discoveries()).toEqual([]);
   });
 });
 
-describe('remote enrichment physical slots and generation settlement', () => {
-  it.each(['cutoff', 'freeze', 'revoke'] as const)('settles both waves at %s without late model mutation or a stale draw', async (stop) => {
-    const time = clock();
-    const source = new AbortController();
-    const graph = buildLocalGraph({ locals: [{ name: 'Local', readState: 'read', actions: [{ alias: 'Call', node: 'Alpha', endpoint: 'Go' }] }] });
-    const gate = deferred<NodelRemoteBindings>();
-    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
-    const read = vi.fn((route: string, _signal: AbortSignal) => route === 'Alpha'
-      ? Promise.resolve({ actions: { next: { node: 'Beta', action: 'Run' } } }) : gate.promise);
-    const prepare = vi.fn((owner: RemoteEnrichmentOwner, bindings: NodelRemoteBindings, collect: boolean) =>
-      prepareRemoteOwnerInspection(owner, bindings, collect ? graph.nodes : undefined));
-    const batches: RemoteEnrichmentBatch<LocalGraph>[] = [];
-    time.jump(13_000); // Startup already spent part of the original paint budget.
-    const handle = startRemoteEnrichment({ depth: 2, owners: graph.eligibleRemoteOwners, deadline: 15_000,
-      signal: source.signal, timing: time.timing, readers: { lookup, read }, prepare,
-      apply(batch) {
-        batches.push(batch);
-        for (const result of batch.results) applyRemoteEnrichmentResult(graph, result);
-      }
-    });
-    await drainMicrotasks();
-    expect(lookup.mock.calls.map(([item]) => item.name)).toEqual(['Alpha', 'Beta']);
-    expect(read.mock.calls.map(([route]) => route)).toEqual(['Alpha', 'Beta']);
-    expect(batches).toEqual([]);
-    const saved = [...time.frames.values()][0]!;
-    expect(saved).toBeTypeOf('function');
-    if (stop === 'cutoff') time.advance(15_000);
-    else if (stop === 'freeze') handle.freeze();
-    else source.abort();
-
-    expect(read.mock.lastCall?.[1].aborted).toBe(true);
-    if (stop === 'revoke') {
-      expect(batches).toEqual([]);
-      expect(graph.connections.size).toBe(1);
-    } else {
-      expect(batches).toMatchObject([{ finish: stop, counts: { total: 2, read: 1, partial: 0, unsuccessful: 0, cutoff: 1 },
-        results: [{ owner: { name: 'Alpha' }, outcome: 'read' }, { owner: { name: 'Beta' }, lookupState: 'found', outcome: 'cutoff' }] }]);
-      expect([...graph.nodes.values()].find(({ name }) => name === 'Beta')?.inspectionState).toBe('cutoff');
-      expect(graph.connections.size).toBe(2);
-    }
-    saved();
-    gate.resolve({ actions: { late: { node: 'MustNotAppear', action: 'Run' } } });
-    await handle.idle;
-    handle.freeze();
-    expect(batches).toHaveLength(stop === 'revoke' ? 0 : 1);
-    expect(lookup).toHaveBeenCalledTimes(2);
-    expect(prepare).toHaveBeenCalledTimes(1);
-    expect([...graph.nodes.values()].some(({ name }) => name === 'MustNotAppear')).toBe(false);
-    expect(time.timers.size + time.frames.size).toBe(0);
-  });
-
-  it('admits known follow-ups before a freeze while the first wave is unsettled, without starting their lookup', async () => {
-    const time = clock();
-    const gate = deferred<NodelRemoteBindings>();
-    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
-    const batches: RemoteEnrichmentBatch<string>[] = [];
-    const handle = startRemoteEnrichment({ depth: 2, owners: [alpha, owner('Beta')], timing: time.timing,
-      readers: { lookup, read: (route) => route === 'Alpha' ? Promise.resolve({}) : gate.promise },
-      prepare: ({ name }) => ({ outcome: 'read', prepared: name, followUpOwners: [owner('Gamma')] }), apply: (batch) => batches.push(batch)
-    });
-    await drainMicrotasks();
-    expect(lookup.mock.calls.map(([item]) => item.name)).toEqual(['Alpha', 'Beta']);
-    handle.freeze();
-    expect(batches).toMatchObject([{ finish: 'freeze', counts: { total: 3, read: 1, cutoff: 2 }, results: [
-      { owner: alpha, outcome: 'read' }, { owner: owner('Beta'), outcome: 'cutoff' }, { owner: owner('Gamma'), lookupState: 'pending', outcome: 'cutoff' }
-    ] }]);
-    gate.resolve({});
-    await handle.idle;
-    expect(batches).toHaveLength(1);
-    expect(lookup).toHaveBeenCalledTimes(2);
-  });
-
-  it('gives the second wave only the physical slots freed by abort-insensitive first-wave reads', async () => {
-    const time = clock();
-    const firstWave = [alpha, owner('Beta'), owner('Gamma'), owner('Delta')];
-    const secondWave = [owner('Echo'), owner('Foxtrot'), owner('Golf'), owner('Hotel')];
-    const gates = firstWave.slice(1).map(() => deferred<NodelRemoteBindings>());
-    const held = deferred<NodelRemoteBindings>();
-    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => ({ routes: [name] }));
-    const read = vi.fn((route: string, _signal: AbortSignal) => {
-      const index = firstWave.findIndex(({ name }) => name === route);
-      if (index === 0) return Promise.resolve({});
-      return index > 0 ? gates[index - 1]!.promise : held.promise;
-    });
-    const batches: RemoteEnrichmentBatch<string>[] = [];
-    const handle = startRemoteEnrichment({ depth: 2, owners: firstWave, timing: time.timing, readers: { lookup, read },
-      prepare: ({ name }, _bindings, collectFollowUps) => ({ outcome: 'read', prepared: name, ...(collectFollowUps ? { followUpOwners: secondWave } : {}) }),
-      apply: (batch) => batches.push(batch)
-    });
-    await drainMicrotasks();
-    expect(lookup).toHaveBeenCalledTimes(4);
-    time.advance(3_000);
-    await drainMicrotasks();
-    expect(read.mock.calls.slice(1, 4).every(([, signal]) => signal.aborted)).toBe(true);
-    expect(lookup.mock.calls.slice(4).map(([item]) => item.name)).toEqual(['Echo']);
-    gates[0]!.resolve({});
-    await drainMicrotasks();
-    expect(lookup.mock.calls.slice(4).map(([item]) => item.name)).toEqual(['Echo', 'Foxtrot']);
-    expect(read.mock.calls.slice(4).map(([route]) => route)).toEqual(['Echo', 'Foxtrot']);
-    for (const gate of gates) gate.resolve({});
-    held.resolve({});
-    await handle.idle;
-    expect(batches).toMatchObject([{ finish: 'complete', counts: { total: 8, read: 5, unsuccessful: 3, cutoff: 0 } }]);
-  });
-
-  it.each([15_010, 15_011])('seals a startup at t=%d from the first paint with zero network operations', async (startup) => {
-    const time = clock();
-    const lifetime = createEnrichmentLifetime({ request: time.timing.requestFrame, cancel: time.timing.cancelFrame }, time.timing.now);
-    const lookup = vi.fn(async () => ({ routes: ['eligible'] }));
-    const read = vi.fn(async () => ({}));
-    const prepare = vi.fn(() => ({ outcome: 'read' as const, prepared: null }));
-    const apply = vi.fn(() => lifetime.finish());
-    const names = [alpha, owner('Beta')];
-    lifetime.sized();
-    let launch: ((startupTime: number) => ReturnType<typeof startRemoteEnrichment>) | undefined;
-    lifetime.afterPaint((deadline) => {
-      launch = (startupTime) => {
-        time.jump(startupTime); // Delayed module load and projector creation.
-        const handle = startRemoteEnrichment({ owners: names, deadline, signal: lifetime.signal, timing: time.timing, readers: { lookup, read }, prepare, apply });
-        lifetime.attach(handle);
-        return handle;
-      };
-    });
-    time.jump(9);
-    time.paint();
-    expect(launch).toBeUndefined();
-    time.jump(10);
-    time.paint();
-    const handle = launch!(startup);
-    expect(apply).toHaveBeenCalledTimes(1); // Synchronous final settlement, no timer or paint waits.
-    expect(apply.mock.lastCall).toEqual([{
-      finish: 'cutoff', counts: { total: 2, cutoff: 2, partial: 0, read: 0, unsuccessful: 0 },
-      results: names.map((item) => ({ owner: item, lookupState: 'pending', issues: [], attempts: [], outcome: 'cutoff' }))
-    }]);
-    expect(lookup).not.toHaveBeenCalled();
-    expect(read).not.toHaveBeenCalled();
-    expect(prepare).not.toHaveBeenCalled();
-    expect(time.timers.size + time.frames.size).toBe(0);
-    expect(lifetime.canStart).toBe(false);
-    lifetime.freeze();
-    expect(apply).toHaveBeenCalledTimes(1);
-    await handle.idle;
-  });
-
-  it('gives delayed startup only the remaining time before the original paint deadline', async () => {
-    const time = clock();
-    const pending = deferred<{ routes: string[] }>();
-    const batches: RemoteEnrichmentBatch<null>[] = [];
-    const lookup = vi.fn(() => pending.promise);
-    const read = vi.fn(async () => ({}));
-    time.jump(14_999);
-    const handle = startRemoteEnrichment({
-      owners: [alpha], deadline: 15_000, timing: time.timing, readers: { lookup, read },
-      prepare: () => ({ outcome: 'read', prepared: null }), apply: (batch) => batches.push(batch)
-    });
-    expect(lookup).toHaveBeenCalledTimes(1);
-    time.advance(15_000);
-    expect(batches).toMatchObject([{ finish: 'cutoff', results: [{ owner: alpha, outcome: 'cutoff' }] }]);
-    pending.resolve({ routes: ['late'] });
-    await handle.idle;
-    expect(read).not.toHaveBeenCalled();
-    expect(time.timers.size + time.frames.size).toBe(0);
-  });
-
-  it('applies a painted owner once and drains a coalesced pending batch synchronously on completion', async () => {
-    const time = clock();
-    const names = [alpha, owner('Beta'), owner('Gamma'), owner('Delta')];
-    const reads = new Map(names.map(({ name }) => [name, deferred<NodelRemoteBindings>()]));
-    const run = tracked({ lookup: async ({ name }) => ({ routes: [name] }), read: (route) => reads.get(route)!.promise }, names, time);
-    await drainMicrotasks();
-    reads.get('Alpha')!.resolve({});
-    await drainMicrotasks();
-    expect(run.batches).toHaveLength(0);
-    expect(run.prepare).toHaveBeenCalledTimes(1);
-    const first = [...time.frames.values()][0]!;
-    time.paint();
-    reads.get('Gamma')!.resolve({});
-    reads.get('Beta')!.resolve({});
-    await drainMicrotasks();
-    expect(time.frames.size).toBe(1);
-    const saved = [...time.frames.values()][0]!;
-    first();
-    expect(run.batches).toHaveLength(1);
-    reads.get('Delta')!.resolve({});
-    await run.handle.idle;
-    saved();
-    expect(run.batches.map(({ results, finish }) => [results.map((result) => result.owner.name), finish])).toEqual([
-      [['Alpha'], undefined], [['Gamma', 'Beta', 'Delta'], 'complete']
+describe('expanding initial inspection', () => {
+  it('admits disconnected advertisements and expands past second hop, caching lookups and bound fallbacks', async () => {
+    const more = ownerFromName('More');
+    const leaf = ownerFromName('Leaf');
+    const byName = new Map([
+      ['Alpha', [beta, more, ownerFromName('A lpha (cycle)')]], ['Beta', [more, ownerFromName('unsafe\u0000')]],
+      ['More', [leaf]], ['Leaf', [alpha]]
     ]);
-    expect(time.timers.size + time.frames.size).toBe(0);
-  });
-
-  it('drains accepted work at cutoff, keeps timed-out slots physical, and does not replay a saved frame', async () => {
-    const time = clock();
-    const held = deferred<NodelRemoteBindings>();
-    const names = [alpha, ...['Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'].map((name) => owner(name))];
-    const started: string[] = [];
-    const run = tracked({
-      lookup: async ({ name }) => ({ routes: [`${name}-first`, `${name}-second`] }),
-      read: (route) => {
-        started.push(route);
-        return route === 'Alpha-first' || route === 'Alpha-second' ? Promise.reject(new TypeError()) : held.promise;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/REST/nodeURLs') return json([ad('Alpha', page), ad('Alpha', other), ad('Alpha', 'https://unused.test'), ad('Isolated'), { node: 'Later' }]);
+      if (path === '/REST/nodeURLsForNode') {
+        const { name } = JSON.parse(String(init?.body)) as { name: string };
+        return json([ad(name)]);
       }
-    }, names, time);
-    // Throttled timers: Alpha arrives just before its per-request deadline and
-    // its accepted frame is postponed until the overall deadline.
-    time.jump(2_999);
-    await drainMicrotasks();
-    expect(started).toEqual(['Alpha-first', 'Beta-first', 'Gamma-first', 'Delta-first', 'Alpha-second', 'Epsilon-first']);
-    const saved = [...time.frames.values()][0]!;
-    time.advance(15_000);
-    expect(run.batches).toHaveLength(1);
-    expect(run.batches[0]).toMatchObject({
-      finish: 'cutoff', counts: { unsuccessful: 1, cutoff: 5 },
-      results: [{ owner: alpha, outcome: 'unsuccessful' }, ...names.slice(1).map((item) => ({ owner: item, outcome: 'cutoff' }))]
+      if (String(url) === `${page}/nodes/Alpha/REST/remote`) return json({ actions: { Bad: { node: 1 } } });
+      if (path === '/nodes/Leaf/REST/remote') return json({ actions: { Incomplete: { node: 'Alpha' } } });
+      return json({});
     });
-    expect(run.batches[0]?.results.at(-1)?.attempts).toEqual([]);
-    expect(run.batches[0]?.results[1]?.attempts).toEqual(['timeout']);
-    held.resolve({});
-    await run.handle.idle;
-    saved();
-    expect(run.batches).toHaveLength(1);
-    expect(started).toHaveLength(6);
-    expect(time.timers.size + time.frames.size).toBe(0);
-  });
-
-  it('accepts a prepared success at t=14999, but not at t=15000 or when preparation crosses the cutoff', async () => {
-    for (const [arrival, reconstructed, expected] of [[14_999, 14_999, 'read'], [15_000, 15_000, 'cutoff'], [14_999, 15_000, 'cutoff']] as const) {
-      const time = clock();
-      const gates = Array.from({ length: 4 }, () => deferred<NodelRemoteBindings>());
-      const run = deferred<NodelRemoteBindings>();
-      const late = deferred<NodelRemoteBindings>();
-      const batches: RemoteEnrichmentBatch<null>[] = [];
-      const names = [...['Beta', 'Gamma', 'Delta', 'Epsilon'].map((name) => owner(name)), alpha, owner('Zeta')];
-      const started: string[] = [];
-      const handle = startRemoteEnrichment({
-        owners: names, timing: time.timing,
-        readers: {
-          lookup: async ({ name }) => ({ routes: [name] }),
-          read: (route) => {
-            started.push(route);
-            if (route === 'Alpha') return run.promise;
-            if (route === 'Zeta') return late.promise;
-            return gates[started.length - 1]!.promise;
-          }
-        },
-        prepare: () => { time.jump(reconstructed); return { outcome: 'read', prepared: null }; },
-        apply: (batch) => batches.push(batch)
-      });
-      await drainMicrotasks();
-      time.advance(12_500);
-      time.paint();
-      gates[0]!.resolve({}); // Release an abort-insensitive slot for Alpha.
-      await drainMicrotasks();
-      expect(started.at(-1)).toBe('Alpha');
-      time.jump(arrival);
-      run.resolve({});
-      await drainMicrotasks();
-      const frame = [...time.frames.values()][0];
-      time.advance(15_000);
-      frame?.();
-      for (const gate of gates) gate.resolve({});
-      late.resolve({});
-      await handle.idle;
-      expect(batches).toHaveLength(2);
-      expect(Boolean(frame)).toBe(expected === 'read');
-      expect(batches[1]?.results.filter((result) => result.owner.key === alpha.key)).toMatchObject([{ outcome: expected }]);
+    byName.set('Leaf', [alpha, ownerFromName('Later')]);
+    const prepare = vi.fn((owner: typeof alpha, bindings: NodelRemoteBindings, collect: boolean) => ({
+      outcome: bindings.actions ? 'partial' as const : 'read' as const, prepared: owner.name,
+      ...(collect ? { followUpOwners: byName.get(owner.name) ?? [] } : {})
+    }));
+    const run = start(createRemoteEnrichmentReaders(page, fetcher), { owners: [alpha], prepare });
+    await vi.runAllTimersAsync();
+    expect(run.results().map(({ owner }) => owner.name).sort()).toEqual(['Alpha', 'Beta', 'Isolated', 'Later', 'Leaf', 'More']);
+    expect(run.results().find(({ owner }) => owner.key === alpha.key)).toMatchObject({ outcome: 'read', attempts: ['invalid-data'] });
+    expect(run.results().find(({ owner }) => owner.key === leaf.key)).toMatchObject({ outcome: 'partial' });
+    const exact = fetcher.mock.calls.filter(([url]) => String(url).endsWith('/REST/nodeURLsForNode')).map(([, init]) => init!.body);
+    expect(exact).toEqual(['{"name":"Beta"}', '{"name":"More"}', '{"name":"Leaf"}', '{"name":"Later"}']);
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('unused.test'))).toBe(false);
+    expect(prepare.mock.calls.every(([, , collect]) => collect)).toBe(true);
+    const seen = new Set<string>();
+    for (const batch of run.batches) {
+      for (const discovery of batch.discoveries) { expect(seen.has(discovery.owner.key)).toBe(false); seen.add(discovery.owner.key); }
+      for (const result of batch.results) expect(seen.has(result.owner.key)).toBe(true);
     }
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', counts: { total: 6, pending: 0, read: 5, partial: 1 } });
   });
 
-  it.each(['cutoff', 'freeze'] as const)('retains successful lookup evidence without addresses on %s', async (finish) => {
-    const time = clock();
-    const lookupGate = deferred<{ routes: string[] }>();
-    const readGate = deferred<NodelRemoteBindings>();
-    const names = [alpha, ...['Beta', 'Gamma', 'Delta', 'Epsilon'].map((name) => owner(name))];
-    const lookup = vi.fn(async ({ name }: RemoteEnrichmentOwner) => name === 'Alpha'
-      ? { routes: [bindingUrl(other)] } : lookupGate.promise);
-    const read = vi.fn(() => readGate.promise);
-    const run = tracked({ lookup, read }, names, time);
-    await drainMicrotasks();
-    expect(lookup.mock.calls.map(([item]) => item.name)).toEqual(['Alpha', 'Beta', 'Gamma', 'Delta']);
-    expect(read).toHaveBeenCalledTimes(1);
-    if (finish === 'freeze') run.handle.freeze();
-    else {
-      // Simulate delayed timers: the overall deadline fires first, before any
-      // overdue request callback can classify a pending discovery.
-      time.jump(15_000);
-      [...time.timers.values()].find((timer) => timer.due === 15_000)!.callback();
-    }
-    expect(run.batches).toHaveLength(1);
-    expect(run.batches[0]).toMatchObject({ finish, counts: { cutoff: 5 } });
-    expect(run.batches[0]!.results).toEqual(names.map((item) => ({
-      owner: item, outcome: 'cutoff', lookupState: item === alpha ? 'found' : 'pending', issues: [], attempts: []
-    })));
-    lookupGate.resolve({ routes: ['late'] });
-    readGate.resolve({});
-    await run.handle.idle;
-    expect(run.batches).toHaveLength(1);
-  });
-
-  it.each(['cancel', 'source-abort', 'freeze'] as const)('settles %s exactly once and never lets a saved old frame mutate a new generation', async (kind) => {
-    const time = clock();
-    const gate = deferred<NodelRemoteBindings>();
-    const ctrl = new AbortController();
-    const old = tracked({ lookup: async ({ name }) => ({ routes: [name] }), read: (route) => route === 'Alpha' ? Promise.resolve({}) : gate.promise },
-      [alpha, owner('Beta')], time, ctrl.signal);
-    await drainMicrotasks();
-    const saved = [...time.frames.values()][0]!;
-    if (kind === 'source-abort') ctrl.abort();
-    else old.handle[kind]();
-    const next = tracked({ lookup: async () => ({ routes: ['new'] }), read: async () => ({}) }, [alpha], time);
-    await next.handle.idle;
-    saved();
-    gate.resolve({});
-    await old.handle.idle;
-    old.handle.freeze();
-    old.handle.cancel();
-    expect(next.batches).toHaveLength(1);
-    if (kind === 'freeze') {
-      expect(old.batches).toHaveLength(1);
-      expect(old.batches[0]).toMatchObject({ finish: 'freeze', counts: { read: 1, cutoff: 1 } });
-    } else expect(old.batches).toEqual([]);
-  });
-
-  it('holds all four slots during abort-insensitive body reads across source replacement', async () => {
-    const time = clock();
-    const bodies = Array.from({ length: 4 }, () => deferred<unknown>());
-    const names = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'].map((name) => owner(name));
-    const signals: AbortSignal[] = [];
-    const fetcher = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === 'POST') {
-        const { name } = JSON.parse(init.body as string) as { name: string };
-        return json([{ node: name, address: `${other}/nodes/${name}/` }]);
-      }
-      const name = new URL(String(url)).pathname.split('/')[2];
-      const index = names.findIndex((item) => item.name === name);
-      if (index < 0 || index >= bodies.length) throw new Error('Unexpected request');
-      signals.push(init!.signal!);
-      return Object.defineProperty(json({}), 'json', { value: () => bodies[index]!.promise });
+  it('does not mislabel separate route-policy, no-route, failed exact, and invalid/failed bindings evidence', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/REST/nodeURLs') return json([{ node: 'Empty' }, ad('Mixed', 'http://remote.test'), ad('Denied'), ad('Broken')]);
+      if (path === '/REST/nodeURLsForNode' || path === '/nodes/Denied/REST/remote') return new Response('denied', { status: 403 });
+      return new Response('{broken');
     });
-    const first = tracked(createRemoteEnrichmentReaders(page, fetcher), names, time);
-    await drainMicrotasks();
-    expect(fetcher).toHaveBeenCalledTimes(8);
-    time.advance(3_000);
-    expect(signals.every((signal) => signal.aborted)).toBe(true);
-    expect(fetcher).toHaveBeenCalledTimes(8);
-    first.handle.cancel();
-    const lookup = vi.fn(async () => ({ routes: [] }));
-    const next = tracked({ lookup, read: async () => ({}) }, [owner('Next')], time);
+    const run = start(createRemoteEnrichmentReaders(page, fetcher), { owners: [ownerFromName('Lookup')] });
+    await vi.runAllTimersAsync();
+    expect(Object.fromEntries(run.results().map((result) => [result.owner.name, result]))).toMatchObject({
+      Empty: { reason: 'no-route', lookupState: 'no-route' }, Mixed: { reason: 'policy-blocked', lookupState: 'blocked' },
+      Lookup: { reason: 'lookup-transport', lookupState: 'failed' }, Denied: { reason: 'transport', lookupState: 'found' },
+      Broken: { reason: 'invalid-data', lookupState: 'found' }
+    });
+    expect(run.batches.at(-1)?.counts).toMatchObject({ lookupFailed: 1, noRoute: 1, invalid: 1, unreachable: 1, unresolved: 1 });
+  });
+
+  it('keeps good bulk names and routes without publishing a definitive no-route result from dirty siblings', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => String(url).endsWith('/REST/nodeURLs')
+      ? json([{ node: 'Alpha', address: null }, null, ad('Beta'), ad('Blocked', 'http://remote.test')]) : json({}));
+    const run = start(createRemoteEnrichmentReaders(page, fetcher));
+    await vi.runAllTimersAsync();
+    expect(run.discoveries()).toMatchObject([
+      { owner: alpha, lookupState: 'invalid' }, { owner: beta, lookupState: 'found' }, { owner: { name: 'Blocked' }, lookupState: 'blocked' }
+    ]);
+    expect(Object.fromEntries(run.results().map((result) => [result.owner.name, result]))).toMatchObject({
+      Alpha: { lookupState: 'invalid', reason: 'lookup-limited' }, Beta: { outcome: 'read' },
+      Blocked: { lookupState: 'blocked', reason: 'policy-blocked', issues: ['mixed-content'] }
+    });
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', inventory: { state: 'limited', reason: 'malformed-rows', discardedRows: 1 }, counts: { noRoute: 0 } });
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${page}/REST/nodeURLs`, `${other}/nodes/Beta/REST/remote`]);
+  });
+
+  it.each([
+    [[{ node: 'Alpha', address: null }, null], 'invalid', 'lookup-limited'],
+    [[{ node: 'Alpha', address: null }, { node: 'DifferentOwner' }], 'invalid', 'lookup-limited'],
+    [[{ node: 'Alpha', address: null }], 'no-route', 'no-route'],
+    [[ad('Alpha', 'http://remote.test')], 'blocked', 'policy-blocked']
+  ] as const)('qualifies exact no-route evidence independently of the bulk response (%j)', async (exact, lookupState, reason) => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => String(url).endsWith('/REST/nodeURLs') ? json([null]) : json(exact));
+    const run = start(createRemoteEnrichmentReaders(page, fetcher), { owners: [alpha] });
+    await vi.runAllTimersAsync();
+    expect(run.discoveries()).toMatchObject([{ owner: alpha, lookupState }]);
+    expect(run.results()).toMatchObject([{ owner: alpha, lookupState, reason }]);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([`${page}/REST/nodeURLs`, `${page}/REST/nodeURLsForNode`]);
+  });
+
+  it('still inspects a positive route from an otherwise dirty exact response', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/REST/nodeURLs') return json([]);
+      if (path === '/REST/nodeURLsForNode') return json([null, ad('Alpha')]);
+      return json({});
+    });
+    const run = start(createRemoteEnrichmentReaders(page, fetcher), { owners: [alpha] });
+    await vi.runAllTimersAsync();
+    expect(run.discoveries()).toMatchObject([{ owner: alpha, lookupState: 'found' }]);
+    expect(run.results()).toMatchObject([{ owner: alpha, lookupState: 'found', outcome: 'read' }]);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports high-water capacity and does not restart or evict earlier known owners', async () => {
+    const known = Array.from({ length: maxEnrichmentOwners }, (_, i) => ({ ...noRoute, advertised: true, owner: ownerFromName(`Owner${i}`) }));
+    const lookup = vi.fn(async () => noRoute);
+    const run = start({ inventory: async () => ({ advertisements: known, rows: known.length, discardedRows: 0 }), lookup }, { owners: [alpha] });
+    await vi.runAllTimersAsync();
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', inventory: { state: 'limited', reason: 'capacity', omittedAdmissions: 1 }, counts: { total: maxEnrichmentOwners, pending: 0 } });
+    expect(run.discoveries()).toHaveLength(maxEnrichmentOwners - 1);
+    expect(lookup).toHaveBeenCalledExactlyOnceWith(alpha, expect.any(AbortSignal));
+  });
+});
+
+describe('dispatch limits, age fairness and lifetime', () => {
+  it('finishes a 457-owner inventory progressively beyond 15 seconds while reserving every fourth eligible dispatch', async () => {
+    const names = Array.from({ length: 457 }, (_, i) => `Node${String(i).padStart(3, '0')}`);
+    const inventory = { advertisements: names.map((name, index) => ({ owner: ownerFromName(name), advertised: true, issues: [], routes: [route(name, `https://remote${index % 4}.test`)] })), rows: names.length, discardedRows: 0 };
+    const lookup = vi.fn(async () => noRoute);
+    const run = start({ inventory: async () => inventory, lookup, read: async () => ({}) }, { priority: ({ name }) => Number(name.slice(4)) >= 30 });
+    await vi.advanceTimersByTimeAsync(15_500);
+    expect(run.batches.some(({ finish }) => finish)).toBe(false);
+    expect(run.batches.filter(({ results }) => results.length > 0).length).toBeGreaterThan(1);
+    expect(run.discoveries()).toHaveLength(names.length);
+    await vi.runAllTimersAsync();
+    const starts = run.measures.filter(({ event }) => event === 'start');
+    const reads = starts.slice(1);
+    for (let i = 0; i < 30; i += 1) {
+      expect(reads[i * 4 + 3]).toMatchObject({ dispatch: 'reserved', ownerId: ownerFromName(names[i]!).id });
+    }
+    const latestStart = starts.at(-1)!.at;
+    expect(latestStart).toBeGreaterThanOrEqual((starts.length - 4) * 250);
+    for (const [i, item] of starts.entries()) {
+      expect(item.physical).toBeLessThanOrEqual(4);
+      if (i >= 4) expect(item.at - starts[i - 4]!.at).toBeGreaterThanOrEqual(250);
+    }
+    expect(reads.at(-1)?.eligibleAgeMs).toBeGreaterThan(100_000);
     expect(lookup).not.toHaveBeenCalled();
-    let idle = false;
-    void first.handle.idle.then(() => { idle = true; });
-    bodies[0]!.resolve({});
-    await next.handle.idle;
-    expect(idle).toBe(false);
-    expect(lookup).toHaveBeenCalledTimes(1);
-    for (const body of bodies) body.resolve({});
-    await first.handle.idle;
-    expect(idle).toBe(true);
-    expect(first.prepare).not.toHaveBeenCalled();
-    expect(first.batches).toEqual([]);
-  });
-
-  it('settles a definitive lookup or final-route timeout without waiting for abort-insensitive promises', async () => {
-    const time = clock();
-    const heldLookup = deferred<{ routes: string[] }>();
-    const heldRead = deferred<NodelRemoteBindings>();
-    const run = tracked({
-      lookup: async ({ name }) => name === 'Alpha' ? heldLookup.promise : { routes: ['only'] },
-      read: () => heldRead.promise
-    }, [alpha, owner('Beta')], time);
-    await drainMicrotasks();
-    time.advance(3_000);
-    expect(run.batches[0]).toMatchObject({ finish: 'complete', results: [
-      { outcome: 'unsuccessful', reason: 'lookup-timeout', lookupState: 'failed' },
-      { outcome: 'unsuccessful', reason: 'timeout', lookupState: 'found', attempts: ['timeout'] }
-    ] });
-    heldLookup.resolve({ routes: ['never'] });
-    heldRead.resolve({});
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', counts: { total: 457, pending: 0, read: 457 } });
     await run.handle.idle;
-    expect(run.batches).toHaveLength(1);
-    expect(run.prepare).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('can try the one alternate while the timed-out request still occupies a physical slot', async () => {
-    const time = clock();
-    const first = deferred<NodelRemoteBindings>();
-    const read = vi.fn((route: string) => route === 'first' ? first.promise : Promise.resolve({}));
-    const run = tracked({ lookup: async () => ({ routes: ['first', 'first', 'alternate', 'never'] }), read }, [alpha], time);
-    await drainMicrotasks();
-    time.advance(3_000);
-    await drainMicrotasks();
-    expect(read.mock.calls.map(([route]) => route)).toEqual(['first', 'alternate']);
-    expect(run.batches[0]).toMatchObject({ finish: 'complete', results: [{ outcome: 'read', attempts: ['timeout'] }] });
-    first.resolve({ events: { incomplete: { node: 'Late' } } });
-    await run.handle.idle;
-    expect(run.prepare.mock.calls).toEqual([[alpha, {}, false]]);
-    expect(run.batches).toHaveLength(1);
+  it('caps physical work across timed-out bodies and a replacement generation', async () => {
+    const limiter = createEnrichmentLimiter(timing);
+    const names = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+    const gates = names.map(() => deferred<NodelRemoteBindings>());
+    const read = vi.fn<RemoteEnrichmentReaders['read']>((owner) => gates[names.indexOf(owner.name)]!.promise);
+    const old = start({
+      inventory: async () => ({ advertisements: names.map((name) => ({ owner: ownerFromName(name), advertised: true, issues: [], routes: [route(name)] })), rows: names.length, discardedRows: 0 }), read
+    }, { limiter });
+    await vi.advanceTimersByTimeAsync(251);
+    expect(read).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(3_020);
+    expect(read.mock.calls.every(([, , signal]) => signal.aborted)).toBe(true);
+    expect(old.results()).toHaveLength(4);
+    expect(old.batches.at(-1)?.finish).toBeUndefined();
+    old.handle.cancel();
+    const inventory = vi.fn(async () => emptyInventory);
+    const replacement = start({ inventory }, { limiter });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(inventory).not.toHaveBeenCalled();
+    gates[0]!.resolve({ actions: { Late: { node: 'Never', action: 'Run' } } });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(inventory).toHaveBeenCalledTimes(1);
+    for (const gate of gates) gate.resolve({});
+    await vi.runAllTimersAsync();
+    await Promise.all([old.handle.idle, replacement.handle.idle]);
+    expect(old.results()).toHaveLength(4);
+    expect(replacement.batches.at(-1)?.finish).toBe('complete');
   });
 
-  it('discards a pending patch if an abort handler revokes the source while freeze seals intake', async () => {
-    const time = clock();
-    const held = deferred<NodelRemoteBindings>();
-    const source = new AbortController();
-    const run = tracked({
-      lookup: async ({ name }) => ({ routes: [name] }),
-      read: (route, signal) => {
-        if (route === 'Alpha') return Promise.resolve({});
-        signal.addEventListener('abort', () => source.abort(), { once: true });
-        return held.promise;
+  it('caps a busy remote origin at two when another origin has ready owners', async () => {
+    const gate = deferred<NodelRemoteBindings>();
+    const names = ['A1', 'A2', 'A3', 'A4', 'B1', 'B2'];
+    const read = vi.fn<RemoteEnrichmentReaders['read']>(() => gate.promise);
+    const run = start({
+      inventory: async () => ({ advertisements: names.map((name) => ({ owner: ownerFromName(name), advertised: true, issues: [], routes: [route(name, name.startsWith('A') ? other : page)] })), rows: names.length, discardedRows: 0 }), read
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(read.mock.calls.map(([owner]) => owner.name)).toEqual(['A1', 'A2', 'B1', 'B2']);
+    gate.resolve({});
+    await vi.runAllTimersAsync();
+    expect(run.results()).toHaveLength(6);
+  });
+
+  it.each([true, false])('applies both priority lanes while a sole busy origin can fill spare slots (normal first: %s)', async (normalFirst) => {
+    const limiter = createEnrichmentLimiter(timing);
+    const gate = deferred<NodelRemoteBindings>();
+    const priorities = ['Priority1', 'Priority2', 'Priority3', 'Priority4'];
+    const normals = ['NormalOld', 'NormalNew'];
+    const names = normalFirst ? [...normals, ...priorities] : [...priorities, ...normals];
+    const read = vi.fn<RemoteEnrichmentReaders['read']>(() => gate.promise);
+    const run = start({
+      inventory: async () => ({ advertisements: names.map((name) => ({ owner: ownerFromName(name), advertised: true, issues: [], routes: [route(name)] })), rows: names.length, discardedRows: 0 }), read
+    }, { limiter, priority: ({ name }) => name.startsWith('Priority') });
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(limiter.remoteActive(other)).toBe(3);
+    expect(read.mock.calls.map(([owner]) => owner.name)).toEqual(priorities.slice(0, 3));
+    await vi.advanceTimersByTimeAsync(200);
+    expect(limiter.remoteActive(other)).toBe(4);
+    expect(read.mock.calls.map(([owner]) => owner.name)).toEqual([...priorities.slice(0, 3), normals[0]]);
+    expect(run.measures.filter(({ event, operation }) => event === 'start' && operation === 'remote-read').at(-1))
+      .toMatchObject({ dispatch: 'reserved', ownerId: ownerFromName(normals[0]!).id, physical: 4 });
+
+    gate.resolve({});
+    await vi.runAllTimersAsync();
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', counts: { pending: 0, read: 6 } });
+  });
+
+  it('publishes and tallies a successful authorized alternate when the first route is revoked in flight', async () => {
+    const primary = deferred<Response>();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/REST/nodeURLs') return json([ad('Alpha', page), ad('Alpha', other)]);
+      if (path === '/REST/nodeURLsForNode') return json([ad('Alpha', page, '%41lpha'), ad('Beta', other)]);
+      if (String(url) === `${page}/nodes/Alpha/REST/remote`) return primary.promise;
+      if (path === '/nodes/Alpha/REST/remote') return json({ actions: { Alternate: { node: 'Beta', action: 'Run' } } });
+      return json({});
+    });
+    const graph = buildLocalGraph({ locals: [] });
+    const batches: RemoteEnrichmentBatch<LocalGraph>[] = [];
+    const scheduler = startRemoteEnrichment({
+      owners: [alpha, beta], localSnapshot: { owners: [] }, timing, readers: createRemoteEnrichmentReaders(page, fetcher),
+      prepare: (owner, bindings) => prepareRemoteOwnerInspection(owner, bindings, graph.nodes),
+      apply: (batch) => {
+        for (const discovery of batch.discoveries) applyRemoteDiscovery(graph, discovery);
+        for (const result of batch.results) applyRemoteEnrichmentResult(graph, result);
+        batches.push(batch);
       }
-    }, [alpha, owner('Beta')], time, source.signal);
-    await drainMicrotasks();
-    const saved = [...time.frames.values()][0]!;
+    });
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(fetcher.mock.calls.map(([url]) => url)).toContain(`${page}/nodes/Alpha/REST/remote`);
+    expect(fetcher.mock.calls.map(([url]) => url)).not.toContain(`${other}/nodes/Alpha/REST/remote`);
+    primary.resolve(json({ actions: { RevokedReply: { node: 'Never', action: 'Run' } } }));
+    await vi.runAllTimersAsync();
+    await scheduler.idle;
+
+    expect(batches.flatMap(({ results }) => results).find(({ owner }) => owner.key === alpha.key)).toMatchObject({
+      lookupState: 'found', outcome: 'read', issues: ['identity-conflict'], attempts: []
+    });
+    expect(batches.at(-1)).toMatchObject({ finish: 'complete', counts: { total: 2, pending: 0, read: 2, unresolved: 0 } });
+    const projection = projectLocalGraph(graph);
+    expect(projection.nodes.find(({ name }) => name === 'Alpha')).toMatchObject({ displayStatus: '', ports: [{ label: 'Alternate' }] });
+    expect(projection.nodes.some(({ name }) => name === 'Never')).toBe(false);
+    expect(localTopologyProgressSummary(graph, batches.at(-1)!)).toBe('2 nodes · 2 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled');
+    expect(localTopologyProgressSummary(graph, batches.at(-1)!)).toContain('0 terminal not inspected');
+    expect(localTopologyProgressSummary(graph, batches.at(-1)!)).toContain('scheduler settled');
+  });
+
+  it('rechecks authority when consuming a successful reader promise', async () => {
+    let revoked = false;
+    const read = vi.fn<RemoteEnrichmentReaders['read']>(async (_owner, route) => {
+      if (route.url === 'primary') queueMicrotask(() => { revoked = true; });
+      return {};
+    });
+    const run = start({
+      lookup: async () => ({ advertised: true, issues: [], routes: [route('primary'), route('alternate')] }),
+      allows: (_owner, route) => route.url !== 'primary' || !revoked,
+      read
+    }, { owners: [alpha] });
+    await vi.runAllTimersAsync();
+    expect(read.mock.calls.map(([, route]) => route.url)).toEqual(['primary', 'alternate']);
+    expect(run.results()).toMatchObject([{ outcome: 'read', lookupState: 'found', issues: ['identity-conflict'] }]);
+  });
+
+  it('keeps owner fallback serial: a body timeout does not free its slot or overlap that owner', async () => {
+    const gate = deferred<NodelRemoteBindings>();
+    const read = vi.fn<RemoteEnrichmentReaders['read']>((_owner, route) => route.url === 'first' ? gate.promise : Promise.resolve({}));
+    const run = start({ lookup: async () => ({ advertised: true, issues: [], routes: [route('first'), route('fallback', page), route('never')] }), read }, { owners: [alpha] });
+    await vi.advanceTimersByTimeAsync(3_500);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read.mock.calls[0]?.[2].aborted).toBe(true);
+    expect(run.results()).toEqual([]);
+    gate.resolve({});
+    await vi.runAllTimersAsync();
+    expect(read.mock.calls.map(([, route]) => route.url)).toEqual(['first', 'fallback']);
+    expect(run.results()).toMatchObject([{ owner: alpha, outcome: 'read', attempts: ['timeout'] }]);
+  });
+
+  it('pauses accepted publication, resumes pending GETs, and discards pre-pause late body results', async () => {
+    const gate = deferred<NodelRemoteBindings>();
+    const lookup = vi.fn(async () => ({ advertised: true, issues: [], routes: [route('first')] }));
+    const read = vi.fn<RemoteEnrichmentReaders['read']>().mockReturnValueOnce(gate.promise).mockResolvedValueOnce({});
+    const run = start({ lookup, read }, { owners: [alpha] });
+    await vi.advanceTimersByTimeAsync(12);
+    expect(read).toHaveBeenCalledTimes(1);
     run.handle.freeze();
-    saved();
-    held.resolve({});
-    await run.handle.idle;
-    expect(run.prepare).toHaveBeenCalledTimes(1);
+    expect(run.batches.at(-1)).toMatchObject({ paused: true, discoveries: [{ owner: alpha }], results: [] });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read.mock.calls[0]?.[2].aborted).toBe(true);
+    run.handle.resume();
+    gate.resolve({ events: { Late: { node: 'Never', event: 'Run' } } });
+    await vi.runAllTimersAsync();
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(run.results()).toMatchObject([{ outcome: 'read' }]);
+    expect(run.batches.at(-1)).toMatchObject({ paused: false, finish: 'complete' });
+  });
+
+  it('never retries interrupted inventory or publishes its late answer', async () => {
+    const gate = deferred<RemoteInventory>();
+    const inventory = vi.fn(() => gate.promise);
+    const run = start({ inventory });
+    await vi.advanceTimersByTimeAsync(0);
+    run.handle.freeze();
+    expect(run.batches.at(-1)).toMatchObject({ paused: true, inventory: { state: 'failed', reason: 'interrupted' } });
+    run.handle.resume();
+    gate.resolve({ advertisements: [{ owner: alpha, ...noRoute, advertised: true }], rows: 1, discardedRows: 0 });
+    await vi.runAllTimersAsync();
+    expect(inventory).toHaveBeenCalledTimes(1);
+    expect(run.discoveries()).toEqual([]);
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', inventory: { state: 'failed' } });
+  });
+
+  it('revokes unpainted accepted results and cancels scheduled work', async () => {
+    const source = new AbortController();
+    const prepare = vi.fn((owner: typeof alpha) => ({ outcome: 'read' as const, prepared: owner.name }));
+    const run = start({ lookup: async () => ({ advertised: true, issues: [], routes: [route('alpha')] }) }, { owners: [alpha], signal: source.signal, prepare });
+    await vi.advanceTimersByTimeAsync(12);
+    expect(prepare).toHaveBeenCalledTimes(1);
     expect(run.batches).toEqual([]);
-    expect(time.timers.size + time.frames.size).toBe(0);
+    source.abort();
+    await vi.runAllTimersAsync();
+    await run.handle.idle;
+    expect(run.batches).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('shares starts with Stage A, resumes only unattempted verified local paths, and keeps role credentials separate', async () => {
+    const limiter = createEnrichmentLimiter(timing);
+    const names = Array.from({ length: 45 }, (_, i) => `Local${i}`);
+    const starts: Array<[number, string, RequestCredentials | undefined]> = [];
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const path = new URL(String(url), location.origin).pathname;
+      starts.push([performance.now(), path, init?.credentials]);
+      if (path === '/REST') return json({ nodes: { Peer: null, ...Object.fromEntries(names.map((name) => [name, {}])) } });
+      if (path === '/REST/nodeURLs') return json([ad('Local7', location.origin), ad('Peer', location.origin)]);
+      return json({});
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const pending = loadLocalSnapshot(undefined, { limiter });
+    await vi.advanceTimersByTimeAsync(10_000);
+    const snapshot = await pending;
+    expect(snapshot.inventory).toEqual({ state: 'limited', discardedRows: 1 });
+    const unfinished = snapshot.owners.filter((owner) => owner.status === 'unread' && owner.reason === 'unfinished');
+    expect(unfinished.length).toBeGreaterThan(0);
+    expect(starts.map(([, path]) => path)).not.toContain('/REST/nodeURLs');
+    const run = start(createRemoteEnrichmentReaders(location.origin, fetcher), { limiter, localSnapshot: snapshot });
+    await vi.runAllTimersAsync();
+    expect(run.results().filter((result) => result.outcome !== 'cutoff' && result.source === 'local')).toHaveLength(unfinished.length);
+    expect(run.batches.at(-1)).toMatchObject({ finish: 'complete', inventory: { local: 'limited' } });
+    expect(starts).toContainEqual([expect.any(Number), '/nodes/Peer/REST/remote', 'omit']);
+    expect(starts.filter(([, path]) => path.includes('/nodes/Local'))).toHaveLength(names.length);
+    expect(starts.filter(([, path]) => path.includes('/nodes/Local')).every(([, , credentials]) => credentials === 'same-origin')).toBe(true);
+    expect(starts.at(-1)![0]).toBeGreaterThanOrEqual((starts.length - 4) * 250);
+  });
+
+  it('does not release Stage A physical stream leases at timeout or first paint', async () => {
+    const limiter = createEnrichmentLimiter(timing);
+    const gates = Array.from({ length: 4 }, () => deferred<void>());
+    const startSignals: AbortSignal[] = [];
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const path = new URL(String(url), location.origin).pathname;
+      if (path === '/REST') return json({ nodes: { A: {}, B: {}, C: {}, D: {}, E: {}, F: {} } });
+      if (path === '/REST/nodeURLs') return json([]);
+      const gate = gates[startSignals.length];
+      if (!gate) return json({});
+      startSignals.push(init!.signal!);
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          void gate.promise.then(() => {
+            controller.enqueue(new TextEncoder().encode('{}'));
+            controller.close();
+          });
+        }
+      }));
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const pending = loadLocalSnapshot(undefined, { limiter });
+    await vi.advanceTimersByTimeAsync(10_000);
+    const localSnapshot = await pending;
+    expect(startSignals).toHaveLength(4);
+    expect(startSignals.every((signal) => signal.aborted)).toBe(true);
+    expect(localSnapshot.owners.map((owner) => owner.status === 'unread' && owner.reason)).toEqual([
+      'timed-out', 'timed-out', 'timed-out', 'timed-out', 'unfinished', 'unfinished'
+    ]);
+    const run = start(createRemoteEnrichmentReaders(location.origin, fetcher), { limiter, localSnapshot });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    gates[0]!.resolve();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(fetcher.mock.calls[5]?.[0]).toBe(`${location.origin}/REST/nodeURLs`);
+    for (const gate of gates) gate.resolve();
+    await vi.runAllTimersAsync();
+    expect(run.results().map(({ owner }) => owner.name)).toEqual(['E', 'F']);
   });
 });

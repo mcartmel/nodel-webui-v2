@@ -1,3 +1,5 @@
+import type { CardFootprint, OverflowDirection, PortAttachment, TakeoffRole } from './card-footprint';
+
 export type PortSide = 'left' | 'right';
 export type PortDirection = 'in' | 'out';
 
@@ -17,6 +19,8 @@ export interface FixtureNode {
   y: number;
   width: number;
   ports: readonly FixturePort[];
+  /** Screen-derived reservation fixed at first real-card placement. */
+  footprint?: CardFootprint;
   status?: 'online' | 'standby';
   /** Real-data presentation; intentionally separate from synthetic health. */
   displayStatus?: string;
@@ -53,6 +57,7 @@ export interface FixtureEdge {
   /** Binding identity metadata; intentionally absent on synthetic fixtures. */
   bindingKind?: 'action' | 'event';
   ownerId?: string;
+  bindingAlias?: string;
 }
 
 const port = (id: string, label: string, direction: PortDirection, side: PortSide): FixturePort => ({ id, label, direction, side });
@@ -128,6 +133,7 @@ export function createFixture(nodeCount: FixtureNodeCount): { nodes: FixtureNode
 }
 
 export function cardHeight(node: FixtureNode): number {
+  if (node.footprint) return node.footprint.height;
   const { rowCounts } = portLayout(node.ports);
   return cardHeightForPortCounts(rowCounts.left, rowCounts.right);
 }
@@ -183,31 +189,45 @@ function portLayout(ports: readonly FixturePort[]): PortLayout {
   return layout;
 }
 
-function portPointAt(node: FixtureNode, entry: PortLayoutEntry, position: Point): Point {
+function portEntry(node: FixtureNode, portId: string): PortLayoutEntry | PortAttachment {
+  const entry = node.footprint ? node.footprint.attachment(portId) : portLayout(node.ports).byId.get(portId);
+  if (!entry) throw new Error(`Unknown port ${portId} on ${node.id}`);
+  return entry;
+}
+
+const entrySide = (entry: PortLayoutEntry | PortAttachment) => 'port' in entry ? entry.port.side : entry.side;
+
+export const portRowCenter = (row: number): number => PORTS_TOP + (row + 0.5) * PORT_ROW_HEIGHT;
+
+export const overflowSocketOffset = (direction: OverflowDirection, role: TakeoffRole): number =>
+  direction === 'above' ? (role === 'alias' ? 5 : 15) : (role === 'alias' ? 8 : 23);
+
+function portPointAt(node: FixtureNode, entry: PortLayoutEntry | PortAttachment, position: Point): Point {
   return {
-    x: position.x + (entry.port.side === 'left' ? 0 : node.width),
-    y: position.y + PORTS_TOP + entry.row * PORT_ROW_HEIGHT + PORT_ROW_HEIGHT / 2
+    x: position.x + (entrySide(entry) === 'left' ? 0 : node.width),
+    y: position.y + ('role' in entry
+      ? node.footprint!.railTop(entry.direction) + overflowSocketOffset(entry.direction, entry.role)
+      : portRowCenter(entry.row))
   };
 }
 
 export function portPoint(node: FixtureNode, portId: string, position: Point = node): Point {
-  const entry = portLayout(node.ports).byId.get(portId);
-  if (!entry) throw new Error(`Unknown port ${portId} on ${node.id}`);
-  return portPointAt(node, entry, position);
+  return portPointAt(node, portEntry(node, portId), position);
 }
 
 export function edgeCurve(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve {
   const source = nodes.get(edge.from.nodeId);
   const target = nodes.get(edge.to.nodeId);
   if (!source || !target) throw new Error(`Unknown endpoint for edge ${edge.id}`);
-  const sourcePort = portLayout(source.ports).byId.get(edge.from.portId);
-  const targetPort = portLayout(target.ports).byId.get(edge.to.portId);
-  if (!sourcePort || !targetPort) throw new Error(`Unknown port on edge ${edge.id}`);
-  const start = portPointAt(source, sourcePort, positions?.get(source.id) ?? source);
-  const end = portPointAt(target, targetPort, positions?.get(target.id) ?? target);
+  const sourcePort = portEntry(source, edge.from.portId);
+  const targetPort = portEntry(target, edge.to.portId);
+  const sourcePosition = positions?.get(source.id) ?? source;
+  const targetPosition = positions?.get(target.id) ?? target;
+  const start = portPointAt(source, sourcePort, sourcePosition);
+  const end = portPointAt(target, targetPort, targetPosition);
   const handle = Math.max(44, Math.min(128, Math.abs(end.x - start.x) * 0.42));
-  const sourceTangent = sourcePort.port.side === 'right' ? 1 : -1;
-  const targetTangent = targetPort.port.side === 'left' ? 1 : -1;
+  const sourceTangent = entrySide(sourcePort) === 'right' ? 1 : -1;
+  const targetTangent = entrySide(targetPort) === 'left' ? 1 : -1;
   return {
     start, end,
     control1: { x: start.x + sourceTangent * handle, y: start.y },
@@ -264,6 +284,8 @@ function facingCurve(direct: Curve, gap: number): Curve {
   return { ...direct, control1: { x: direct.start.x + handle, y: direct.start.y }, control2: { x: direct.end.x - handle, y: direct.end.y } };
 }
 
+const RECIPROCAL_RAIL_HALF_OFFSET = 8;
+
 function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number, above: boolean, laneOffset: LaneOffset, observe?: RailObserver): Curve[] {
   const { start, end } = direct;
   const gap = end.x - start.x;
@@ -271,7 +293,7 @@ function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number
   if (gap >= directGap) return [facingCurve(direct, gap)];
 
   const lead = 24;
-  const halfLaneSpacing = Math.min(8, (lowerTop - upperBottom) / 3);
+  const halfLaneSpacing = Math.min(RECIPROCAL_RAIL_HALF_OFFSET, (lowerTop - upperBottom) / 3);
   const appliedOffset = gap <= lead ? laneOffset : { x: 0, y: 0 };
   const y = (upperBottom + lowerTop) / 2 + (above ? -halfLaneSpacing : halfLaneSpacing) + appliedOffset.y;
   const radius = Math.max(0, Math.min(8, y - upperBottom - 1, lowerTop - y - 1));
@@ -292,6 +314,7 @@ function reciprocalCorridor(direct: Curve, upperBottom: number, lowerTop: number
 
 const LANE_SPACING = 12;
 export const MIN_LANE_CLEARANCE = 12;
+const MIN_RECIPROCAL_CORRIDOR = 2 * (MIN_LANE_CLEARANCE + RECIPROCAL_RAIL_HALF_OFFSET);
 
 function exteriorRoute(
   edge: FixtureEdge,
@@ -305,12 +328,12 @@ function exteriorRoute(
   above: boolean,
   direct: Curve,
   gap: number,
-  laneOffset: LaneOffset, observe?: RailObserver
+  laneOffset: LaneOffset, observe?: RailObserver, extraClearance = 0
 ): Curve[] {
   const margin = 32;
   // Keep the exterior turns on the same 12px pitch as corridor lanes. The
   // routing margin above is deliberately distinct from this visual clearance.
-  const clearance = 36;
+  const clearance = 36 + extraClearance;
   const appliedOffset = edge.reciprocal || gap < -margin ? laneOffset : { x: 0, y: 0 };
   const index = edge.laneIndex ?? 0;
   // From above, the bottom rows need the outermost rails; from below, it's
@@ -350,9 +373,8 @@ function routeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>,
   const source = nodes.get(edge.from.nodeId);
   const target = nodes.get(edge.to.nodeId);
   if (!source || !target) throw new Error(`Unknown endpoint for edge ${edge.id}`);
-  const sourcePort = portLayout(source.ports).byId.get(edge.from.portId);
-  const targetPort = portLayout(target.ports).byId.get(edge.to.portId);
-  if (!sourcePort || !targetPort) throw new Error(`Unknown port on edge ${edge.id}`);
+  const sourcePort = portEntry(source, edge.from.portId);
+  const targetPort = portEntry(target, edge.to.portId);
   const sourcePosition = positions?.get(source.id) ?? source;
   const targetPosition = positions?.get(target.id) ?? target;
   const start = portPointAt(source, sourcePort, sourcePosition);
@@ -362,7 +384,7 @@ function routeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>,
   const laneOffsetFor = (family: 'corridor' | 'exterior'): LaneOffset =>
     !edge.routeOffsetFamily || edge.routeOffsetFamily === family ? edge.routeOffset ?? { x: 0, y: 0 } : { x: 0, y: 0 };
   const margin = 32;
-  if (sourcePort.port.side !== 'right' || targetPort.port.side !== 'left') return [direct()];
+  if (entrySide(sourcePort) !== 'right' || entrySide(targetPort) !== 'left') return [direct()];
 
   const sourceBottom = sourcePosition.y + cardHeight(source);
   const targetBottom = targetPosition.y + cardHeight(target);
@@ -407,6 +429,15 @@ function routeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>,
     return roundedRail(start, end, exitX, entryX, y, 5);
   }
   if (edge.reciprocal) {
+    if ((source.footprint || target.footprint) && lowerTop - upperBottom < MIN_RECIPROCAL_CORRIDOR) {
+      // Disjoint reserved rectangles can still leave too little room for two
+      // hit paths. Prefer a clear facing strip; otherwise use exterior rails.
+      // If cards actually overlap, a socket buried by its peer cannot be shown.
+      if (gap >= 2 * MIN_LANE_CLEARANCE) return [facingCurve(direct(), gap)];
+      // Opposed wraps can share a long vertical leg even on different Y
+      // rails. Stagger their turns so each stays independently hittable.
+      return exteriorRoute(edge, start, end, target, sourcePosition, targetPosition, sourceBottom, targetBottom, above, direct(), gap, laneOffsetFor('exterior'), observe, above ? LANE_SPACING : 0);
+    }
     if (verticallySeparated) return reciprocalCorridor(direct(), upperBottom, lowerTop, above, laneOffsetFor('corridor'), observe);
     if (gap >= 0) return [facingCurve(direct(), gap)];
   }
@@ -456,6 +487,18 @@ export function inspectRail(edge: FixtureEdge, nodes: ReadonlyMap<string, Fixtur
   let rail: RailGeometry | undefined;
   const curves = routeCurves(edge, nodes, positions, value => { rail = value; });
   return { curves, rail, safe: !rail || clearRail(edge, nodes, positions, rail, curves) };
+}
+
+/** Port-window movement changes socket rows, not card clearance or lane rank.
+ * Share the actual rendered rail with the reservation index; if a retained
+ * translation is no longer safe, index the same base rail that gets drawn. */
+export function portWindowEdgeRoute(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>) {
+  const result = inspectRail(edge, nodes);
+  const offset = edge.routeOffset;
+  if (!result.safe && (offset?.x || offset?.y || offset?.entryX)) {
+    return { ...inspectRail({ ...edge, routeOffset: undefined }, nodes), offset: undefined };
+  }
+  return { ...result, offset: edge.routeOffsetFamily && edge.routeOffsetFamily !== result.rail?.family ? undefined : offset };
 }
 
 export function edgeCurves(edge: FixtureEdge, nodes: ReadonlyMap<string, FixtureNode>, positions?: ReadonlyMap<string, Point>): Curve[] {

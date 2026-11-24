@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ARROW_TIP_INSET, cardHeight, createFixture, curveArrow, curvePoint, edgeCurve, edgeCurves, fixtureEdges, fixtureNodes, portPoint, validateFixture,
+  ARROW_TIP_INSET, cardHeight, createFixture, curveArrow, curvePoint, edgeCurve, edgeCurves, fixtureEdges, fixtureNodes, inspectRail, portPoint, validateFixture,
   type FixtureEdge, type FixtureNode, type Point
 } from '../src/experiments/konva-canvas/fixture';
 import { buildLocalGraph } from '../src/experiments/konva-canvas/local-graph';
@@ -234,6 +234,51 @@ describe('Konva synthetic fixture geometry', () => {
     expect(curve!.start.y).not.toBe(curve!.end.y);
     expect(curve!.control1.x).toBeLessThanOrEqual(curve!.control2.x);
     expectEndpointClearance(curves, [source, target]);
+  });
+
+  it.each([false, true])('routes actual reciprocal footprints without forcing both wires into a 2px slit (swap=%s)', (swap) => {
+    const graph = projectLocalGraph(buildLocalGraph({ locals: [frontendOwner, exampleOwner] }), undefined, undefined, 900);
+    const [upper, lower] = swap ? [...graph.nodes].reverse() : graph.nodes;
+    expect(cardHeight(upper!)).toBe(138);
+    expect(cardHeight(lower!)).toBe(138);
+    const dy = 140;
+    expect(dy - cardHeight(upper!)).toBe(2);
+    for (const [x, y, direct] of [[258, dy, true], [257, dy, true], [242, dy, true], [241, dy, false], [218, dy, false], [120, dy, false], [0, dy, false], [258, 125, true]] as const) {
+      const cards = [{ ...upper!, x: 0, y: 0 }, { ...lower!, x, y }];
+      const nodes = new Map(cards.map(card => [card.id, card]));
+      const routes = graph.edges.map((edge) => {
+        const { curves, rail, safe } = inspectRail(edge, nodes);
+        expect(safe).toBe(true);
+        const start = portPoint(nodes.get(edge.from.nodeId)!, edge.from.portId);
+        const end = portPoint(nodes.get(edge.to.nodeId)!, edge.to.portId);
+        expect(curves[0]!.start).toEqual(start);
+        expect(curves.at(-1)!.end).toEqual(end);
+        const facing = direct && edge.from.nodeId === upper!.id;
+        if (facing) {
+          expect(curves).toHaveLength(1);
+          expect(curves[0]!.control1.x).toBeLessThanOrEqual(curves[0]!.control2.x);
+        } else {
+          // The exterior legs supply full stroke/hit clearance, not merely a
+          // centerline outside both idealised card interiors.
+          expect(curves.length).toBeGreaterThan(1);
+          expect(rail?.family).toBe('exterior');
+          expect(rail!.y <= -12 || rail!.y >= y + cardHeight(lower!) + 12).toBe(true);
+        }
+        expect(curveArrow(curves.at(-1)!)).toBeDefined();
+        expectEndpointClearance(curves, cards);
+        return { edge, curves, rail };
+      });
+      if (direct) expectSeparatePaths(routes, `reserved footprints at x=${x}, y=${y}:`);
+      else {
+        // Exterior detours can cross at isolated points; neither direction
+        // may disappear along a shared vertical leg or horizontal rail.
+        const a = routes[0]!.rail!;
+        const b = routes[1]!.rail!;
+        expect(Math.abs(a.exitX - b.exitX)).toBeGreaterThanOrEqual(12);
+        expect(Math.abs(a.entryX - b.entryX)).toBeGreaterThanOrEqual(12);
+        expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(12);
+      }
+    }
   });
 
   it('gives a single backward non-reciprocal corridor route a visible socket stub', () => {

@@ -1,6 +1,7 @@
 import { buildLocalGraph, graphInputFromLocalSnapshot } from '../src/experiments/konva-canvas/local-graph';
 import { projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
 import { loadLocalSnapshot, LocalSnapshotInventoryError, type LocalSnapshot } from '../src/experiments/konva-canvas/local-snapshot';
+import { maxEnrichmentOwners, maxEnrichmentResponseBytes } from '../src/experiments/konva-canvas/enrichment-transport';
 import * as urls from '../src/utils/urls';
 
 function deferred<T>() {
@@ -18,9 +19,13 @@ function json(value: unknown) {
 }
 
 function stalledBody(body: Promise<unknown>) {
-  const response = json({});
-  vi.spyOn(response, 'json').mockReturnValue(body);
-  return response;
+  return new Response(new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const value = await body;
+      controller.enqueue(new TextEncoder().encode(JSON.stringify(value)));
+      controller.close();
+    }
+  }));
 }
 
 function stubFetch(handler: (path: string, init: RequestInit) => Promise<Response> | Response) {
@@ -118,13 +123,14 @@ describe('Konva local snapshot read boundary', () => {
 
   it('distinguishes a confirmed empty inventory from malformed or denied inventory', async () => {
     const fetchMock = stubFetch(() => json({ nodes: {} }));
-    await expect(loadLocalSnapshot()).resolves.toEqual({ owners: [] });
+    await expect(loadLocalSnapshot()).resolves.toEqual({ owners: [], inventory: { state: 'complete', discardedRows: 0 } });
 
     const badResponses = [
-      json({}), json({ nodes: null }), json({ nodes: [] }), json({ nodes: { Broken: null } }),
-      json({ nodes: { '...': {} } }), json({ nodes: { Unsafe: { address: 'javascript:invalid' } } }),
+      json({}), json({ nodes: null }), json({ nodes: [] }),
       new Response('<html>Not REST</html>', { headers: { 'Content-Type': 'text/html' } }),
-      new Response('permission denied', { status: 403 })
+      new Response('permission denied', { status: 403 }),
+      json({ nodes: Object.fromEntries(Array.from({ length: maxEnrichmentOwners + 1 }, (_, index) => [`Node${index}`, {}])) }),
+      new Response(' '.repeat(maxEnrichmentResponseBytes + 1))
     ];
     for (const response of badResponses) {
       fetchMock.mockResolvedValueOnce(response);
@@ -133,18 +139,43 @@ describe('Konva local snapshot read boundary', () => {
     expect(fetchMock.mock.calls.map(([input]) => input)).toEqual(Array<string>(badResponses.length + 1).fill('/REST'));
   });
 
+  it('retains good local rows without granting local credentials from malformed siblings', async () => {
+    const fetchMock = stubFetch((path) => path === '/REST' ? json({ nodes: {
+      Good: {}, Null: null, '...': {}, WrongType: { name: false }, Unsafe: { address: 'javascript:invalid' },
+      'Map Key': { name: 'Proven Name', address: 'https://remote.example/nodes/Forged/' }
+    } }) : json({}));
+    await expect(loadLocalSnapshot()).resolves.toMatchObject({
+      inventory: { state: 'limited', discardedRows: 4 },
+      owners: [{ name: 'Good', status: 'read' }, { name: 'Proven Name', status: 'read' }]
+    });
+    expect(fetchMock.mock.calls.map(([input]) => new URL(input, location.href).pathname)).toEqual([
+      '/REST', ownerRoute('Good'), ownerRoute('ProvenName')
+    ]);
+    expect(fetchMock.mock.calls.every(([, init]) => init.credentials === 'same-origin' && init.redirect === 'error')).toBe(true);
+
+    fetchMock.mockResolvedValueOnce(json({ nodes: { Discarded: null } }));
+    await expect(loadLocalSnapshot()).resolves.toEqual({ owners: [], inventory: { state: 'limited', discardedRows: 1 } });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it('keeps bad owner data unread instead of mistaking it for empty configuration', async () => {
     stubFetch((path) => {
-      if (path === '/REST') return inventory('Malformed', 'Denied', 'Empty', 'Valid');
+      if (path === '/REST') return inventory('Malformed', 'Denied', 'Empty', 'Valid', 'BadJson', 'OverBytes', 'StreamFailure');
       if (path === ownerRoute('Malformed')) return json({ actions: { Broken: { action: 42 } } });
       if (path === ownerRoute('Denied')) return new Response('secret diagnostic', { status: 403 });
       if (path === ownerRoute('Valid')) return json({ events: { ToLocal: { node: 'Empty', event: 'Tick' } } });
+      if (path === ownerRoute('BadJson')) return new Response('{');
+      if (path === ownerRoute('OverBytes')) return new Response('over limit', { headers: { 'Content-Length': String(maxEnrichmentResponseBytes + 1) } });
+      if (path === ownerRoute('StreamFailure')) return stalledBody(Promise.reject(new TypeError('connection broke')));
       return json({});
     });
     expect((await loadLocalSnapshot()).owners).toEqual([
-      { key: 'denied', name: 'Denied', localPathName: 'Denied', status: 'unread', reason: 'failed' },
+      { key: 'badjson', name: 'BadJson', localPathName: 'BadJson', status: 'unread', reason: 'invalid-data' },
+      { key: 'denied', name: 'Denied', localPathName: 'Denied', status: 'unread', reason: 'transport' },
       { key: 'empty', name: 'Empty', localPathName: 'Empty', status: 'read', bindings: {} },
-      { key: 'malformed', name: 'Malformed', localPathName: 'Malformed', status: 'unread', reason: 'failed' },
+      { key: 'malformed', name: 'Malformed', localPathName: 'Malformed', status: 'unread', reason: 'invalid-data' },
+      { key: 'overbytes', name: 'OverBytes', localPathName: 'OverBytes', status: 'unread', reason: 'invalid-data' },
+      { key: 'streamfailure', name: 'StreamFailure', localPathName: 'StreamFailure', status: 'unread', reason: 'transport' },
       { key: 'valid', name: 'Valid', localPathName: 'Valid', status: 'read', bindings: { events: { ToLocal: { node: 'Empty', event: 'Tick' } } } }
     ]);
   });
@@ -161,7 +192,7 @@ describe('Konva local snapshot read boundary', () => {
 
     fetchMock.mockResolvedValueOnce(inventory('Redirected')).mockImplementationOnce(performRedirect);
     expect((await loadLocalSnapshot()).owners).toEqual([
-      { key: 'redirected', name: 'Redirected', localPathName: 'Redirected', status: 'unread', reason: 'failed' }
+      { key: 'redirected', name: 'Redirected', localPathName: 'Redirected', status: 'unread', reason: 'transport' }
     ]);
     expect(fetchMock.mock.calls.map(([input]) => input)).toEqual([
       '/REST', '/REST', `${location.origin}/nodes/Redirected/REST/remote`
@@ -227,10 +258,10 @@ describe('Konva local snapshot terminal state', () => {
     ]);
     expect(snapshot.owners[0]).toMatchObject({ bindings: assignment });
     expect(snapshot.owners[1]).toMatchObject({ bindings: {} });
-    expect(snapshot.owners.slice(2)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'C', reason: 'timed-out' }),
-      expect.objectContaining({ name: 'H', reason: 'unfinished' })
-    ]));
+    expect(snapshot.owners.slice(2)).toMatchObject([
+      ...['C', 'D', 'E', 'F'].map((name) => ({ name, reason: 'timed-out' })),
+      ...['G', 'H'].map((name) => ({ name, reason: 'unfinished' }))
+    ]);
     expect(fetchMock.mock.calls.slice(3).every(([, init]) => init.signal?.aborted)).toBe(true);
     expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
     expect(vi.getTimerCount()).toBe(0);
@@ -247,9 +278,8 @@ describe('Konva local snapshot terminal state', () => {
     expect(projection.nodes).toHaveLength(9);
     expect(projection.nodes.find((node) => node.name === 'B')?.displayStatus).toBe('');
     expect(projection.nodes.find((node) => node.name === 'B')?.tooltip).toContain('Inspection succeeded; 0 configured bindings, none unassigned.');
-    for (const name of ['C', 'D', 'E', 'F', 'G', 'H']) {
-      expect(projection.nodes.find((node) => node.name === name)?.displayStatus).toBe('Not inspected');
-    }
+    for (const name of ['C', 'D', 'E', 'F']) expect(projection.nodes.find((node) => node.name === name)?.displayStatus).toBe('Unreachable');
+    for (const name of ['G', 'H']) expect(projection.nodes.find((node) => node.name === name)?.displayStatus).toBe('Not inspected');
     const source = projection.nodes.find((node) => node.name === 'A')!;
     const target = projection.nodes.find((node) => node.name === 'Referenced')!;
     expect(target.displayStatus).toBe('Not inspected');
@@ -368,7 +398,7 @@ describe('Konva local snapshot terminal state', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     now.mockReturnValue(10_000);
     owner.resolve({});
-    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'unfinished' }] });
+    await expect(result).resolves.toMatchObject({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'timed-out' }] });
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -381,7 +411,7 @@ describe('Konva local snapshot terminal state', () => {
     await vi.advanceTimersByTimeAsync(0);
     now.mockReturnValue(3_000);
     owner.resolve({});
-    await expect(result).resolves.toEqual({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'timed-out' }] });
+    await expect(result).resolves.toMatchObject({ owners: [{ key: 'owner', name: 'Owner', localPathName: 'Owner', status: 'unread', reason: 'timed-out' }] });
     expect(fetchMock.mock.calls[1]?.[1].signal?.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });

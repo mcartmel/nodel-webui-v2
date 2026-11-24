@@ -1,0 +1,69 @@
+.canvas-ports-control,
+.canvas-port-page-controls button,
+.canvas-binding-chooser button {
+  border: 1px solid rgb(var(--nodel-border));
+  border-radius: 6px;
+  background: rgb(var(--nodel-surface-raised));
+  color: inherit;
+  font: inherit;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.canvas-ports-control {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 13px;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Canvas rail chevrons handle pointer/touch; mirror their actions as native
+   tab stops without putting a hit-testing overlay on the stage. */
+.canvas-port-page-controls {
+  position: absolute;
+  top: 50px;
+  left: 10px;
+  z-index: 1;
+  font-size: 13px;
+}
+.canvas-port-page-controls:not(:focus-within) {
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.canvas-binding-chooser {
+  position: absolute;
+  z-index: 2;
+  right: 10px;
+  bottom: 10px;
+  width: min(420px, calc(100% - 20px));
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgb(var(--nodel-border));
+  border-radius: 9px;
+  padding: 12px;
+  box-shadow: 0 3px 15px rgb(0 0 0 / .14);
+  color: rgb(var(--nodel-fg));
+  background: rgb(var(--nodel-surface-raised));
+  font-size: 13px;
+}
+
+.canvas-binding-chooser h2 { font-size: 15px; margin: 0; overflow-wrap: anywhere; }
+.canvas-binding-chooser p { margin: 5px 0; color: rgb(var(--nodel-muted)); }
+.canvas-binding-chooser ol { padding-inline-start: 2em; margin: 8px 0; }
+.canvas-binding-chooser li + li { margin-top: 4px; }
+.canvas-binding-chooser li button { width: 100%; text-align: start; overflow-wrap: anywhere; }
+.canvas-binding-chooser .canvas-binding-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.canvas-binding-chooser .canvas-binding-actions[hidden] { display: none; }
+.canvas-binding-chooser button:disabled { opacity: .6; cursor: default; }
+.canvas-ports-control:focus-visible,
+.canvas-port-page-controls button:focus-visible,
+.canvas-binding-chooser button:focus-visible { outline: 2px solid rgb(var(--nodel-accent)); outline-offset: 2px; }

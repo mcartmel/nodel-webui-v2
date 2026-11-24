@@ -1,0 +1,10 @@
+.edge-navigation { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+.edge-navigation-button { position: absolute; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 44px; min-height: 36px; padding: 0 8px; border: 1px solid rgb(var(--nodel-border)); border-radius: 8px; background: rgb(var(--nodel-surface) / .96); color: rgb(var(--nodel-fg)); box-shadow: 0 2px 8px rgb(0 0 0 / .14); font: inherit; font-size: 13px; font-weight: 650; line-height: 1; cursor: pointer; pointer-events: auto; }
+.edge-navigation-button[hidden] { display: none; }
+.edge-navigation-button:hover { border-color: rgb(var(--nodel-accent)); }
+.edge-navigation-button:focus-visible { outline: 2px solid rgb(var(--nodel-accent)); outline-offset: 2px; }
+.edge-navigation-arrow { font-size: 17px; line-height: 1; }
+.edge-navigation-left { left: 8px; top: 50%; transform: translateY(-50%); }
+.edge-navigation-right { right: 8px; top: 50%; transform: translateY(-50%); }
+.edge-navigation-up { top: 8px; left: 50%; transform: translateX(-50%); }
+.edge-navigation-down { bottom: 8px; left: 50%; transform: translateX(-50%); }

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import {
+  applyRemoteDiscovery,
   applyRemoteOwnerDelta,
   applyRemoteEnrichmentResult,
   applyRemoteOwnerInspection,
@@ -12,8 +13,9 @@ import {
   type LocalGraphConflict,
   type LocalSnapshot
 } from '../src/experiments/konva-canvas/local-graph';
-import { closestFeasibleY, indexLocalGraphGeometry, localGraphGeometryForPositions, localPortsForNode, placeLocalGraph } from '../src/experiments/konva-canvas/local-placement';
-import { projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
+import { arrangeDisplayedLocalGraph, arrangeLocalGraph, closestFeasibleY, hasReadableLocalConnection, indexLocalGraphGeometry, localGraphGeometryForPositions, localPortsForNode, placeInitialLocalGraph, placeLocalGraph } from '../src/experiments/konva-canvas/local-placement';
+import { localCardId, projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
+import { LocalEnrichmentProjection } from '../src/experiments/konva-canvas/local-enrichment-projection';
 import { cardHeight, curvePoint, edgeCurve, edgeCurves, portPoint } from '../src/experiments/konva-canvas/fixture';
 import { createRemoteEnrichmentReaders, startRemoteEnrichment } from '../src/experiments/konva-canvas/remote-enrichment';
 
@@ -59,6 +61,83 @@ describe('local topology graph, layout, and renderer projection', () => {
 
   it('chooses the nearest free gap between occupied wire bands', () => {
     expect(closestFeasibleY(38, [{ start: 0, end: 40 }, { start: 80, end: 120 }])).toBe(41);
+  });
+
+  it('shelf-wraps disconnected components and detects a readable local configured pair', () => {
+    const graph = buildLocalGraph({ locals: Array.from({ length: 3 }, (_, index) => ({
+      name: `Local ${index}`, readState: 'read' as const,
+      actions: [{ alias: 'next', node: `Peer ${index}`, endpoint: 'Run' }]
+    })) });
+    const positions = placeLocalGraph(graph, { viewportWidth: 450, viewportHeight: 900 });
+    const groups = Array.from({ length: 3 }, (_, index) => {
+      const local = [...graph.nodes.values()].find(({ name }) => name === `Local ${index}`)!;
+      const peer = [...graph.nodes.values()].find(({ name }) => name === `Peer ${index}`)!;
+      return { local: positions.get(local.id)!, peer: positions.get(peer.id)! };
+    });
+    expect(groups[0]!.local.y).toBe(0);
+    expect(groups.slice(1).some(({ local }) => local.y > 0)).toBe(true);
+    expect(hasReadableLocalConnection(graph, { width: 1366, height: 768 })).toBe(true);
+    expect(hasReadableLocalConnection(graph, { width: 220, height: 768 })).toBe(false);
+    expect(hasReadableLocalConnection(buildLocalGraph({ locals: [{ name: 'Empty', readState: 'read' }] }), { width: 1366, height: 768 })).toBe(false);
+  });
+
+  it('returns one coherent fitted local-group target with the initial membership and positions', () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Readable owner', readState: 'read', actions: [{ alias: 'next', node: 'Readable peer', endpoint: 'Run' }] },
+      { name: 'Disconnected owner', readState: 'read' }
+    ] });
+    const initial = placeInitialLocalGraph(graph, { width: 1366, height: 768 });
+    expect(initial.membership.shown.size).toBe(graph.nodes.size);
+    expect(initial.graph.nodes.size).toBe(graph.nodes.size);
+    expect(initial.initialGroup?.nodeIds.map((id) => initial.graph.nodes.get(id)?.origin)).toContain('local');
+    expect(initial.initialGroup?.scale).toBeGreaterThanOrEqual(0.35);
+    expect(initial.initialGroup?.center.x).toBeGreaterThan(0);
+    expect(initial.initialGroup?.bounds.width).toBeGreaterThan(0);
+  });
+
+  it('arranges automatic cards around dragged anchors using expanded footprints', () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Owner A', readState: 'read', actions: [{ alias: 'next', node: 'Peer A', endpoint: 'Run' }] },
+      { name: 'Owner B', readState: 'read', actions: [{ alias: 'next', node: 'Peer B', endpoint: 'Run' }] }
+    ] });
+    const ids = [...graph.nodes.keys()].sort();
+    const fixed = ids[0]!;
+    const current = new Map(ids.map((id) => [id, { x: 0, y: 0 }]));
+    current.set(fixed, { x: 100, y: 100 });
+    const proposed = arrangeLocalGraph(graph, current, new Set([fixed]), {}, indexLocalGraphGeometry(graph), new Map([[fixed, { width: 460, height: 520 }]]));
+    expect(proposed).not.toHaveProperty(fixed);
+    const point = proposed.get(ids[1]!)!;
+    expect(point.x >= 100 + 460 + 180 || point.x + 120 + 180 <= 100 || point.y >= 100 + 520 + 180 || point.y + 90 + 180 <= 100).toBe(true);
+  });
+
+  it('keeps a pinned peer at 10000 fixed and arranges its related cards nearby without overlap', () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Owner', readState: 'read', actions: [{ alias: 'next', node: 'Pinned peer', endpoint: 'Run' }] },
+      { name: 'Pinned peer', readState: 'read', actions: [{ alias: 'next', node: 'Related child', endpoint: 'Run' }] }
+    ] });
+    const ids = new Map([...graph.nodes.keys()].map((id) => [localCardId(id), id]));
+    const pinId = [...graph.nodes.values()].find(({ name }) => name === 'Pinned peer')!.id;
+    const pinnedCard = localCardId(pinId);
+    const current = new Map([...ids.keys()].map((id) => [id, { x: 0, y: 0 }]));
+    current.set(pinnedCard, { x: 10_000, y: 700 });
+    const footprint = { width: 240, height: 150 };
+    const arranged = arrangeDisplayedLocalGraph(graph, current, new Set([pinnedCard]),
+      new Map([...ids.keys()].map((id) => [id, footprint])), { viewportWidth: 1366, viewportHeight: 768 });
+    expect(arranged.has(pinnedCard)).toBe(false);
+    expect(current.get(pinnedCard)).toEqual({ x: 10_000, y: 700 });
+    const neighbors = [...arranged].filter(([id]) => id !== pinnedCard).map(([, point]) => point);
+    expect(neighbors.length).toBe(2);
+    expect(neighbors.every(({ x, y }) => Math.abs(x - 10_000) < 1_200 && Math.abs(y - 700) < 1_200)).toBe(true);
+    for (let first = 0; first < neighbors.length; first += 1) {
+      const a = neighbors[first]!;
+      for (let second = first + 1; second < neighbors.length; second += 1) {
+        const b = neighbors[second]!;
+        expect(a.x + footprint.width <= b.x || b.x + footprint.width <= a.x ||
+          a.y + footprint.height <= b.y || b.y + footprint.height <= a.y).toBe(true);
+      }
+      expect(a.x + footprint.width <= 10_000 || 10_000 + footprint.width <= a.x ||
+        a.y + footprint.height <= 700 || 700 + footprint.height <= a.y).toBe(true);
+    }
   });
 
   it('moves only an unrelated intermediate card out of all initial bypass paths', () => {
@@ -300,13 +379,54 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect(projection.summary).toContain('2 local unread');
   });
 
+  it('keeps advertised no-route, lookup failure, invalid reply, and binding failure distinct', () => {
+    const graph = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read', actions: [
+      { alias: 'No route', node: 'No Route Peer', endpoint: 'Run' },
+      { alias: 'Lookup failure', node: 'Lookup Peer', endpoint: 'Run' },
+      { alias: 'Invalid reply', node: 'Invalid Peer', endpoint: 'Run' },
+      { alias: 'Binding failure', node: 'Read Peer', endpoint: 'Run' }
+    ] }] });
+    const set = (name: string, lookup: 'no-route' | 'failed' | 'invalid' | 'found', inspection: 'failed' | 'not-inspected', displayFailure?: string) => {
+      const node = [...graph.nodes.values()].find((candidate) => candidate.name === name)!;
+      setRemoteOwnerState(graph, node.id, { lookup, inspection });
+      if (displayFailure) node.displayFailure = displayFailure;
+    };
+    set('No Route Peer', 'no-route', 'failed');
+    set('Lookup Peer', 'failed', 'failed', 'Discovery failed');
+    set('Invalid Peer', 'invalid', 'not-inspected', 'Invalid discovery response');
+    set('Read Peer', 'found', 'failed', 'Remote binding read failed');
+
+    const statuses = new Map(projectLocalGraph(graph).nodes.map(({ name, displayStatus }) => [name, displayStatus]));
+    expect(statuses.get('No Route Peer')).toBe('No advertised route');
+    expect(statuses.get('Lookup Peer')).toBe('Lookup failed');
+    expect(statuses.get('Invalid Peer')).toBe('Invalid discovery response');
+    expect(statuses.get('Read Peer')).toBe('Remote binding read failed');
+  });
+
+  it('adds isolated advertisements once without fabricating bindings or a route', () => {
+    const graph = buildLocalGraph({ locals: [] });
+    const owner = { id: JSON.stringify(['node', localNodeKey('Isolated Peer')]), key: localNodeKey('Isolated Peer'), name: 'Isolated Peer' };
+    const discovery = { owner, lookupState: 'no-route' as const };
+    expect(applyRemoteDiscovery(graph, discovery).nodeIds).toEqual([owner.id]);
+    expect(applyRemoteDiscovery(graph, discovery).nodeIds).toEqual([]);
+    expect(graph.nodes.size).toBe(1);
+    expect(graph.ports.size).toBe(0);
+    expect(graph.connections.size).toBe(0);
+    expect(graph.eligibleRemoteOwners).toEqual([owner]);
+    expect(projectLocalGraph(graph).nodes[0]).toMatchObject({ name: owner.name, displayStatus: 'No advertised route' });
+  });
+
   it('adapts the bounded-read contract while preserving incomplete rows and unread state', () => {
     const input = graphInputFromLocalSnapshot({ owners: [
       { key: 'owner', name: 'Owner', status: 'read', bindings: {
         actions: { Good: { node: 'Peer', action: 'A' }, TargetOnly: { node: 'Other' }, EndpointOnly: { action: 'B' }, Unbound: {} },
         events: { Listen: { node: 'Peer', event: 'Changed' } }
       } },
-      { key: 'failed', name: 'Failed Owner', status: 'unread', reason: 'failed' }
+      { key: 'failed', name: 'Failed Owner', status: 'unread', reason: 'transport' },
+      { key: 'invalid', name: 'Invalid Owner', status: 'unread', reason: 'invalid-data' },
+      { key: 'ambiguous', name: 'Ambiguous Owner', status: 'unread', reason: 'ambiguous', localPathName: null },
+      { key: 'late', name: 'Timed Out Owner', status: 'unread', reason: 'timed-out' },
+      { key: 'unfinished', name: 'Unfinished Owner', status: 'unread', reason: 'unfinished' }
     ] });
     const graph = buildLocalGraph(input);
     expect([...graph.nodes.values()].some((node) => node.name === 'Failed Owner' && node.bindingsRead === 'unread')).toBe(true);
@@ -315,6 +435,117 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect(graph.incompleteAssignments).toBe(0);
     expect(graph.nodes.get(JSON.stringify(['node', localNodeKey('Owner')]))?.bindingCounts).toEqual({ set: 2, total: 5 });
     expect(projectLocalGraph(graph).summary).not.toContain('incomplete');
+    const cards = new Map(projectLocalGraph(graph).nodes.map(({ name, displayStatus }) => [name, displayStatus]));
+    expect(cards.get('Failed Owner')).toBe('Unreachable');
+    expect(cards.get('Invalid Owner')).toBe('Invalid response');
+    expect(cards.get('Timed Out Owner')).toBe('Unreachable');
+    expect(cards.get('Ambiguous Owner')).toBe('Identity unresolved');
+    expect(cards.get('Unfinished Owner')).toBe('Not inspected');
+    expect(projectLocalGraph(graph).nodes.find(({ name }) => name === 'Failed Owner')?.tooltip).toContain('does not establish that the node is offline');
+  });
+
+  it('updates deferred local read fields for successful, invalid and unreachable outcomes', () => {
+    const makeLocal = (name: string) => {
+      const graph = buildLocalGraph({ locals: [{ name, readState: 'unread', readFailure: 'not-inspected' }] });
+      const node = [...graph.nodes.values()][0]!;
+      return { graph, node, owner: { id: node.id, key: node.key, name: node.name } };
+    };
+
+    const successful = makeLocal('Deferred success');
+    const prepared = prepareRemoteOwnerInspection(successful.owner, { actions: { Run: { node: 'Device', action: 'Go' } } });
+    applyRemoteEnrichmentResult(successful.graph, {
+      owner: successful.owner, lookupState: 'found', source: 'local', issues: [], attempts: [],
+      outcome: prepared.outcome, prepared: prepared.prepared
+    });
+    expect(successful.node.bindingsRead).toBe('read');
+    expect(successful.node.localReadFailure).toBeUndefined();
+    expect([...successful.graph.connections.values()].some(({ ownerId }) => ownerId === successful.node.id)).toBe(true);
+
+    for (const [name, reason, expected] of [
+      ['Deferred invalid', 'invalid-data', 'invalid'],
+      ['Deferred unreachable', 'transport', 'unreachable']
+    ] as const) {
+      const failed = makeLocal(name);
+      applyRemoteEnrichmentResult(failed.graph, {
+        owner: failed.owner, lookupState: 'found', source: 'local', outcome: 'unsuccessful', reason,
+        issues: [], attempts: [reason]
+      });
+      expect(failed.node.bindingsRead).toBe('unread');
+      expect(failed.node.localReadFailure).toBe(expected);
+      expect(projectLocalGraph(failed.graph).nodes[0]?.displayStatus).toBe(expected === 'invalid' ? 'Invalid response' : 'Unreachable');
+    }
+  });
+
+  it('keeps terminal categories disjoint and reports coverage limited after local inventory loss', () => {
+    const graph = buildLocalGraph({ locals: [{ name: 'Empty local config', readState: 'read', actions: [], events: [] }, {
+      name: 'Configured refs', readState: 'read', actions: [
+        { alias: 'no route', node: 'No Route', endpoint: 'Run' },
+        { alias: 'lookup failed', node: 'Lookup Failed', endpoint: 'Run' },
+        { alias: 'invalid lookup', node: 'Invalid Lookup', endpoint: 'Run' },
+        { alias: 'unreachable read', node: 'Unreachable Read', endpoint: 'Run' },
+        { alias: 'invalid read', node: 'Invalid Read', endpoint: 'Run' }
+      ] }] });
+    const state = (name: string, lookup: 'found' | 'no-route' | 'failed' | 'invalid', inspection?: 'failed') => {
+      const node = [...graph.nodes.values()].find((candidate) => candidate.name === name)!;
+      setRemoteOwnerState(graph, node.id, { lookup, ...(inspection ? { inspection } : {}) });
+      return node;
+    };
+    state('No Route', 'no-route', 'failed');
+    state('Lookup Failed', 'failed', 'failed');
+    state('Invalid Lookup', 'invalid', 'failed');
+    state('Unreachable Read', 'found', 'failed').displayFailure = 'Unreachable';
+    state('Invalid Read', 'found', 'failed').displayFailure = 'Invalid response';
+
+    const nodes = projectLocalGraph(graph);
+    const cards = new Map(nodes.nodes.map((card) => [card.name, card]));
+    expect(cards.get('No Route')?.displayStatus).toBe('No advertised route');
+    expect(cards.get('Lookup Failed')?.displayStatus).toBe('Lookup failed');
+    expect(cards.get('Invalid Lookup')?.displayStatus).toBe('Invalid discovery response');
+    expect(cards.get('Unreachable Read')?.displayStatus).toBe('Unreachable');
+    expect(cards.get('Invalid Read')?.displayStatus).toBe('Invalid response');
+    expect(cards.get('No Route')?.tooltip).toContain('No advertised route.');
+    expect(cards.get('Lookup Failed')?.tooltip).toContain('Lookup failed.');
+    expect(cards.get('Invalid Lookup')?.tooltip).toContain('Invalid discovery response.');
+    expect(cards.get('Unreachable Read')?.tooltip).toContain('does not establish that the node is offline');
+    expect(cards.get('Invalid Read')?.tooltip).toContain('Invalid response.');
+    expect(cards.get('Empty local config')?.displayQualifier).toBe('');
+
+    const progress = new LocalEnrichmentProjection(graph, nodes).summary({
+      discoveries: [], results: [], paused: false, finish: 'complete',
+      inventory: { coverage: 'HTTP advertisements only', state: 'complete', local: 'limited', rows: 0, discardedRows: 0, advertised: 0, omittedAdmissions: 0 },
+      counts: { total: 0, pending: 0, read: 0, partial: 0, unsuccessful: 0, unreachable: 0, unresolved: 0, invalid: 0, lookupFailed: 0, noRoute: 0 }
+    });
+    expect(progress).toContain('2 complete');
+    expect(progress).toContain('1 no-route');
+    expect(progress).toContain('1 lookup failed');
+    expect(progress).toContain('2 invalid');
+    expect(progress).toContain('1 unreachable');
+    expect(progress).toContain('local inventory limited');
+    expect(progress).toContain('coverage limited');
+    expect(progress).toContain('scheduler settled');
+    expect(progress).toContain('0 queued');
+    expect(progress).toContain('0 terminal not inspected');
+  });
+
+  it('separates scheduler-queued work from terminal not-inspected nodes', () => {
+    const makeSummary = (name: string, readFailure: 'queued' | 'not-inspected', finish?: 'complete') => {
+      const graph = buildLocalGraph({ locals: [{ name, readState: 'unread', readFailure }] });
+      return new LocalEnrichmentProjection(graph, projectLocalGraph(graph)).summary({
+        discoveries: [], results: [], paused: false, ...(finish ? { finish } : {}),
+        inventory: { coverage: 'HTTP advertisements only', state: finish ? 'complete' : 'pending', local: 'known', rows: 0, discardedRows: 0, advertised: 0, omittedAdmissions: 0 },
+        counts: { total: 1, pending: finish ? 0 : 1, read: 0, partial: 0, unsuccessful: 0, unreachable: 0, unresolved: 0, invalid: 0, lookupFailed: 0, noRoute: 0 }
+      });
+    };
+    const queued = makeSummary('Queued local', 'queued');
+    expect(queued).toContain('1 queued');
+    expect(queued).toContain('0 terminal not inspected');
+    expect(queued).toContain('scheduler running');
+
+    const terminal = makeSummary('Terminal local', 'not-inspected', 'complete');
+    expect(terminal).toContain('0 queued');
+    expect(terminal).toContain('1 terminal not inspected');
+    expect(terminal).toContain('scheduler settled');
+    expect(terminal).not.toContain('pending');
   });
 
   it('keeps opaque delimiter and Unicode strings out of renderer IDs', () => {
@@ -797,7 +1028,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect([nodes.iterations, ports.iterations, connections.iterations, conflicts.iterations]).toEqual([0, 0, 0, 0]);
   });
 
-  it('hands bounded transport results into the graph once without discovering second-hop Gamma', async () => {
+  it('hands recursive inventory and binding results into the graph once', async () => {
     const origin = 'https://topology.test';
     const local = buildLocalGraph({ locals: [{ name: 'Room', readState: 'read',
       actions: [
@@ -810,6 +1041,7 @@ describe('local topology graph, layout, and renderer projection', () => {
     expect(frozenOwners.map(({ name }) => name)).toEqual(['Alpha', 'Beta']);
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url === `${origin}/REST/nodeURLs` && init?.method === 'POST') return Response.json([]);
       if (url === `${origin}/REST/nodeURLsForNode`) {
         const { name } = JSON.parse(String(init?.body)) as { name: string };
         return new Response(JSON.stringify([{ node: name, address: `${origin}/nodes/${name}/` }]), { headers: { 'Content-Type': 'application/json' } });
@@ -822,13 +1054,14 @@ describe('local topology graph, layout, and renderer projection', () => {
       if (url === `${origin}/nodes/Beta/REST/remote`) return new Response(JSON.stringify({ events: {
         'Gamma changed': { node: 'Gamma', event: 'Changed' }
       } }), { headers: { 'Content-Type': 'application/json' } });
+      if (url === `${origin}/nodes/Gamma/REST/remote`) return Response.json({});
       throw new Error(`Unexpected request ${url}`);
     });
     const readResults: string[] = [];
     const handle = startRemoteEnrichment({
       owners: frozenOwners,
       readers: createRemoteEnrichmentReaders(origin, fetcher),
-      prepare: (owner, bindings) => prepareRemoteOwnerInspection(owner, bindings),
+      prepare: (owner, bindings, collectFollowUps) => prepareRemoteOwnerInspection(owner, bindings, collectFollowUps ? local.nodes : undefined),
       apply: (batch) => {
         for (const result of batch.results) {
           readResults.push(`${result.owner.name}:${result.outcome}`);
@@ -838,18 +1071,16 @@ describe('local topology graph, layout, and renderer projection', () => {
     });
     await handle.idle;
 
-    expect(readResults.sort()).toEqual(['Alpha:read', 'Beta:read']);
-    expect(fetcher.mock.calls.map(([input, init]) => [init?.method, String(input)])).toEqual([
-      ['POST', `${origin}/REST/nodeURLsForNode`],
-      ['POST', `${origin}/REST/nodeURLsForNode`],
-      ['GET', `${origin}/nodes/Alpha/REST/remote`],
-      ['GET', `${origin}/nodes/Beta/REST/remote`]
-    ]);
+    expect(readResults.sort()).toEqual(['Alpha:read', 'Beta:read', 'Gamma:read']);
+    const requests = fetcher.mock.calls.map(([input, init]) => [init?.method, String(input)]);
+    expect(requests).toContainEqual(['POST', `${origin}/REST/nodeURLs`]);
+    expect(requests).toContainEqual(['POST', `${origin}/REST/nodeURLsForNode`]);
+    expect(requests).toContainEqual(['GET', `${origin}/nodes/Gamma/REST/remote`]);
     expect(frozenOwners).toBe(local.eligibleRemoteOwners);
     expect(frozenOwners.map(({ name }) => name)).toEqual(['Alpha', 'Beta']);
     expect(local.nodes.has(JSON.stringify(['node', localNodeKey('Gamma')]))).toBe(true);
     expect([...local.nodes.values()].filter((node) => node.key === localNodeKey('Gamma'))).toHaveLength(1);
-    expect(local.eligibleRemoteOwners.some(({ key }) => key === localNodeKey('Gamma'))).toBe(false);
+    expect(local.eligibleRemoteOwners.some(({ key }) => key === localNodeKey('Gamma'))).toBe(false); // Stage-A seed remains immutable.
     expect([...local.connections.values()]).toHaveLength(6); // Three local + two Alpha + one Beta binding.
     expect([...local.connections.values()].some((edge) => edge.ownerId === JSON.stringify(['node', localNodeKey('Alpha')]) && edge.alias === 'Gamma only')).toBe(false);
     const summary = remoteInspectionSummary(local);

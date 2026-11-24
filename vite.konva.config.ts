@@ -4,10 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+const portWindowMode = process.env.KONVA_PORT_WINDOW_MODE ?? 'chooser';
+if (!['chooser', 'B', 'C', 'D'].includes(portWindowMode)) throw new Error('KONVA_PORT_WINDOW_MODE must be chooser, B, C or D.');
 
 export default defineConfig({
   root,
   base: './',
+  define: { __KONVA_PORT_WINDOW_MODE__: JSON.stringify(portWindowMode) },
   // Publish only explicit offline attribution/licence data, not the
   // application's general public tree.
   publicDir: false,

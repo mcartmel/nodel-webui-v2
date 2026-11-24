@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="/src/experiments/konva-canvas/style.css" />
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const realMode = new URLSearchParams(window.location.search).get('source') === 'local';
+        root.dataset.topologyRealMode = realMode ? 'true' : 'false';
+        // The preview window is navigation-relative, not delayed until this inline script parses.
+        root.dataset.topologyNavigationStarted = String(performance.timeOrigin);
+        if (!realMode) root.dataset.topologyShellHidden = 'true';
+        // Capture activation before either module (including the renderer) has loaded.
+        window.__topologyShowNowRequested = false;
+        document.addEventListener('click', (event) => {
+          if (event.target instanceof Element && event.target.closest('[data-topology-show-now]')) {
+            window.__topologyShowNowRequested = true;
+            window.dispatchEvent(new Event('topology-show-now'));
+          }
+        });
+      })();
+    </script>
     <script>
       (() => {
         const root = document.documentElement;
@@ -30,7 +49,7 @@
     <main class="experiment-shell">
       <header class="experiment-header">
         <div>
-          <p class="eyebrow"><span data-experiment-label>Synthetic rendering experiment</span> <span data-fixture-summary role="status" aria-live="polite"></span></p>
+          <p class="eyebrow"><span data-experiment-label>Synthetic rendering experiment</span> <span data-fixture-summary aria-live="off" aria-hidden="true"></span><span data-topology-short-summary aria-live="off"></span><span data-topology-accessible-summary class="topology-accessible-summary"></span><span data-inventory-scope hidden title="HTTP inventory coverage was tested against the pinned Java 19756071 REST serialization fixture. This view combines local inventory, configured references, and HTTP-advertised logical nodes. Isolated nonlocal nodes advertised only through non-HTTP routes are omitted.">HTTP advertisements only</span></p>
           <h1>Room network</h1>
         </div>
         <div class="view-controls" aria-label="Canvas view controls">
@@ -53,12 +72,26 @@
               <option value="dark">Dark</option>
             </select>
           </label>
+          <button type="button" data-topology-show-all hidden>Show all discovered</button>
+          <button type="button" data-topology-arrange hidden>Arrange by connections</button>
         </div>
       </header>
       <section id="diagram" class="diagram" aria-label="Room network diagram">
+        <div class="topology-startup-scrim" data-topology-scrim>
+          <div class="topology-startup-panel">
+            <span class="topology-startup-bar" aria-hidden="true"></span>
+            <p data-topology-status role="status" aria-live="polite">Discovering nodes…</p>
+            <button type="button" data-topology-show-now>Show now</button>
+          </div>
+        </div>
+        <div class="topology-activity" data-topology-activity role="img" tabindex="0" aria-label="Discovery in progress" hidden>
+          <span class="topology-activity-dot" aria-hidden="true"></span>
+          <span class="topology-activity-tooltip" data-topology-activity-tooltip aria-hidden="true" hidden></span>
+          <span class="topology-activity-counts" data-topology-counts aria-hidden="true"></span>
+        </div>
         <p class="canvas-failure" role="status" aria-live="polite" hidden>Canvas rendering is unavailable in this browser.</p>
       </section>
     </main>
-    <script type="module" src="/src/experiments/konva-canvas/main.ts"></script>
+    <script type="module" src="/src/experiments/konva-canvas/preview-entry.ts"></script>
   </body>
 </html>

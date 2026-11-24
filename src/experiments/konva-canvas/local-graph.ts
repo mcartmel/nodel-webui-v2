@@ -1,6 +1,7 @@
 import { javaSimpleNameKey } from './local-simple-name';
 import type { LocalSnapshot as BoundedLocalSnapshot } from './local-snapshot';
 import type { RemoteEnrichmentLookupState, RemoteEnrichmentResult } from './remote-enrichment';
+import type { RemoteHostEvidence } from './enrichment-transport';
 import type { NodelRemoteBindings } from '../../api/nodel-types';
 import { isUsableNodeName } from '../../utils/node-name';
 
@@ -18,6 +19,7 @@ export interface LocalAssignmentRow {
 export interface LocalOwnerSnapshot {
   name: string;
   readState: LocalReadState;
+  readFailure?: 'unreachable' | 'identity-unresolved' | 'invalid' | 'not-inspected' | 'queued';
   /** Safe path name evidenced by the local inventory, or null when it was unaddressable/ambiguous. */
   localPathName?: string | null;
   actions?: readonly LocalAssignmentRow[];
@@ -52,6 +54,10 @@ export function graphInputFromLocalSnapshot(snapshot: BoundedLocalSnapshot): Loc
       return {
         name: owner.name,
         readState,
+        ...(owner.status === 'unread' ? { readFailure: owner.reason === 'ambiguous' ? 'identity-unresolved'
+          : owner.reason === 'invalid-data' ? 'invalid'
+            : owner.reason === 'transport' || owner.reason === 'timed-out' ? 'unreachable'
+              : owner.reason === 'unfinished' ? 'queued' : 'not-inspected' } : {}),
         ...(owner.localPathName === undefined ? {} : { localPathName: owner.localPathName }),
         ...(owner.status === 'read' ? {
           actions: rows(owner.bindings.actions, 'action'),
@@ -72,6 +78,7 @@ export interface LocalGraphNode {
   /** Exact, uniquely addressable owner name retained from the local snapshot. */
   localPathName?: string;
   bindingsRead: LocalReadState;
+  localReadFailure?: LocalOwnerSnapshot['readFailure'];
   /** Known canonical aliases and the subset with usable node+endpoint assignments. */
   bindingCounts?: { readonly set: number; readonly total: number };
   /** Independent remote discovery/inspection state; local reads remain authoritative. */
@@ -103,6 +110,12 @@ export interface LocalGraphMutation {
   readonly portIds: readonly string[];
   readonly connectionIds: readonly string[];
   readonly geometryChanged: boolean;
+}
+
+export interface LocalGraphDiscovery {
+  readonly owner: RemoteEnrichmentOwner;
+  readonly lookupState: RemoteLookupState;
+  readonly hostEvidence?: RemoteHostEvidence;
 }
 
 export interface RemoteInspectionCounts {
@@ -219,7 +232,9 @@ function reconstructLocalGraph(snapshot: LocalSnapshot, followUpOwners?: Map<str
     const explicitPathNames = pathEvidence.filter((pathName): pathName is string => typeof pathName === 'string');
     const pathNamesAgree = explicitPathNames.length === 0 || explicitPathNames.every((pathName) => pathName === label);
     const localPathName = group.names.size === 1 && !pathBlocked && pathNamesAgree && isUsableNodeName(label) ? label : undefined;
-    nodes.set(id, { id, key, name: label, origin: 'local', ...(localPathName ? { localPathName } : {}), bindingsRead: readState });
+    const failures = group.owners.map((owner) => owner.readFailure).filter((value): value is NonNullable<LocalOwnerSnapshot['readFailure']> => value !== undefined);
+    const localReadFailure = (['identity-unresolved', 'invalid', 'unreachable', 'not-inspected', 'queued'] as const).find((value) => failures.includes(value));
+    nodes.set(id, { id, key, name: label, origin: 'local', ...(localPathName ? { localPathName } : {}), ...(localReadFailure ? { localReadFailure } : {}), bindingsRead: readState });
   }
 
   const ensureReferenced = (name: string): LocalGraphNode => {
@@ -378,15 +393,44 @@ export function prepareRemoteOwnerInspection(
 export function setRemoteOwnerState(
   graph: LocalGraph,
   ownerId: string,
-  state: { readonly lookup?: RemoteLookupState; readonly inspection?: RemoteInspectionState; readonly hostEvidence?: string }
+  state: { readonly lookup?: RemoteLookupState; readonly inspection?: RemoteInspectionState; readonly hostEvidence?: RemoteHostEvidence | undefined }
 ): LocalGraphMutation {
   const node = graph.nodes.get(ownerId);
   if (!node) return emptyMutation();
   let changed = false;
   if (state.lookup !== undefined && node.lookupState !== state.lookup) { node.lookupState = state.lookup; changed = true; }
   if (state.inspection !== undefined && node.inspectionState !== state.inspection) { node.inspectionState = state.inspection; changed = true; }
-  if (state.hostEvidence !== undefined && node.hostEvidence !== state.hostEvidence) { node.hostEvidence = state.hostEvidence; changed = true; }
+  if (state.hostEvidence === null) {
+    if (node.hostEvidence !== undefined) { delete node.hostEvidence; changed = true; }
+  } else if (state.hostEvidence !== undefined && node.hostEvidence !== state.hostEvidence) {
+    node.hostEvidence = state.hostEvidence;
+    changed = true;
+  }
   return { nodeIds: changed ? [ownerId] : [], portIds: [], connectionIds: [], geometryChanged: false };
+}
+
+/** Add one affirmative HTTP inventory identity without inventing binding data. */
+export function applyRemoteDiscovery(graph: LocalGraph, discovery: LocalGraphDiscovery): LocalGraphMutation {
+  const { owner } = discovery;
+  if (!owner.id || owner.id !== JSON.stringify(['node', owner.key]) || !owner.key || !isUsableNodeName(owner.name) || localNodeKey(owner.name) !== owner.key) return emptyMutation();
+  let node = graph.nodes.get(owner.id);
+  let changed = false;
+  if (!node) {
+    node = { id: owner.id, key: owner.key, name: owner.name, origin: 'referenced', bindingsRead: 'not-requested' };
+    graph.nodes.set(owner.id, node);
+    changed = true;
+  } else if (node.origin === 'local') {
+    // The local inventory remains the authority for hosting and credential scope.
+  } else if (owner.name < node.name) {
+    node.name = owner.name;
+    changed = true;
+  }
+  const state = setRemoteOwnerState(graph, owner.id, { lookup: discovery.lookupState, hostEvidence: discovery.hostEvidence });
+  changed ||= state.nodeIds.length > 0;
+  if (node.origin !== 'local' && !graph.eligibleRemoteOwners.some((candidate) => candidate.id === owner.id)) {
+    graph.eligibleRemoteOwners = Object.freeze([...graph.eligibleRemoteOwners, Object.freeze({ ...owner })].sort((a, b) => compareText(a.key, b.key)));
+  }
+  return { nodeIds: changed ? [owner.id] : [], portIds: [], connectionIds: [], geometryChanged: false };
 }
 
 function emptyMutation(): LocalGraphMutation {
@@ -419,12 +463,25 @@ export function applyRemoteEnrichmentResult(
 ): LocalGraphMutation {
   const ownerId = result.owner.id;
   if (!graph.nodes.has(ownerId)) return emptyMutation();
-  const lookupMutation = setRemoteOwnerState(graph, ownerId, { lookup: result.lookupState, ...(result.hostEvidence ? { hostEvidence: result.hostEvidence } : {}) });
+  const lookupMutation = setRemoteOwnerState(graph, ownerId, { lookup: result.lookupState, hostEvidence: result.hostEvidence });
   let resultMutation: LocalGraphMutation;
   if (result.outcome === 'read' || result.outcome === 'partial') {
-    resultMutation = applyRemoteOwnerDelta(graph, ownerId, result.prepared, result.outcome);
+    resultMutation = applyRemoteOwnerDelta(graph, ownerId, result.prepared, result.outcome, result.source === 'local');
   } else {
     resultMutation = setRemoteOwnerState(graph, ownerId, { inspection: result.outcome === 'cutoff' ? 'cutoff' : 'failed' });
+    const owner = graph.nodes.get(ownerId)!;
+    if (owner.origin === 'local' && owner.bindingsRead === 'unread') {
+      const failure = result.outcome === 'cutoff' || (result.outcome === 'unsuccessful' && result.reason === 'lookup-interrupted')
+        ? 'not-inspected'
+        : result.outcome === 'unsuccessful' && (result.reason === 'invalid-data' || result.reason === 'prepare-failed')
+          ? 'invalid'
+          : result.outcome === 'unsuccessful' && (result.reason === 'transport' || result.reason === 'timeout')
+            ? 'unreachable' : undefined;
+      if (failure && owner.localReadFailure !== failure) {
+        owner.localReadFailure = failure;
+        resultMutation = { ...resultMutation, nodeIds: [...new Set([...resultMutation.nodeIds, ownerId])].sort(compareText) };
+      }
+    }
   }
   const nodeIds = [...new Set([...lookupMutation.nodeIds, ...resultMutation.nodeIds])].sort(compareText);
   return {
@@ -440,7 +497,8 @@ export function applyRemoteOwnerDelta(
   graph: LocalGraph,
   ownerId: string,
   delta: LocalGraph,
-  outcome: 'read' | 'partial'
+  outcome: 'read' | 'partial',
+  updateLocalStatus = true
 ): LocalGraphMutation {
   const owner = graph.nodes.get(ownerId);
   if (!owner) return emptyMutation();
@@ -468,6 +526,16 @@ export function applyRemoteOwnerDelta(
     if (incoming.bindingCounts !== undefined && JSON.stringify(current.bindingCounts) !== JSON.stringify(incoming.bindingCounts)) {
       current.bindingCounts = incoming.bindingCounts;
       changedNodes.add(id);
+    }
+    if (id === ownerId && updateLocalStatus && current.origin === 'local' && incoming.origin === 'local') {
+      const status = incoming.bindingsRead;
+      if (current.bindingsRead !== status) { current.bindingsRead = status; changedNodes.add(id); }
+      if (incoming.localReadFailure === undefined) {
+        if (current.localReadFailure !== undefined) { delete current.localReadFailure; changedNodes.add(id); }
+      } else if (current.localReadFailure !== incoming.localReadFailure) {
+        current.localReadFailure = incoming.localReadFailure;
+        changedNodes.add(id);
+      }
     }
   }
   for (const [id, incoming] of delta.ports) {

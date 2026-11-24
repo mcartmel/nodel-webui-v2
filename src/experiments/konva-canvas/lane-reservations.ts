@@ -122,6 +122,13 @@ export class LocalLaneReservations {
     }
   }
 
+  /** Reindex changed socket spans without searching lanes again. The render
+   * geometry was already checked and resolved against the retained offset. */
+  replaceRenderedRail(edge: FixtureEdge, nodes: Nodes, rail: RailGeometry | undefined, offset: LaneOffset | undefined): void {
+    this.remove(edge.id);
+    if (rail) this.reserve(describe({ ...edge, routeOffset: offset }, nodes, rail));
+  }
+
   settle(edges: readonly FixtureEdge[], nodes: Nodes): LaneSettlement {
     const result: LaneSettlement = { descriptors: new Map(), bucketCount: 0, candidateCount: 0, comparisonCount: 0, budgetFallbackCount: 0, fallbackCount: 0 };
     const groups = new Map<string, { edge: FixtureEdge; base: LaneRouteDescriptor }[]>();

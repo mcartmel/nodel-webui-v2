@@ -3,7 +3,7 @@ interface PaintFrames {
   cancel(handle: number): void;
 }
 
-interface EnrichmentRun { freeze(): void }
+interface EnrichmentRun { freeze(): void; resume(): void }
 
 export const REMOTE_ENRICHMENT_BUDGET_MS = 15_000;
 
@@ -51,11 +51,18 @@ export function createEnrichmentLifetime(frames: PaintFrames, now = () => perfor
   let sized = false;
   let fired = false;
   let stopped = false;
+  let frozen = false;
   let start: ((deadline: number) => void) | undefined;
   let run: EnrichmentRun | undefined;
+  const activeCallbacks: Array<() => void> = [];
+
+  function cancelFrame() {
+    if (frame !== undefined) frames.cancel(frame);
+    frame = undefined;
+  }
 
   function schedule() {
-    if (stopped || !sized || !start || frame !== undefined) return;
+    if (stopped || frozen || !sized || !start || frame !== undefined) return;
     // ResizeObserver runs before paint. Konva has requested its draw already.
     // Keep one rendering opportunity between that draw and network starts.
     frame = frames.request(() => {
@@ -71,30 +78,47 @@ export function createEnrichmentLifetime(frames: PaintFrames, now = () => perfor
     });
   }
 
-  function stopStarting() {
-    stopped = true;
-    start = undefined;
-    if (frame !== undefined) frames.cancel(frame);
-    frame = undefined;
-  }
-
   return {
     get canStart() { return !stopped; },
+    get isFrozen() { return frozen; },
     signal: controller.signal,
     sized() { sized = true; schedule(); },
     afterPaint(callback: (deadline: number) => void) { if (!stopped && !fired && !start) { start = callback; schedule(); } },
-    attach(active: EnrichmentRun) { if (!stopped) run = active; },
-    finish() { stopStarting(); run = undefined; },
+    /** Defer post-import startup while a persisted document is frozen. */
+    whenActive(callback: () => void) {
+      if (stopped) return;
+      if (frozen) activeCallbacks.push(callback);
+      else callback();
+    },
+    attach(active: EnrichmentRun) {
+      if (stopped) return;
+      run = active;
+      if (frozen) active.freeze();
+    },
+    finish() { stopped = true; start = undefined; cancelFrame(); run = undefined; activeCallbacks.length = 0; },
     freeze() {
-      stopStarting();
+      if (stopped || frozen) return;
+      frozen = true;
+      cancelFrame();
       // Do not abort the authorisation while the scheduler applies accepted work.
       run?.freeze();
-      run = undefined;
+    },
+    resume() {
+      if (stopped || !frozen) return;
+      frozen = false;
+      run?.resume();
+      const callbacks = activeCallbacks.splice(0);
+      for (const callback of callbacks) callback();
+      schedule();
     },
     cancel() {
-      stopStarting();
+      if (stopped) return;
+      stopped = true;
+      start = undefined;
+      cancelFrame();
       controller.abort();
       run = undefined;
+      activeCallbacks.length = 0;
     }
   };
 }

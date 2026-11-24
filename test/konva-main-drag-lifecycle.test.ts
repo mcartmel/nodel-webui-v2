@@ -62,7 +62,8 @@ describe('Konva lane lifecycle integration', () => {
   });
 
   it('defers and removes enrichment reservations on active edges, then batches their release with incident edges', () => {
-    const source = mainSource.slice(mainSource.indexOf('const eligibleForSettlement'), mainSource.indexOf('if (localFraming.revision'));
+    const start = mainSource.indexOf('const eligibleForSettlement');
+    const source = mainSource.slice(start, mainSource.indexOf('if (localFraming.revision', start));
     expect(source).toContain('sourceDrag?.deferredEdgeIds.add(id)');
     expect(source).toContain('targetDrag?.deferredEdgeIds.add(id)');
     expect(source).toContain('for (const id of deferred)');
@@ -105,5 +106,46 @@ describe('Konva lane lifecycle integration', () => {
   it('seeds lane reservations only for the local read-only scene', () => {
     const install = mainSource.slice(mainSource.indexOf('function installGraph'), mainSource.indexOf('async function loadLocalGraph'));
     expect(install).toContain('if (localMode) laneReservations.seed(edges, nodeById)');
+  });
+});
+
+describe('Konva layout save integration', () => {
+  it('schedules for settled interactions only; the resize observer never schedules a write', () => {
+    expect(mainSource).toContain('localMode ? new SessionLayoutWriter(persistSessionLayout) : undefined');
+    expect(handler('dragstart')).toContain('sessionLayoutWriter?.setGestureActive(true)');
+    expect(handler('dragstart')).not.toContain('sessionLayoutWriter?.schedule()');
+    expect(handler('dragmove')).not.toContain('sessionLayoutWriter');
+    expect(handler('dragend')).toContain('if (moved) sessionLayoutWriter?.schedule()');
+    const panStart = mainSource.indexOf("stage.on('dragstart.sessionLayout'");
+    const panEnd = mainSource.indexOf("stage.on('dragend.sessionLayout'");
+    const resize = mainSource.indexOf('const observer = new ResizeObserver');
+    expect(panStart).toBeGreaterThan(0);
+    expect(panEnd).toBeGreaterThan(panStart);
+    expect(mainSource.slice(panStart, panEnd)).toContain('sessionLayoutWriter?.setGestureActive(true)');
+    expect(mainSource.slice(panStart, panEnd)).not.toContain('sessionLayoutWriter?.schedule()');
+    expect(mainSource.slice(panEnd, resize)).toContain('sessionLayoutWriter?.schedule()');
+    expect(mainSource.slice(resize, mainSource.indexOf('observer.observe(stageHost)', resize))).not.toContain('sessionLayoutWriter');
+  });
+
+  it('flushes before the BFCache branch, retains the frozen stage, and does not restore it again on pageshow', () => {
+    const hide = mainSource.indexOf('const onPageHide = (event: PageTransitionEvent)');
+    const flush = mainSource.indexOf('sessionLayoutWriter?.flush()', hide);
+    const cacheReturn = mainSource.indexOf('if (event.persisted) return', hide);
+    const destroy = mainSource.indexOf('stage?.destroy()', hide);
+    expect(flush).toBeGreaterThan(hide);
+    expect(cacheReturn).toBeGreaterThan(flush);
+    expect(destroy).toBeGreaterThan(cacheReturn);
+    expect(mainSource.match(/readSessionLayout\(getSessionStorage\)/g)).toHaveLength(1);
+  });
+
+  it('restores placements before adding cards and permits off-screen restored cameras to finish startup', () => {
+    const mount = mainSource.slice(mainSource.indexOf('mount(graph, drawn)'));
+    expect(mount.indexOf('placement.restoreInitialLocalCards')).toBeGreaterThan(mount.indexOf('projection.projectLocalGraph'));
+    expect(mount.indexOf('placement.restoreInitialLocalCards')).toBeLessThan(mount.indexOf('installGraph(first.nodes, first.edges)'));
+    const add = mainSource.slice(mainSource.indexOf('addCard(node: FixtureNode)'), mainSource.indexOf('addWire(edge: FixtureEdge)'));
+    expect(add.indexOf('restoreLateCard?.(node)')).toBeGreaterThan(0);
+    expect(add.indexOf('restoreLateCard?.(node)')).toBeLessThan(add.indexOf('nodeById.set(node.id, node)'));
+    expect(mainSource).toContain('if (!restoredLayout && !hasVisibleMap) return');
+    expect(mount).toContain('afterInitialTopologyDraw(drawn, restoredCards || initialSessionCamera !== undefined)');
   });
 });
