@@ -1,0 +1,114 @@
+{
+  "variant": "B",
+  "mode": "B",
+  "control": false,
+  "scenario": "ordinary",
+  "repetition": 1,
+  "orderIndex": 0,
+  "fixture": "9 inspected local cards, 244 unique action ports + 4 event ports, opposite-side local endpoints, and two uniquely identified return edges",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "dpr": 1,
+  "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+  "footprintPreset": {
+    "pinnedCards": 9,
+    "positions": 9
+  },
+  "fixtureRemoteOwnerRequests": [
+    "DenseA",
+    "PeerA",
+    "Side01",
+    "Side02",
+    "Side03",
+    "Side04",
+    "Side05",
+    "Side06",
+    "Side07"
+  ],
+  "initialWindowRows": 16,
+  "targetPort": "DenseA-Action-207",
+  "targetIndex": 206,
+  "pageDistanceRows": 192,
+  "pagesToTarget": 12,
+  "inputPattern": {
+    "offeredEvents": 192,
+    "offeredPixels": 4608,
+    "offeredRateModel": "60 row-units/s; 1440 CSS px/s",
+    "scheduledDurationMs": 3183.3333333333335,
+    "lastRequiredOfferPagePerfMs": 7640.433349609375,
+    "playwrightDispatchCompleteMs": 3349.7600780000002
+  },
+  "wheelInputsReceived": 185,
+  "wheelPixelsReceived": 4608,
+  "coalescedOrUnseenInputs": 7,
+  "lastRequiredOfferToFirstTargetDrawMs": 49.16665077209473,
+  "selectedPortEnterToFirstSelectionDrawMs": 12.200000762939453,
+  "frameGapMs": {
+    "n": 261,
+    "p50": 16.699999999999818,
+    "p95": 16.800000000000182,
+    "min": 16.5,
+    "max": 49.900000000000546
+  },
+  "longTaskCount": 0,
+  "longTaskDurationMs": 0,
+  "longTaskMaxMs": 0,
+  "layerDrawsDuringTask": 184,
+  "firstPaintTimePageMs": 7689.60000038147,
+  "selectionPaintTimePageMs": 8085.89999961853,
+  "commandTaskMs": 4121.8887669999995,
+  "scrollCommandMs": 3383.1431660000007,
+  "selectionCommandMs": 2655.7767029999995,
+  "selectedBindingId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640065006e0073006500610061006300740069006f006e0032003000370022005d",
+  "targetWireId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640065006e0073006500610061006300740069006f006e0032003000370022005d",
+  "targetWirePixelDiff": 0,
+  "targetSelectionPixelDiff": 108,
+  "viewportPixelDiff": 7799,
+  "selectedSocket": {
+    "x": 901,
+    "y": 669,
+    "radius": 5,
+    "portId": "p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00640065006e0073006500610022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640065006e0073006500610061006300740069006f006e0032003000370022005d",
+    "accessibleDescription": "DenseA-Action-207"
+  },
+  "cameraInvariant": true,
+  "initialSocket": null,
+  "shapeCounts": {
+    "before": {
+      "cards": 9,
+      "wires": 250,
+      "shapes": 490,
+      "cardChildren": 136,
+      "camera": [
+        654,
+        109,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    },
+    "after": {
+      "cards": 9,
+      "wires": 250,
+      "shapes": 490,
+      "cardChildren": 136,
+      "camera": [
+        654,
+        109,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    }
+  },
+  "heapAfterBytes": 13166121,
+  "idleDrawsDuring1200msAfterTask": 0,
+  "blockedRequests": 0,
+  "errors": []
+}

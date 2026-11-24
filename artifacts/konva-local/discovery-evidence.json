@@ -1,0 +1,26 @@
+{
+  "fixture": "advertised binding discovery: shared target and reciprocal cycles across discovery depth",
+  "screenshots": {
+    "initial": "discovery-initial.png",
+    "mid": "discovery-mid.png",
+    "settled": "discovery-settled.png"
+  },
+  "actualSummary": {
+    "initial": "4 discovered · 4 shown · 2 inspected · 4 nodes · 2 complete · 0 partial · 2 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "mid": "4 discovered · 4 shown · 4 inspected · 4 nodes · 4 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "settled": "4 discovered · 4 shown · 4 inspected · 4 nodes · 4 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+  },
+  "lookups": [
+    "Alpha",
+    "Beta"
+  ],
+  "uniqueRemoteGets": [
+    "GET /nodes/Alpha/REST/remote",
+    "GET /nodes/Beta/REST/remote",
+    "GET /nodes/Gamma/REST/remote"
+  ],
+  "localRequestCounts": {
+    "inventory": 1,
+    "exactLookup": 2
+  }
+}

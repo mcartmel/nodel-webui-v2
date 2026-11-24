@@ -1,18 +1,70 @@
 {
-  "initialMountFirstActualKonvaDrawAtMs": 168.70000076293945,
-  "betaCompletionToVisibleDrawMs": 14.700000762939453,
-  "alphaCompletionToVisibleDrawMs": 5.799999237060547,
-  "betaDrawMethod": "drawImage",
-  "alphaDrawMethod": "drawImage",
+  "initialMountFirstActualKonvaDrawAtMs": 3033.5,
+  "betaCompletionToVisibleDrawMs": 46.39999961853027,
+  "alphaCompletionToVisibleDrawMs": 46.29999923706055,
+  "betaDrawMethod": "stroke",
+  "alphaDrawMethod": "stroke",
   "initialMountedShapes": 37,
-  "retainedExistingShapes": 29,
-  "touchedExistingShapes": 3,
-  "insertedShapes": 27,
+  "retainedExistingShapes": 37,
+  "touchedExistingShapes": 7,
+  "insertedShapes": 19,
   "selectedWireId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a006f0077006e006500720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c0061006c0070006800610022005d",
   "cameraBeforePatch": {
-    "x": 447.01000000000005,
-    "y": 249.46,
+    "x": 402.49,
+    "y": 265.35,
     "scaleX": 1.07,
     "scaleY": 1.07
+  },
+  "panBeforePatch": {
+    "from": {
+      "x": 45,
+      "y": 109
+    },
+    "to": {
+      "x": 107,
+      "y": 150
+    },
+    "stageBounds": {
+      "x": 29,
+      "y": 93,
+      "width": 1308,
+      "height": 652,
+      "top": 93,
+      "right": 1337,
+      "bottom": 745,
+      "left": 29
+    }
+  },
+  "cameraAfterWheel": {
+    "x": 418.9439252336449,
+    "y": 262.3177570093458,
+    "scaleX": 1,
+    "scaleY": 1
+  },
+  "panAfterPatch": {
+    "from": {
+      "x": 90,
+      "y": 123
+    },
+    "to": {
+      "x": 45,
+      "y": 158
+    },
+    "stageBounds": {
+      "x": 29,
+      "y": 107,
+      "width": 1308,
+      "height": 638,
+      "top": 107,
+      "right": 1337,
+      "bottom": 745,
+      "left": 29
+    }
+  },
+  "cameraAfterPan": {
+    "x": 373.9439252336449,
+    "y": 297.3177570093458,
+    "scaleX": 1,
+    "scaleY": 1
   }
 }

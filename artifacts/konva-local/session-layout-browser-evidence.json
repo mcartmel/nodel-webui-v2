@@ -1,0 +1,64 @@
+{
+  "createdAt": "2026-11-24T14:01:30.500Z",
+  "fixture": "loopback real-mode local inventory, 450 Konva cards",
+  "baseline": "/tmp/kilo/konva-label-baseline-20261124",
+  "candidate": "fresh Vite build from current worktree",
+  "candidateDrag": {
+    "writeTimestampsMs": [
+      6394.60000038147
+    ],
+    "frameCountDuringGesture": 93,
+    "dragDurationMs": 1582,
+    "serializedPayloadBytes": [
+      55285
+    ],
+    "writeCount": 1,
+    "writesWhilePointerHeld": 0,
+    "writesDuringGesture": 0,
+    "writesAfterDrop": 1,
+    "storageDurationMs": [
+      0.3000011444091797
+    ],
+    "discoverySummaryAtDrop": "450 discovered · 450 shown · 14 inspected · 436 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 14 inspected · 450 nodes · 14 complete · 0 partial · 436 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "delayFromPointerUpToWriteMs": 993.8999996185303
+  },
+  "frozenBaselineDrag": {
+    "writeTimestampsMs": [],
+    "writeCount": 0,
+    "payloadBytes": [],
+    "framesDuringGesture": 94,
+    "dragDurationMs": 1682,
+    "sessionPayload": null
+  },
+  "sessionPayloadAfterDrag": {
+    "bytes": 55285,
+    "version": 1,
+    "cardCount": 450,
+    "rootFields": [
+      "camera",
+      "cards",
+      "version"
+    ],
+    "cardTupleLengths": [
+      4
+    ],
+    "cameraFields": [
+      "cx",
+      "cy",
+      "scale"
+    ],
+    "cleartextNamesAbsent": true,
+    "graphRecordsAbsent": true
+  },
+  "checks": {
+    "baselineContainsSessionCode": false,
+    "noWritesDuringHeldDrag": true,
+    "oneSuccessfulVisibleWrite": true,
+    "cameraUsesCxCy": true,
+    "renamePrunedOldCard": true,
+    "renameGhostPresent": false,
+    "deniedStorageDidNotBreakStartup": true,
+    "externalRequestCount": 0,
+    "cleartextGraphDataSerialized": false
+  }
+}

@@ -1,0 +1,5059 @@
+[
+  {
+    "scene": "ordinary",
+    "enabled": true,
+    "rep": 1,
+    "drag": {
+      "frames": [
+        3765.2,
+        3781.9,
+        3798.5,
+        3815.2,
+        3831.9,
+        3848.5,
+        3865.2,
+        3881.9,
+        3898.6,
+        3915.2,
+        3931.9,
+        3948.5,
+        3965.2,
+        3981.9,
+        3998.5,
+        4015.2,
+        4031.9,
+        4048.6,
+        4065.2,
+        4081.8,
+        4098.5,
+        4115.2
+      ],
+      "events": [
+        [
+          "pointermove",
+          3770
+        ],
+        [
+          "pointerdown",
+          3788.099998474121
+        ],
+        [
+          "pointermove",
+          3824
+        ],
+        [
+          "pointermove",
+          3858.199998855591
+        ],
+        [
+          "pointermove",
+          3882.5
+        ],
+        [
+          "pointermove",
+          3916
+        ],
+        [
+          "pointermove",
+          3951.099998474121
+        ],
+        [
+          "pointermove",
+          3987.2999992370605
+        ],
+        [
+          "pointermove",
+          4027.099998474121
+        ],
+        [
+          "pointermove",
+          4050.7999992370605
+        ],
+        [
+          "pointerup",
+          4086.199998855591
+        ],
+        [
+          "click",
+          4086.199998855591
+        ]
+      ],
+      "long": [],
+      "ms": 349.2467769999994
+    },
+    "pan": {
+      "frames": [
+        4131.9,
+        4148.5,
+        4165.3,
+        4181.9,
+        4198.5,
+        4215.2,
+        4231.9,
+        4248.5,
+        4265.2,
+        4281.9,
+        4298.5,
+        4315.2,
+        4331.8,
+        4348.6,
+        4365.2,
+        4381.9,
+        4398.6,
+        4415.2,
+        4431.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          4130
+        ],
+        [
+          "pointerdown",
+          4134.199998855591
+        ],
+        [
+          "pointermove",
+          4138.699998855591
+        ],
+        [
+          "pointermove",
+          4169.799999237061
+        ],
+        [
+          "pointermove",
+          4201.099998474121
+        ],
+        [
+          "pointermove",
+          4234.39999961853
+        ],
+        [
+          "pointermove",
+          4268.299999237061
+        ],
+        [
+          "pointermove",
+          4299.099998474121
+        ],
+        [
+          "pointermove",
+          4334.599998474121
+        ],
+        [
+          "pointermove",
+          4366.299999237061
+        ],
+        [
+          "pointerup",
+          4397.599998474121
+        ],
+        [
+          "click",
+          4397.599998474121
+        ]
+      ],
+      "long": [],
+      "ms": 304.16684799999985
+    },
+    "zoom": {
+      "frames": [
+        4448.5,
+        4465.2,
+        4481.9,
+        4498.6,
+        4515.1,
+        4531.9,
+        4548.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          4445.39999961853
+        ],
+        [
+          "wheel",
+          4450.599998474121
+        ]
+      ],
+      "long": [],
+      "ms": 105.00187499999993
+    },
+    "counts": {
+      "right": 7
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": false,
+    "rep": 1,
+    "drag": {
+      "frames": [
+        3748,
+        3764.7,
+        3781.4,
+        3798,
+        3814.7,
+        3831.3,
+        3848,
+        3864.7,
+        3881.3,
+        3898,
+        3914.7,
+        3931.3,
+        3948,
+        3964.7,
+        3981.3,
+        3997.9,
+        4014.7,
+        4031.3,
+        4048,
+        4064.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          3762.2999992370605
+        ],
+        [
+          "pointerdown",
+          3770.3999996185303
+        ],
+        [
+          "pointermove",
+          3802.1000003814697
+        ],
+        [
+          "pointermove",
+          3840.8999996185303
+        ],
+        [
+          "pointermove",
+          3864.7999992370605
+        ],
+        [
+          "pointermove",
+          3902.1000003814697
+        ],
+        [
+          "pointermove",
+          3937.2000007629395
+        ],
+        [
+          "pointermove",
+          3968.5
+        ],
+        [
+          "pointermove",
+          3997
+        ],
+        [
+          "pointermove",
+          4012.7000007629395
+        ],
+        [
+          "pointerup",
+          4027.2999992370605
+        ],
+        [
+          "click",
+          4027.2999992370605
+        ]
+      ],
+      "long": [],
+      "ms": 304.8326390000002
+    },
+    "pan": {
+      "frames": [
+        4081.3,
+        4098,
+        4114.6,
+        4131.3,
+        4148,
+        4164.7,
+        4181.3,
+        4198,
+        4214.7,
+        4231.3,
+        4247.9,
+        4264.7,
+        4281.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          4075.5
+        ],
+        [
+          "pointerdown",
+          4083.6000003814697
+        ],
+        [
+          "pointermove",
+          4087.2000007629395
+        ],
+        [
+          "pointermove",
+          4118.5
+        ],
+        [
+          "pointermove",
+          4147.39999961853
+        ],
+        [
+          "pointermove",
+          4161.89999961853
+        ],
+        [
+          "pointermove",
+          4175.60000038147
+        ],
+        [
+          "pointermove",
+          4194.10000038147
+        ],
+        [
+          "pointermove",
+          4212.10000038147
+        ],
+        [
+          "pointermove",
+          4226.10000038147
+        ],
+        [
+          "pointerup",
+          4243.799999237061
+        ],
+        [
+          "click",
+          4243.799999237061
+        ]
+      ],
+      "long": [],
+      "ms": 207.52473799999825
+    },
+    "zoom": {
+      "frames": [
+        4297.9,
+        4314.7,
+        4331.3,
+        4347.9,
+        4364.6,
+        4381.3,
+        4398
+      ],
+      "events": [
+        [
+          "pointermove",
+          4290.39999961853
+        ],
+        [
+          "wheel",
+          4299.89999961853
+        ]
+      ],
+      "long": [],
+      "ms": 109.38090600000032
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": false,
+    "rep": 2,
+    "drag": {
+      "frames": [
+        3725.242,
+        3742,
+        3758.6,
+        3775.3,
+        3791.9,
+        3808.6,
+        3825.3,
+        3841.9,
+        3858.6,
+        3875.2,
+        3891.9,
+        3908.5,
+        3925.3,
+        3941.9,
+        3958.6,
+        3975.2,
+        3991.9,
+        4008.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          3735.7000007629395
+        ],
+        [
+          "pointerdown",
+          3747.2000007629395
+        ],
+        [
+          "pointermove",
+          3778
+        ],
+        [
+          "pointermove",
+          3815.900001525879
+        ],
+        [
+          "pointermove",
+          3845.1000003814697
+        ],
+        [
+          "pointermove",
+          3878.1000003814697
+        ],
+        [
+          "pointermove",
+          3908
+        ],
+        [
+          "pointermove",
+          3922.5
+        ],
+        [
+          "pointermove",
+          3938.300001144409
+        ],
+        [
+          "pointermove",
+          3954.800001144409
+        ],
+        [
+          "pointerup",
+          3971.7000007629395
+        ],
+        [
+          "click",
+          3971.7000007629395
+        ]
+      ],
+      "long": [],
+      "ms": 274.7869289999999
+    },
+    "pan": {
+      "frames": [
+        4025.2,
+        4041.9,
+        4058.6,
+        4075.3,
+        4091.9,
+        4108.6,
+        4125.3,
+        4141.9,
+        4158.5,
+        4175.2,
+        4191.9,
+        4208.6,
+        4225.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          4017.1000003814697
+        ],
+        [
+          "pointerdown",
+          4027.1000003814697
+        ],
+        [
+          "pointermove",
+          4030.5
+        ],
+        [
+          "pointermove",
+          4061
+        ],
+        [
+          "pointermove",
+          4091
+        ],
+        [
+          "pointermove",
+          4104.400001525879
+        ],
+        [
+          "pointermove",
+          4118.60000038147
+        ],
+        [
+          "pointermove",
+          4138.700000762939
+        ],
+        [
+          "pointermove",
+          4156.900001525879
+        ],
+        [
+          "pointermove",
+          4169.900001525879
+        ],
+        [
+          "pointerup",
+          4186.5
+        ],
+        [
+          "click",
+          4186.5
+        ]
+      ],
+      "long": [],
+      "ms": 209.5795079999989
+    },
+    "zoom": {
+      "frames": [
+        4241.9,
+        4258.6,
+        4275.2,
+        4291.9,
+        4308.6,
+        4325.3,
+        4341.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          4232.10000038147
+        ],
+        [
+          "wheel",
+          4243.300001144409
+        ]
+      ],
+      "long": [],
+      "ms": 111.25632299999961
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": true,
+    "rep": 2,
+    "drag": {
+      "frames": [
+        3725.9,
+        3742.6,
+        3759.2,
+        3775.9,
+        3792.6,
+        3809.2,
+        3825.9,
+        3842.5,
+        3859.2,
+        3875.9,
+        3892.6,
+        3909.2,
+        3925.9,
+        3942.6,
+        3959.2,
+        3975.9,
+        3992.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          3734
+        ],
+        [
+          "pointerdown",
+          3747.6000003814697
+        ],
+        [
+          "pointermove",
+          3782.6000003814697
+        ],
+        [
+          "pointermove",
+          3816.5
+        ],
+        [
+          "pointermove",
+          3844.400001525879
+        ],
+        [
+          "pointermove",
+          3875.6000003814697
+        ],
+        [
+          "pointermove",
+          3889
+        ],
+        [
+          "pointermove",
+          3905.5
+        ],
+        [
+          "pointermove",
+          3922.2000007629395
+        ],
+        [
+          "pointermove",
+          3939.2000007629395
+        ],
+        [
+          "pointerup",
+          3954.6000003814697
+        ],
+        [
+          "click",
+          3954.6000003814697
+        ]
+      ],
+      "long": [],
+      "ms": 260.4528680000003
+    },
+    "pan": {
+      "frames": [
+        4009.3,
+        4025.9,
+        4042.6,
+        4059.2,
+        4075.9,
+        4092.6,
+        4109.2,
+        4125.9,
+        4142.5,
+        4159.2,
+        4175.9,
+        4192.6,
+        4209.2,
+        4225.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          4001.6000003814697
+        ],
+        [
+          "pointerdown",
+          4011.1000003814697
+        ],
+        [
+          "pointermove",
+          4014.300001144409
+        ],
+        [
+          "pointermove",
+          4046.300001144409
+        ],
+        [
+          "pointermove",
+          4076.2000007629395
+        ],
+        [
+          "pointermove",
+          4108.800001144409
+        ],
+        [
+          "pointermove",
+          4123.300001144409
+        ],
+        [
+          "pointermove",
+          4137
+        ],
+        [
+          "pointermove",
+          4154.10000038147
+        ],
+        [
+          "pointermove",
+          4172.400001525879
+        ],
+        [
+          "pointerup",
+          4186.300001144409
+        ],
+        [
+          "click",
+          4186.300001144409
+        ]
+      ],
+      "long": [],
+      "ms": 225.91138299999875
+    },
+    "zoom": {
+      "frames": [
+        4242.5,
+        4259.2,
+        4275.9,
+        4292.6,
+        4309.2,
+        4325.9,
+        4342.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          4232.900001525879
+        ],
+        [
+          "wheel",
+          4243.800001144409
+        ]
+      ],
+      "long": [],
+      "ms": 110.98870700000043
+    },
+    "counts": {
+      "right": 7
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": true,
+    "rep": 3,
+    "drag": {
+      "frames": [
+        3725.442,
+        3742.1,
+        3758.8,
+        3775.5,
+        3792.1,
+        3808.8,
+        3825.4,
+        3842.1,
+        3858.8,
+        3875.4,
+        3892.1,
+        3908.7,
+        3925.4,
+        3942.1,
+        3958.7,
+        3975.4,
+        3992.1,
+        4008.8,
+        4025.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          3736.2999992370605
+        ],
+        [
+          "pointerdown",
+          3747.5
+        ],
+        [
+          "pointermove",
+          3777.699998855591
+        ],
+        [
+          "pointermove",
+          3815.699998855591
+        ],
+        [
+          "pointermove",
+          3844.7999992370605
+        ],
+        [
+          "pointermove",
+          3877.5
+        ],
+        [
+          "pointermove",
+          3911.099998474121
+        ],
+        [
+          "pointermove",
+          3942.099998474121
+        ],
+        [
+          "pointermove",
+          3955.5
+        ],
+        [
+          "pointermove",
+          3971.199998855591
+        ],
+        [
+          "pointerup",
+          3987.5
+        ],
+        [
+          "click",
+          3987.5
+        ]
+      ],
+      "long": [],
+      "ms": 291.81248100000084
+    },
+    "pan": {
+      "frames": [
+        4042,
+        4058.8,
+        4075.5,
+        4092.1,
+        4108.7,
+        4125.5,
+        4142.1,
+        4158.8,
+        4175.4,
+        4192.1,
+        4208.8,
+        4225.4,
+        4242.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          4037.699998855591
+        ],
+        [
+          "pointerdown",
+          4044.3999996185303
+        ],
+        [
+          "pointermove",
+          4048.099998474121
+        ],
+        [
+          "pointermove",
+          4080.3999996185303
+        ],
+        [
+          "pointermove",
+          4108.199998855591
+        ],
+        [
+          "pointermove",
+          4120.699998855591
+        ],
+        [
+          "pointermove",
+          4136.099998474121
+        ],
+        [
+          "pointermove",
+          4153.699998855591
+        ],
+        [
+          "pointermove",
+          4168.89999961853
+        ],
+        [
+          "pointermove",
+          4188.199998855591
+        ],
+        [
+          "pointerup",
+          4205.299999237061
+        ],
+        [
+          "click",
+          4205.299999237061
+        ]
+      ],
+      "long": [],
+      "ms": 206.28627399999823
+    },
+    "zoom": {
+      "frames": [
+        4258.7,
+        4275.4,
+        4292.1,
+        4308.8,
+        4325.4,
+        4342.1,
+        4358.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          4249.699998855591
+        ],
+        [
+          "wheel",
+          4261
+        ]
+      ],
+      "long": [],
+      "ms": 110.7644939999991
+    },
+    "counts": {
+      "right": 7
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": false,
+    "rep": 3,
+    "drag": {
+      "frames": [
+        3724.8,
+        3741.5,
+        3758.2,
+        3774.8,
+        3791.4,
+        3808.2,
+        3824.8,
+        3841.4,
+        3858.1,
+        3874.8,
+        3891.4,
+        3908.1,
+        3924.8,
+        3941.5,
+        3958.1,
+        3974.8,
+        3991.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          3734.199998855591
+        ],
+        [
+          "pointerdown",
+          3746.699998855591
+        ],
+        [
+          "pointermove",
+          3783.7999992370605
+        ],
+        [
+          "pointermove",
+          3823.199998855591
+        ],
+        [
+          "pointermove",
+          3839.199998855591
+        ],
+        [
+          "pointermove",
+          3855.699998855591
+        ],
+        [
+          "pointermove",
+          3871
+        ],
+        [
+          "pointermove",
+          3888.1000003814697
+        ],
+        [
+          "pointermove",
+          3906.1000003814697
+        ],
+        [
+          "pointermove",
+          3935.199998855591
+        ],
+        [
+          "pointerup",
+          3958.2999992370605
+        ],
+        [
+          "click",
+          3958.2999992370605
+        ]
+      ],
+      "long": [],
+      "ms": 259.3539490000003
+    },
+    "pan": {
+      "frames": [
+        4008.2,
+        4024.8,
+        4041.5,
+        4058.1,
+        4074.8,
+        4091.4,
+        4108.1,
+        4124.8,
+        4141.4,
+        4158.2,
+        4174.7,
+        4191.4,
+        4208.1,
+        4224.7,
+        4241.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          4003.699998855591
+        ],
+        [
+          "pointerdown",
+          4010.199998855591
+        ],
+        [
+          "pointermove",
+          4014.2999992370605
+        ],
+        [
+          "pointermove",
+          4045.7999992370605
+        ],
+        [
+          "pointermove",
+          4077.5
+        ],
+        [
+          "pointermove",
+          4110.39999961853
+        ],
+        [
+          "pointermove",
+          4140.799999237061
+        ],
+        [
+          "pointermove",
+          4155
+        ],
+        [
+          "pointermove",
+          4169.10000038147
+        ],
+        [
+          "pointermove",
+          4187.799999237061
+        ],
+        [
+          "pointerup",
+          4204.199998855591
+        ],
+        [
+          "click",
+          4204.199998855591
+        ]
+      ],
+      "long": [],
+      "ms": 239.54290400000173
+    },
+    "zoom": {
+      "frames": [
+        4258.1,
+        4274.8,
+        4291.4,
+        4308.1,
+        4324.8,
+        4341.4,
+        4358.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          4251.5
+        ],
+        [
+          "wheel",
+          4260.10000038147
+        ]
+      ],
+      "long": [],
+      "ms": 108.30546200000026
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": false,
+    "rep": 4,
+    "drag": {
+      "frames": [
+        3734.1,
+        3750.7,
+        3767.4,
+        3784.1,
+        3800.7,
+        3817.3,
+        3834,
+        3850.7,
+        3867.4,
+        3884.1,
+        3900.7,
+        3917.3,
+        3934,
+        3950.7,
+        3967.4,
+        3984,
+        4000.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          3745.7999992370605
+        ],
+        [
+          "pointerdown",
+          3755.699998855591
+        ],
+        [
+          "pointermove",
+          3786.2999992370605
+        ],
+        [
+          "pointermove",
+          3834.7999992370605
+        ],
+        [
+          "pointermove",
+          3863.3999996185303
+        ],
+        [
+          "pointermove",
+          3882.199998855591
+        ],
+        [
+          "pointermove",
+          3897
+        ],
+        [
+          "pointermove",
+          3914.8999996185303
+        ],
+        [
+          "pointermove",
+          3929.8999996185303
+        ],
+        [
+          "pointermove",
+          3947
+        ],
+        [
+          "pointerup",
+          3963.699998855591
+        ],
+        [
+          "click",
+          3963.699998855591
+        ]
+      ],
+      "long": [],
+      "ms": 256.63330999999744
+    },
+    "pan": {
+      "frames": [
+        4017.3,
+        4034.1,
+        4050.7,
+        4067.4,
+        4084.1,
+        4100.7,
+        4117.4,
+        4134,
+        4150.7,
+        4167.4,
+        4184.1,
+        4200.7,
+        4217.3,
+        4234
+      ],
+      "events": [
+        [
+          "pointermove",
+          4009.8999996185303
+        ],
+        [
+          "pointerdown",
+          4019.099998474121
+        ],
+        [
+          "pointermove",
+          4022.599998474121
+        ],
+        [
+          "pointermove",
+          4054.599998474121
+        ],
+        [
+          "pointermove",
+          4083
+        ],
+        [
+          "pointermove",
+          4098.199998855591
+        ],
+        [
+          "pointermove",
+          4111.599998474121
+        ],
+        [
+          "pointermove",
+          4128.39999961853
+        ],
+        [
+          "pointermove",
+          4147.5
+        ],
+        [
+          "pointermove",
+          4169.799999237061
+        ],
+        [
+          "pointerup",
+          4201.699998855591
+        ],
+        [
+          "click",
+          4201.699998855591
+        ]
+      ],
+      "long": [],
+      "ms": 225.8533430000025
+    },
+    "zoom": {
+      "frames": [
+        4250.7,
+        4267.3,
+        4284,
+        4300.7,
+        4317.3,
+        4334,
+        4350.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          4243.39999961853
+        ],
+        [
+          "wheel",
+          4252.199998855591
+        ]
+      ],
+      "long": [],
+      "ms": 108.93675699999585
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": true,
+    "rep": 4,
+    "drag": {
+      "frames": [
+        3734.3,
+        3750.9,
+        3767.6,
+        3784.3,
+        3800.9,
+        3817.6,
+        3834.3,
+        3850.9,
+        3867.6,
+        3884.3,
+        3901,
+        3917.6,
+        3934.3,
+        3950.9,
+        3967.6,
+        3984.3,
+        4000.9,
+        4017.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          3748.5
+        ],
+        [
+          "pointerdown",
+          3756.1000003814697
+        ],
+        [
+          "pointermove",
+          3787
+        ],
+        [
+          "pointermove",
+          3825.7000007629395
+        ],
+        [
+          "pointermove",
+          3866.7000007629395
+        ],
+        [
+          "pointermove",
+          3898
+        ],
+        [
+          "pointermove",
+          3916.1000003814697
+        ],
+        [
+          "pointermove",
+          3931.1000003814697
+        ],
+        [
+          "pointermove",
+          3947.800001144409
+        ],
+        [
+          "pointermove",
+          3964.5
+        ],
+        [
+          "pointerup",
+          3980.6000003814697
+        ],
+        [
+          "click",
+          3980.6000003814697
+        ]
+      ],
+      "long": [],
+      "ms": 271.1182010000048
+    },
+    "pan": {
+      "frames": [
+        4034.2,
+        4050.9,
+        4067.6,
+        4084.2,
+        4100.9,
+        4117.6,
+        4134.2,
+        4150.9,
+        4167.6,
+        4184.3,
+        4200.9,
+        4217.5,
+        4234.3,
+        4250.8,
+        4267.6,
+        4284.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          4025.300001144409
+        ],
+        [
+          "pointerdown",
+          4036.1000003814697
+        ],
+        [
+          "pointermove",
+          4039.7000007629395
+        ],
+        [
+          "pointermove",
+          4071.900001525879
+        ],
+        [
+          "pointermove",
+          4100.10000038147
+        ],
+        [
+          "pointermove",
+          4113.400001525879
+        ],
+        [
+          "pointermove",
+          4138.200000762939
+        ],
+        [
+          "pointermove",
+          4169.900001525879
+        ],
+        [
+          "pointermove",
+          4203.200000762939
+        ],
+        [
+          "pointermove",
+          4234
+        ],
+        [
+          "pointerup",
+          4247.800001144409
+        ],
+        [
+          "click",
+          4247.800001144409
+        ]
+      ],
+      "long": [],
+      "ms": 260.3407769999976
+    },
+    "zoom": {
+      "frames": [
+        4300.9,
+        4317.6,
+        4334.3,
+        4350.9,
+        4367.5,
+        4384.2,
+        4400.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          4290.60000038147
+        ],
+        [
+          "wheel",
+          4302.400001525879
+        ]
+      ],
+      "long": [],
+      "ms": 111.68343199999799
+    },
+    "counts": {
+      "right": 7
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": true,
+    "rep": 5,
+    "drag": {
+      "frames": [
+        3740.3,
+        3756.9,
+        3773.6,
+        3790.3,
+        3807,
+        3823.6,
+        3840.3,
+        3856.9,
+        3873.6,
+        3890.2,
+        3906.9,
+        3923.6,
+        3940.3,
+        3957,
+        3973.7,
+        3990.3,
+        4007,
+        4023.6,
+        4040.3,
+        4056.9,
+        4073.6,
+        4090.3,
+        4106.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          3752.800001144409
+        ],
+        [
+          "pointerdown",
+          3762.1000003814697
+        ],
+        [
+          "pointermove",
+          3792.7000007629395
+        ],
+        [
+          "pointermove",
+          3830.8999996185303
+        ],
+        [
+          "pointermove",
+          3860.7000007629395
+        ],
+        [
+          "pointermove",
+          3893.5
+        ],
+        [
+          "pointermove",
+          3924.2000007629395
+        ],
+        [
+          "pointermove",
+          3959.3999996185303
+        ],
+        [
+          "pointermove",
+          3995
+        ],
+        [
+          "pointermove",
+          4024.1000003814697
+        ],
+        [
+          "pointerup",
+          4067.8999996185303
+        ],
+        [
+          "click",
+          4067.8999996185303
+        ]
+      ],
+      "long": [],
+      "ms": 356.264783000006
+    },
+    "pan": {
+      "frames": [
+        4123.6,
+        4140.3,
+        4156.9,
+        4173.6,
+        4190.3,
+        4206.9,
+        4223.5,
+        4240.3,
+        4256.9,
+        4273.6,
+        4290.2,
+        4307,
+        4323.6,
+        4340.3,
+        4357
+      ],
+      "events": [
+        [
+          "pointermove",
+          4117.700000762939
+        ],
+        [
+          "pointerdown",
+          4126.10000038147
+        ],
+        [
+          "pointermove",
+          4129.5
+        ],
+        [
+          "pointermove",
+          4163.200000762939
+        ],
+        [
+          "pointermove",
+          4193
+        ],
+        [
+          "pointermove",
+          4225.89999961853
+        ],
+        [
+          "pointermove",
+          4257
+        ],
+        [
+          "pointermove",
+          4270.39999961853
+        ],
+        [
+          "pointermove",
+          4284.5
+        ],
+        [
+          "pointermove",
+          4303.5
+        ],
+        [
+          "pointerup",
+          4320.200000762939
+        ],
+        [
+          "click",
+          4320.200000762939
+        ]
+      ],
+      "long": [],
+      "ms": 240.97253900000214
+    },
+    "zoom": {
+      "frames": [
+        4373.6,
+        4390.2,
+        4407,
+        4423.6,
+        4440.3,
+        4456.9,
+        4473.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          4365.300001144409
+        ],
+        [
+          "wheel",
+          4375.60000038147
+        ]
+      ],
+      "long": [],
+      "ms": 109.99526599999808
+    },
+    "counts": {
+      "right": 7
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "ordinary",
+    "enabled": false,
+    "rep": 5,
+    "drag": {
+      "frames": [
+        3741.7,
+        3758.4,
+        3775,
+        3791.7,
+        3808.4,
+        3825,
+        3841.7,
+        3858.4,
+        3875,
+        3891.7,
+        3908.3,
+        3925,
+        3941.7,
+        3958.4,
+        3975,
+        3991.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          3754.5
+        ],
+        [
+          "pointerdown",
+          3763.3999996185303
+        ],
+        [
+          "pointermove",
+          3800.1000003814697
+        ],
+        [
+          "pointermove",
+          3834.5
+        ],
+        [
+          "pointermove",
+          3857.8999996185303
+        ],
+        [
+          "pointermove",
+          3872.6000003814697
+        ],
+        [
+          "pointermove",
+          3888.1000003814697
+        ],
+        [
+          "pointermove",
+          3905.7999992370605
+        ],
+        [
+          "pointermove",
+          3921.2000007629395
+        ],
+        [
+          "pointermove",
+          3937.5
+        ],
+        [
+          "pointerup",
+          3955.6000003814697
+        ],
+        [
+          "click",
+          3955.6000003814697
+        ]
+      ],
+      "long": [],
+      "ms": 238.9666570000045
+    },
+    "pan": {
+      "frames": [
+        4008.3,
+        4025.1,
+        4041.7,
+        4058.3,
+        4075,
+        4091.7,
+        4108.4,
+        4125,
+        4141.6,
+        4158.4,
+        4175.1,
+        4191.7,
+        4208.4,
+        4225,
+        4241.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          4001.3999996185303
+        ],
+        [
+          "pointerdown",
+          4010.2999992370605
+        ],
+        [
+          "pointermove",
+          4013.7000007629395
+        ],
+        [
+          "pointermove",
+          4046.1000003814697
+        ],
+        [
+          "pointermove",
+          4077.6000003814697
+        ],
+        [
+          "pointermove",
+          4110.700000762939
+        ],
+        [
+          "pointermove",
+          4141.10000038147
+        ],
+        [
+          "pointermove",
+          4155
+        ],
+        [
+          "pointermove",
+          4169.200000762939
+        ],
+        [
+          "pointermove",
+          4188.200000762939
+        ],
+        [
+          "pointerup",
+          4204.60000038147
+        ],
+        [
+          "click",
+          4204.60000038147
+        ]
+      ],
+      "long": [],
+      "ms": 242.13876300000265
+    },
+    "zoom": {
+      "frames": [
+        4258.4,
+        4275.1,
+        4291.7,
+        4308.4,
+        4325,
+        4341.7,
+        4358.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          4251.39999961853
+        ],
+        [
+          "wheel",
+          4261
+        ]
+      ],
+      "long": [],
+      "ms": 108.73084899999958
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "27dcfdfd0be658a902b017976de01190ede4f3d51294274817276211df5f325c",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 6,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      },
+      {
+        "layout": "831d966659304b98f89e8d925e0ea78abcaa90613694175bfc3038cbd8176a4d",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 7,
+          "up": 0,
+          "down": 0
+        },
+        "inspection": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": true,
+    "rep": 1,
+    "drag": {
+      "frames": [
+        2503.2,
+        2519.9,
+        2536.5,
+        2553.2,
+        2569.9,
+        2586.5,
+        2619.8,
+        2636.5,
+        2653.2,
+        2669.8,
+        2686.5,
+        2703.2,
+        2719.8,
+        2736.5,
+        2753.2,
+        2769.9,
+        2786.5,
+        2803.1,
+        2819.8,
+        2836.5,
+        2853.1,
+        2886.5,
+        2903.2,
+        2919.9,
+        2936.5,
+        2953.2,
+        2969.8,
+        2986.5,
+        3003.2
+      ],
+      "events": [
+        [
+          "pointermove",
+          2514.3999996185303
+        ],
+        [
+          "pointerdown",
+          2522.8999996185303
+        ],
+        [
+          "pointermove",
+          2574
+        ],
+        [
+          "pointermove",
+          2630.2999992370605
+        ],
+        [
+          "pointermove",
+          2677.1000003814697
+        ],
+        [
+          "pointermove",
+          2726.5
+        ],
+        [
+          "pointermove",
+          2763.8999996185303
+        ],
+        [
+          "pointermove",
+          2808.2000007629395
+        ],
+        [
+          "pointermove",
+          2858
+        ],
+        [
+          "pointermove",
+          2906.1000003814697
+        ],
+        [
+          "pointerup",
+          2960.1000003814697
+        ],
+        [
+          "click",
+          2960.1000003814697
+        ]
+      ],
+      "long": [],
+      "ms": 490.98419999999896
+    },
+    "pan": {
+      "frames": [
+        3053.132,
+        3069.8,
+        3103.2,
+        3119.8,
+        3136.5,
+        3169.8,
+        3203.1,
+        3219.8,
+        3253.2,
+        3269.8,
+        3303.1,
+        3319.8,
+        3353.2,
+        3369.8,
+        3403.1,
+        3419.8,
+        3436.5,
+        3469.8,
+        3486.5,
+        3503.1,
+        3519.8
+      ],
+      "events": [
+        [
+          "pointermove",
+          3044
+        ],
+        [
+          "pointerdown",
+          3055
+        ],
+        [
+          "pointermove",
+          3057.3999996185303
+        ],
+        [
+          "pointermove",
+          3113.5
+        ],
+        [
+          "pointermove",
+          3156.7999992370605
+        ],
+        [
+          "pointermove",
+          3209.7999992370605
+        ],
+        [
+          "pointermove",
+          3258.6000003814697
+        ],
+        [
+          "pointermove",
+          3308.5
+        ],
+        [
+          "pointermove",
+          3357.3999996185303
+        ],
+        [
+          "pointermove",
+          3408.3999996185303
+        ],
+        [
+          "pointerup",
+          3456.7000007629395
+        ],
+        [
+          "click",
+          3456.7000007629395
+        ]
+      ],
+      "long": [],
+      "ms": 477.4648720000041
+    },
+    "zoom": {
+      "frames": [
+        3569.8,
+        3586.4,
+        3603.1,
+        3619.8,
+        3669.8,
+        3686.5,
+        3703.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          3572.6000003814697
+        ],
+        [
+          "wheel",
+          3588.7000007629395
+        ]
+      ],
+      "long": [
+        59
+      ],
+      "ms": 132.50714799999696
+    },
+    "counts": {
+      "right": 167,
+      "down": 281
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": false,
+    "rep": 1,
+    "drag": {
+      "frames": [
+        2534.4,
+        2551,
+        2584.4,
+        2601,
+        2617.7,
+        2634.3,
+        2651,
+        2667.7,
+        2684.3,
+        2701,
+        2717.7,
+        2734.3,
+        2751,
+        2767.6,
+        2784.3,
+        2801,
+        2817.7,
+        2834.3,
+        2850.9,
+        2867.7,
+        2884.3,
+        2901,
+        2917.6,
+        2934.3,
+        2951,
+        2967.7,
+        2984.3,
+        3001,
+        3017.7,
+        3034.4,
+        3051
+      ],
+      "events": [
+        [
+          "pointermove",
+          2545.3999996185303
+        ],
+        [
+          "pointerdown",
+          2556
+        ],
+        [
+          "pointermove",
+          2616.2999992370605
+        ],
+        [
+          "pointermove",
+          2659.8999996185303
+        ],
+        [
+          "pointermove",
+          2708.699998855591
+        ],
+        [
+          "pointermove",
+          2761.7999992370605
+        ],
+        [
+          "pointermove",
+          2807.5
+        ],
+        [
+          "pointermove",
+          2860.099998474121
+        ],
+        [
+          "pointermove",
+          2905
+        ],
+        [
+          "pointermove",
+          2958.7999992370605
+        ],
+        [
+          "pointerup",
+          3008.2999992370605
+        ],
+        [
+          "click",
+          3008.2999992370605
+        ]
+      ],
+      "long": [],
+      "ms": 507.2683580000012
+    },
+    "pan": {
+      "frames": [
+        3100.9,
+        3117.6,
+        3134.3,
+        3167.6,
+        3184.3,
+        3217.6,
+        3234.3,
+        3267.7,
+        3284.3,
+        3301,
+        3317.7,
+        3334.3,
+        3367.6,
+        3384.3,
+        3434.3,
+        3451,
+        3484.3,
+        3501,
+        3534.3,
+        3550.9,
+        3584.2,
+        3600.9,
+        3617.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          3101.2999992370605
+        ],
+        [
+          "pointerdown",
+          3120
+        ],
+        [
+          "pointermove",
+          3122.2999992370605
+        ],
+        [
+          "pointermove",
+          3179.3999996185303
+        ],
+        [
+          "pointermove",
+          3223.5
+        ],
+        [
+          "pointermove",
+          3275.199998855591
+        ],
+        [
+          "pointermove",
+          3322
+        ],
+        [
+          "pointermove",
+          3384.699998855591
+        ],
+        [
+          "pointermove",
+          3446.3999996185303
+        ],
+        [
+          "pointermove",
+          3490.599998474121
+        ],
+        [
+          "pointerup",
+          3549.199998855591
+        ],
+        [
+          "click",
+          3549.199998855591
+        ]
+      ],
+      "long": [
+        51
+      ],
+      "ms": 518.3251779999991
+    },
+    "zoom": {
+      "frames": [
+        3667.632,
+        3684.2,
+        3700.9,
+        3751,
+        3767.7,
+        3784.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          3656.699998855591
+        ],
+        [
+          "wheel",
+          3669.699998855591
+        ]
+      ],
+      "long": [
+        60
+      ],
+      "ms": 129.45120199999656
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": false,
+    "rep": 2,
+    "drag": {
+      "frames": [
+        2513.6,
+        2530.3,
+        2563.7,
+        2580.3,
+        2597,
+        2613.7,
+        2630.3,
+        2646.9,
+        2663.6,
+        2680.3,
+        2697,
+        2713.6,
+        2747,
+        2763.6,
+        2780.3,
+        2796.9,
+        2813.6,
+        2830.3,
+        2846.9,
+        2863.7,
+        2880.3,
+        2896.9,
+        2913.6,
+        2930.3,
+        2947
+      ],
+      "events": [
+        [
+          "pointermove",
+          2522.800001144409
+        ],
+        [
+          "pointerdown",
+          2534.8999996185303
+        ],
+        [
+          "pointermove",
+          2598.5
+        ],
+        [
+          "pointermove",
+          2641
+        ],
+        [
+          "pointermove",
+          2682.8999996185303
+        ],
+        [
+          "pointermove",
+          2721.800001144409
+        ],
+        [
+          "pointermove",
+          2759
+        ],
+        [
+          "pointermove",
+          2799.3999996185303
+        ],
+        [
+          "pointermove",
+          2833.3999996185303
+        ],
+        [
+          "pointermove",
+          2868.8999996185303
+        ],
+        [
+          "pointerup",
+          2903.3999996185303
+        ],
+        [
+          "click",
+          2903.3999996185303
+        ]
+      ],
+      "long": [],
+      "ms": 425.693855000005
+    },
+    "pan": {
+      "frames": [
+        2996.932,
+        3013.6,
+        3047,
+        3063.7,
+        3096.9,
+        3113.7,
+        3130.3,
+        3146.9,
+        3163.6,
+        3196.9,
+        3213.7,
+        3247,
+        3263.6,
+        3296.9,
+        3313.7,
+        3347,
+        3363.6,
+        3396.9,
+        3413.7,
+        3446.9,
+        3463.6,
+        3480.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          2983.800001144409
+        ],
+        [
+          "pointerdown",
+          2999.1000003814697
+        ],
+        [
+          "pointermove",
+          3002.7000007629395
+        ],
+        [
+          "pointermove",
+          3062
+        ],
+        [
+          "pointermove",
+          3105.300001144409
+        ],
+        [
+          "pointermove",
+          3151
+        ],
+        [
+          "pointermove",
+          3202.5
+        ],
+        [
+          "pointermove",
+          3252
+        ],
+        [
+          "pointermove",
+          3302.2000007629395
+        ],
+        [
+          "pointermove",
+          3352.6000003814697
+        ],
+        [
+          "pointerup",
+          3412.2000007629395
+        ],
+        [
+          "click",
+          3412.2000007629395
+        ]
+      ],
+      "long": [],
+      "ms": 498.0917909999989
+    },
+    "zoom": {
+      "frames": [
+        3530.3,
+        3546.9,
+        3563.6,
+        3580.3,
+        3630.2,
+        3647,
+        3663.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          3532.800001144409
+        ],
+        [
+          "wheel",
+          3548.7000007629395
+        ]
+      ],
+      "long": [
+        59
+      ],
+      "ms": 132.32698199999868
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": true,
+    "rep": 2,
+    "drag": {
+      "frames": [
+        2533.6,
+        2550.2,
+        2583.6,
+        2616.9,
+        2633.6,
+        2650.2,
+        2666.9,
+        2700.3,
+        2716.9,
+        2733.5,
+        2750.2,
+        2766.9,
+        2783.6,
+        2800.2,
+        2816.9,
+        2850.2,
+        2866.9,
+        2883.6,
+        2900.2,
+        2916.9,
+        2933.5,
+        2950.2,
+        2966.9,
+        2983.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          2550.1000003814697
+        ],
+        [
+          "pointerdown",
+          2555.6000003814697
+        ],
+        [
+          "pointermove",
+          2624.400001525879
+        ],
+        [
+          "pointermove",
+          2676.400001525879
+        ],
+        [
+          "pointermove",
+          2712.6000003814697
+        ],
+        [
+          "pointermove",
+          2753.7000007629395
+        ],
+        [
+          "pointermove",
+          2789.900001525879
+        ],
+        [
+          "pointermove",
+          2825.6000003814697
+        ],
+        [
+          "pointermove",
+          2859.6000003814697
+        ],
+        [
+          "pointermove",
+          2903.2000007629395
+        ],
+        [
+          "pointerup",
+          2938.300001144409
+        ],
+        [
+          "click",
+          2938.300001144409
+        ]
+      ],
+      "long": [],
+      "ms": 435.1846649999934
+    },
+    "pan": {
+      "frames": [
+        3033.6,
+        3050.3,
+        3100.2,
+        3116.8,
+        3150.2,
+        3166.9,
+        3200.2,
+        3216.9,
+        3233.5,
+        3250.2,
+        3266.9,
+        3283.5,
+        3300.2,
+        3316.8,
+        3333.6,
+        3350.2,
+        3383.5,
+        3400.2,
+        3450.2,
+        3466.8,
+        3500.2,
+        3516.9,
+        3533.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          3031.6000003814697
+        ],
+        [
+          "pointerdown",
+          3036
+        ],
+        [
+          "pointermove",
+          3039.300001144409
+        ],
+        [
+          "pointermove",
+          3115.1000003814697
+        ],
+        [
+          "pointermove",
+          3158.400001525879
+        ],
+        [
+          "pointermove",
+          3204.400001525879
+        ],
+        [
+          "pointermove",
+          3254
+        ],
+        [
+          "pointermove",
+          3304
+        ],
+        [
+          "pointermove",
+          3352
+        ],
+        [
+          "pointermove",
+          3397.300001144409
+        ],
+        [
+          "pointerup",
+          3464.300001144409
+        ],
+        [
+          "click",
+          3464.300001144409
+        ]
+      ],
+      "long": [
+        61,
+        56
+      ],
+      "ms": 503.59181499999977
+    },
+    "zoom": {
+      "frames": [
+        3583.532,
+        3600.2,
+        3616.8,
+        3666.8,
+        3683.5,
+        3700.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          3573.800001144409
+        ],
+        [
+          "wheel",
+          3585.300001144409
+        ]
+      ],
+      "long": [
+        60
+      ],
+      "ms": 127.9598960000003
+    },
+    "counts": {
+      "right": 167,
+      "down": 281
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": true,
+    "rep": 3,
+    "drag": {
+      "frames": [
+        2525.8,
+        2542.4,
+        2575.7,
+        2592.4,
+        2609.1,
+        2642.4,
+        2659.1,
+        2675.8,
+        2692.4,
+        2709,
+        2725.7,
+        2742.4,
+        2759,
+        2792.4,
+        2809.1,
+        2825.8,
+        2842.4,
+        2859.1,
+        2875.7,
+        2892.4,
+        2909.1,
+        2942.4,
+        2959.1,
+        2975.7,
+        2992.4,
+        3009
+      ],
+      "events": [
+        [
+          "pointermove",
+          2531.099998474121
+        ],
+        [
+          "pointerdown",
+          2547.699998855591
+        ],
+        [
+          "pointermove",
+          2609.699998855591
+        ],
+        [
+          "pointermove",
+          2659
+        ],
+        [
+          "pointermove",
+          2695.2999992370605
+        ],
+        [
+          "pointermove",
+          2731.3999996185303
+        ],
+        [
+          "pointermove",
+          2767.7999992370605
+        ],
+        [
+          "pointermove",
+          2821.699998855591
+        ],
+        [
+          "pointermove",
+          2863.7999992370605
+        ],
+        [
+          "pointermove",
+          2901.599998474121
+        ],
+        [
+          "pointerup",
+          2959.199998855591
+        ],
+        [
+          "click",
+          2959.199998855591
+        ]
+      ],
+      "long": [],
+      "ms": 479.93263599999773
+    },
+    "pan": {
+      "frames": [
+        3059.1,
+        3075.7,
+        3092.4,
+        3125.7,
+        3142.4,
+        3175.7,
+        3192.4,
+        3225.7,
+        3242.4,
+        3259.1,
+        3275.7,
+        3292.4,
+        3325.7,
+        3342.4,
+        3359,
+        3375.7,
+        3409,
+        3425.7,
+        3459,
+        3475.7,
+        3492.3,
+        3509,
+        3525.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          3063.8999996185303
+        ],
+        [
+          "pointerdown",
+          3078
+        ],
+        [
+          "pointermove",
+          3081.2999992370605
+        ],
+        [
+          "pointermove",
+          3143.3999996185303
+        ],
+        [
+          "pointermove",
+          3186.7999992370605
+        ],
+        [
+          "pointermove",
+          3231.199998855591
+        ],
+        [
+          "pointermove",
+          3280.099998474121
+        ],
+        [
+          "pointermove",
+          3330.199998855591
+        ],
+        [
+          "pointermove",
+          3380
+        ],
+        [
+          "pointermove",
+          3422
+        ],
+        [
+          "pointerup",
+          3464.699998855591
+        ],
+        [
+          "click",
+          3464.699998855591
+        ]
+      ],
+      "long": [],
+      "ms": 463.2358680000034
+    },
+    "zoom": {
+      "frames": [
+        3575.732,
+        3592.3,
+        3609,
+        3659.1,
+        3675.7,
+        3692.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          3575.199998855591
+        ],
+        [
+          "wheel",
+          3576.8999996185303
+        ]
+      ],
+      "long": [
+        58
+      ],
+      "ms": 118.66567299999588
+    },
+    "counts": {
+      "right": 167,
+      "down": 281
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": false,
+    "rep": 3,
+    "drag": {
+      "frames": [
+        2539.8,
+        2556.5,
+        2589.7,
+        2606.5,
+        2623.1,
+        2656.5,
+        2673.1,
+        2689.7,
+        2706.4,
+        2756.4,
+        2773,
+        2789.7,
+        2823,
+        2839.7,
+        2873,
+        2889.7,
+        2906.4,
+        2923,
+        2956.4,
+        2973.1,
+        2989.7,
+        3006.4,
+        3023.1,
+        3039.7,
+        3056.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          2545.300001144409
+        ],
+        [
+          "pointerdown",
+          2561.2000007629395
+        ],
+        [
+          "pointermove",
+          2621.400001525879
+        ],
+        [
+          "pointermove",
+          2669.6000003814697
+        ],
+        [
+          "pointermove",
+          2713.2000007629395
+        ],
+        [
+          "pointermove",
+          2775.400001525879
+        ],
+        [
+          "pointermove",
+          2843.7000007629395
+        ],
+        [
+          "pointermove",
+          2895.6000003814697
+        ],
+        [
+          "pointermove",
+          2930.2000007629395
+        ],
+        [
+          "pointermove",
+          2966.2000007629395
+        ],
+        [
+          "pointerup",
+          3008
+        ],
+        [
+          "click",
+          3008
+        ]
+      ],
+      "long": [],
+      "ms": 512.8146019999986
+    },
+    "pan": {
+      "frames": [
+        3106.432,
+        3123.1,
+        3156.4,
+        3173.1,
+        3206.4,
+        3223.1,
+        3256.4,
+        3273.1,
+        3306.4,
+        3323,
+        3356.4,
+        3373.1,
+        3389.8,
+        3423.1,
+        3456.4,
+        3473,
+        3506.4,
+        3523,
+        3539.8,
+        3556.3,
+        3573
+      ],
+      "events": [
+        [
+          "pointermove",
+          3105.2000007629395
+        ],
+        [
+          "pointerdown",
+          3108.300001144409
+        ],
+        [
+          "pointermove",
+          3111.7000007629395
+        ],
+        [
+          "pointermove",
+          3174.6000003814697
+        ],
+        [
+          "pointermove",
+          3217.900001525879
+        ],
+        [
+          "pointermove",
+          3264.6000003814697
+        ],
+        [
+          "pointermove",
+          3311.800001144409
+        ],
+        [
+          "pointermove",
+          3361.7000007629395
+        ],
+        [
+          "pointermove",
+          3410.1000003814697
+        ],
+        [
+          "pointermove",
+          3461.1000003814697
+        ],
+        [
+          "pointerup",
+          3510.400001525879
+        ],
+        [
+          "click",
+          3510.400001525879
+        ]
+      ],
+      "long": [],
+      "ms": 469.4325979999994
+    },
+    "zoom": {
+      "frames": [
+        3623,
+        3639.7,
+        3656.4,
+        3673,
+        3723,
+        3739.7,
+        3756.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          3625.6000003814697
+        ],
+        [
+          "wheel",
+          3641.6000003814697
+        ]
+      ],
+      "long": [
+        59
+      ],
+      "ms": 132.39949599999818
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": false,
+    "rep": 4,
+    "drag": {
+      "frames": [
+        2524.2,
+        2540.9,
+        2574.2,
+        2590.8,
+        2607.5,
+        2640.8,
+        2657.5,
+        2674.2,
+        2690.8,
+        2707.5,
+        2724.2,
+        2740.8,
+        2757.5,
+        2774.1,
+        2790.8,
+        2807.5,
+        2824.2,
+        2840.8,
+        2874.1,
+        2890.8,
+        2924.2,
+        2940.8,
+        2957.4,
+        2974.2,
+        2990.8
+      ],
+      "events": [
+        [
+          "pointermove",
+          2540.5
+        ],
+        [
+          "pointerdown",
+          2545.8999996185303
+        ],
+        [
+          "pointermove",
+          2607.7000007629395
+        ],
+        [
+          "pointermove",
+          2656.2999992370605
+        ],
+        [
+          "pointermove",
+          2693.5
+        ],
+        [
+          "pointermove",
+          2732.2999992370605
+        ],
+        [
+          "pointermove",
+          2778.7999992370605
+        ],
+        [
+          "pointermove",
+          2814
+        ],
+        [
+          "pointermove",
+          2847.8999996185303
+        ],
+        [
+          "pointermove",
+          2883.6000003814697
+        ],
+        [
+          "pointerup",
+          2942.7000007629395
+        ],
+        [
+          "click",
+          2942.7000007629395
+        ]
+      ],
+      "long": [],
+      "ms": 451.7843950000097
+    },
+    "pan": {
+      "frames": [
+        3040.832,
+        3057.4,
+        3090.9,
+        3107.5,
+        3140.8,
+        3157.5,
+        3190.8,
+        3207.5,
+        3240.8,
+        3257.4,
+        3274.2,
+        3290.8,
+        3307.4,
+        3340.8,
+        3357.4,
+        3390.8,
+        3407.4,
+        3424.1,
+        3457.4,
+        3474.1,
+        3490.8,
+        3507.5
+      ],
+      "events": [
+        [
+          "pointermove",
+          3039.2000007629395
+        ],
+        [
+          "pointerdown",
+          3042.8999996185303
+        ],
+        [
+          "pointermove",
+          3046.2999992370605
+        ],
+        [
+          "pointermove",
+          3108
+        ],
+        [
+          "pointermove",
+          3151.2000007629395
+        ],
+        [
+          "pointermove",
+          3207.2999992370605
+        ],
+        [
+          "pointermove",
+          3249.3999996185303
+        ],
+        [
+          "pointermove",
+          3294.8999996185303
+        ],
+        [
+          "pointermove",
+          3346
+        ],
+        [
+          "pointermove",
+          3397.2000007629395
+        ],
+        [
+          "pointerup",
+          3444.1000003814697
+        ],
+        [
+          "click",
+          3444.1000003814697
+        ]
+      ],
+      "long": [],
+      "ms": 469.7868790000066
+    },
+    "zoom": {
+      "frames": [
+        3557.5,
+        3574.1,
+        3590.8,
+        3640.8,
+        3657.5,
+        3674.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          3555.8999996185303
+        ],
+        [
+          "wheel",
+          3559.1000003814697
+        ]
+      ],
+      "long": [
+        59
+      ],
+      "ms": 119.76899599999888
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": true,
+    "rep": 4,
+    "drag": {
+      "frames": [
+        2535,
+        2551.6,
+        2584.9,
+        2601.6,
+        2618.2,
+        2634.9,
+        2651.6,
+        2668.2,
+        2684.9,
+        2701.6,
+        2718.3,
+        2734.9,
+        2751.5,
+        2768.3,
+        2784.9,
+        2801.6,
+        2818.2,
+        2835,
+        2851.6,
+        2868.3,
+        2884.9,
+        2901.6,
+        2918.3,
+        2934.9,
+        2951.6,
+        2968.2,
+        2984.9,
+        3001.6,
+        3018.3,
+        3034.9,
+        3051.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          2540.6000003814697
+        ],
+        [
+          "pointerdown",
+          2556.8999996185303
+        ],
+        [
+          "pointermove",
+          2620.2000007629395
+        ],
+        [
+          "pointermove",
+          2664.2999992370605
+        ],
+        [
+          "pointermove",
+          2707.6000003814697
+        ],
+        [
+          "pointermove",
+          2762.7000007629395
+        ],
+        [
+          "pointermove",
+          2807.3999996185303
+        ],
+        [
+          "pointermove",
+          2860.6000003814697
+        ],
+        [
+          "pointermove",
+          2905.8999996185303
+        ],
+        [
+          "pointermove",
+          2959.3999996185303
+        ],
+        [
+          "pointerup",
+          3008.2000007629395
+        ],
+        [
+          "click",
+          3008.2000007629395
+        ]
+      ],
+      "long": [],
+      "ms": 512.5749490000017
+    },
+    "pan": {
+      "frames": [
+        3101.632,
+        3118.2,
+        3151.5,
+        3168.2,
+        3201.6,
+        3218.2,
+        3251.6,
+        3268.3,
+        3284.9,
+        3301.6,
+        3318.2,
+        3334.9,
+        3351.5,
+        3368.3,
+        3384.9,
+        3401.5,
+        3434.9,
+        3451.5,
+        3484.9,
+        3501.5,
+        3518.2,
+        3534.9,
+        3551.6
+      ],
+      "events": [
+        [
+          "pointermove",
+          3099.7000007629395
+        ],
+        [
+          "pointerdown",
+          3103.5
+        ],
+        [
+          "pointermove",
+          3106.7999992370605
+        ],
+        [
+          "pointermove",
+          3170.3999996185303
+        ],
+        [
+          "pointermove",
+          3214.3999996185303
+        ],
+        [
+          "pointermove",
+          3259.2999992370605
+        ],
+        [
+          "pointermove",
+          3306
+        ],
+        [
+          "pointermove",
+          3356.3999996185303
+        ],
+        [
+          "pointermove",
+          3403.7000007629395
+        ],
+        [
+          "pointermove",
+          3449.7999992370605
+        ],
+        [
+          "pointerup",
+          3492.2999992370605
+        ],
+        [
+          "click",
+          3492.2999992370605
+        ]
+      ],
+      "long": [],
+      "ms": 453.44963899999857
+    },
+    "zoom": {
+      "frames": [
+        3601.6,
+        3618.2,
+        3634.9,
+        3651.6,
+        3701.6,
+        3718.2,
+        3734.9
+      ],
+      "events": [
+        [
+          "pointermove",
+          3602.2000007629395
+        ],
+        [
+          "wheel",
+          3620.2999992370605
+        ]
+      ],
+      "long": [
+        58
+      ],
+      "ms": 134.1770519999991
+    },
+    "counts": {
+      "right": 167,
+      "down": 281
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": true,
+    "rep": 5,
+    "drag": {
+      "frames": [
+        2523.1,
+        2539.7,
+        2573,
+        2589.7,
+        2606.4,
+        2623,
+        2639.8,
+        2656.4,
+        2689.7,
+        2706.4,
+        2723,
+        2739.7,
+        2756.4,
+        2773,
+        2789.8,
+        2806.4,
+        2823.1,
+        2839.8,
+        2856.4,
+        2873.1,
+        2906.4,
+        2923.1,
+        2939.7,
+        2956.3,
+        2973,
+        2989.7,
+        3006.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          2537.5
+        ],
+        [
+          "pointerdown",
+          2544.5
+        ],
+        [
+          "pointermove",
+          2602.099998474121
+        ],
+        [
+          "pointermove",
+          2648.099998474121
+        ],
+        [
+          "pointermove",
+          2708.5
+        ],
+        [
+          "pointermove",
+          2762.7999992370605
+        ],
+        [
+          "pointermove",
+          2810.5
+        ],
+        [
+          "pointermove",
+          2845.699998855591
+        ],
+        [
+          "pointermove",
+          2880.5
+        ],
+        [
+          "pointermove",
+          2918.8999996185303
+        ],
+        [
+          "pointerup",
+          2955.8999996185303
+        ],
+        [
+          "click",
+          2955.8999996185303
+        ]
+      ],
+      "long": [],
+      "ms": 470.2957880000031
+    },
+    "pan": {
+      "frames": [
+        3056.432,
+        3073,
+        3106.3,
+        3123,
+        3156.4,
+        3173.1,
+        3189.7,
+        3206.4,
+        3239.7,
+        3256.3,
+        3289.7,
+        3306.3,
+        3323,
+        3339.7,
+        3373,
+        3389.7,
+        3423,
+        3439.7,
+        3456.4,
+        3473,
+        3489.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          3045.099998474121
+        ],
+        [
+          "pointerdown",
+          3058.199998855591
+        ],
+        [
+          "pointermove",
+          3061.7999992370605
+        ],
+        [
+          "pointermove",
+          3122.8999996185303
+        ],
+        [
+          "pointermove",
+          3164.599998474121
+        ],
+        [
+          "pointermove",
+          3208.3999996185303
+        ],
+        [
+          "pointermove",
+          3256.2999992370605
+        ],
+        [
+          "pointermove",
+          3298
+        ],
+        [
+          "pointermove",
+          3341.099998474121
+        ],
+        [
+          "pointermove",
+          3385.2999992370605
+        ],
+        [
+          "pointerup",
+          3427.599998474121
+        ],
+        [
+          "click",
+          3427.599998474121
+        ]
+      ],
+      "long": [],
+      "ms": 446.1440250000014
+    },
+    "zoom": {
+      "frames": [
+        3539.732,
+        3556.4,
+        3573,
+        3623,
+        3639.7,
+        3656.3
+      ],
+      "events": [
+        [
+          "pointermove",
+          3526.8999996185303
+        ],
+        [
+          "wheel",
+          3541.3999996185303
+        ]
+      ],
+      "long": [
+        56
+      ],
+      "ms": 130.83936300000641
+    },
+    "counts": {
+      "right": 167,
+      "down": 281
+    },
+    "navigation": {
+      "before": [
+        728.4200000000001,
+        129.27,
+        1.07
+      ],
+      "after": [
+        -105,
+        231,
+        1.07
+      ]
+    },
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  },
+  {
+    "scene": "mounted450",
+    "enabled": false,
+    "rep": 5,
+    "drag": {
+      "frames": [
+        2532.4,
+        2549.1,
+        2582.5,
+        2599.1,
+        2615.8,
+        2649.1,
+        2665.8,
+        2682.4,
+        2699.2,
+        2715.8,
+        2732.5,
+        2749.1,
+        2765.8,
+        2799.1,
+        2815.7,
+        2832.4,
+        2849.1,
+        2865.7,
+        2882.5,
+        2899.1,
+        2915.8,
+        2932.5,
+        2949.2,
+        2965.7
+      ],
+      "events": [
+        [
+          "pointermove",
+          2538
+        ],
+        [
+          "pointerdown",
+          2554.3999996185303
+        ],
+        [
+          "pointermove",
+          2614.5
+        ],
+        [
+          "pointermove",
+          2663.8999996185303
+        ],
+        [
+          "pointermove",
+          2701.599998474121
+        ],
+        [
+          "pointermove",
+          2738.099998474121
+        ],
+        [
+          "pointermove",
+          2773.699998855591
+        ],
+        [
+          "pointermove",
+          2809.5
+        ],
+        [
+          "pointermove",
+          2850
+        ],
+        [
+          "pointermove",
+          2885.599998474121
+        ],
+        [
+          "pointerup",
+          2921.099998474121
+        ],
+        [
+          "click",
+          2921.099998474121
+        ]
+      ],
+      "long": [],
+      "ms": 429.50766800000565
+    },
+    "pan": {
+      "frames": [
+        3015.8,
+        3032.4,
+        3049.1,
+        3082.4,
+        3099.1,
+        3132.5,
+        3149.1,
+        3182.4,
+        3199.1,
+        3232.4,
+        3249.1,
+        3282.5,
+        3299.1,
+        3332.4,
+        3349.1,
+        3382.4,
+        3399.1,
+        3415.8,
+        3449.1,
+        3465.7,
+        3482.4,
+        3499.1
+      ],
+      "events": [
+        [
+          "pointermove",
+          3016.8999996185303
+        ],
+        [
+          "pointerdown",
+          3035
+        ],
+        [
+          "pointermove",
+          3038.3999996185303
+        ],
+        [
+          "pointermove",
+          3099.199998855591
+        ],
+        [
+          "pointermove",
+          3141
+        ],
+        [
+          "pointermove",
+          3187.099998474121
+        ],
+        [
+          "pointermove",
+          3237.8999996185303
+        ],
+        [
+          "pointermove",
+          3288.699998855591
+        ],
+        [
+          "pointermove",
+          3336.699998855591
+        ],
+        [
+          "pointermove",
+          3387.699998855591
+        ],
+        [
+          "pointerup",
+          3435.7999992370605
+        ],
+        [
+          "click",
+          3435.7999992370605
+        ]
+      ],
+      "long": [],
+      "ms": 484.04839399999764
+    },
+    "zoom": {
+      "frames": [
+        3549.1,
+        3565.8,
+        3582.4,
+        3599.1,
+        3649.1,
+        3665.8,
+        3682.4
+      ],
+      "events": [
+        [
+          "pointermove",
+          3550.2999992370605
+        ],
+        [
+          "wheel",
+          3567.8999996185303
+        ]
+      ],
+      "long": [
+        59
+      ],
+      "ms": 133.94512099999702
+    },
+    "counts": {},
+    "navigation": null,
+    "states": [
+      {
+        "layout": "24aaa5ea83886412f739923811c14613b37435ff87314a85b29e392721da8060",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          654,
+          109,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          686,
+          125,
+          1
+        ],
+        "expected": {
+          "left": 0,
+          "right": 165,
+          "up": 0,
+          "down": 282
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      },
+      {
+        "layout": "205a5c240d66d70d3b99765d4f9c77178b39b58d930ad233d3c36d3b70e9683b",
+        "camera": [
+          728.4200000000001,
+          129.27,
+          1.07
+        ],
+        "expected": {
+          "left": 0,
+          "right": 167,
+          "up": 0,
+          "down": 281
+        },
+        "inspection": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running"
+      }
+    ]
+  }
+]

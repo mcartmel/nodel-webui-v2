@@ -1,0 +1,1257 @@
+[
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": true,
+    "repetition": 1,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 7,
+        "label": "7 cards to the right; go to nearest"
+      }
+    ],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": -284,
+      "y": 211,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": false,
+    "repetition": 1,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": false,
+    "repetition": 2,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": true,
+    "repetition": 2,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 7,
+        "label": "7 cards to the right; go to nearest"
+      }
+    ],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": true,
+    "repetition": 3,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 7,
+        "label": "7 cards to the right; go to nearest"
+      }
+    ],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": false,
+    "repetition": 3,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": false,
+    "repetition": 4,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": true,
+    "repetition": 4,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 7,
+        "label": "7 cards to the right; go to nearest"
+      }
+    ],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": true,
+    "repetition": 5,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 7,
+        "label": "7 cards to the right; go to nearest"
+      }
+    ],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 9,
+    "enabled": false,
+    "repetition": 5,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 7,
+      "up": 0,
+      "down": 0
+    },
+    "visibleArrows": [],
+    "offscreenCards": 7,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": {
+      "pinnedCards": 9,
+      "positions": [
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00640065006e0073006500610022005d",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007000650065007200610022005d",
+          "x": 300,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000310022005d",
+          "x": 600,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000320022005d",
+          "x": 900,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000330022005d",
+          "x": 1200,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000340022005d",
+          "x": 1500,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000350022005d",
+          "x": 1800,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000360022005d",
+          "x": 2100,
+          "y": 0
+        },
+        {
+          "id": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0073006900640065003000370022005d",
+          "x": 2400,
+          "y": 0
+        }
+      ]
+    },
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": true,
+    "repetition": 1,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 166,
+        "label": "166 cards to the right; go to nearest"
+      },
+      {
+        "direction": "down",
+        "count": 282,
+        "label": "282 cards below; go to nearest"
+      }
+    ],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": -284,
+      "y": 39,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": false,
+    "repetition": 1,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": false,
+    "repetition": 2,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": true,
+    "repetition": 2,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 166,
+        "label": "166 cards to the right; go to nearest"
+      },
+      {
+        "direction": "down",
+        "count": 282,
+        "label": "282 cards below; go to nearest"
+      }
+    ],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": true,
+    "repetition": 3,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 166,
+        "label": "166 cards to the right; go to nearest"
+      },
+      {
+        "direction": "down",
+        "count": 282,
+        "label": "282 cards below; go to nearest"
+      }
+    ],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": false,
+    "repetition": 3,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": false,
+    "repetition": 4,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": true,
+    "repetition": 4,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 166,
+        "label": "166 cards to the right; go to nearest"
+      },
+      {
+        "direction": "down",
+        "count": 282,
+        "label": "282 cards below; go to nearest"
+      }
+    ],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": true,
+    "repetition": 5,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [
+      {
+        "direction": "right",
+        "count": 166,
+        "label": "166 cards to the right; go to nearest"
+      },
+      {
+        "direction": "down",
+        "count": 282,
+        "label": "282 cards below; go to nearest"
+      }
+    ],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": true,
+    "zoomPreservedOnNavigation": true,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  },
+  {
+    "variant": "D",
+    "scene": 450,
+    "enabled": false,
+    "repetition": 5,
+    "expectedByDirection": {
+      "left": 0,
+      "right": 166,
+      "up": 0,
+      "down": 282
+    },
+    "visibleArrows": [],
+    "offscreenCards": 448,
+    "cameraBefore": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "cameraAfter": {
+      "x": 654,
+      "y": 41.275000000000034,
+      "scale": 1.3224999999999998
+    },
+    "arrangement": null,
+    "viewActions": [
+      "restored fixture camera",
+      "2× real Zoom in button presses"
+    ],
+    "navigationTested": false,
+    "zoomPreservedOnNavigation": null,
+    "inspectionState": "450 discovered · 450 shown · 5 inspected · 445 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 450 discovered · 450 shown · 5 inspected · 450 nodes · 5 complete · 0 partial · 445 queued · 0 terminal not inspected · inventory coverage complete · scheduler running",
+    "blockedRequests": 0,
+    "errors": []
+  }
+]

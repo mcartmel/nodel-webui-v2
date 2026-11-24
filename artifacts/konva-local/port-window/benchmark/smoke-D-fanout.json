@@ -1,0 +1,103 @@
+{
+  "variant": "D",
+  "mode": "D",
+  "control": false,
+  "scenario": "fanout",
+  "repetition": 1,
+  "orderIndex": 0,
+  "fixture": "2 inspected local cards, 100 distinct action aliases sharing one peer action endpoint, plus four events and two return edges",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "dpr": 1,
+  "inspectionState": "2 discovered · 2 shown · 2 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 2 discovered · 2 shown · 2 inspected · 2 nodes · 2 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+  "fixtureRemoteOwnerRequests": [
+    "DenseB",
+    "PeerB"
+  ],
+  "initialWindowRows": 2,
+  "targetPort": "FanoutB-Action-010",
+  "targetIndex": 9,
+  "pageDistanceRows": 8,
+  "pagesToTarget": 4,
+  "inputPattern": {
+    "offeredEvents": 32,
+    "offeredPixels": 192,
+    "offeredRateModel": "240 micro-events/s; 1440 CSS px/s",
+    "scheduledDurationMs": 129.16666666666666,
+    "lastRequiredOfferPagePerfMs": 1727.86669921875,
+    "playwrightDispatchCompleteMs": 275.0290440000001
+  },
+  "wheelInputsReceived": 17,
+  "wheelPixelsReceived": 192,
+  "coalescedOrUnseenInputs": 15,
+  "lastRequiredOfferToFirstTargetDrawMs": 203.73330116271973,
+  "selectedPortEnterToFirstSelectionDrawMs": 4.5,
+  "frameGapMs": {
+    "n": 83,
+    "p50": 16.699999999999818,
+    "p95": 16.799999999999727,
+    "min": 16.5,
+    "max": 16.800000000000182
+  },
+  "longTaskCount": 0,
+  "longTaskDurationMs": 0,
+  "longTaskMaxMs": 0,
+  "layerDrawsDuringTask": 5,
+  "firstPaintTimePageMs": 1931.6000003814697,
+  "selectionPaintTimePageMs": 2127.900001525879,
+  "commandTaskMs": 993.02709,
+  "scrollCommandMs": 494.147023,
+  "selectionCommandMs": 2434.75633,
+  "selectedBindingId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500620022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00660061006e006f0075007400620061006300740069006f006e0030003100300022005d",
+  "targetWireId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500620022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00660061006e006f0075007400620061006300740069006f006e0030003100300022005d",
+  "targetWirePixelDiff": 0,
+  "targetSelectionPixelDiff": 120,
+  "viewportPixelDiff": 16283,
+  "selectedSocket": {
+    "x": 901,
+    "y": 541,
+    "radius": 5,
+    "portId": "p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00640065006e0073006500620022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00660061006e006f0075007400620061006300740069006f006e0030003100300022005d",
+    "accessibleDescription": "FanoutB-Action-010"
+  },
+  "cameraInvariant": true,
+  "initialSocket": null,
+  "shapeCounts": {
+    "before": {
+      "cards": 2,
+      "wires": 106,
+      "shapes": 202,
+      "cardChildren": 34,
+      "camera": [
+        654,
+        319,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    },
+    "after": {
+      "cards": 2,
+      "wires": 106,
+      "shapes": 202,
+      "cardChildren": 34,
+      "camera": [
+        654,
+        319,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    }
+  },
+  "heapAfterBytes": 9837319,
+  "idleDrawsDuring1200msAfterTask": 0,
+  "blockedRequests": 0,
+  "errors": []
+}

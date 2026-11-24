@@ -1,0 +1,111 @@
+{
+  "createdAt": "2026-11-24T16:42:28.055Z",
+  "gitHead": "dd9e44359bb00562f5093a20a2ab7c4b4675dfc5",
+  "sourcePaths": [
+    "src/experiments/konva-canvas/main.ts",
+    "src/experiments/konva-canvas/card-footprint.ts",
+    "src/experiments/konva-canvas/port-wheel.ts",
+    "src/experiments/konva-canvas/fixture.ts",
+    "vite.konva.config.ts"
+  ],
+  "sourceHashes": {
+    "src/experiments/konva-canvas/main.ts": "7f00012bf99eafc7eaa02201b0ffae265871633dc954b697f5b453bb7318127d",
+    "src/experiments/konva-canvas/card-footprint.ts": "6d5d90e4f7b917160b978cbc494f8c09a4d8c176504fe1b3bdc5681d99f33990",
+    "src/experiments/konva-canvas/port-wheel.ts": "42ffa4cb537fe24a5baadce617d6d22f551dbb5782a04083c645f174096b0255",
+    "src/experiments/konva-canvas/fixture.ts": "41b01c20ee5ce1702fb716c6a05a656a59320865da5aae5b7e6e8e82c37bb179",
+    "vite.konva.config.ts": "20bb17fb21a0e90d91e4e67a89b13276af18ace889a2bf8bda0805f1a968f6eb"
+  },
+  "frozenReference": {
+    "path": "/tmp/kilo/konva-pre-scroll-baseline",
+    "builtAt": "frozen before row/window scroll modes",
+    "files": {
+      "assets/local-enrichment-projection-BwCtmuEB.js": "8573d7d07615e4344a176984520dabd2ee692e7019643e5d4aacf2381e608d2b",
+      "assets/local-placement-DPLj1_pn.js": "59499e8e3830c2c037dfff953e150f23c50d5dde1d094a84d97f6d65050f9beb",
+      "assets/local-projection-B7y5lHcN.js": "5fe3d09760c2d1afc159b567fcf7b99163823eecc196d24de7316515272e834e",
+      "assets/main-BdsYgPc4.js": "ab2e83bd517a0ea0c7ceb02d432c0974c5f8f38a91443e90e4faf5cd1996d700",
+      "assets/main-CVWRa7xJ.css": "72a4112498e54a2cfdc44085797fd588d6342a6cbd552b546c008eccde5ad75d",
+      "assets/preview-coordinator-C0fhcWpU.js": "f8c2406a731d48a8cac28eb3bd671628ea5ea1ebe473ccacfd15ea3d52883b74",
+      "assets/topology-canvas-DkiyMISS.css": "74a5ca7196e8aeaf4452befef807643bc20af1ae3b26b683e1919496577c16ed",
+      "assets/topology-canvas-ZWHlon-X.js": "185202e41c66098e58b09a92b4ad3d3817224041e749013e24fbb3e711489291",
+      "assets/urls-DFUDOl5B.js": "c5be8e85fb86d83e530d521da135804430c3f04b6d822c6afa8b5d6709cad588",
+      "topology-canvas.html": "7806f550e32e9f545a0a09d117abd893bfb513441a4c948179ba3de362e8306c",
+      "v2/licenses/CC-BY-SA-3.0.txt": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "v2/licenses/CodeIgniter-MIT.txt": "86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7",
+      "v2/licenses/MPL-2.0.txt": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "v2/licenses/topology-simple-name-NOTICE.txt": "b126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b",
+      "v2/licenses/topology-simple-name-transliterations.json": "6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7"
+    }
+  },
+  "buildRoot": "/tmp/kilo/port-window-builds.dsOacMOv",
+  "buildCommand": "bash experiments/konva-browser/build-port-window-candidates.sh",
+  "currentCandidateFilesSha256": {
+    "chooser": {
+      "assets/local-enrichment-projection-CLkUatTe.js": "644d03e0c6c995baf33ba8e470c65797905825295a64f3f2cb361e81973d9443",
+      "assets/local-placement-lO-_m-uy.js": "6558589b7a37790f1a1fc78a3c2c21d3d2e3924b7261c2ab28abf0e1123295ae",
+      "assets/local-projection-46GC3ICL.js": "26bb16e4921b7ddbe4ece1b6ed23aade3188e559e1b93825cf7abfc90771e7b8",
+      "assets/main-Bo5Vk4hY.js": "a4ff89259b80c3998966f70d4bc508f54916eea4a8a4e0d2da59ce50c2ae125c",
+      "assets/main-DFD2gBqU.css": "9d662d91c3c57f8bcf4a7e28dff181667be343aa2706d6c7edc3d42753b2b9a8",
+      "assets/preview-coordinator-Ck95cxpn.js": "158d0e3cbd1a816f60d5864b7c2f6aabcc90800305cd44ece17ee2caa7a6f2e4",
+      "assets/topology-canvas-8ILoURVx.css": "41ed1f5a3a378adfa1d60d21031aa0aa83aab499ed78bc57d821f59e45e4f513",
+      "assets/topology-canvas-NjpfTanx.js": "7b943451175c0a854d43be67939a34ac73dc0425b0c749747b8c6f6905584eae",
+      "assets/urls-DFUDOl5B.js": "c5be8e85fb86d83e530d521da135804430c3f04b6d822c6afa8b5d6709cad588",
+      "topology-canvas.html": "3ff715223e8c923ff14b00a2c1c31206306f03b6a9c9e8ff820e17f5400ff990",
+      "v2/licenses/CC-BY-SA-3.0.txt": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "v2/licenses/CodeIgniter-MIT.txt": "86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7",
+      "v2/licenses/MPL-2.0.txt": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "v2/licenses/topology-simple-name-NOTICE.txt": "b126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b",
+      "v2/licenses/topology-simple-name-transliterations.json": "6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7"
+    },
+    "B": {
+      "assets/local-enrichment-projection-DMQSDctH.js": "d1b91db6168b269e56f3da73a521ca5d6ced26d0a378f4644811297ce20d2c62",
+      "assets/local-placement-BIuliX2U.js": "9d5840ad37377f8c11b867f08777ccf3c6cab7cd92ff29dc47a0e5711e315d93",
+      "assets/local-projection-97muFxq0.js": "63f93e5c345162f37e8874186cbf7c4c77f2e012914294eeefc20f4434198bad",
+      "assets/main-DCvkAfsN.js": "572bfa2907fc6d1c26f93ba72768226da37c24779664c4ffbd375e3cbe46fce4",
+      "assets/main-DFD2gBqU.css": "9d662d91c3c57f8bcf4a7e28dff181667be343aa2706d6c7edc3d42753b2b9a8",
+      "assets/preview-coordinator-D8nZQ8hb.js": "9db2befdc1c417bb13c89b479d3015062e5a7f01098bea1f1f0051ad5765c281",
+      "assets/topology-canvas-8ILoURVx.css": "41ed1f5a3a378adfa1d60d21031aa0aa83aab499ed78bc57d821f59e45e4f513",
+      "assets/topology-canvas-bSbNrcXZ.js": "bfac3cd772786d4bfe3f5cb5b8bbd0c86c491b8aa8a9a1a09993c747d749ae89",
+      "assets/urls-DFUDOl5B.js": "c5be8e85fb86d83e530d521da135804430c3f04b6d822c6afa8b5d6709cad588",
+      "topology-canvas.html": "3690c71564954f20b4039da009e7e26e676aeb65b832c0d0075a8741744c0e26",
+      "v2/licenses/CC-BY-SA-3.0.txt": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "v2/licenses/CodeIgniter-MIT.txt": "86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7",
+      "v2/licenses/MPL-2.0.txt": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "v2/licenses/topology-simple-name-NOTICE.txt": "b126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b",
+      "v2/licenses/topology-simple-name-transliterations.json": "6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7"
+    },
+    "C": {
+      "assets/local-enrichment-projection-CWjSsa0G.js": "9bc6e7a8c08a6b4c21ff941ae3e1eb4590ba228092a7ff09e5794c2a9f325824",
+      "assets/local-placement-B9gllfGU.js": "45e97e3d40ca13dfb6eb32ff7864439d71aa880b0b3351c45ec4d288d177f2bd",
+      "assets/local-projection-DaSYm_w4.js": "9b997fb1b4f4a83817a4685ae00ae25d4e9838e89559f0980839f2f430a37bd6",
+      "assets/main-DFD2gBqU.css": "9d662d91c3c57f8bcf4a7e28dff181667be343aa2706d6c7edc3d42753b2b9a8",
+      "assets/main-DfJUYIiV.js": "d72c259375167ecbc78f27046867b018942263cce522a70eeeafafa3c3190a0d",
+      "assets/preview-coordinator-7VBWMhll.js": "8c74116a7e0fea75e40a82531be5b439abe8277c76f91751bbb6ca796fa9fd94",
+      "assets/topology-canvas-8ILoURVx.css": "41ed1f5a3a378adfa1d60d21031aa0aa83aab499ed78bc57d821f59e45e4f513",
+      "assets/topology-canvas-D_sHjwYE.js": "59e191efaec619bad212bd1c00b073dd76035bf13998c1b44d59f94c22eb7d7a",
+      "assets/urls-DFUDOl5B.js": "c5be8e85fb86d83e530d521da135804430c3f04b6d822c6afa8b5d6709cad588",
+      "topology-canvas.html": "74416aa6d273c657df285d6bf25d45a9841b9c7b7fb124b260e3801a5b1f4b55",
+      "v2/licenses/CC-BY-SA-3.0.txt": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "v2/licenses/CodeIgniter-MIT.txt": "86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7",
+      "v2/licenses/MPL-2.0.txt": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "v2/licenses/topology-simple-name-NOTICE.txt": "b126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b",
+      "v2/licenses/topology-simple-name-transliterations.json": "6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7"
+    },
+    "D": {
+      "assets/local-enrichment-projection-QNudCVcf.js": "e52877894bfe1339cedd319186785a0df75ce7c80bf5c18458a4fbd979890ee2",
+      "assets/local-placement-CjIRvYnp.js": "f9a234134499ed60891de29b176470d90e5a57ff9434c3f53ffdc708d317e9b8",
+      "assets/local-projection-DlGQQ8xZ.js": "de6973c97eb9c26b159121a8ae466a5b5a89b44b0a9f7951b244c10658712b9f",
+      "assets/main-DFD2gBqU.css": "9d662d91c3c57f8bcf4a7e28dff181667be343aa2706d6c7edc3d42753b2b9a8",
+      "assets/main-Zu3AZnJM.js": "1f0d6b3c08515785427bf3dce897a8990c5a29d2975739f295bc0a8570ce0819",
+      "assets/preview-coordinator-DfvBkaf4.js": "7d09a7f19047a72cfc80e908fb90c821f3be92c6ff6bc274340592ff61d935ff",
+      "assets/topology-canvas-8ILoURVx.css": "41ed1f5a3a378adfa1d60d21031aa0aa83aab499ed78bc57d821f59e45e4f513",
+      "assets/topology-canvas-_QmeNtU_.js": "676b19835575a2be170b3300172519fd4299d9ce78c185531b33acdc987ccda6",
+      "assets/urls-DFUDOl5B.js": "c5be8e85fb86d83e530d521da135804430c3f04b6d822c6afa8b5d6709cad588",
+      "topology-canvas.html": "b41d91eb04bebcc4b3f1dd481c3959a97cfe7ed307ec49cc62574138e7e2eb2a",
+      "v2/licenses/CC-BY-SA-3.0.txt": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "v2/licenses/CodeIgniter-MIT.txt": "86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7",
+      "v2/licenses/MPL-2.0.txt": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "v2/licenses/topology-simple-name-NOTICE.txt": "b126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b",
+      "v2/licenses/topology-simple-name-transliterations.json": "6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7"
+    }
+  }
+}

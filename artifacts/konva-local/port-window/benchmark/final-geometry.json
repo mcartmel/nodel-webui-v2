@@ -1,0 +1,1830 @@
+[
+  {
+    "mode": "B",
+    "scene": "ordinary",
+    "shared": 0,
+    "forward": [
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 19,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 19,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 19,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 19,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      }
+    ],
+    "descendants": 484
+  },
+  {
+    "mode": "B",
+    "scene": "fanout",
+    "shared": 100,
+    "forward": [
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 117,
+        "sharedChanged": 100
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 117,
+        "sharedChanged": 100
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 17,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 18,
+        "sharedChanged": 0
+      }
+    ],
+    "descendants": 441
+  },
+  {
+    "mode": "C",
+    "scene": "ordinary",
+    "shared": 0,
+    "forward": [
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      }
+    ],
+    "descendants": 484
+  },
+  {
+    "mode": "C",
+    "scene": "fanout",
+    "shared": 100,
+    "forward": [
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 131,
+        "sharedChanged": 100
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 131,
+        "sharedChanged": 100
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      },
+      {
+        "changed": 32,
+        "sharedChanged": 0
+      }
+    ],
+    "descendants": 441
+  },
+  {
+    "mode": "D",
+    "scene": "ordinary",
+    "shared": 0,
+    "forward": [
+      {
+        "changed": 208,
+        "sharedChanged": 0
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 208,
+        "sharedChanged": 0
+      }
+    ],
+    "descendants": 484
+  },
+  {
+    "mode": "D",
+    "scene": "fanout",
+    "shared": 100,
+    "forward": [
+      {
+        "changed": 307,
+        "sharedChanged": 100
+      }
+    ],
+    "reverse": [
+      {
+        "changed": 307,
+        "sharedChanged": 100
+      }
+    ],
+    "descendants": 441
+  }
+]

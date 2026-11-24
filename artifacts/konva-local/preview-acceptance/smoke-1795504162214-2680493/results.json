@@ -1,0 +1,3165 @@
+{
+  "schemaVersion": 4,
+  "createdAt": "2026-11-24T07:09:32.464Z",
+  "complete": true,
+  "timingsByViewport": [
+    {
+      "scenario": "small",
+      "width": 1366,
+      "variant": "local-first-baseline",
+      "readableMs": {
+        "n": 1,
+        "p50": 423,
+        "p95": 423
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 11.5,
+        "p95": 11.5
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 67,
+        "p95": 67
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1366,
+      "variant": "preview-0ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 374,
+        "p95": 374
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 45.900001525878906,
+        "p95": 45.900001525878906
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 44.30000114440918,
+        "p95": 44.30000114440918
+      },
+      "usableShowNowMs": {
+        "n": 1,
+        "p50": 44.30000114440918,
+        "p95": 44.30000114440918
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 13.799999237060547,
+        "p95": 13.799999237060547
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 23.399999618530273,
+        "p95": 23.399999618530273
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 73,
+        "p95": 73
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1366,
+      "variant": "preview-1500ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 436,
+        "p95": 436
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 253.70000076293945,
+        "p95": 253.70000076293945
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 57,
+        "p95": 57
+      },
+      "usableShowNowMs": {
+        "n": 1,
+        "p50": 57,
+        "p95": 57
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 25.5,
+        "p95": 25.5
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 30.399999618530273,
+        "p95": 30.399999618530273
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 147,
+        "p95": 147
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1366,
+      "variant": "preview-3000ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 430,
+        "p95": 430
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 261.8999996185303,
+        "p95": 261.8999996185303
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 33.599998474121094,
+        "p95": 33.599998474121094
+      },
+      "usableShowNowMs": {
+        "n": 1,
+        "p50": 33.599998474121094,
+        "p95": 33.599998474121094
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 14.80000114440918,
+        "p95": 14.80000114440918
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 28.900001525878906,
+        "p95": 28.900001525878906
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 145,
+        "p95": 145
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1920,
+      "variant": "local-first-baseline",
+      "readableMs": {
+        "n": 1,
+        "p50": 434,
+        "p95": 434
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 15.700000762939453,
+        "p95": 15.700000762939453
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 121,
+        "p95": 121
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1920,
+      "variant": "preview-0ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 478,
+        "p95": 478
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 39.599998474121094,
+        "p95": 39.599998474121094
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 48,
+        "p95": 48
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 17.899999618530273,
+        "p95": 17.899999618530273
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 15.30000114440918,
+        "p95": 15.30000114440918
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 264,
+        "p95": 264
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1920,
+      "variant": "preview-1500ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 556,
+        "p95": 556
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 264.70000076293945,
+        "p95": 264.70000076293945
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 63.39999961853027,
+        "p95": 63.39999961853027
+      },
+      "usableShowNowMs": {
+        "n": 1,
+        "p50": 63.39999961853027,
+        "p95": 63.39999961853027
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 15.5,
+        "p95": 15.5
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 29.399999618530273,
+        "p95": 29.399999618530273
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 262,
+        "p95": 262
+      }
+    },
+    {
+      "scenario": "small",
+      "width": 1920,
+      "variant": "preview-3000ms",
+      "readableMs": {
+        "n": 1,
+        "p50": 565,
+        "p95": 565
+      },
+      "releaseMs": {
+        "n": 1,
+        "p50": 246.70000076293945,
+        "p95": 246.70000076293945
+      },
+      "feedbackMs": {
+        "n": 1,
+        "p50": 69.30000114440918,
+        "p95": 69.30000114440918
+      },
+      "usableShowNowMs": {
+        "n": 1,
+        "p50": 69.30000114440918,
+        "p95": 69.30000114440918
+      },
+      "inspectionMs": {
+        "n": 1,
+        "p50": 20.399999618530273,
+        "p95": 20.399999618530273
+      },
+      "layoutMs": {
+        "n": 1,
+        "p50": 28.599998474121094,
+        "p95": 28.599998474121094
+      },
+      "longTaskMs": {
+        "n": 1,
+        "p50": 280,
+        "p95": 280
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1366,
+      "variant": "local-first-baseline",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1366,
+      "variant": "preview-0ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1366,
+      "variant": "preview-1500ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1366,
+      "variant": "preview-3000ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1920,
+      "variant": "local-first-baseline",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1920,
+      "variant": "preview-0ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1920,
+      "variant": "preview-1500ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    },
+    {
+      "scenario": "large",
+      "width": 1920,
+      "variant": "preview-3000ms",
+      "readableMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "releaseMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "feedbackMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "usableShowNowMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "inspectionMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "layoutMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      },
+      "longTaskMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null
+      }
+    }
+  ],
+  "method": "Fresh Chromium contexts; one post-handoff scene observation, not earliest readable paint. World-space configured card-to-takeoff traces include shared overflow roles. Viewport proxy additionally requires fully contained titles and curve control hull, ink on both layers and no sampled nonendpoint body crossings. Neither endpoint matching nor sampled ink proves individual pixel legibility.",
+  "browser": "159.0.8154.6",
+  "node": "v24.15.0",
+  "platform": "linux",
+  "arch": "x64",
+  "baseline": {
+    "path": "/tmp/kilo/konva-local-first-preview-baseline",
+    "provenance": "Stage1 local-first preview A/B baseline\n\nBuilt: 2026-11-23T12:44:50Z (session environment timestamp)\nRepository: /home/nodel/source/nodel-webui-v2\nBranch: experiment/konva-canvas\nHEAD: dd9e44359bb00562f5093a20a2ab7c4b4675dfc5\nBuild command: npm run build:experiment:konva\nBuild result: success; Vite 6.4.6, 155 modules, 1.36 seconds\nSource state: intentionally dirty; this artifact captures the current local worktree build, not HEAD alone.\nBuild output: build/experiments/konva-canvas\nIsolation copy: /tmp/kilo/konva-local-first-preview-baseline\n\nReproduction:\n1. From the repository root, run `npm run build:experiment:konva`.\n2. Serve `build/experiments/konva-canvas` with a static HTTP server and open `/topology-canvas.html`.\n3. Compare this frozen artifact against the Stage1 candidate under the same browser, viewport, and data/setup conditions.\n\nThis is a local preview baseline only. No source files were edited by this capture step and no deployment was performed.\nSee SHA256SUMS for per-file artifact integrity hashes.\n",
+    "sha256sums": "0f484c559991700bc20f52f0f47ad60b14772398249db3431131ef9bbb914433  ./assets/local-enrichment-projection-BVDi7JnZ.js\nb28a0e39e14f60bb0210a7478e093c67026d99a204c8a8ea01d99ac08823de1e  ./assets/local-graph-CPZXBYl5.js\n79bd40c258b7569baf84fae0ea1d31db844f43e1c3a8f41f754454e769911958  ./assets/local-placement-Bdd3zIP3.js\na9f79cbef95e17e094455566a3b57f60f857f56201f2f8fd041e619f2cdf59c5  ./assets/local-projection-DnQ27p4U.js\n83d26a5c3d71cae0f79ab572b22e00fc26845d302c8486307517d24c2dabd294  ./assets/local-simple-name-J2MfdBGd.js\nfc22967c3766d331409f110d4b8598871f9a7a60057532eb853a7c293ff45677  ./assets/local-snapshot--1VCIBK4.js\n8a86fe16771dd8eb8059e1c4b4eceaa97ed059a3566db0eae61f8d4ab472c6c7  ./assets/remote-enrichment-CQvvGfie.js\na51f4322de276ac7ab9c2dbb35798ebfe2401a9adb7da62d283e78a7403fad63  ./assets/topology-canvas-BaouWUbp.css\n0b1104ce4385e96ed5e857843340074e6c8bf0f84497e5877b52e0414cef5a0d  ./assets/topology-canvas-Cbt9e54-.js\n1454b06b8699e2c254ebb47f44802859da31119dcc67b3c4ba7394de6b23331f  ./PROVENANCE.txt\n4fa3a74c218871ec1c20e913b7ff2426373699847c099cf622daf378a2b203b3  ./topology-canvas.html\n3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f  ./v2/licenses/CC-BY-SA-3.0.txt\n86fcdeb526764b6b9f059b6dd2a6e1840e185eac852f5ec36de0d23c23748ba7  ./v2/licenses/CodeIgniter-MIT.txt\n3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04  ./v2/licenses/MPL-2.0.txt\nb126f433704af0efe16f6d2778a04dffac8a52f4a5cd78d215970533785c875b  ./v2/licenses/topology-simple-name-NOTICE.txt\n6ba76b3ff217d6aca230dda87399534379a999ec34208c633437d9fcef2008b7  ./v2/licenses/topology-simple-name-transliterations.json\n"
+  },
+  "sourceHashes": {
+    "topology-canvas.html": "fc7eff049d6552d11b67e089e37231bc2aeb02c28dca745c5d24366585a5c012",
+    "src/experiments/konva-canvas/style.css": "b87dec45f53079c201c50062bf4bbb9cb49f96b19f21da318e054aaeed1faac5",
+    "src/experiments/konva-canvas/main.ts": "115e242f26c850f97aaf2824c0cde943f0953b247e01b48f0adca5c157a6c8d1",
+    "src/experiments/konva-canvas/fixture.ts": "f81e55e0f4baf8aba48e3a00993b19506757e79b0323a2c8c0b320a7660e2a08",
+    "src/experiments/konva-canvas/preview-coordinator.ts": "91c4196ce38da77f869c63a38588f507abfe29ded0acd135f3a5feb88d9c7e22",
+    "src/experiments/konva-canvas/startup-shell.ts": "be368a40d680a19dce24a8eaafd3e816aa79cc2bb27bce1c70912a8a4d850e5e",
+    "src/experiments/konva-canvas/local-placement.ts": "9a1d8b0aa1713d655cdee3d8e56eadec89be66db16f6b06523bbc13db4758c5c",
+    "src/experiments/konva-canvas/local-enrichment-projection.ts": "863cf3b659f71a10e1a09025bb8b9a707ea9b9588440acebc3e5125d0ff09585",
+    "src/experiments/konva-canvas/preview-entry.ts": "ff5a3d07132c1cac78eb5513150f1e57dfbaf2cb385680735025decc3bc47e98",
+    "src/experiments/konva-canvas/card-footprint.ts": "c1c59bdfae4d8a94e4a31281af77827f1f1b99c38356ce7d82d805c8c4d3af1b"
+  },
+  "budgets": [
+    0,
+    1500,
+    3000
+  ],
+  "repeats": 1,
+  "viewports": [
+    {
+      "width": 1366,
+      "height": 768
+    },
+    {
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "small",
+      "repeat": 1
+    }
+  ],
+  "settlementParity": [],
+  "wireComparisons": [
+    {
+      "key": "small/1366x768/run1",
+      "commonWireCount": 3,
+      "p90LengthWorldByVariant": {
+        "local-first-baseline": 198.19361994498755,
+        "preview-0ms": 237.57629904508113,
+        "preview-1500ms": 213.8460618411873,
+        "preview-3000ms": 213.8460618411873
+      },
+      "hiddenWireCountByVariant": {
+        "local-first-baseline": 0,
+        "preview-0ms": 0,
+        "preview-1500ms": 0,
+        "preview-3000ms": 0
+      },
+      "hiddenPathCardIntersectionsByVariant": {
+        "local-first-baseline": 0,
+        "preview-0ms": 0,
+        "preview-1500ms": 0,
+        "preview-3000ms": 0
+      }
+    },
+    {
+      "key": "small/1920x1080/run1",
+      "commonWireCount": 3,
+      "p90LengthWorldByVariant": {
+        "local-first-baseline": 198.19361994498755,
+        "preview-0ms": 237.57629904508113,
+        "preview-1500ms": 213.8460618411873,
+        "preview-3000ms": 213.8460618411873
+      },
+      "hiddenWireCountByVariant": {
+        "local-first-baseline": 0,
+        "preview-0ms": 0,
+        "preview-1500ms": 0,
+        "preview-3000ms": 0
+      },
+      "hiddenPathCardIntersectionsByVariant": {
+        "local-first-baseline": 0,
+        "preview-0ms": 0,
+        "preview-1500ms": 0,
+        "preview-3000ms": 0
+      }
+    }
+  ],
+  "failedInventory": [],
+  "rows": [
+    {
+      "scenario": "small",
+      "variant": "local-first-baseline",
+      "budgetMs": null,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "dpr": 1
+      },
+      "screenshot": "small-local-first-baseline-1366x768-r1.png",
+      "firstMount": null,
+      "readableObservedMs": 423,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": null,
+        "showNowFrameMs": null
+      },
+      "mapPaintMarkMs": null,
+      "releaseReason": "baseline-no-preview-latch",
+      "releaseMs": null,
+      "navigationToReleaseMs": null,
+      "shellAtDom": {
+        "supported": false,
+        "scrimVisible": false,
+        "showNowEnabled": false
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "",
+        "detailedSummary": "3 nodes · scheduler pending · local inventory loaded · HTTP inventory pending",
+        "headerLayout": {
+          "viewportWidth": 1366,
+          "documentWidth": 1366,
+          "headerWidth": 1310,
+          "headerScrollWidth": 1310,
+          "controlsScrollWidth": 504,
+          "summaryText": "",
+          "shortSummaryValid": false,
+          "controls": {
+            "left": 834.46875,
+            "right": 1338,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": false
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 198.19361994498755,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1337,
+          "bottom": 745
+        },
+        "camera": {
+          "x": 361,
+          "y": 183,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 168
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 142
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 170,
+              "width": 218,
+              "height": 116
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 135,
+            "sampledPixels": 85412
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 11161,
+            "sampledPixels": 85412
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 6,
+          "Rect": 6,
+          "Text": 15,
+          "Line": 12,
+          "Circle": 9
+        },
+        "shapeCount": 54,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": null,
+        "firstLayoutStartMs": null,
+        "firstLayoutEndMs": null,
+        "firstLayoutDurationMs": null,
+        "observationStartMs": 423.29999923706055,
+        "inspectorDurationMs": 11.5
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 117,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 241,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 241,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 3,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 117,
+          "finishMs": 231,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 241,
+          "finishMs": 289,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 241,
+          "finishMs": 309,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 507,
+          "finishMs": null,
+          "finished": false
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 3,
+      "incompleteRequestsAtCapture": 0,
+      "longTaskCount": 1,
+      "longTaskDurationMs": 67,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-0ms",
+      "budgetMs": 0,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-0ms-1366x768-r1.png",
+      "firstMount": {
+        "cards": 2,
+        "wires": 0,
+        "unconnected": [
+          "Anchor",
+          "Peer"
+        ],
+        "prematureUnconnected": [
+          "Anchor",
+          "Peer"
+        ]
+      },
+      "readableObservedMs": 374,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 44.30000114440918,
+        "showNowFrameMs": 44.30000114440918
+      },
+      "mapPaintMarkMs": 318.8000011444092,
+      "releaseReason": "deadline",
+      "releaseMs": 45.900001525878906,
+      "navigationToReleaseMs": 46,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1366,
+          "documentWidth": 1366,
+          "headerWidth": 1310,
+          "headerScrollWidth": 1310,
+          "controlsScrollWidth": 746,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1338,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 2,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 180,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 180,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 237.57629904508113,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "overflow-takeoff-alias",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1337,
+          "bottom": 745
+        },
+        "camera": {
+          "x": 346,
+          "y": 244,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 398,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 218,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 38,
+            "sampledPixels": 85412
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 8832,
+            "sampledPixels": 85412
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 20,
+          "Line": 12,
+          "Circle": 20
+        },
+        "shapeCount": 82,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 318.8000011444092,
+        "firstLayoutStartMs": 206.10000038146973,
+        "firstLayoutEndMs": 229.5,
+        "firstLayoutDurationMs": 23.399999618530273,
+        "observationStartMs": 374.3000011444092,
+        "inspectorDurationMs": 13.799999237060547
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 81,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 82,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 330,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 81,
+          "finishMs": 194,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 82,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishMs": 251,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishMs": 272,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 330,
+          "finishMs": 353,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 1,
+      "longTaskDurationMs": 73,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-1500ms",
+      "budgetMs": 1500,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-1500ms-1366x768-r1.png",
+      "firstMount": {
+        "cards": 3,
+        "wires": 3,
+        "unconnected": [],
+        "prematureUnconnected": []
+      },
+      "readableObservedMs": 436,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 57,
+        "showNowFrameMs": 57
+      },
+      "mapPaintMarkMs": 405,
+      "releaseReason": "local-connected",
+      "releaseMs": 253.70000076293945,
+      "navigationToReleaseMs": 254,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1366,
+          "documentWidth": 1366,
+          "headerWidth": 1310,
+          "headerScrollWidth": 1310,
+          "controlsScrollWidth": 746,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1338,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 213.8460618411873,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1337,
+          "bottom": 745
+        },
+        "camera": {
+          "x": 361,
+          "y": 231,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 192,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 145,
+            "sampledPixels": 85412
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 14498,
+            "sampledPixels": 85412
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 21,
+          "Line": 12,
+          "Circle": 21
+        },
+        "shapeCount": 84,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 405,
+        "firstLayoutStartMs": 254.80000114440918,
+        "firstLayoutEndMs": 285.20000076293945,
+        "firstLayoutDurationMs": 30.399999618530273,
+        "observationStartMs": 435.8999996185303,
+        "inspectorDurationMs": 25.5
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 54,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 55,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 180,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 350,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 54,
+          "finishMs": 167,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 55,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 180,
+          "finishMs": 228,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishMs": 248,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 350,
+          "finishMs": 373,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 2,
+      "longTaskDurationMs": 147,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-3000ms",
+      "budgetMs": 3000,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-3000ms-1366x768-r1.png",
+      "firstMount": {
+        "cards": 3,
+        "wires": 3,
+        "unconnected": [],
+        "prematureUnconnected": []
+      },
+      "readableObservedMs": 430,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 33.599998474121094,
+        "showNowFrameMs": 33.599998474121094
+      },
+      "mapPaintMarkMs": 410,
+      "releaseReason": "local-connected",
+      "releaseMs": 261.8999996185303,
+      "navigationToReleaseMs": 262,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1366,
+          "documentWidth": 1366,
+          "headerWidth": 1310,
+          "headerScrollWidth": 1310,
+          "controlsScrollWidth": 746,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1338,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 213.8460618411873,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1337,
+          "bottom": 745
+        },
+        "camera": {
+          "x": 361,
+          "y": 231,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 192,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 145,
+            "sampledPixels": 85412
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 14498,
+            "sampledPixels": 85412
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 21,
+          "Line": 12,
+          "Circle": 21
+        },
+        "shapeCount": 84,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 410,
+        "firstLayoutStartMs": 263.0999984741211,
+        "firstLayoutEndMs": 292,
+        "firstLayoutDurationMs": 28.900001525878906,
+        "observationStartMs": 430.1999988555908,
+        "inspectorDurationMs": 14.80000114440918
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 67,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 67,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 188,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 188,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 356,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 67,
+          "finishMs": 178,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 67,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 188,
+          "finishMs": 236,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 188,
+          "finishMs": 255,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 356,
+          "finishMs": 378,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 2,
+      "longTaskDurationMs": 145,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "local-first-baseline",
+      "budgetMs": null,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "screenshot": "small-local-first-baseline-1920x1080-r1.png",
+      "firstMount": null,
+      "readableObservedMs": 434,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": null,
+        "showNowFrameMs": null
+      },
+      "mapPaintMarkMs": null,
+      "releaseReason": "baseline-no-preview-latch",
+      "releaseMs": null,
+      "navigationToReleaseMs": null,
+      "shellAtDom": {
+        "supported": false,
+        "scrimVisible": false,
+        "showNowEnabled": false
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "",
+        "detailedSummary": "3 nodes · scheduler pending · local inventory loaded · HTTP inventory pending",
+        "headerLayout": {
+          "viewportWidth": 1920,
+          "documentWidth": 1920,
+          "headerWidth": 1864,
+          "headerScrollWidth": 1864,
+          "controlsScrollWidth": 538,
+          "summaryText": "",
+          "shortSummaryValid": false,
+          "controls": {
+            "left": 1354.40625,
+            "right": 1892,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": false
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 198.19361994498755,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1891,
+          "bottom": 1057
+        },
+        "camera": {
+          "x": 638,
+          "y": 339,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 168
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 142
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 170,
+              "width": 218,
+              "height": 116
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 61,
+            "sampledPixels": 85652
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 5381,
+            "sampledPixels": 85652
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 6,
+          "Rect": 6,
+          "Text": 15,
+          "Line": 12,
+          "Circle": 9
+        },
+        "shapeCount": 54,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": null,
+        "firstLayoutStartMs": null,
+        "firstLayoutEndMs": null,
+        "firstLayoutDurationMs": null,
+        "observationStartMs": 433.5,
+        "inspectorDurationMs": 15.700000762939453
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 86,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 205,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 3,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 86,
+          "finishMs": 199,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 204,
+          "finishMs": 252,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 205,
+          "finishMs": 271,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 582,
+          "finishMs": null,
+          "finished": false
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 3,
+      "incompleteRequestsAtCapture": 0,
+      "longTaskCount": 1,
+      "longTaskDurationMs": 121,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-0ms",
+      "budgetMs": 0,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-0ms-1920x1080-r1.png",
+      "firstMount": {
+        "cards": 2,
+        "wires": 0,
+        "unconnected": [
+          "Anchor",
+          "Peer"
+        ],
+        "prematureUnconnected": [
+          "Anchor",
+          "Peer"
+        ]
+      },
+      "readableObservedMs": 478,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 48,
+        "showNowFrameMs": null
+      },
+      "mapPaintMarkMs": 384.6999988555908,
+      "releaseReason": "deadline",
+      "releaseMs": 39.599998474121094,
+      "navigationToReleaseMs": 40,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1920,
+          "documentWidth": 1920,
+          "headerWidth": 1864,
+          "headerScrollWidth": 1864,
+          "controlsScrollWidth": 1300,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1892,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 2,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 180,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 180,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 237.57629904508113,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "overflow-takeoff-alias",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1891,
+          "bottom": 1057
+        },
+        "camera": {
+          "x": 623,
+          "y": 400,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 398,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 218,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 27,
+            "sampledPixels": 85652
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 4182,
+            "sampledPixels": 85652
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 20,
+          "Line": 12,
+          "Circle": 20
+        },
+        "shapeCount": 82,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 384.6999988555908,
+        "firstLayoutStartMs": 190.19999885559082,
+        "firstLayoutEndMs": 205.5,
+        "firstLayoutDurationMs": 15.30000114440918,
+        "observationStartMs": 477.6999988555908,
+        "inspectorDurationMs": 17.899999618530273
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 65,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 65,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 400,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 65,
+          "finishMs": 177,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 65,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishMs": 228,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 181,
+          "finishMs": 248,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 400,
+          "finishMs": 422,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 3,
+      "longTaskDurationMs": 264,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-1500ms",
+      "budgetMs": 1500,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-1500ms-1920x1080-r1.png",
+      "firstMount": {
+        "cards": 3,
+        "wires": 3,
+        "unconnected": [],
+        "prematureUnconnected": []
+      },
+      "readableObservedMs": 556,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 63.39999961853027,
+        "showNowFrameMs": 63.39999961853027
+      },
+      "mapPaintMarkMs": 532,
+      "releaseReason": "local-connected",
+      "releaseMs": 264.70000076293945,
+      "navigationToReleaseMs": 265,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1920,
+          "documentWidth": 1920,
+          "headerWidth": 1864,
+          "headerScrollWidth": 1864,
+          "controlsScrollWidth": 1300,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1892,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 213.8460618411873,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1891,
+          "bottom": 1057
+        },
+        "camera": {
+          "x": 638,
+          "y": 387,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 192,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 65,
+            "sampledPixels": 85652
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 6821,
+            "sampledPixels": 85652
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 21,
+          "Line": 12,
+          "Circle": 21
+        },
+        "shapeCount": 84,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 532,
+        "firstLayoutStartMs": 265.8000011444092,
+        "firstLayoutEndMs": 295.20000076293945,
+        "firstLayoutDurationMs": 29.399999618530273,
+        "observationStartMs": 556.1000003814697,
+        "inspectorDurationMs": 15.5
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 65,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 65,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 189,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 189,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 420,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 65,
+          "finishMs": 176,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 65,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 189,
+          "finishMs": 235,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 189,
+          "finishMs": 257,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 420,
+          "finishMs": 442,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 2,
+      "longTaskDurationMs": 262,
+      "pageErrors": []
+    },
+    {
+      "scenario": "small",
+      "variant": "preview-3000ms",
+      "budgetMs": 3000,
+      "repeat": 1,
+      "counterbalancedOrder": [
+        "local-first-baseline",
+        "preview-0ms",
+        "preview-1500ms",
+        "preview-3000ms"
+      ],
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1
+      },
+      "screenshot": "small-preview-3000ms-1920x1080-r1.png",
+      "firstMount": {
+        "cards": 3,
+        "wires": 3,
+        "unconnected": [],
+        "prematureUnconnected": []
+      },
+      "readableObservedMs": 565,
+      "paintBasis": "same two-rAF eligible scene check, timestamp before geometry/ink inspection; screenshot follows, not atomic",
+      "feedback": {
+        "shellFrameMs": 69.30000114440918,
+        "showNowFrameMs": 69.30000114440918
+      },
+      "mapPaintMarkMs": 531.8999996185303,
+      "releaseReason": "local-connected",
+      "releaseMs": 246.70000076293945,
+      "navigationToReleaseMs": 247,
+      "shellAtDom": {
+        "supported": true,
+        "scrimVisible": true,
+        "showNowEnabled": true
+      },
+      "shellStillVisibleAfterReadability": false,
+      "nativeScene": {
+        "ready": true,
+        "readable": true,
+        "summary": "3 discovered · 3 shown",
+        "detailedSummary": "3 discovered · 3 shown · 2 inspected · 3 nodes · 2 complete · 0 partial · 1 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+        "headerLayout": {
+          "viewportWidth": 1920,
+          "documentWidth": 1920,
+          "headerWidth": 1864,
+          "headerScrollWidth": 1864,
+          "controlsScrollWidth": 1300,
+          "summaryText": "3 discovered · 3 shown",
+          "shortSummaryValid": true,
+          "controls": {
+            "left": 592.484375,
+            "right": 1892,
+            "top": 21.5,
+            "bottom": 55.5
+          },
+          "summary": {
+            "left": 275.421875,
+            "right": 404.875,
+            "visible": true
+          },
+          "controlsOverlapTitle": false,
+          "fitsViewport": true
+        },
+        "cards": 3,
+        "visibleCardCount": 3,
+        "readableCardCount": 3,
+        "orphanCardCount": 0,
+        "hiddenTracedWireCount": 0,
+        "hiddenUntracedWireCount": 0,
+        "wireCount": 3,
+        "tracedWireCount": 3,
+        "readableWireCount": 3,
+        "dedicatedViewportWireCount": 3,
+        "wireRows": [
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00630061006c006c00700065006500720022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+            "bindingKind": "action",
+            "lengthWorld": 213.8460618411873,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c002200720065006d006f00740065002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a00640069007200650063007400300022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d",
+              "cardTitle": "TargetOne",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a007400610072006700650074006f006e00650022002c0022006c006f00630061006c002d0061006300740069006f006e0022002c002200730069006d0070006c0065003a0072006500730070006f006e00640022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          },
+          {
+            "id": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00700065006500720022002c0022006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+            "ownerId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+            "bindingKind": "event",
+            "lengthWorld": 152.88536345739507,
+            "source": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d",
+              "cardTitle": "Anchor",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a0061006e00630068006f00720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c0022006c006f00630061006c002d006500760065006e00740022002c002200730069006d0070006c0065003a007200650061006400790022005d",
+              "distance": 0
+            },
+            "target": {
+              "cardId": "n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d",
+              "cardTitle": "Peer",
+              "socketId": "socket-n-005b0022006e006f006400650022002c002200730069006d0070006c0065003a00700065006500720022005d-p-005b00220070006f007200740022002c002200730069006d0070006c0065003a00700065006500720022002c002200720065006d006f00740065002d006500760065006e00740022002c002200730069006d0070006c0065003a0070006500650072007200650061006400790022005d",
+              "distance": 0
+            },
+            "traced": true,
+            "hiddenByCards": [],
+            "hullInsideViewport": true
+          }
+        ],
+        "clip": {
+          "left": 29,
+          "top": 93,
+          "right": 1891,
+          "bottom": 1057
+        },
+        "camera": {
+          "x": 638,
+          "y": 387,
+          "scale": 1
+        },
+        "placements": [
+          {
+            "title": "Anchor",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "Peer",
+            "rect": {
+              "x": 368,
+              "y": 0,
+              "width": 218,
+              "height": 164
+            },
+            "visible": true,
+            "readableTitle": true
+          },
+          {
+            "title": "TargetOne",
+            "rect": {
+              "x": 368,
+              "y": 192,
+              "width": 218,
+              "height": 190
+            },
+            "visible": true,
+            "readableTitle": true
+          }
+        ],
+        "layers": [
+          {
+            "name": "wires",
+            "visible": true,
+            "nonTransparentSamples": 65,
+            "sampledPixels": 85652
+          },
+          {
+            "name": "cards",
+            "visible": true,
+            "nonTransparentSamples": 6821,
+            "sampledPixels": 85652
+          }
+        ],
+        "classCounts": {
+          "Stage": 1,
+          "Layer": 2,
+          "Shape": 3,
+          "Group": 12,
+          "Rect": 12,
+          "Text": 21,
+          "Line": 12,
+          "Circle": 21
+        },
+        "shapeCount": 84,
+        "overlapPairs": [],
+        "shellVisibleAtCapture": false,
+        "mapPaintMarkMs": 531.8999996185303,
+        "firstLayoutStartMs": 247.80000114440918,
+        "firstLayoutEndMs": 276.3999996185303,
+        "firstLayoutDurationMs": 28.599998474121094,
+        "observationStartMs": 564.6000003814697,
+        "inspectorDurationMs": 20.399999618530273
+      },
+      "requestsAtCapture": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 56,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 57,
+          "finishedAtCapture": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 178,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 178,
+          "finishedAtCapture": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "startMs": 421,
+          "finishedAtCapture": true
+        }
+      ],
+      "requestCountAtCapture": 5,
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/REST",
+          "query": "",
+          "startMs": 56,
+          "finishMs": 168,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLs",
+          "query": "",
+          "startMs": 57,
+          "finishMs": null,
+          "finished": false
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Anchor/REST/remote",
+          "query": "",
+          "startMs": 178,
+          "finishMs": 225,
+          "finished": true
+        },
+        {
+          "method": "GET",
+          "path": "/nodes/Peer/REST/remote",
+          "query": "",
+          "startMs": 178,
+          "finishMs": 243,
+          "finished": true
+        },
+        {
+          "method": "POST",
+          "path": "/REST/nodeURLsForNode",
+          "query": "",
+          "lookupName": "TargetOne",
+          "startMs": 421,
+          "finishMs": 443,
+          "finished": true
+        }
+      ],
+      "settledSummary": null,
+      "startedRequestsAtCapture": 5,
+      "incompleteRequestsAtCapture": 1,
+      "longTaskCount": 2,
+      "longTaskDurationMs": 280,
+      "pageErrors": []
+    }
+  ],
+  "limitations": [
+    "Large handoff observations and matched 102-wire observations are separate; large-settled supplies full request parity for 104 nodes only.",
+    "Layer backing ink is not a compositor/physical display measurement and cannot identify a single binding at a shared takeoff.",
+    "Hidden paths are sampled geometry, 32 points per cubic against non-endpoint card bodies; intersections can be missed. No z-buffer coverage claim.",
+    "Synthetic fixture and delays do not represent a live Nodel server. No live host, external origin or full product build."
+  ]
+}

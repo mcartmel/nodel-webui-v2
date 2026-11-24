@@ -1,0 +1,98 @@
+{
+  "variant": "A-frozen",
+  "mode": "chooser",
+  "control": true,
+  "scenario": "ordinary",
+  "repetition": 1,
+  "orderIndex": 0,
+  "fixture": "9 inspected local cards, 244 unique action ports + 4 event ports, opposite-side local endpoints, and two uniquely identified return edges",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "dpr": 1,
+  "inspectionState": "9 discovered · 9 shown · 9 inspected · 0 pending · 0 unsuccessful · 0 without an advertised route · HTTP advertisements only · 9 discovered · 9 shown · 9 inspected · 9 nodes · 9 complete · 0 partial · 0 queued · 0 terminal not inspected · inventory coverage complete · scheduler settled",
+  "footprintPreset": null,
+  "fixtureRemoteOwnerRequests": [
+    "DenseA",
+    "PeerA",
+    "Side01",
+    "Side02",
+    "Side03",
+    "Side04",
+    "Side05",
+    "Side06",
+    "Side07"
+  ],
+  "initialWindowRows": null,
+  "targetPort": "DenseA-Action-207",
+  "targetIndex": 206,
+  "pageDistanceRows": null,
+  "pagesToTarget": null,
+  "inputPattern": null,
+  "wheelInputsReceived": 0,
+  "wheelPixelsReceived": 0,
+  "coalescedOrUnseenInputs": null,
+  "lastRequiredOfferToFirstTargetDrawMs": null,
+  "selectedPortEnterToFirstSelectionDrawMs": 25.400001525878906,
+  "frameGapMs": {
+    "n": 73,
+    "p50": 16.699999999999818,
+    "p95": 16.800000000000182,
+    "min": 16.599999999999454,
+    "max": 250
+  },
+  "longTaskCount": 2,
+  "longTaskDurationMs": 378,
+  "longTaskMaxMs": 234,
+  "layerDrawsDuringTask": 3,
+  "firstPaintTimePageMs": null,
+  "selectionPaintTimePageMs": 4169.700000762939,
+  "commandTaskMs": 1172.7406539999997,
+  "scrollCommandMs": 0.0025660000001153094,
+  "selectionCommandMs": 3123.042364,
+  "selectedBindingId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640065006e0073006500610061006300740069006f006e0032003000370022005d",
+  "targetWireId": "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a00640065006e0073006500610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00640065006e0073006500610061006300740069006f006e0032003000370022005d",
+  "targetWirePixelDiff": 4,
+  "targetSelectionPixelDiff": 152,
+  "viewportPixelDiff": 25631,
+  "selectedSocket": null,
+  "cameraInvariant": true,
+  "initialSocket": null,
+  "shapeCounts": {
+    "before": {
+      "cards": 9,
+      "wires": 250,
+      "shapes": 518,
+      "cardChildren": 140,
+      "camera": [
+        654,
+        109,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    },
+    "after": {
+      "cards": 9,
+      "wires": 250,
+      "shapes": 518,
+      "cardChildren": 140,
+      "camera": [
+        654,
+        109,
+        1
+      ],
+      "viewport": [
+        1308,
+        638
+      ]
+    }
+  },
+  "heapAfterBytes": 10814656,
+  "idleDrawsDuring1200msAfterTask": 0,
+  "blockedRequests": 0,
+  "errors": []
+}

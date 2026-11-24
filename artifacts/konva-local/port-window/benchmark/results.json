@@ -1,0 +1,173 @@
+{
+  "recommended": "chooser",
+  "summary": [
+    {
+      "scene": "ordinary",
+      "mode": "chooser",
+      "metrics": {
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 20.5
+        },
+        "back": {
+          "frameP95": 33.30000000000018,
+          "latencyP95": 21.099998474121094
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": true
+    },
+    {
+      "scene": "ordinary",
+      "mode": "B",
+      "metrics": {
+        "browse": {
+          "frameP95": 33.40000000000009,
+          "latencyP95": 213.0999984741211
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 17.700000762939453
+        },
+        "back": {
+          "frameP95": 33.399999999999636,
+          "latencyP95": 335.70000076293945
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    },
+    {
+      "scene": "ordinary",
+      "mode": "C",
+      "metrics": {
+        "browse": {
+          "frameP95": 16.799999999999272,
+          "latencyP95": 76.79999923706055
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 20.200000762939453
+        },
+        "back": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 142.60000038146973
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    },
+    {
+      "scene": "ordinary",
+      "mode": "D",
+      "metrics": {
+        "browse": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 86.89999961853027
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 9.600000381469727
+        },
+        "back": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 81.10000038146973
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    },
+    {
+      "scene": "fanout",
+      "mode": "chooser",
+      "metrics": {
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 15.5
+        },
+        "back": {
+          "frameP95": 33.5,
+          "latencyP95": 21.100000381469727
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": true
+    },
+    {
+      "scene": "fanout",
+      "mode": "B",
+      "metrics": {
+        "browse": {
+          "frameP95": 50,
+          "latencyP95": 1197
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 14.100000381469727
+        },
+        "back": {
+          "frameP95": 33.400000000000546,
+          "latencyP95": 761
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    },
+    {
+      "scene": "fanout",
+      "mode": "C",
+      "metrics": {
+        "browse": {
+          "frameP95": 16.799999999999955,
+          "latencyP95": 75.5
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 18.599998474121094
+        },
+        "back": {
+          "frameP95": 33.30000000000018,
+          "latencyP95": 175.30000114440918
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    },
+    {
+      "scene": "fanout",
+      "mode": "D",
+      "metrics": {
+        "browse": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 86.80000114440918
+        },
+        "select": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 17.69999885559082
+        },
+        "back": {
+          "frameP95": 16.800000000000182,
+          "latencyP95": 63.60000038146973
+        }
+      },
+      "long": [],
+      "idle": 0,
+      "passes": false
+    }
+  ],
+  "files": {
+    "samples": "final-trials.json",
+    "clean": "final-clean.json",
+    "arrows": "final-arrows.json",
+    "geometry": "final-geometry.json",
+    "manifest": "build-manifest.json"
+  },
+  "buildRoot": "/tmp/kilo/port-window-builds.dsOacMOv"
+}

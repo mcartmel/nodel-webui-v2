@@ -1,0 +1,115 @@
+{
+  "fixture": "built local discovery representative: local anchor, disconnected ads, empty singleton, unreadable target, and exact-name lookup",
+  "screenshotViewport": {
+    "width": 1920,
+    "height": 1200
+  },
+  "screenshots": {
+    "initial": "representative-discovery-initial.png",
+    "settled": "representative-discovery-settled.png"
+  },
+  "largeWorkloadEvidence": "discovery-workload-450.json",
+  "roles": {
+    "localAnchor": "Anchor",
+    "disconnectedAdvertisedPair": [
+      "PairA",
+      "PairB"
+    ],
+    "isolatedAdvertisedEmpty": "IsolatedEmpty",
+    "advertisedUnreadableWithRetainedWire": "Unreadable",
+    "referencedNoRoute": "NoRoute",
+    "namedOnlyExactLookupPeer": "BindingPeer"
+  },
+  "initial": {
+    "summary": "3 discovered · 3 shown · 1 inspected · 3 nodes · 1 complete · 0 partial · 2 queued · 0 terminal not inspected · HTTP inventory pending · coverage limited · scheduler running",
+    "counts": {
+      "nodes": 3,
+      "complete": 1,
+      "partial": 0,
+      "queued": 2,
+      "terminalNotInspected": 0
+    },
+    "names": [
+      "Anchor",
+      "BindingPeer",
+      "NoRoute"
+    ],
+    "visibleWires": 2,
+    "camera": {
+      "position": {
+        "x": 638,
+        "y": 447
+      },
+      "scale": {
+        "x": 1,
+        "y": 1
+      }
+    }
+  },
+  "settled": {
+    "summary": "7 discovered · 7 shown · 5 inspected · 7 nodes · 5 complete · 0 partial · 0 queued · 0 terminal not inspected · 1 no-route · 1 unreachable · inventory coverage complete · scheduler settled",
+    "counts": {
+      "nodes": 7,
+      "complete": 5,
+      "partial": 0,
+      "queued": 0,
+      "terminalNotInspected": 0,
+      "noRoute": 1,
+      "unreachable": 1
+    },
+    "names": [
+      "Anchor",
+      "BindingPeer",
+      "IsolatedEmpty",
+      "NoRoute",
+      "PairA",
+      "PairB",
+      "Unreadable"
+    ],
+    "actualRemoteGets": [
+      "Anchor",
+      "BindingPeer",
+      "IsolatedEmpty",
+      "PairA",
+      "PairB",
+      "Unreadable"
+    ],
+    "exactLookups": [
+      "BindingPeer",
+      "NoRoute"
+    ],
+    "visibleWireCount": 4,
+    "wireIds": [
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00660069006e006400620069006e00640069006e006700700065006500720022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a007400720079006e006f0072006f0075007400650022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a007000610069007200610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a0063006f006e006e00650063007400700061006900720022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a007000610069007200620022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00720065007400610069006e0075006e007200650061006400610062006c006500770069007200650022005d"
+    ],
+    "expectedBindingWireIds": [
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00660069006e006400620069006e00640069006e006700700065006500720022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a0061006e00630068006f00720022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a007400720079006e006f0072006f0075007400650022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a007000610069007200610022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a0063006f006e006e00650063007400700061006900720022005d",
+      "e-005b002200620069006e00640069006e00670022002c002200730069006d0070006c0065003a007000610069007200620022002c00220061006300740069006f006e0022002c002200730069006d0070006c0065003a00720065007400610069006e0075006e007200650061006400610062006c006500770069007200650022005d"
+    ],
+    "cameraBeforeScreenshotFit": {
+      "position": {
+        "x": 638,
+        "y": 447
+      },
+      "scale": {
+        "x": 1,
+        "y": 1
+      }
+    },
+    "anchorPositionBeforeScreenshotFit": {
+      "x": 0,
+      "y": 0
+    },
+    "screenshotFrame": {
+      "width": 1862,
+      "height": 1084,
+      "scale": 0.6470371733529628,
+      "nodeCount": 7
+    }
+  }
+}
