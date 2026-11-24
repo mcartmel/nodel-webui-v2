@@ -66,6 +66,10 @@ async function installFixture(page: Page, baseURL: string, { high, source }: Sce
     const url = new URL(request.url());
     const method = request.method();
     const requestKey = `${method} ${url.pathname}`;
+    if (url.origin === origin && method === 'POST' && url.pathname === '/REST/nodeURLs') {
+      requests.push(requestKey);
+      return route.fulfill({ status: 200, json: [] });
+    }
     if (url.origin === origin && method === 'GET') {
       if (!/^\/(?:REST(?:\/|$)|nodes\/)/.test(url.pathname)) return route.continue();
       if (Object.hasOwn(responses, url.pathname)) {
@@ -76,7 +80,7 @@ async function installFixture(page: Page, baseURL: string, { high, source }: Sce
     unexpected.push(`${method} ${url.href}`);
     await route.abort('blockedbyclient');
   });
-  return { names, requests, unexpected, expected: Object.keys(responses).map((path) => `GET ${path}`).sort() };
+  return { names, requests, unexpected, expected: [...Object.keys(responses).map((path) => `GET ${path}`), 'POST /REST/nodeURLs'].sort() };
 }
 
 interface KonvaShape {
@@ -434,7 +438,7 @@ async function runTrial(page: Page, baseURL: string, scenario: Scenario, diagnos
   const html = await page.goto('/topology-canvas.html?source=local');
   expect(html?.ok()).toBe(true);
   await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
-  await expect(page.locator('[data-fixture-summary]')).toContainText(`${scenario.high ? 27 : 3} configured`);
+  await expect(page.locator('[data-fixture-summary]')).toContainText(`${scenario.high ? 10 : 4} discovered`);
   const scriptURL = await page.locator('script[type="module"][src]').first().evaluate((script: HTMLScriptElement) => script.src);
   expect(new URL(scriptURL).origin).toBe(new URL(baseURL).origin);
   const script = await page.request.get(scriptURL);

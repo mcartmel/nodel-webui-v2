@@ -10,6 +10,8 @@
     "test",
     "e2e",
     "experiments/konva-browser/local-mode.pw.ts",
+    "experiments/konva-browser/edge-navigation.pw.ts",
+    "experiments/konva-browser/session-layout.pw.ts",
     "scripts/**/*.mjs",
     "eslint.config.mjs",
     "postcss.config.cjs",
@@ -17,6 +19,8 @@
     "vite.konva.config.ts",
     "playwright.config.ts",
     "playwright.konva-local.config.ts",
+    "playwright.konva-edge-navigation.config.ts",
+    "playwright.konva-session.config.ts",
     "playwright.konva-lane-drop.config.ts",
     "playwright.deployment.config.ts",
     "tailwind.config.ts"
