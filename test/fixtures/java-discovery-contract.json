@@ -1,0 +1,72 @@
+{
+  "provenance": {
+    "repository": "museumsvictoria/nodel",
+    "commit": "19756071383d696682688ab436c77c0a1f80c783",
+    "archiveSha256": "f869217a18515266fdab441fb1bf8591b1baa12ef935d341878ac5ecb59b4a3d",
+    "build": {
+      "jdk": 21,
+      "release": 11,
+      "dependencySha256": {
+        "joda-time:joda-time:2.14.0": "1e2da6f9eb65f20a25d9a3186831ed2b3fb14f7a48e1ef8206135ee58cb143d3",
+        "org.slf4j:slf4j-api:1.7.10": "3863e27005740d4d1289bf87b113efea115e9a22408a7d623be8004991232bfe",
+        "com.jcraft:jsch:0.1.55": "d492b15a6d2ea3f1cc39c422c953c40c12289073dbe8360d98c0f6f9ec74fc44",
+        "org.python:jython-standalone:2.5.4-rc1": "2c3ff5579dccd000185e3891567ef2cab2f367986d3dc2f9dcf2fc52739be77d"
+      }
+    },
+    "regenerate": "node scripts/generate-java-discovery-contract.mjs /path/to/nodel --write",
+    "verify": "node scripts/generate-java-discovery-contract.mjs /path/to/nodel --check",
+    "generatorSha256": "4f3ab8c82d7ab2d57b6cf40b97b2ac81145ba7920a4e2b434bbf719885de03c5",
+    "harness": "scripts/JavaDiscoveryContract.java",
+    "harnessSha256": "2d47a437c5bb19d1f85e717b56dac1ae89b13834198b8751ecdea6f3f0cb7cf5",
+    "path": "In-memory HTTP bytes → pinned HTTPSession → NanoHTTPD → NodelHostHTTPD.serve → RESTModel/REST.resolveRESTcall → Serialisation.serialise → HTTP Response.send",
+    "isolation": "No Nodel launch or host constructors; no network sockets; synthetic AutoDNS via the original provider hook. Each request called the complete listing once.",
+    "replayNote": "allNodes object identity suffixes can vary by JVM run; --check compares everything except those suffixes. The body below is unmodified."
+  },
+  "inputs": {
+    "advertisements": [
+      {
+        "name": "Contract HTTP Control",
+        "addresses": [
+          "http://192.0.2.10:8085/nodes/%NODE%"
+        ],
+        "timeStamp": 1000
+      },
+      {
+        "name": "Contract Isolated TCP",
+        "addresses": [
+          "tcp://192.0.2.11:8086"
+        ],
+        "timeStamp": 1000
+      }
+    ],
+    "localNodes": [],
+    "bindingReferences": [],
+    "requests": {
+      "allNodes": {
+        "method": "GET",
+        "path": "/REST/allNodes",
+        "body": null
+      },
+      "nodeURLs": {
+        "method": "POST",
+        "path": "/REST/nodeURLs",
+        "contentType": "application/json",
+        "body": "{\"filter\":\"\"}"
+      }
+    }
+  },
+  "responses": {
+    "allNodes": {
+      "statusLine": "HTTP/1.1 200 OK ",
+      "contentType": "application/json; charset=utf-8",
+      "cors": "*",
+      "body": "[\"org.nodel.discovery.AdvertisementInfo@68c4039c\",\"org.nodel.discovery.AdvertisementInfo@ae45eb6\"]"
+    },
+    "nodeURLs": {
+      "statusLine": "HTTP/1.1 200 OK ",
+      "contentType": "application/json; charset=utf-8",
+      "cors": "*",
+      "body": "[{\"address\":\"http://192.0.2.10:8085/nodes/ContractHTTPControl\",\"node\":\"Contract HTTP Control\"}]"
+    }
+  }
+}
