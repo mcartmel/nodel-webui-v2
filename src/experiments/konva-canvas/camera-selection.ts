@@ -34,35 +34,54 @@ export function graphBounds(nodes: Iterable<FixtureNode>, curves: Iterable<reado
 
 export interface Selection {
   nodeId?: string | undefined;
-  edgeId?: string | undefined;
+  trace?: TraceTarget | undefined;
 }
 
-export interface SelectionChanges {
-  nodeIds: Set<string>;
-  edgeIds: Set<string>;
-  socketIds: Set<string>;
+export type SocketId = FixtureEdge['from'];
+export type TraceTarget = { edgeId: string } | { port: SocketId; label: string };
+type PortIndex = ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>;
+
+export interface Trace {
+  target: TraceTarget | undefined;
+  edgeIds: ReadonlySet<string>;
+  ports: ReadonlyMap<string, ReadonlySet<string>>;
+  kinds: ReadonlySet<FixtureEdge['bindingKind']>;
 }
 
-/** Return only cards, wires, and endpoint sockets whose selected appearance can change. */
-export function selectionChanges(previous: Selection, next: Selection, edges: ReadonlyMap<string, FixtureEdge>): SelectionChanges {
-  const nodeIds = new Set<string>();
+export function sameSocket(a: SocketId, b: SocketId): boolean {
+  return a.nodeId === b.nodeId && a.portId === b.portId;
+}
+
+export function traceConnections(target: TraceTarget | undefined, edges: ReadonlyMap<string, FixtureEdge>, index: PortIndex): Trace {
+  const candidates = !target ? [] : 'edgeId' in target ? [target.edgeId] : index.get(target.port.nodeId)?.get(target.port.portId) ?? [];
   const edgeIds = new Set<string>();
-  const socketIds = new Set<string>();
-  if (previous.nodeId !== next.nodeId) {
-    if (previous.nodeId) nodeIds.add(previous.nodeId);
-    if (next.nodeId) nodeIds.add(next.nodeId);
-  }
-  if (previous.edgeId !== next.edgeId) {
-    for (const id of [previous.edgeId, next.edgeId]) {
-      if (!id) continue;
-      edgeIds.add(id);
-      const edge = edges.get(id);
-      if (!edge) continue;
-      socketIds.add(`${edge.from.nodeId}:${edge.from.portId}`);
-      socketIds.add(`${edge.to.nodeId}:${edge.to.portId}`);
+  const ports = new Map<string, Set<string>>();
+  const kinds = new Set<FixtureEdge['bindingKind']>();
+  for (const id of candidates) {
+    const edge = edges.get(id);
+    if (!edge) continue;
+    edgeIds.add(id);
+    kinds.add(edge.bindingKind);
+    for (const { nodeId, portId } of [edge.from, edge.to]) {
+      let points = ports.get(nodeId);
+      if (!points) ports.set(nodeId, points = new Set());
+      points.add(portId);
     }
   }
-  return { nodeIds, edgeIds, socketIds };
+  return { target, edgeIds, ports, kinds };
+}
+
+export function traceChanges(previous: Trace, next: Trace): { wiresChanged: boolean; sockets: SocketId[] } {
+  const sockets: SocketId[] = [];
+  for (const [a, b] of [[previous.ports, next.ports], [next.ports, previous.ports]] as const) {
+    for (const [nodeId, ports] of a) {
+      const other = b.get(nodeId);
+      for (const portId of ports) if (!other?.has(portId)) sockets.push({ nodeId, portId });
+    }
+  }
+  if (previous.edgeIds.size !== next.edgeIds.size) return { wiresChanged: true, sockets };
+  for (const id of previous.edgeIds) if (!next.edgeIds.has(id)) return { wiresChanged: true, sockets };
+  return { wiresChanged: false, sockets };
 }
 /** Same usable viewport for the early-release estimate and actual camera fit. */
 export function fittedCameraScale(width: number, height: number, worldWidth: number, worldHeight: number): number {

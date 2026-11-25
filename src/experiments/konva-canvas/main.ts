@@ -10,7 +10,9 @@ import type { PreviewCallbacks, PreviewRenderer } from './preview-coordinator';
 import type { TopologyStartupShell } from './startup-shell';
 import type { LocalCardPatch, LocalEnrichmentProjection } from './local-enrichment-projection';
 import type { RemoteEnrichmentBatch } from './remote-enrichment';
-import { fittedCameraScale, graphBounds, selectionChanges, type Selection } from './camera-selection';
+import { fittedCameraScale, graphBounds, sameSocket, traceChanges, traceConnections, type Selection, type SocketId, type TraceTarget } from './camera-selection';
+import { hitsSocket, SocketGesture, socketHitRadius } from './socket-gesture';
+import { TopologyLayer } from './topology-layer';
 import { LocalFraming } from './local-framing';
 import { localNodePath } from '../../utils/urls';
 import { isUsableNodeName } from '../../utils/node-name';
@@ -41,7 +43,7 @@ const stageHost = document.createElement('div');
 stageHost.className = 'canvas-stage';
 stageHost.tabIndex = localMode ? 0 : -1;
 stageHost.setAttribute('role', 'img');
-const diagramLabel = localMode ? 'Topology diagram. Arrow keys select a card; [ and ] inspect its port names; Enter opens its title; P opens ports and bindings.' : 'Room network diagram.';
+const diagramLabel = localMode ? 'Topology diagram. Arrow keys select a card; [ and ] inspect its port names; Space traces the inspected port; Enter opens its title; P opens ports and bindings.' : 'Room network diagram.';
 stageHost.setAttribute('aria-label', diagramLabel);
 if (host) host.append(stageHost);
 
@@ -57,6 +59,7 @@ const nodeById = new Map<string, FixtureNode>();
 const edgeById = new Map<string, FixtureEdge>();
 const incidentEdges = new Map<string, Set<string>>();
 const portIncidentEdges = new Map<string, Map<string, Set<string>>>();
+const portLabels = new Map<string, Map<string, string>>();
 const wireGeometry = new Map<string, { curves: Curve[]; arrow: ReturnType<typeof curveArrow> }>();
 const laneReservations = new LocalLaneReservations();
 interface ActiveCardDrag {
@@ -83,16 +86,21 @@ let initialPreviewBounds: ReturnType<typeof graphBounds>;
 
 let stage: Konva.Stage | undefined;
 let edgeNavigation: EdgeNavigation | undefined;
-let wireLayer: Konva.Layer | undefined;
-let cardLayer: Konva.Layer | undefined;
+let wireLayer: TopologyLayer | undefined;
+let tracePaint: Konva.Shape | undefined;
+let cardLayer: TopologyLayer | undefined;
 let selectedNode: string | undefined;
-let selectedEdge: string | undefined;
+let trace = traceConnections(undefined, edgeById, portIncidentEdges);
+let traceDescription = '';
 let viewportWidth = 0;
 let viewportHeight = 0;
 let viewportDrawable = false;
 const cardGroups = new Map<string, Konva.Group>();
 interface PortRow { label: Konva.Text; socket: Konva.Circle; port: FixtureNode['ports'][number] }
-const socketRows = new Map<string, PortRow>();
+const socketRows = new Map<string, Map<string, PortRow>>();
+const socketRow = (nodeId: string, portId: string) => socketRows.get(nodeId)?.get(portId);
+const socketGesture = new SocketGesture<PortRow>();
+
 const footprintRowPools = new Map<string, Record<PortSide, PortRow[]>>();
 interface CardShapes { rect: Konva.Rect; header: Konva.Rect; divider: Konva.Line; dot?: Konva.Circle; title: Konva.Text; status: Konva.Text; host?: Konva.Group }
 const cardShapes = new Map<string, CardShapes>();
@@ -156,7 +164,7 @@ function markPlacementDirty(): void {
   else writeWhenDrawable = true;
 }
 
-function readColors(): { surface: string; background: string; foreground: string; muted: string; border: string; accent: string; grid: string; wire: string; action: string; actionStrong: string; event: string; eventStrong: string } {
+function readColors() {
   const style = getComputedStyle(document.documentElement);
   const resolve = (token: string, fallback: string) => style.getPropertyValue(token).trim() || fallback;
   return {
@@ -169,27 +177,19 @@ function readColors(): { surface: string; background: string; foreground: string
     grid: `rgb(${resolve('--nodel-border', '215 222 229')})`,
     wire: `rgb(${resolve('--nodel-muted', '116 132 148')})`,
     action: `rgb(${resolve('--nodel-topology-action', '37 99 235')})`,
-    actionStrong: `rgb(${resolve('--nodel-topology-action-strong', '29 78 216')})`,
     event: `rgb(${resolve('--nodel-topology-event', '13 148 136')})`,
-    eventStrong: `rgb(${resolve('--nodel-topology-event-strong', '15 118 110')})`
+    selection: resolve('--nodel-topology-selection', '#B45309')
   };
 }
 
-function wireColor(edge: FixtureEdge, selected = false): string {
-  if (edge.bindingKind === 'action') return selected ? colors.actionStrong : colors.action;
-  if (edge.bindingKind === 'event') return selected ? colors.eventStrong : colors.event;
-  return selected ? colors.accent : colors.wire;
+function wireColor(edge: FixtureEdge): string {
+  if (edge.bindingKind === 'action') return colors.action;
+  if (edge.bindingKind === 'event') return colors.event;
+  return colors.wire;
 }
 
-function socketColor(port: FixtureNode['ports'][number], highlighted: boolean): { fill: string; stroke: string } {
+function socketColor(port: FixtureNode['ports'][number]): { fill: string; stroke: string } {
   const localEndpoint = port.localKind === 'local-action' || port.localKind === 'local-event';
-  if (highlighted) {
-    const selected = selectedEdge ? edgeById.get(selectedEdge) : undefined;
-    const hue = selected ? wireColor(selected, true) : colors.accent;
-    // Preserve the synthetic benchmark's legacy filled selection treatment.
-    if (!port.localKind) return { fill: hue, stroke: hue };
-    return { fill: localEndpoint ? hue : colors.surface, stroke: hue };
-  }
   if (port.localKind) {
     const hue = port.localKind.endsWith('action') ? colors.action : colors.event;
     return { fill: localEndpoint ? hue : colors.surface, stroke: hue };
@@ -218,13 +218,10 @@ function updateCanvasColors(): void {
     shapes.divider.stroke(colors.border);
     if (shapes.host) repaintHostGlyph(shapes.host);
     positionRows(node, (port) => {
-      const socket = socketRows.get(`${node.id}:${port.id}`)?.socket;
-      const selected = selectedEdge ? edgeById.get(selectedEdge) : undefined;
-      const highlighted = !!selected && (selected.from.nodeId === node.id && selected.from.portId === port.id || selected.to.nodeId === node.id && selected.to.portId === port.id);
-      const appearance = socketColor(port, highlighted);
+      const socket = socketRow(node.id, port.id)?.socket;
+      const appearance = socketColor(port);
       socket?.fill(appearance.fill);
       socket?.stroke(appearance.stroke);
-      socket?.radius(highlighted ? 5 : 4);
     });
     const labels = cardGroups.get(node.id)?.find('Text') ?? [];
     labels.forEach((label, index) => {
@@ -235,7 +232,7 @@ function updateCanvasColors(): void {
   wireLayer?.getChildren().forEach((shape) => {
     if (shape instanceof Konva.Shape) {
       const edge = edgeById.get(shape.id());
-      if (edge) shape.stroke(wireColor(edge, selectedEdge === edge.id));
+      if (edge) shape.stroke(wireColor(edge));
     }
   });
   wireLayer?.batchDraw();
@@ -244,6 +241,10 @@ function updateCanvasColors(): void {
 
 function initializeTheme(): void {
   const media = getSystemThemeMediaQuery();
+  window.matchMedia?.('(forced-colors: active)')?.addEventListener('change', () => {
+    colors = readColors();
+    updateCanvasColors();
+  });
   const selector = document.querySelector<HTMLSelectElement>('[data-theme-select]');
   // data-theme is the resolved color (including before first paint), not the user's choice.
   let preference: NodelTheme | 'system';
@@ -317,6 +318,45 @@ function sameArrow(a: ReturnType<typeof curveArrow>, b: ReturnType<typeof curveA
     a.left.x === b.left.x && a.left.y === b.left.y && a.right.x === b.right.x && a.right.y === b.right.y;
 }
 
+const inkWidth = (width: number, min: number, max: number, scale: number) =>
+  Math.min(max, Math.max(min, width * scale)) / scale;
+
+function paintCurves(context: Konva.Context, curves: readonly Curve[], color: string, width: number): void {
+  context.strokeStyle = color;
+  context.lineWidth = width;
+  for (const curve of curves) {
+    drawCurve(context, curve);
+    context.stroke();
+  }
+}
+
+function paintWire(context: Konva.Context, edge: FixtureEdge, selected = false): void {
+  const geometry = wireGeometry.get(edge.id);
+  if (!geometry) return;
+  const core = wireColor(edge);
+  let coreWidth = 1.6;
+  context.lineCap = 'round';
+  if (selected) {
+    const scale = stage?.scaleX() ?? 1;
+    coreWidth = inkWidth(2, 1.1, 3, scale);
+    const outerWidth = inkWidth(6, 3, 8, scale);
+    paintCurves(context, geometry.curves, colors.selection, outerWidth);
+    if (geometry.arrow) {
+      drawArrow(context, geometry.arrow);
+      context.lineJoin = 'round';
+      context.strokeStyle = colors.selection;
+      context.lineWidth = outerWidth - coreWidth;
+      context.stroke();
+    }
+  }
+  paintCurves(context, geometry.curves, core, coreWidth);
+  if (geometry.arrow) {
+    drawArrow(context, geometry.arrow);
+    context.fillStyle = core;
+    context.fill();
+  }
+}
+
 function makeWire(edge: FixtureEdge): Konva.Shape {
   const shape = new Konva.Shape({
     id: edge.id,
@@ -326,33 +366,7 @@ function makeWire(edge: FixtureEdge): Konva.Shape {
     strokeWidth: 1.6,
     hitStrokeWidth: 14,
     sceneFunc(context) {
-      const geometry = wireGeometry.get(edge.id);
-      if (!geometry) return;
-      context.strokeStyle = wireColor(edge, selectedEdge === edge.id);
-      context.lineCap = 'round';
-      const selected = selectedEdge === edge.id;
-      const typedSelection = selected && edge.bindingKind !== undefined;
-      for (const curve of geometry.curves) {
-        drawCurve(context, curve);
-        // Local typed bindings get an unmistakable, double-contrast selection
-        // without adding a layer or changing the synthetic benchmark ink.
-        if (typedSelection) {
-          context.strokeStyle = colors.surface;
-          context.lineWidth = 5.2;
-          context.stroke();
-          drawCurve(context, curve);
-          context.strokeStyle = wireColor(edge, true);
-          context.lineWidth = 3.2;
-        } else {
-          context.lineWidth = selected ? 2.6 : 1.6;
-        }
-        context.stroke();
-      }
-      if (geometry.arrow) {
-        drawArrow(context, geometry.arrow);
-        context.fillStyle = wireColor(edge, selectedEdge === edge.id);
-        context.fill();
-      }
+      if (!trace.edgeIds.has(edge.id)) paintWire(context, edge);
     },
     hitFunc(context, self) {
       const geometry = wireGeometry.get(edge.id);
@@ -371,9 +385,35 @@ function makeWire(edge: FixtureEdge): Konva.Shape {
   if (edge.ownerId) shape.setAttr('ownerId', edge.ownerId);
   shape.on('click tap', (event) => {
     event.cancelBubble = true;
-    setSelection({ edgeId: edge.id });
+    if (!socketGesture.ownsClick && ((event.evt as MouseEvent).button ?? 0) === 0) setSelection({ trace: { edgeId: edge.id } });
   });
   return shape;
+}
+
+/** Use the existing scene shape for the socket and its ring; never affect hit ink. */
+function paintSocket(context: Konva.Context, shape: Konva.Shape): void {
+  const socket = shape as Konva.Circle;
+  if (socket.getAttr('connectionSelected')) {
+    const width = inkWidth(1.8, 0.8, 2.5, stage?.scaleX() ?? 1);
+    context.beginPath();
+    context.arc(0, 0, socket.radius() + (socket.strokeWidth() + width) / 2, 0, 2 * Math.PI);
+    context.strokeStyle = colors.selection;
+    context.lineWidth = width;
+    context.stroke();
+  }
+  context.beginPath();
+  context.arc(0, 0, socket.radius(), 0, 2 * Math.PI);
+  context.closePath();
+  context.fillStrokeShape(socket);
+}
+
+function setSocketSelection(socket: Konva.Circle, selected: boolean): boolean {
+  const attrs = socket.getAttrs();
+  if (attrs.connectionSelected === selected) return false;
+  // Custom scene-only metadata, not a Konva geometry change. Using setAttr
+  // here would request a full automatic scene + hit redraw for each layer.
+  attrs.connectionSelected = selected;
+  return true;
 }
 
 const statusText = (node: FixtureNode) => node.displayQualifier ?? node.displayStatus ?? (node.status === 'online' ? 'Online' : 'Standby');
@@ -392,8 +432,7 @@ function makePortRow(group: Konva.Group, node: FixtureNode, port: FixtureNode['p
     align: side === 'left' ? 'left' : 'right', text: port.label,
     fontFamily: 'system-ui, sans-serif', fontSize: 11, fill: colors.muted, listening: false, ellipsis: true, wrap: 'none'
   });
-  const appearance = socketColor(port, false);
-  const socket = new Konva.Circle({ x: side === 'left' ? 0 : node.width, y, radius: 4, fill: appearance.fill, stroke: appearance.stroke, strokeWidth: 1.5, listening: false, name: `socket-${node.id}-${port.id}` });
+  const socket = new Konva.Circle({ x: side === 'left' ? 0 : node.width, y, radius: 4, strokeWidth: 1.5, listening: false, sceneFunc: paintSocket });
   const row = { label, socket, port };
   bindPortRow(node, row, port);
   group.add(label, socket);
@@ -401,11 +440,17 @@ function makePortRow(group: Konva.Group, node: FixtureNode, port: FixtureNode['p
 }
 
 function bindPortRow(node: FixtureNode, row: PortRow, port: FixtureNode['ports'][number]): void {
+  if (row.port.id !== port.id) socketGesture.cancelSlot(row);
   row.port = port;
   row.label.text(port.label);
   row.socket.name(`socket-${node.id}-${port.id}`);
   row.socket.setAttrs({ localKind: port.localKind, portId: port.id, accessibleDescription: port.label });
-  socketRows.set(`${node.id}:${port.id}`, row);
+  const appearance = socketColor(port);
+  row.socket.fill(appearance.fill).stroke(appearance.stroke);
+  setSocketSelection(row.socket, trace.ports.get(node.id)?.has(port.id) ?? false);
+  let rows = socketRows.get(node.id);
+  if (!rows) socketRows.set(node.id, rows = new Map<string, PortRow>());
+  rows.set(port.id, row);
 }
 
 function positionRows(node: FixtureNode, visit: (port: FixtureNode['ports'][number], y: number) => void): void {
@@ -421,12 +466,101 @@ function positionRows(node: FixtureNode, visit: (port: FixtureNode['ports'][numb
   for (const port of node.ports) visit(port, portRowCenter(sides[port.side]++));
 }
 
+function socketAtPointer(event: PointerEvent): (SocketId & { slot: PortRow }) | undefined {
+  if (!stage || !viewportDrawable) return;
+  // Convert client CSS pixels into Konva canvas coordinates before inverting
+  // the card transform. The stage hit graph handles overlapping cards and rails.
+  const rect = stage.getContent().getBoundingClientRect();
+  if (!positiveViewport(rect) || event.clientX < rect.left || event.clientX >= rect.right ||
+    event.clientY < rect.top || event.clientY >= rect.bottom) return;
+  const point = { x: (event.clientX - rect.left) * stage.width() / rect.width, y: (event.clientY - rect.top) * stage.height() / rect.height };
+  const shape = stage.getIntersection(point);
+  const group = shape?.findAncestor('.topology-card');
+  const node = group && nodeById.get(group.id());
+  if (!group || !node || shape !== cardShapes.get(node.id)?.rect) return;
+  const local = group.getAbsoluteTransform().copy().invert().point(point);
+  const slot = socketAtLocalPoint(node.id, local);
+  return slot && { nodeId: node.id, portId: slot.port.id, slot };
+}
+
+function socketAtLocalPoint(nodeId: string, local: Point): PortRow | undefined {
+  const radius = socketHitRadius(stage?.scaleX() ?? 1);
+  for (const row of socketRows.get(nodeId)?.values() ?? []) {
+    if (hitsSocket(local, row.socket.position(), radius)) return row;
+  }
+  return undefined;
+}
+
+function installSocketInput(): () => void {
+  let press: { id: number; touch: boolean; origin?: MouseEvent | TouchEvent; drag?: Konva.Group } | undefined;
+  const down = (event: PointerEvent) => {
+    if (!event.isPrimary || Konva.isDragging()) { socketGesture.cancel(); return; }
+    const hit = event.button === 0 ? socketAtPointer(event) : undefined;
+    socketGesture.begin(event, hit);
+    press = hit ? { id: event.pointerId, touch: event.pointerType === 'touch' } : undefined;
+  };
+  const compatibilityDown = (event: MouseEvent | TouchEvent) => {
+    if (!press || !socketGesture.isArmed || press.origin) return;
+    const touch = 'touches' in event;
+    if (press.touch !== touch || (touch ? event.touches.length !== 1 : event.button !== 0)) return;
+    press.origin = event;
+    // Do not create a Konva ready drag on socket down: it redraws the hit
+    // layer on release even if the pointer never moved. Other downs are native.
+    event.stopPropagation();
+    if (touch && event.cancelable) event.preventDefault();
+  };
+  const move = (event: PointerEvent) => {
+    const hit = socketGesture.move(event);
+    if (!hit || !press?.origin || !stage || Konva.isDragging()) return;
+    const group = cardGroups.get(hit.nodeId);
+    if (!group) return;
+    const origin = press.origin;
+    // Seed drag at the original point and compatibility ID, so the native
+    // mousemove/touchmove that follows neither loses the offset nor the drag.
+    const pointerId = 'changedTouches' in origin ? origin.changedTouches[0]?.identifier : undefined;
+    stage.setPointersPositions(origin);
+    press.drag = group;
+    group.startDrag({ evt: origin, pointerId });
+  };
+  const up = (event: PointerEvent) => {
+    const hit = socketGesture.finish(event, () => socketAtPointer(event));
+    if (press?.id === event.pointerId) press = undefined;
+    if (hit) setTrace({ port: { nodeId: hit.nodeId, portId: hit.portId }, label: hit.slot.port.label });
+  };
+  const cancel = (event?: PointerEvent) => {
+    socketGesture.cancel(event?.pointerId);
+    if (!press || (event && press.id !== event.pointerId)) return;
+    const drag = press.drag;
+    press = undefined;
+    if (drag?.isDragging()) drag.stopDrag();
+  };
+  const blur = () => cancel();
+  stageHost.addEventListener('pointerdown', down, true);
+  stageHost.addEventListener('mousedown', compatibilityDown, true);
+  stageHost.addEventListener('touchstart', compatibilityDown, { capture: true, passive: false });
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', cancel, true);
+  stageHost.addEventListener('lostpointercapture', cancel, true);
+  window.addEventListener('blur', blur);
+  return () => {
+    stageHost.removeEventListener('pointerdown', down, true);
+    stageHost.removeEventListener('mousedown', compatibilityDown, true);
+    stageHost.removeEventListener('touchstart', compatibilityDown, true);
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', cancel, true);
+    stageHost.removeEventListener('lostpointercapture', cancel, true);
+    window.removeEventListener('blur', blur);
+  };
+}
+
 function syncPortLabelBounds(node: FixtureNode): void {
   const positioned: Array<{ port: FixtureNode['ports'][number]; y: number }> = [];
   positionRows(node, (port, y) => positioned.push({ port, y }));
   const layouts = portLabelLayouts(node.width, positioned.map(({ port, y }) => ({ id: port.id, side: port.side, row: y })));
   for (const { port, y } of positioned) {
-    const row = socketRows.get(`${node.id}:${port.id}`);
+    const row = socketRow(node.id, port.id);
     if (!row) continue;
     const bounds = layouts.get(port.id)!;
     row.label.position({ x: bounds.x, y: y - 7 });
@@ -455,7 +589,7 @@ function refreshHoveredPortAfterGeometryChange(node: FixtureNode, group: Konva.G
   const shapes = cardShapes.get(node.id);
   const title = shapes?.title;
   const inTitle = Boolean(title && titleDestination(node) && point.x >= title.x() && point.x <= title.x() + Math.min(title.width(), title.getTextWidth()) && point.y >= title.y() && point.y <= title.y() + title.height());
-  const port = inTitle ? undefined : positionPortAtPoint(node, point.x, point.y);
+  const port = inTitle ? undefined : socketAtLocalPoint(node.id, point)?.port ?? positionPortAtPoint(node, point.x, point.y);
   if (port?.id === activePortId) return;
   activePortId = port?.id;
   refreshActiveCardDescription();
@@ -479,7 +613,7 @@ function ensureOverflowRails(group: Konva.Group, node: FixtureNode): void {
     const chevron = new Konva.Line({ points: [caretX - 4, caretY + (up ? 2 : -2), caretX, caretY + (up ? -2 : 2), caretX + 4, caretY + (up ? 2 : -2)], strokeWidth: 1.7, lineCap: 'round', lineJoin: 'round', listening: false });
     const hit = new Konva.Rect({ x: left ? 34 : -36, y: 0, width: 37, height, fill: 'transparent', name: 'overflow-rail-hit' });
     const pageHit = new Konva.Rect({ x: left ? 10 : -64, y: 0, width: left ? 24 : 28, height, fill: 'transparent', name: 'overflow-page-hit' });
-    const makeSocket = (role: TakeoffRole) => new Konva.Circle({ x: 0, y: overflowSocketOffset(direction, role), radius: 4, strokeWidth: 1.5, listening: false, name: `overflow-takeoff-${role}` });
+    const makeSocket = (role: TakeoffRole) => new Konva.Circle({ x: 0, y: overflowSocketOffset(direction, role), radius: direction === 'above' ? 3.5 : 4, strokeWidth: 1.5, listening: false, sceneFunc: paintSocket, name: `overflow-takeoff-${role}` });
     const sockets = { alias: makeSocket('alias'), local: makeSocket('local') };
     const socketHitHalf = direction === 'above' ? 5 : 7;
     const makeSocketHit = (role: TakeoffRole) => new Konva.Rect({ x: -7, y: overflowSocketOffset(direction, role) - socketHitHalf, width: 15, height: 2 * socketHitHalf, fill: 'transparent', name: `overflow-role-hit-${role}` });
@@ -487,7 +621,7 @@ function ensureOverflowRails(group: Konva.Group, node: FixtureNode): void {
     rail.add(hit, pageHit, label, chevron, sockets.alias, sockets.local, socketHits.alias, socketHits.local);
     rail.on('click tap', event => {
       event.cancelBubble = true;
-      if ((event.evt as MouseEvent).button === 2) return;
+      if (socketGesture.ownsClick || (event.evt as MouseEvent).button === 2) return;
       if (event.target === pageHit && node.footprint?.canScroll(side)) {
         turnPortPage(node.id, side, direction);
         return;
@@ -526,9 +660,6 @@ function repaintOverflowRails(node: FixtureNode): void {
   const footprint = node.footprint;
   const rails = overflowRails.get(node.id);
   if (!footprint || !rails) return;
-  const selected = selectedEdge ? edgeById.get(selectedEdge) : undefined;
-  const endpoints = [selected?.from, selected?.to].filter(point => point?.nodeId === node.id);
-  const takeoffs = endpoints.map(point => footprint.attachment(point!.portId));
   for (const side of PORT_SIDES) {
     for (const direction of OVERFLOW_DIRECTIONS) {
       const rail = rails[side]?.[direction];
@@ -545,27 +676,42 @@ function repaintOverflowRails(node: FixtureNode): void {
       rail.chevron.stroke(colors.muted);
       for (const role of roles) {
         const socket = rail.sockets[role];
-        const highlighted = takeoffs.some(attachment => attachment?.side === side && 'role' in attachment && attachment.direction === direction && attachment.role === role);
-        const hue = highlighted && selected ? wireColor(selected, true) : colors.wire;
         const hidden = footprint.overflowCount(side, direction, role);
         socket.visible(hidden > 0);
         rail.socketHits[role].visible(hidden > 0);
         rail.socketHits[role].setAttr('accessibleDescription', `${hidden} hidden ${side} ${role === 'alias' ? 'remote aliases' : 'local endpoints'} ${direction} the window. Open bindings.`);
-        socket.stroke(hue).fill(role === 'local' ? hue : colors.surface).radius((highlighted ? 5 : 4) - (direction === 'above' ? 0.5 : 0));
+        socket.stroke(colors.wire).fill(role === 'local' ? colors.wire : colors.surface);
       }
     }
   }
+  paintRailSelection(node);
+}
+
+function paintRailSelection(node: FixtureNode): boolean {
+  const rails = overflowRails.get(node.id);
+  if (!rails || !node.footprint) return false;
+  const selected = new Set<Konva.Circle>();
+  for (const portId of trace.ports.get(node.id) ?? []) {
+    const attachment = node.footprint.attachment(portId);
+    if (!attachment || !('role' in attachment)) continue;
+    const takeoff = rails[attachment.side]?.[attachment.direction].sockets[attachment.role];
+    if (takeoff) selected.add(takeoff);
+  }
+  let changed = false;
+  for (const side of PORT_SIDES) for (const direction of OVERFLOW_DIRECTIONS) for (const role of roles) {
+    const socket = rails[side]?.[direction].sockets[role];
+    if (socket && setSocketSelection(socket, selected.has(socket))) changed = true;
+  }
+  return changed;
 }
 
 function syncFootprintRows(node: FixtureNode, group: Konva.Group): void {
   const footprint = node.footprint!;
   const pools = footprintRowPools.get(node.id) ?? { left: [], right: [] };
   if (!footprintRowPools.has(node.id)) footprintRowPools.set(node.id, pools);
-  const selected = selectedEdge ? edgeById.get(selectedEdge) : undefined;
+  socketRows.get(node.id)?.clear();
   for (const side of PORT_SIDES) {
     const pool = pools[side];
-    // Clear the old logical mappings first: a retained port may move to another slot.
-    for (const row of pool) socketRows.delete(`${node.id}:${row.port.id}`);
     let slot = 0;
     for (const port of footprint.visible(side)) {
       const y = portRowCenter(slot);
@@ -575,12 +721,14 @@ function syncFootprintRows(node: FixtureNode, group: Konva.Group): void {
         bindPortRow(node, row, port);
         if (!row.label.getParent()) group.add(row.label, row.socket);
       }
-      const highlighted = selected?.from.nodeId === node.id && selected.from.portId === port.id || selected?.to.nodeId === node.id && selected.to.portId === port.id;
-      const appearance = socketColor(port, highlighted);
-      row.socket.fill(appearance.fill).stroke(appearance.stroke).radius(highlighted ? 5 : 4);
       slot++;
     }
-    for (; slot < pool.length; slot++) { pool[slot]!.label.remove(); pool[slot]!.socket.remove(); }
+    for (; slot < pool.length; slot++) {
+      const row = pool[slot]!;
+      socketGesture.cancelSlot(row);
+      row.label.remove();
+      row.socket.remove();
+    }
   }
   syncPortLabelBounds(node);
   refreshHoveredPortAfterGeometryChange(node, group);
@@ -601,7 +749,7 @@ function updatePortWindows(changes: ReadonlyMap<string, readonly string[]>, refr
     const byPort = portIncidentEdges.get(nodeId);
     for (const id of ports) for (const edgeId of byPort?.get(id) ?? []) dirty.add(edgeId);
     syncFootprintRows(node, cardGroups.get(nodeId)!);
-    if (nodeId === keyboardCardId && activePortId && !socketRows.has(`${nodeId}:${activePortId}`)) {
+    if (nodeId === keyboardCardId && activePortId && !socketRow(nodeId, activePortId)) {
       activePortId = undefined;
     }
     if (nodeId === keyboardCardId || nodeId === hoveredCardId) refreshActiveCardDescription();
@@ -799,7 +947,7 @@ function positionHostGlyph(glyph: Konva.Group, node: FixtureNode, title: Konva.T
 function setCardAccessibleMessage(message: string): void {
   if (!failure) return;
   failure.classList.add('is-visually-hidden');
-  failure.textContent = message;
+  if (failure.textContent !== message) failure.textContent = message;
   failure.hidden = false;
 }
 
@@ -826,24 +974,26 @@ function refreshActiveCardDescription(): void {
     const portKeys = PORT_SIDES.some(side => node.footprint?.canScroll(side))
       ? 'Shift and Left or Right chooses a port side; Page Up and Page Down move by page.' +
         (portWindowMode === 'chooser' ? '' : ' Shift and Page Up or Page Down move by row.') : '';
-    const port = activePortId ? socketRows.get(`${node.id}:${activePortId}`)?.port : undefined;
-    const portDetail = port ? `Port: ${port.label}.` : '';
+    const port = activePortId ? socketRow(node.id, activePortId)?.port : undefined;
+    const portDetail = port ? `Port: ${port.label}. Space traces this port.` : '';
     const detail = [node.tooltip, linkLabel, ...overflow, portDetail, 'Press [ and ] to inspect port names; P opens ports and bindings.', portKeys].filter(Boolean).join(' ');
     const description = `${node.name}. ${detail}`;
     const rail = !keyboardCardId && hoveredRail?.nodeId === node.id ? hoveredRail : undefined;
     const railCount = rail && node.footprint?.overflowCount(rail.side, rail.direction);
     stage?.container().setAttribute('title', rail && railCount ? `${hiddenPortDescription(railCount, rail.side, rail.direction)}. Open bindings.` : port ? `${port.label} — ${node.tooltip}` : headerTooltip(node.tooltip, linkLabel));
     stageHost.setAttribute('aria-label', description);
-    group.setAttr('accessibleDescription', description);
-    setCardAccessibleMessage(description);
+    group.getAttrs().accessibleDescription = description;
+    setCardAccessibleMessage(traceDescription ? `${description} ${traceDescription}` : description);
     return;
   }
   const container = stage?.container();
   container?.removeAttribute('title');
-  if (activeId) cardGroups.get(activeId)?.setAttr('accessibleDescription', '');
+  const attrs = activeId ? cardGroups.get(activeId)?.getAttrs() : undefined;
+  if (attrs) attrs.accessibleDescription = '';
   activePortId = undefined;
   stageHost.setAttribute('aria-label', diagramLabel);
-  if (failure) {
+  if (traceDescription) setCardAccessibleMessage(traceDescription);
+  else if (failure) {
     failure.classList.remove('is-visually-hidden');
     failure.hidden = true;
   }
@@ -892,6 +1042,22 @@ function makeCard(node: FixtureNode): Konva.Group {
   // Konva otherwise composites a full stage-sized shadow buffer per filled,
   // stroked card per repaint. The fill already provides the card shadow.
   const rect = new Konva.Rect({ x: 0, y: 0, width: node.width, height, fill: cardSurface, stroke: colors.border, strokeWidth: 1, cornerRadius: 10, shadowColor: '#142536', shadowBlur: 11, shadowOpacity: 0.1, shadowOffsetY: 3, ...(localMode || nodes.length > 9 ? { shadowForStrokeEnabled: false } : {}) });
+  const drawCard = rect.sceneFunc();
+  // The card remains the only listening shape for its ordinary sockets.
+  // Add just their hit disks to its normal rounded body, including outside ink.
+  rect.hitFunc((context, shape) => {
+    drawCard?.call(rect, context, shape);
+    const rows = socketRows.get(node.id);
+    if (!rows?.size) return;
+    const radius = socketHitRadius(stage?.scaleX() ?? 1);
+    context.beginPath();
+    for (const { socket } of rows.values()) {
+      const x = socket.x(), y = socket.y();
+      context.moveTo(x + radius, y);
+      context.arc(x, y, radius, 0, 2 * Math.PI);
+    }
+    context.fillShape(rect);
+  });
   group.add(rect);
   const header = new Konva.Rect({ x: 1, y: 1, width: node.width - 2, height: CARD_HEADER_HEIGHT - 1, fill: cardSurface, cornerRadius: [9, 9, 0, 0], listening: false });
   group.add(header);
@@ -937,6 +1103,7 @@ function makeCard(node: FixtureNode): Konva.Group {
   }
   group.on('click tap', (event) => {
     const mouseEvent = event.evt as MouseEvent;
+    if (socketGesture.ownsClick) { event.cancelBubble = true; return; }
     if (mouseEvent.button === 2) {
       mouseEvent.preventDefault();
       event.cancelBubble = true;
@@ -966,11 +1133,12 @@ function makeCard(node: FixtureNode): Konva.Group {
     const pointer = stage.getPointerPosition();
     const point = pointer ? group.getAbsoluteTransform().copy().invert().point(pointer) : undefined;
     const inTitle = Boolean(point && titleDestination(node) && point.x >= title.x() && point.x <= title.x() + visibleTitleWidth() && point.y >= title.y() && point.y <= title.y() + title.height());
-    stage.container().style.cursor = inTitle ? 'pointer' : '';
+    stage.container().style.cursor = inTitle || (point && socketAtLocalPoint(node.id, point)) ? 'pointer' : '';
     refreshHoveredPortAfterGeometryChange(node, group);
   });
   let cardDragMoved = false;
   group.on('dragstart', () => {
+    socketGesture.cancel();
     cardDragMoved = false;
     if (!localMode) return;
     if (activeDrags.has(node.id)) return;
@@ -1075,6 +1243,7 @@ function patchCard(patch: LocalCardPatch): Iterable<string> {
   syncTitleLink(node, shapes);
   refreshActiveCardDescription();
   if (!patch.ports) return [];
+  indexPortLabels(id, patch.ports);
 
   if (node.footprint) {
     // Append only the first time an ID is seen. Inventory ordering and new
@@ -1098,18 +1267,18 @@ function patchCard(patch: LocalCardPatch): Iterable<string> {
     syncEdgeCardGeometry();
   }
   positionRows(node, (port, y) => {
-    const row = socketRows.get(`${id}:${port.id}`);
+    const row = socketRow(id, port.id);
     if (!row) {
       makePortRow(group, node, port, y);
       return;
     }
     if (row.socket.y() !== y) {
+      socketGesture.cancelSlot(row);
       moved.add(port.id);
       row.label.y(y - 7);
       row.socket.y(y);
     }
-    if (row.label.text() !== port.label) row.label.text(port.label);
-    row.port = port;
+    bindPortRow(node, row, port);
   });
   syncPortLabelBounds(node);
   refreshHoveredPortAfterGeometryChange(node, group);
@@ -1128,7 +1297,6 @@ function rememberWire(edge: FixtureEdge): void {
     const incident = incidentEdges.get(nodeId) ?? new Set<string>();
     incident.add(edge.id);
     incidentEdges.set(nodeId, incident);
-    if (!localMode) continue;
     const ports = portIncidentEdges.get(nodeId) ?? new Map<string, Set<string>>();
     const wires = ports.get(portId) ?? new Set<string>();
     wires.add(edge.id);
@@ -1137,7 +1305,14 @@ function rememberWire(edge: FixtureEdge): void {
   }
 }
 
+function indexPortLabels(nodeId: string, ports: FixtureNode['ports']): void {
+  const labels = new Map<string, string>();
+  for (const { id, label } of ports) labels.set(id, label);
+  portLabels.set(nodeId, labels);
+}
+
 function addCardShape(node: FixtureNode): void {
+  indexPortLabels(node.id, node.ports);
   const group = makeCard(node);
   cardGroups.set(node.id, group);
   cardLayer?.add(group);
@@ -1166,8 +1341,8 @@ function resizeCardPorts({ nodeId }: ChooserContext, mode: 'expand' | 'compact')
   const group = cardGroups.get(nodeId);
   const shapes = cardShapes.get(nodeId);
   const oldFootprint = node?.footprint;
-  const chosen = selectedEdge ? edgeById.get(selectedEdge) : undefined;
-  const keepVisible = chosen ? [chosen.from, chosen.to].filter(point => point.nodeId === nodeId).map(({ portId }) => portId) : [];
+  const keepVisible = trace.target && 'port' in trace.target && trace.target.port.nodeId === nodeId
+    ? [trace.target.port.portId] : [...(trace.ports.get(nodeId) ?? [])];
   if (activePortId && keyboardCardId === nodeId) keepVisible.unshift(activePortId);
   const proposed = oldFootprint?.resize(mode, keepVisible);
   if (!node || !group || !shapes || !oldFootprint || !proposed) return '';
@@ -1216,8 +1391,9 @@ function syncPortsControl(): void {
   if (!portsControl) return;
   const card = selectedNode ? nodeById.get(selectedNode) : undefined;
   const footprint = card?.footprint;
-  portsControl.hidden = !footprint || !(footprint.canCompact || PORT_SIDES.some(side => footprint.overflowCount(side) > 0));
   const overflow = footprint ? footprint.overflowCount('left') + footprint.overflowCount('right') : 0;
+  const bindings = card ? incidentEdges.get(card.id)?.size : 0;
+  portsControl.hidden = !footprint || !(bindings || footprint.canCompact || overflow);
   portsControl.textContent = overflow ? `Ports and bindings (+${overflow})` : 'Ports and bindings';
   if (card) portsControl.setAttribute('aria-label', `${card.name}: Ports and bindings${overflow ? `, ${overflow} hidden ${overflow === 1 ? 'port' : 'ports'}` : ''}`);
   let hasPages = false;
@@ -1235,7 +1411,7 @@ function syncPortsControl(): void {
 
 function openBindingChooser(context: ChooserContext): void {
   finishPortWheel();
-  if (context.side && selectedNode !== context.nodeId) setSelection({ nodeId: context.nodeId, edgeId: selectedEdge });
+  if (context.side && selectedNode !== context.nodeId) setSelection({ nodeId: context.nodeId, trace: trace.target });
   bindingChooser?.open(context);
 }
 
@@ -1298,9 +1474,9 @@ function installBindingChooser(host: HTMLElement): void {
       if (!ports.length) return;
       const moved = ports.flatMap(({ portId }) => node.footprint!.reveal(portId));
       if (moved.length) updatePortWindows(new Map([[node.id, moved]]), false);
-      setSelection({ nodeId: node.id, edgeId });
+      setSelection({ nodeId: node.id, trace: { edgeId } });
       keyboardPortSide = context.side ?? node.footprint.attachment(ports[0]!.portId)?.side;
-      activePortId = ports.find(({ portId }) => socketRows.has(`${node.id}:${portId}`))?.portId;
+      activePortId = ports.find(({ portId }) => socketRow(node.id, portId))?.portId;
     },
     restoreFocus: ({ nodeId }) => focusPortsStage(nodeId)
   });
@@ -1385,6 +1561,9 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
   const scene = localSceneChanges(newWires, changedGeometryWires);
   // Keep accepted order for first insertion, but compute each dirty route and reduce extents once.
   const before = localFraming.revision;
+  if (changes.localSnapshot) {
+    for (const id of projection.applyLocalInventory(changes.localSnapshot, scene)) dirtyWires.add(id);
+  }
   projection.applyDiscoveries(changes.discoveries, scene);
   for (const result of changes.results) {
     for (const id of projection.apply(result, scene)) dirtyWires.add(id);
@@ -1393,6 +1572,15 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
     const edge = edgeById.get(id)!;
     updateWireGeometry(edge);
     if (newWires.has(id)) wireLayer?.add(makeWire(edge));
+  }
+  if (newWires.size) {
+    tracePaint?.moveToTop();
+    if (selectedNode && portsControl?.hidden) syncPortsControl();
+    const target = trace.target;
+    if (target && 'port' in target && [...newWires].some(id => {
+      const { from, to } = edgeById.get(id)!;
+      return sameSocket(from, target.port) || sameSocket(to, target.port);
+    })) setTrace(target);
   }
   const eligibleForSettlement = new Set([...newWires, ...dirtyWires, ...changedGeometryWires]);
   const deferred = new Set<string>();
@@ -1423,12 +1611,12 @@ function applyEnrichment(changes: RemoteEnrichmentBatch<LocalGraph>, projection:
   bindingChooser?.refresh();
   if (summary) summary.textContent = projection.summary(changes);
   if (dirtyWires.size) wireLayer?.batchDraw();
-  if (changes.discoveries.length || changes.results.length || changes.finish) cardLayer?.batchDraw();
+  if (changes.localSnapshot || changes.discoveries.length || changes.results.length || changes.finish) cardLayer?.batchDraw();
   if (nodes.length && failure && !failure.classList.contains('is-visually-hidden')) failure.hidden = true;
 }
 
 function setSelection(next: Selection, source: 'keyboard' | 'pointer' = 'pointer'): void {
-  const previous = { nodeId: selectedNode, edgeId: selectedEdge };
+  const previous = selectedNode;
   if (localMode) {
     const selectedIndex = next.nodeId ? nodes.findIndex(({ id }) => id === next.nodeId) : -1;
     if (selectedIndex >= 0) {
@@ -1448,41 +1636,59 @@ function setSelection(next: Selection, source: 'keyboard' | 'pointer' = 'pointer
       activePortId = undefined;
     }
   }
-  if (previous.nodeId === next.nodeId && previous.edgeId === next.edgeId) return;
-  const changed = selectionChanges(previous, next, edgeById);
-  selectedNode = next.nodeId;
-  selectedEdge = next.edgeId;
-  syncPortsControl();
-  for (const nodeId of changed.nodeIds) {
-    const rect = cardShapes.get(nodeId)?.rect;
-    rect?.stroke(selectedNode === nodeId ? colors.accent : colors.border);
-    rect?.strokeWidth(selectedNode === nodeId ? 2.2 : 1);
+  if (previous !== next.nodeId) {
+    selectedNode = next.nodeId;
+    syncPortsControl();
+    for (const id of [previous, next.nodeId]) {
+      const rect = id && cardShapes.get(id)?.rect;
+      if (!rect) continue;
+      rect.stroke(selectedNode === id ? colors.accent : colors.border);
+      rect.strokeWidth(selectedNode === id ? 2.2 : 1);
+    }
+    cardLayer?.batchDraw();
   }
-  // Wires consult selectedEdge in their scene function; one layer draw below updates both paths.
-  for (const socketId of changed.socketIds) {
-    const row = socketRows.get(socketId);
-    if (!row) continue;
-    const highlighted = selectedEdge !== undefined && (() => {
-      const edge = edgeById.get(selectedEdge);
-      if (!edge) return false;
-      return `${edge.from.nodeId}:${edge.from.portId}` === socketId || `${edge.to.nodeId}:${edge.to.portId}` === socketId;
-    })();
-    const appearance = socketColor(row.port, highlighted);
-    row.socket.stroke(appearance.stroke);
-    row.socket.fill(appearance.fill);
-    row.socket.radius(highlighted ? 5 : 4);
+  if (trace.target !== next.trace) setTrace(next.trace);
+}
+
+function describeTrace(): string {
+  const { target, edgeIds, kinds } = trace;
+  if (!target) return '';
+  if ('port' in target) {
+    const label = portLabels.get(target.port.nodeId)?.get(target.port.portId) ?? target.label;
+    if (!edgeIds.size) return `${label}, no connections to select.`;
+    const kind = kinds.size === 1 ? [...kinds][0] : undefined;
+    return `${label}, ${edgeIds.size} ${kind ? `${kind} ` : ''}${edgeIds.size === 1 ? 'connection' : 'connections'} selected.`;
   }
+  const edge = edgeById.get(target.edgeId);
+  if (!edge) return '';
+  const describe = ({ nodeId, portId }: SocketId) => {
+    const name = nodeById.get(nodeId)?.name ?? nodeId;
+    const port = portLabels.get(nodeId)?.get(portId);
+    return port ? `${name}, ${port}` : name;
+  };
+  const kind = edge.bindingKind === 'action' ? 'Action call' : edge.bindingKind === 'event' ? 'Event delivery' : 'Connection';
+  return `${kind} selected: ${describe(edge.from)} to ${describe(edge.to)}${edge.bindingAlias ? ` via ${edge.bindingAlias}` : ''}.`;
+}
+
+function setTrace(target?: TraceTarget): void {
+  const next = traceConnections(target, edgeById, portIncidentEdges);
+  const changed = traceChanges(trace, next);
+  const hadTrace = !!trace.target;
+  trace = next;
   const railIds = new Set<string>();
-  for (const edgeId of changed.edgeIds) {
-    const edge = edgeById.get(edgeId);
-    if (edge) { railIds.add(edge.from.nodeId); railIds.add(edge.to.nodeId); }
+  let cardsChanged = false;
+  for (const { nodeId, portId } of changed.sockets) {
+    const row = socketRow(nodeId, portId);
+    if (row) {
+      if (setSocketSelection(row.socket, trace.ports.get(nodeId)?.has(portId) ?? false)) cardsChanged = true;
+    } else if (overflowRails.has(nodeId)) railIds.add(nodeId);
   }
-  for (const id of railIds) {
-    const node = nodeById.get(id);
-    if (node) repaintOverflowRails(node);
-  }
-  if (changed.edgeIds.size) wireLayer?.batchDraw();
-  if (changed.nodeIds.size || changed.socketIds.size) cardLayer?.batchDraw();
+  for (const id of railIds) if (paintRailSelection(nodeById.get(id)!)) cardsChanged = true;
+  if (changed.wiresChanged) wireLayer?.batchDrawScene();
+  if (cardsChanged) cardLayer?.batchDrawScene();
+  traceDescription = describeTrace();
+  if (traceDescription) setCardAccessibleMessage(traceDescription);
+  else if (hadTrace) setCardAccessibleMessage('Connection selection cleared.');
 }
 
 type DrawableViewport = { width: number; height: number };
@@ -1523,6 +1729,7 @@ const queuedCameraActions: Array<'reset' | number> = [];
 
 function applyCameraAction(action: 'reset' | number, anchor?: Point): boolean {
   if (!stage) return false;
+  socketGesture.cancel();
   if (localMode && !viewportDrawable) {
     if (action === 'reset') queuedCameraActions.length = 0;
     if (queuedCameraActions.length === 64) queuedCameraActions.shift();
@@ -1536,6 +1743,7 @@ function applyCameraAction(action: 'reset' | number, anchor?: Point): boolean {
 
 function updateViewport(rect: DrawableViewport): void {
   if (!stage) return;
+  socketGesture.cancel();
   if (!positiveViewport(rect)) { viewportDrawable = false; return; }
   const initial = viewportWidth === 0 || viewportHeight === 0;
   const dx = (rect.width - viewportWidth) / 2;
@@ -1577,6 +1785,7 @@ function initialize(): boolean {
     }
     return false;
   }
+  let removeSocketInput: (() => void) | undefined;
   try {
     stage = new Konva.Stage({ container: stageHost, width: 1, height: 1, draggable: true });
     edgeNavigation = new EdgeNavigation({
@@ -1586,6 +1795,7 @@ function initialize(): boolean {
       cards: () => nodes.filter(node => cardGroups.has(node.id)).map(node => ({ id: node.id, x: node.x, y: node.y, width: node.width, height: cardHeight(node) })),
       navigate: (center, scale) => {
         if (!stage || !viewportDrawable) return;
+        socketGesture.cancel();
         stage.position({ x: Math.round(viewportWidth / 2 - center.x * scale), y: Math.round(viewportHeight / 2 - center.y * scale) });
         stage.batchDraw();
         syncEdgeCamera();
@@ -1593,18 +1803,25 @@ function initialize(): boolean {
       }
     });
     stageHost.addEventListener('pointerleave', () => { if (stage) stage.container().style.cursor = ''; });
-    wireLayer = new Konva.Layer({ name: 'wires' });
-    cardLayer = new Konva.Layer({ name: 'cards' });
+    wireLayer = new TopologyLayer('wires');
+    cardLayer = new TopologyLayer('cards');
     stage.add(wireLayer, cardLayer);
     for (const edge of edges) {
       updateWireGeometry(edge);
       const shape = makeWire(edge);
       wireLayer.add(shape);
     }
+    // Render only selected scenes on top; the original wire children alone
+    // render into the hit canvas, at their original relative insertion order.
+    tracePaint = new Konva.Shape({ name: 'connection-selection-paint', listening: false, sceneFunc(context) {
+      for (const id of trace.edgeIds) paintWire(context, edgeById.get(id)!, true);
+    } });
+    wireLayer.add(tracePaint);
     for (const node of nodes) addCardShape(node);
+    removeSocketInput = installSocketInput();
     if (localMode) installBindingChooser(host);
     stage.on('click tap', (event) => {
-      if (event.target === stage) {
+      if (event.target === stage && !socketGesture.ownsClick && ((event.evt as MouseEvent).button ?? 0) === 0) {
         setSelection({});
       }
     });
@@ -1623,7 +1840,10 @@ function initialize(): boolean {
       }
     });
     stage.on('dragstart.edgeNavigation', (event) => {
-      if (event.target === stage) edgeNavigation?.setCameraMoving(true);
+      if (event.target === stage) {
+        socketGesture.cancel();
+        edgeNavigation?.setCameraMoving(true);
+      }
     });
     stage.on('dragmove.edgeNavigation', (event) => {
       if (!stage || event.target !== stage) return;
@@ -1668,6 +1888,8 @@ function initialize(): boolean {
     observer.observe(stageHost);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (event.defaultPrevented) return;
+        socketGesture.cancel();
         setSelection({});
         return;
       }
@@ -1679,6 +1901,17 @@ function initialize(): boolean {
       if (!event.ctrlKey && !event.altKey && !event.metaKey && keyboardCardId) {
         const node = nodeById.get(keyboardCardId);
         const footprint = node?.footprint;
+        if (event.key === ' ' && activePortId) {
+          const row = socketRow(keyboardCardId, activePortId);
+          if (row) {
+            event.preventDefault();
+            if (!event.repeat && !Konva.isDragging()) {
+              socketGesture.cancel();
+              setTrace({ port: { nodeId: keyboardCardId, portId: activePortId }, label: row.port.label });
+            }
+            return;
+          }
+        }
         if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && PORT_SIDES.some(side => footprint?.canScroll(side))) {
           keyboardPortSide = event.key === 'ArrowLeft' ? 'left' : 'right';
           event.preventDefault();
@@ -1737,12 +1970,12 @@ function initialize(): boolean {
     };
     document.addEventListener('keydown', onKeyDown);
     if (localMode) stageHost.addEventListener('focus', () => {
-      if (restoreCardFocus) return;
+      if (restoreCardFocus || socketGesture.isArmed) return;
       if (keyboardCardIndex < 0 && selectedNode) keyboardCardIndex = nodes.findIndex(({ id }) => id === selectedNode);
       if (keyboardCardIndex < 0) keyboardCardIndex = 0;
       const node = nodes[keyboardCardIndex];
       const card = node ? cardGroups.get(node.id) : undefined;
-      if (node && card) { setSelection({ nodeId: node.id }, 'keyboard'); refreshActiveCardDescription(); }
+      if (node && card) { setSelection({ nodeId: node.id, trace: trace.target }, 'keyboard'); refreshActiveCardDescription(); }
     });
     if (localMode) stageHost.addEventListener('blur', () => {
       keyboardCardId = undefined;
@@ -1760,6 +1993,7 @@ function initialize(): boolean {
     reset?.addEventListener('click', onReset);
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'hidden') return;
+      socketGesture.cancel();
       finishPortWheel();
       bindingChooser?.close(false);
       sessionLayoutWriter?.flush();
@@ -1768,6 +2002,7 @@ function initialize(): boolean {
       if (event.persisted) updateViewport(stageHost.getBoundingClientRect());
     };
     const onPageHide = (event: PageTransitionEvent) => {
+      socketGesture.cancel();
       finishPortWheel();
       bindingChooser?.close(false);
       sessionLayoutWriter?.flush();
@@ -1780,6 +2015,7 @@ function initialize(): boolean {
       observer.disconnect();
       edgeNavigation?.dispose();
       edgeNavigation = undefined;
+      removeSocketInput?.();
       stageHost.removeEventListener('wheel', preventNativeWheel);
       document.removeEventListener('keydown', onKeyDown);
       zoomOut?.removeEventListener('click', onZoomOut);
@@ -1790,6 +2026,7 @@ function initialize(): boolean {
       pageControls?.remove();
       pageButtons.length = 0;
       portIncidentEdges.clear();
+      portLabels.clear();
       footprintRowPools.clear();
       overflowRails.clear();
       socketRows.clear();
@@ -1805,6 +2042,7 @@ function initialize(): boolean {
       panOrigin = undefined;
       queuedCameraActions.length = 0;
       stage?.destroy();
+      tracePaint = undefined;
       stage = undefined;
     };
     if (localMode) {
@@ -1816,6 +2054,7 @@ function initialize(): boolean {
     if (failure && !localMode) failure.hidden = true;
     return true;
   } catch {
+    removeSocketInput?.();
     edgeNavigation?.dispose();
     edgeNavigation = undefined;
     bindingChooser?.destroy();
@@ -2103,12 +2342,6 @@ export async function createLocalRenderer(shell: TopologyStartupShell) {
       patch(batch) {
         if (live) {
           const cardCount = nodes.length;
-          if (batch.localSnapshot) {
-            // This is a names-only delta. Bindings and wires arrive through
-            // the same result path as any other owner inspection below.
-            live.applyLocalInventory(batch.localSnapshot, localSceneChanges(new Set(), new Set()));
-            cardLayer?.batchDraw();
-          }
           applyEnrichment(batch, live);
           if (nodes.length > cardCount) markPlacementDirty();
           lastPatchedBatch = batch;

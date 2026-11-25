@@ -3,7 +3,20 @@ import type { OverflowDirection, TakeoffRole } from './card-footprint';
 
 export const BINDINGS_PER_PAGE = 8;
 
-export interface BindingChoice { id: string; label: string }
+export interface BindingChoice {
+  id: string;
+  /** Human-facing kind; synthetic edges deliberately remain untyped. */
+  kind?: 'action' | 'event';
+  from: BindingChoiceEndpoint;
+  to: BindingChoiceEndpoint;
+  accessibleName: string;
+}
+export interface BindingChoiceEndpoint {
+  nodeName: string;
+  endpointName: string;
+  locality?: 'local' | 'remote';
+  owner: boolean;
+}
 type OverflowScope = { side?: PortSide; direction?: OverflowDirection; role?: TakeoffRole };
 export interface ChooserContext extends OverflowScope { nodeId: string }
 
@@ -36,21 +49,34 @@ export function bindingChoices(
     if (!from && !to) continue;
     const start = port(edge.from);
     const end = port(edge.to);
-    const direction = edge.selfLoop ? 'Self connection' : from ? 'Outgoing' : 'Incoming';
-    const peer = nodes.get((from ? edge.to : edge.from).nodeId)?.name ?? '';
-    const owner = edge.ownerId ? nodes.get(edge.ownerId)?.name : undefined;
-    const alias = edge.bindingAlias ?? (edge.bindingKind === 'event' ? end?.label : start?.label);
-    const endpoint = edge.bindingKind === 'event' ? start?.label : end?.label;
-    const endpointNode = nodes.get((edge.bindingKind === 'event' ? edge.from : edge.to).nodeId)?.name;
-    choices.push({ id: edge.id, label: [
-      `${direction} ${edge.bindingKind ?? 'binding'}`,
-      from && to ? `Ports: ${start?.label ?? ''} → ${end?.label ?? ''}` : `Port: ${(from ? start : end)?.label ?? ''}`,
-      alias === undefined ? '' : `Alias: ${alias}${owner ? ` (owner: ${owner})` : ''}`,
-      endpoint === undefined ? '' : `Endpoint: ${endpoint}${endpointNode ? ` (${endpointNode})` : ''}`,
-      peer ? `Peer: ${peer}` : ''
-    ].filter(Boolean).join(' · ') });
+    const endpoint = (reference: FixtureEdge['from'], item: FixturePort | undefined): BindingChoiceEndpoint => {
+      const node = nodes.get(reference.nodeId);
+      const locality = item?.localKind?.startsWith('remote-') ? 'remote'
+        : item?.localKind?.startsWith('local-') ? 'local' : undefined;
+      // The alias is meaningful on the remote side only. Keep ordinary port
+      // names intact and never infer an owner for synthetic/untyped edges.
+      const endpointName = locality === 'remote' && edge.bindingAlias !== undefined
+        ? edge.bindingAlias : item?.label ?? reference.portId;
+      return {
+        nodeName: node?.name ?? reference.nodeId,
+        endpointName,
+        ...(locality ? { locality } : {}),
+        owner: Boolean(locality === 'remote' && edge.ownerId && reference.nodeId === edge.ownerId)
+      };
+    };
+    const source = endpoint(edge.from, start);
+    const destination = endpoint(edge.to, end);
+    const kindName = edge.bindingKind === 'action' ? 'Action call' : edge.bindingKind === 'event' ? 'Event delivery' : 'Binding';
+    const endpointName = (value: BindingChoiceEndpoint) => `${value.nodeName}, ${value.endpointName}${value.owner ? ', Owner' : ''}`;
+    choices.push({
+      id: edge.id,
+      ...(edge.bindingKind ? { kind: edge.bindingKind } : {}),
+      from: source,
+      to: destination,
+      accessibleName: `${kindName}: ${endpointName(source)} to ${endpointName(destination)}`
+    });
   }
-  return choices.sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return choices.sort((a, b) => a.accessibleName < b.accessibleName ? -1 : a.accessibleName > b.accessibleName ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 
 interface ChooserModel {
@@ -75,6 +101,7 @@ interface ChooserActions {
 export class BindingChooser {
   private readonly panel = document.createElement('section');
   private readonly heading = document.createElement('h2');
+  private readonly nodeName = document.createElement('p');
   private readonly status = document.createElement('p');
   private readonly list = document.createElement('ol');
   private readonly scopes = document.createElement('div');
@@ -103,11 +130,15 @@ export class BindingChooser {
     this.panel.className = 'canvas-binding-chooser';
     this.panel.id = 'topology-binding-chooser';
     this.panel.setAttribute('role', 'dialog');
-    this.panel.setAttribute('aria-labelledby', 'topology-binding-heading');
+    this.panel.setAttribute('aria-labelledby', 'topology-binding-heading topology-binding-node-name');
     this.panel.setAttribute('aria-describedby', 'topology-binding-count');
     this.heading.id = 'topology-binding-heading';
+    this.heading.textContent = 'Connection details';
     this.heading.tabIndex = -1;
+    this.nodeName.className = 'canvas-binding-node-name';
+    this.nodeName.id = 'topology-binding-node-name';
     this.status.id = 'topology-binding-count';
+    this.pageText.id = 'topology-binding-page';
     this.pageText.setAttribute('aria-live', 'polite');
     this.feedback.setAttribute('role', 'status');
     this.scopes.className = 'canvas-binding-actions';
@@ -117,7 +148,7 @@ export class BindingChooser {
     const actionsRow = document.createElement('div');
     actionsRow.className = 'canvas-binding-actions';
     actionsRow.append(this.expand, this.compact, this.dismiss);
-    this.panel.append(this.heading, this.status, this.scopes, this.list, this.pagination, this.feedback, actionsRow);
+    this.panel.append(this.heading, this.nodeName, this.status, this.scopes, this.list, this.pagination, this.feedback, actionsRow);
     this.panel.addEventListener('keydown', this.keyDown);
     this.panel.addEventListener('focusout', this.focusOut);
     host.append(this.panel);
@@ -135,23 +166,25 @@ export class BindingChooser {
     this.context = context;
     this.page = 0;
     this.feedback.textContent = '';
-    this.refresh();
+    this.refresh(false);
     if (!this.context) return;
     this.panel.hidden = false;
     this.heading.focus({ preventScroll: true });
     document.addEventListener('pointerdown', this.outsidePointer);
   }
 
-  refresh(): void {
+  refresh(preserveFocusedBinding = true): void {
     if (!this.context) return;
     const model = this.actions.read(this.context);
     if (!model) { this.close(false); return; }
     const { name, choices, overflowPorts, canExpand, canCompact } = model;
     const { side, direction, role } = this.context;
     const scope = side ? `${side} overflow${direction ? ` ${direction}` : ''}${role ? ` · ${role === 'alias' ? 'remote aliases' : 'local endpoints'}` : ''}` : 'ports and bindings';
-    this.heading.textContent = `${name} — ${scope}`;
+    this.nodeName.textContent = name;
     const count = `${choices.length} ${choices.length === 1 ? 'binding' : 'bindings'}`;
-    this.status.textContent = overflowPorts === undefined ? count : `${overflowPorts} hidden ${overflowPorts === 1 ? 'port' : 'ports'} · ${count}`;
+    this.status.textContent = overflowPorts === undefined
+      ? `${scope} · ${count}`
+      : `${scope} · ${overflowPorts} hidden ${overflowPorts === 1 ? 'port' : 'ports'} · ${count}`;
     for (const [button, side] of [[this.left, 'left'], [this.right, 'right']] as const) {
       const hidden = model.overflowBySide[side];
       button.hidden = hidden === 0;
@@ -173,22 +206,79 @@ export class BindingChooser {
     }
     this.scopes.hidden = !this.context.side && !model.overflowBySide.left && !model.overflowBySide.right;
     this.all.setAttribute('aria-pressed', String(this.context.side === undefined));
-    this.pageCount = Math.ceil(choices.length / BINDINGS_PER_PAGE);
-    this.page = Math.min(this.page, Math.max(0, this.pageCount - 1));
-    const start = this.page * BINDINGS_PER_PAGE;
-    const page = choices.slice(start, start + BINDINGS_PER_PAGE);
     const active = document.activeElement as HTMLElement | null;
     const focusWire = active?.dataset.bindingId;
-    if (page.length !== this.rendered.length || page.some((item, index) => item.id !== this.rendered[index]?.id || item.label !== this.rendered[index]?.label)) {
+    this.pageCount = Math.ceil(choices.length / BINDINGS_PER_PAGE);
+    this.page = Math.min(this.page, Math.max(0, this.pageCount - 1));
+    if (preserveFocusedBinding && focusWire) {
+      const focusedIndex = choices.findIndex(choice => choice.id === focusWire);
+      if (focusedIndex >= 0) this.page = Math.floor(focusedIndex / BINDINGS_PER_PAGE);
+    }
+    const start = this.page * BINDINGS_PER_PAGE;
+    const page = choices.slice(start, start + BINDINGS_PER_PAGE);
+    if (page.length !== this.rendered.length || page.some((item, index) => {
+      const previous = this.rendered[index];
+      return item.id !== previous?.id || item.kind !== previous?.kind || item.accessibleName !== previous?.accessibleName ||
+        item.from.nodeName !== previous?.from.nodeName || item.from.endpointName !== previous?.from.endpointName ||
+        item.from.locality !== previous?.from.locality || item.from.owner !== previous?.from.owner ||
+        item.to.nodeName !== previous?.to.nodeName || item.to.endpointName !== previous?.to.endpointName ||
+        item.to.locality !== previous?.to.locality || item.to.owner !== previous?.to.owner;
+    })) {
       this.rendered = page;
-      this.list.replaceChildren(...page.map(({ id, label }) => {
+      this.list.replaceChildren(...page.map((choice) => {
         const item = document.createElement('li');
-        const button = this.button(label, () => {
+        const button = this.button('', () => {
           if (!this.context) return;
-          this.actions.select(this.context, id);
+          this.actions.select(this.context, choice.id);
           this.close();
         });
-        button.dataset.bindingId = id;
+        button.dataset.bindingId = choice.id;
+        button.setAttribute('aria-label', choice.accessibleName);
+        if (!choice.kind) button.classList.add('canvas-binding-untyped');
+        else {
+          const type = document.createElement('span');
+          type.className = `canvas-binding-kind canvas-binding-kind-${choice.kind}`;
+          type.textContent = choice.kind === 'action' ? 'Action call' : 'Event delivery';
+          button.append(type);
+        }
+        const flow = document.createElement('span');
+        flow.className = 'canvas-binding-flow';
+        for (const [index, endpoint] of [choice.from, choice.to].entries()) {
+          if (index) {
+            const arrow = document.createElement('span');
+            arrow.className = 'canvas-binding-arrow';
+            arrow.setAttribute('aria-hidden', 'true');
+            arrow.textContent = '→';
+            flow.append(arrow);
+          }
+          const line = document.createElement('span');
+          line.className = 'canvas-binding-endpoint';
+          if (endpoint.locality) {
+            const symbol = document.createElement('span');
+            symbol.className = `canvas-binding-symbol canvas-binding-symbol-${endpoint.locality}`;
+            symbol.setAttribute('aria-hidden', 'true');
+            symbol.textContent = endpoint.locality === 'remote' ? '○' : '●';
+            line.append(symbol);
+          }
+          const names = document.createElement('span');
+          names.className = 'canvas-binding-names';
+          const node = document.createElement('span');
+          node.className = 'canvas-binding-endpoint-node';
+          node.textContent = endpoint.nodeName;
+          const port = document.createElement('span');
+          port.className = 'canvas-binding-endpoint-name';
+          port.textContent = endpoint.endpointName;
+          names.append(node, port);
+          line.append(names);
+          if (endpoint.owner) {
+            const owner = document.createElement('span');
+            owner.className = 'canvas-binding-owner';
+            owner.textContent = 'Owner';
+            line.append(owner);
+          }
+          flow.append(line);
+        }
+        button.append(flow);
         item.append(button);
         return item;
       }));
@@ -250,7 +340,7 @@ export class BindingChooser {
     const next = this.page + delta;
     if (next < 0 || next >= this.pageCount) return;
     this.page = next;
-    this.refresh();
+    this.refresh(false);
     (this.list.querySelector('button') ?? this.heading).focus();
   }
 

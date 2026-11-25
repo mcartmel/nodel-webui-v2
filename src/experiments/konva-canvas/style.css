@@ -14,6 +14,7 @@
   --nodel-topology-action-strong: 29 78 216;
   --nodel-topology-event: 13 148 136;
   --nodel-topology-event-strong: 15 118 110;
+  --nodel-topology-selection: #b45309;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -34,6 +35,12 @@
   --nodel-topology-action-strong: 147 197 253;
   --nodel-topology-event: 45 212 191;
   --nodel-topology-event-strong: 94 234 212;
+  --nodel-topology-selection: #fbbf24;
+}
+
+@media (forced-colors: active) {
+  :root, :root[data-theme] { --nodel-topology-selection: Highlight; }
+  .canvas-stage:focus-visible { outline-color: Highlight; }
 }
 
 * { box-sizing: border-box; }

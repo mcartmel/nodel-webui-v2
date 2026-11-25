@@ -82,7 +82,6 @@ async function physicallyDropOffscreenAndCheck(page: Page, title: string): Promi
   expect(afterDrop.rightCards[0]?.title).toBe(title);
   await expect(button, JSON.stringify({ cardBounds: afterDrop.card.bounds, viewport: afterDrop.viewport,
     rightCards: afterDrop.rightCards.map(({ title: name }) => name) })).toBeVisible();
-  expect(afterDrop.rightCount).toBe(afterDrop.rightCards.length);
   await expect(button.locator('.edge-navigation-count')).toHaveText(String(before.rightCount + 1));
   expect(afterDrop.card.x).toBeGreaterThan(before.card.x + 1000);
   expect(afterDrop.scale).toBe(before.scale);

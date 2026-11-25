@@ -1,21 +1,21 @@
 {
-  "initialMountFirstActualKonvaDrawAtMs": 3033.8,
+  "initialMountFirstActualKonvaDrawAtMs": 3031.3,
   "firstOwner": {
     "name": "Alpha",
-    "completionToVisibleKonvaDrawMs": 25.5,
+    "completionToVisibleKonvaDrawMs": 20.3,
     "drawMethod": "fill"
   },
   "secondOwner": {
     "name": "Beta",
-    "completionToVisibleKonvaDrawMs": 14.8,
+    "completionToVisibleKonvaDrawMs": 20.7,
     "drawMethod": "stroke"
   },
   "responseOrder": [
     "Alpha",
     "Beta"
   ],
-  "initialMountedShapes": 37,
-  "retainedExistingShapes": 37,
+  "initialMountedShapes": 38,
+  "retainedExistingShapes": 38,
   "touchedExistingShapes": 7,
   "insertedShapes": 19
 }

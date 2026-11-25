@@ -63,7 +63,7 @@ async function readControllerSelfLoop(page: Page): Promise<SelfLoopScene> {
       stroke(): string;
       find(selector: string): NativeNode[];
       getAbsolutePosition(top?: NativeNode): { x: number; y: number };
-      getSceneFunc(): (context: {
+      getHitFunc(): (context: {
         beginPath(): void;
         moveTo(x: number, y: number): void;
         bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void;
@@ -71,6 +71,8 @@ async function readControllerSelfLoop(page: Page): Promise<SelfLoopScene> {
         closePath(): void;
         stroke(): void;
         fill(): void;
+        strokeShape(shape: NativeNode): void;
+        fillShape(shape: NativeNode): void;
         strokeStyle: string;
         fillStyle: string;
         lineWidth: number;
@@ -127,7 +129,7 @@ async function readControllerSelfLoop(page: Page): Promise<SelfLoopScene> {
         lineTo() {}, closePath() {}, fill() {},
         stroke() { if (current?.control1 && current.control2 && current.end) curves.push({ ...current, strokeStyle: this.strokeStyle }); current = undefined; }
       };
-      wire.getSceneFunc().call(wire, context, wire);
+      wire.getHitFunc().call(wire, { ...context, strokeShape(shape: NativeNode) { context.strokeStyle = shape.stroke(); context.stroke(); }, fillShape() { context.fill(); } }, wire);
       const geometry = [...new Map(curves.map((curve) => [`${curve.start.x},${curve.start.y}:${curve.end?.x},${curve.end?.y}`, curve])).values()];
       paths.push({ id: wire.id(), curves: geometry });
     }
@@ -568,12 +570,12 @@ async function findWireHit(page: Page, endpointNames: [string, string]) {
     type Point = { x: number; y: number };
     type Curve = { start: Point; control1: Point; control2: Point; end: Point };
     type Shape = {
-      id(): string; name(): string; text(): string; fill(): string; stroke(): string;
+      id(): string; name(): string; text(): string; fill(): string; stroke(): string; getAttr(name: string): unknown;
       find(selector: string): Shape[]; getAbsolutePosition(top?: Shape): Point;
-      getSceneFunc(): (context: {
+      getHitFunc(): (context: {
         beginPath(): void; moveTo(x: number, y: number): void;
         bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
-        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void;
+        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; strokeShape(shape: Shape): void; fillShape(shape: Shape): void;
         strokeStyle: string; fillStyle: string; lineWidth: number;
       }, shape: Shape) => void;
     };
@@ -608,7 +610,7 @@ async function findWireHit(page: Page, endpointNames: [string, string]) {
         lineTo() {}, closePath() {}, fill() {},
         stroke() { if (current?.start && current.control1 && current.control2 && current.end) curves.push(current as Curve); current = undefined; }
       };
-      wire.getSceneFunc().call(wire, context, wire);
+      wire.getHitFunc().call(wire, { ...context, strokeShape() { context.stroke(); }, fillShape() { context.fill(); } }, wire);
       if (curves.length === 0) continue;
       const first = nearest(curves[0]!.start);
       const last = nearest(curves.at(-1)!.end);
@@ -625,14 +627,14 @@ async function findWireHit(page: Page, endpointNames: [string, string]) {
         const hit = stage.getIntersection(viewportPoint);
         if (hit?.id() !== wire.id()) continue;
         const rect = stage.getContent().getBoundingClientRect();
-        const strong = getComputedStyle(document.documentElement).getPropertyValue('--nodel-topology-action-strong').trim() || '29 78 216';
+        const actionTokens = getComputedStyle(document.documentElement).getPropertyValue('--nodel-topology-action').trim() || '37 99 235';
         return {
           wireId: wire.id(),
           hitId: hit.id(),
           screen: { x: rect.left + viewportPoint.x, y: rect.top + viewportPoint.y },
-          source: { owner: first.owner, socketId: first.shape.id(), fill: first.shape.fill(), stroke: first.shape.stroke() },
-          target: { owner: last.owner, socketId: last.shape.id(), fill: last.shape.fill(), stroke: last.shape.stroke() },
-          selectedStroke: `rgb(${strong})`
+        source: { owner: first.owner, socketId: first.shape.id(), fill: first.shape.fill(), stroke: first.shape.stroke(), connectionSelected: Boolean(first.shape.getAttr('connectionSelected')) },
+        target: { owner: last.owner, socketId: last.shape.id(), fill: last.shape.fill(), stroke: last.shape.stroke(), connectionSelected: Boolean(last.shape.getAttr('connectionSelected')) },
+        selectedStroke: `rgb(${actionTokens})`
         };
       }
     }
@@ -2230,12 +2232,12 @@ test('local mode uses only scoped GETs, renders local/reference cards and wires,
   expect(afterWireSelection.equals(beforeWireSelection), 'physical wire click changes selected wire and socket rendering').toBe(false);
   const selectedLoop = await readControllerSelfLoop(page);
   expect(selectedLoop.edgeId).toBe(movedLoop.edgeId);
-  expect(selectedLoop.curves.every((curve) => curve.strokeStyle === selectedLoop.actionStrong)).toBe(true);
+  expect(selectedLoop.curves.every((curve) => curve.strokeStyle === selectedLoop.action)).toBe(true);
   expect(selectedLoop.fromSocket.fill).toBe('rgb(255 255 255)');
-  expect(selectedLoop.fromSocket.stroke).toBe(selectedLoop.actionStrong);
-  expect(selectedLoop.toSocket.fill).toBe(selectedLoop.actionStrong);
-  expect(selectedLoop.toSocket.stroke).toBe(selectedLoop.actionStrong);
-  expect(selectedLoop.otherSocket.fill).not.toBe(selectedLoop.actionStrong);
+  expect(selectedLoop.fromSocket.stroke).toBe(selectedLoop.action);
+  expect(selectedLoop.toSocket.fill).toBe(selectedLoop.action);
+  expect(selectedLoop.toSocket.stroke).toBe(selectedLoop.action);
+  expect(selectedLoop.otherSocket.fill).not.toBe(selectedLoop.action);
   expect(requests).toHaveLength(6);
 });
 
@@ -2257,11 +2259,11 @@ test('physical wire selection keeps a shared socket highlighted through theme an
     // Konva schedules hit-canvas redraws after a camera or selection change.
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     type Point = { x: number; y: number };
-    type PathContext = Pick<CanvasRenderingContext2D, 'beginPath' | 'moveTo' | 'bezierCurveTo' | 'lineTo' | 'closePath' | 'stroke' | 'fill' | 'strokeStyle'>;
+    type PathContext = Pick<CanvasRenderingContext2D, 'beginPath' | 'moveTo' | 'bezierCurveTo' | 'lineTo' | 'closePath' | 'stroke' | 'fill' | 'strokeStyle'> & { strokeShape(shape: Shape): void; fillShape(shape: Shape): void };
     type Shape = {
       id(): string; name(): string; text(): string; fill(): string; stroke(): string;
       find(selector: string): Shape[]; getAbsolutePosition(top: Shape): Point;
-      getSceneFunc(): (context: PathContext, shape: Shape) => void;
+      getHitFunc(): (context: PathContext, shape: Shape) => void;
     };
     type Stage = Shape & {
       getContent(): HTMLElement; getIntersection(point: Point): Shape | null;
@@ -2275,7 +2277,7 @@ test('physical wire selection keeps a shared socket highlighted through theme an
       const sockets = card?.find('Circle').filter((circle) => circle.name().startsWith('socket-'));
       if (sockets?.length !== 1) throw new Error(`Expected one socket on ${title}`);
       const terminal = sockets[0]!;
-      return { point: terminal.getAbsolutePosition(stage), paint: { fill: terminal.fill(), stroke: terminal.stroke() } };
+      return { point: terminal.getAbsolutePosition(stage), paint: { fill: terminal.fill(), stroke: terminal.stroke(), connectionSelected: Boolean(terminal.getAttr('connectionSelected')) } };
     };
     const alpha = socket('Alpha');
     const bravo = socket('Bravo');
@@ -2290,9 +2292,9 @@ test('physical wire selection keeps a shared socket highlighted through theme an
         bezierCurveTo(a, b, c, d, x, y) {
           curves.push({ start, end: { x, y }, midpoint: { x: (start.x + 3 * a + 3 * c + x) / 8, y: (start.y + 3 * b + 3 * d + y) / 8 } });
         },
-        beginPath() {}, lineTo() {}, closePath() {}, stroke() {}, fill() {}
+        beginPath() {}, lineTo() {}, closePath() {}, stroke() {}, fill() {}, strokeShape() {}, fillShape() {}
       };
-      wire.getSceneFunc().call(wire, context, wire);
+       wire.getHitFunc().call(wire, context, wire);
       const geometry = [...new Map(curves.map((curve) => [`${curve.start.x},${curve.start.y}:${curve.end.x},${curve.end.y}`, curve])).values()];
       const curve = geometry[0];
       if (geometry.length !== 1 || !curve) throw new Error('Expected one direct curve per shared-socket wire');
@@ -2303,7 +2305,7 @@ test('physical wire selection keeps a shared socket highlighted through theme an
         hit: stage.getIntersection(point)?.id(),
         click: { x: bounds.left + point.x * bounds.width / stage.width(), y: bounds.top + point.y * bounds.height / stage.height() },
         // The custom scene function paints the selection, not the shape's stroke attribute.
-        stroke: context.strokeStyle
+        stroke: wire.stroke()
       };
     });
     const samePoint = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y) < 0.1;
@@ -2326,17 +2328,13 @@ test('physical wire selection keeps a shared socket highlighted through theme an
   });
 
   const assertSelection = (scene: Awaited<ReturnType<typeof inspect>>, selected?: 'alpha' | 'bravo') => {
-    const socketPaint = (active: boolean) => ({
-      fill: scene.surface,
-      stroke: active ? scene.actionStrong : scene.action
-    });
+    const socketPaint = (active: boolean) => ({ fill: scene.surface, stroke: scene.action, connectionSelected: active });
     for (const key of ['alpha', 'bravo'] as const) {
-      expect(scene.wires[key].stroke, `${key} wire paint`).toBe(selected === key ? scene.actionStrong : scene.action);
+      expect(scene.wires[key].stroke, `${key} wire core paint`).toBe(scene.action);
       expect(scene.sockets[key], `${key} private socket paint`).toEqual(socketPaint(selected === key));
     }
     expect(scene.sockets.shared, 'shared Receiver local-action socket paint').toEqual({
-      fill: selected !== undefined ? scene.actionStrong : scene.action,
-      stroke: selected !== undefined ? scene.actionStrong : scene.action
+      fill: scene.action, stroke: scene.action, connectionSelected: selected !== undefined
     });
   };
 
@@ -2605,9 +2603,9 @@ test('reciprocal actions with shared display name keep typed endpoints through p
       id(): string; name(): string; x(): number; y(): number; width(): number; height(): number; text(): string; align(): string;
       getAttr(name: string): unknown;
       fill(): string; stroke(): string; getAbsolutePosition(top?: Shape): Pt; find(selector: string): Shape[];
-      getSceneFunc(): (context: {
+      getHitFunc(): (context: {
         beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
-        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillStyle: string; strokeStyle: string; lineWidth: number;
+        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillShape(shape: Shape): void; strokeShape(shape: Shape): void; fillStyle: string; strokeStyle: string; lineWidth: number;
       }, shape: Shape) => void;
     };
     type Stage = Shape & {
@@ -2652,9 +2650,10 @@ test('reciprocal actions with shared display name keep typed endpoints through p
         lineTo(x: number, y: number) { lines.push({ x, y }); },
         closePath() {},
         stroke() { if (start && control1 && control2 && end) curves.push({ start, control1, control2, end }); },
-        fill() { if (move && lines.length === 2) arrow = [move, ...lines]; }
+        fill() { if (move && lines.length === 2) arrow = [move, ...lines]; },
+        fillShape() { if (move && lines.length === 2) arrow = [move, ...lines]; }, strokeShape() { if (start && control1 && control2 && end) curves.push({ start, control1, control2, end }); }
       };
-      wire.getSceneFunc().call(wire, context, wire);
+      wire.getHitFunc().call(wire, context, wire);
       const bezier = (curve: typeof curves[number], t: number): Pt => {
         const u = 1 - t;
         return {
@@ -2664,7 +2663,7 @@ test('reciprocal actions with shared display name keep typed endpoints through p
       };
       const hitPoint = curves.flatMap((curve) => [0.25, 0.5, 0.75].map((t) => bezier(curve, t)))
         .find((point) => stage.getIntersection({ x: stage.x() + point.x * stage.scaleX(), y: stage.y() + point.y * stage.scaleY() })?.id() === wire.id());
-      candidates.push({ id: wire.id(), curves, ...(arrow ? { arrow } : {}), color: context.strokeStyle, ...(hitPoint ? { hitPoint } : {}) });
+      candidates.push({ id: wire.id(), curves, ...(arrow ? { arrow } : {}), color: wire.stroke(), ...(hitPoint ? { hitPoint } : {}) });
     }
     const byTerminals = (from: Pt, to: Pt) => {
       const match = candidates.find((candidate) => candidate.curves.length > 0
@@ -2933,13 +2932,13 @@ test('reciprocal actions with shared display name keep typed endpoints through p
     const selected = await inspect();
     visibilitySamples.push(selected);
     expect(selected.bindingKind).toBe('action');
-    expect(selected.wires[key].color).toBe(selected.colors.actionStrong);
+    expect(selected.wires[key].color).toBe(selected.colors.action);
     expect(selected.wires[other].color).toBe(selected.colors.action);
     for (const endpoint of ['source', 'target'] as const) {
       const selectedSocket = selected.wires[key][endpoint].socket;
       const otherSocket = selected.wires[other][endpoint].socket;
-      expect(selectedSocket.stroke).toBe(selected.colors.actionStrong);
-      expect(selectedSocket.fill).toBe(endpoint === 'target' ? selected.colors.actionStrong : selected.colors.surface);
+      expect(selectedSocket.stroke).toBe(selected.colors.action);
+      expect(selectedSocket.fill).toBe(endpoint === 'target' ? selected.colors.action : selected.colors.surface);
       expect(otherSocket.stroke).toBe(selected.colors.action);
       expect(otherSocket.fill).toBe(endpoint === 'target' ? selected.colors.action : selected.colors.surface);
     }
@@ -2982,18 +2981,18 @@ test('event subscribers select only their exact typed binding through real expos
   await expect(page.locator('.canvas-stage canvas')).toHaveCount(2);
 
   type Point = { x: number; y: number };
-  type Endpoint = { node: string; port: string; kind: string; side: 'left' | 'right'; point: Point; fill: string; stroke: string };
+  type Endpoint = { node: string; port: string; kind: string; side: 'left' | 'right'; point: Point; fill: string; stroke: string; connectionSelected: boolean };
   type Curve = { start: Point; control1: Point; control2: Point; end: Point };
   type Wire = { id: string; kind: string; owner: string; from: Endpoint; to: Endpoint; color: string; width: number; curves: Curve[]; painted?: number[]; candidates?: Point[]; click?: Point; hit?: string };
   type Scene = { wires: Record<'upstream' | 'preset' | 'switch', Wire>; sockets: Endpoint[]; cardIds: Record<string, string>; example1Bounds: { x: number; y: number; right: number; bottom: number }; example1Header: Point; colors: { event: string; strong: string; surface: string } };
   const inspect = (probeHits = false): Promise<Scene> => page.evaluate((probe) => {
     type Pt = { x: number; y: number };
     type Shape = {
-      id(): string; name(): string; x(): number; y(): number; text(): string; align(): string; fill(): string; stroke(): string; getAttr(name: string): unknown;
+       id(): string; name(): string; x(): number; y(): number; text(): string; align(): string; fill(): string; stroke(): string; strokeWidth(): number; getAttr(name: string): unknown;
       getAbsolutePosition(top?: Shape): Pt; find(selector: string): Shape[];
-      getSceneFunc(): (context: {
-        beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
-        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillStyle: string; strokeStyle: string; lineWidth: number;
+       getHitFunc(): (context: {
+         beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
+         lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillStyle: string; strokeStyle: string; lineWidth: number; strokeShape(shape: Shape): void; fillShape(shape: Shape): void;
       }, shape: Shape) => void;
     };
     type Stage = Shape & {
@@ -3020,7 +3019,7 @@ test('event subscribers select only their exact typed binding through real expos
         const side = socket.x() === 0 ? 'left' : 'right';
         const label = labels.find((text) => text.align() === side && Math.abs(text.y() + 7 - socket.y()) < 0.1);
         return { node: owner, port: label?.text() ?? '<unlabelled>', kind: String(socket.getAttr('localKind') ?? ''), side,
-          point: socket.getAbsolutePosition(stage), fill: socket.fill(), stroke: socket.stroke() };
+           point: socket.getAbsolutePosition(stage), fill: socket.fill(), stroke: socket.stroke(), connectionSelected: Boolean(socket.getAttr('connectionSelected')) };
       });
     });
     const distance = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -3046,9 +3045,10 @@ test('event subscribers select only their exact typed binding through real expos
         moveTo(x: number, y: number) { start = { x, y }; },
         bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number) { if (start) curves.push({ start, control1: { x: a, y: b }, control2: { x: c, y: d }, end: { x, y } }); },
         lineTo() {}, closePath() {}, fill() {},
-        stroke() { color = this.strokeStyle; width = this.lineWidth; }
+        stroke() { color = wire.stroke(); width = wire.strokeWidth(); },
+        strokeShape() { color = wire.stroke(); width = wire.strokeWidth(); }, fillShape() {}
       };
-      wire.getSceneFunc().call(wire, context, wire);
+      wire.getHitFunc().call(wire, context, wire);
       if (curves.length === 0) throw new Error(`Event wire ${wire.id()} rendered no curves`);
       const candidates = curves.flatMap((curve) => [0.2, 0.4, 0.6, 0.8].map((t) => {
         const u = 1 - t;
@@ -3176,8 +3176,8 @@ test('event subscribers select only their exact typed binding through real expos
   const assertSelection = (scene: Scene, selected?: keyof Scene['wires']) => {
     const selectedWire = selected ? scene.wires[selected] : undefined;
     for (const [key, wire] of Object.entries(scene.wires) as Array<[keyof Scene['wires'], Wire]>) {
-      expect(wire.color, `${key} wire hue`).toBe(key === selected ? scene.colors.strong : scene.colors.event);
-      expect(wire.width, `${key} stroke width`).toBe(key === selected ? 3.2 : 1.6);
+      expect(wire.color, `${key} core wire hue`).toBe(scene.colors.event);
+      expect(wire.width, `${key} core stroke width`).toBe(1.6);
     }
     const activeSocketIds = new Set(selectedWire ? [
       `${selectedWire.from.node}.${selectedWire.from.port}`,
@@ -3185,14 +3185,13 @@ test('event subscribers select only their exact typed binding through real expos
     ] : []);
     for (const socket of scene.sockets) {
       const active = activeSocketIds.has(`${socket.node}.${socket.port}`);
-      expect(socket.stroke, `${socket.node}.${socket.port} stroke`).toBe(active ? scene.colors.strong : scene.colors.event);
-      expect(socket.fill, `${socket.node}.${socket.port} endpoint role`).toBe(socket.kind === 'local-event'
-        ? active ? scene.colors.strong : scene.colors.event
-        : scene.colors.surface);
+      expect(socket.stroke, `${socket.node}.${socket.port} core stroke`).toBe(scene.colors.event);
+      expect(socket.connectionSelected, `${socket.node}.${socket.port} selection state`).toBe(active);
+      expect(socket.fill, `${socket.node}.${socket.port} endpoint role`).toBe(socket.kind === 'local-event' ? scene.colors.event : scene.colors.surface);
     }
     expect(scene.sockets.filter((socket) => activeSocketIds.has(`${socket.node}.${socket.port}`))).toHaveLength(selected ? 2 : 0);
     if (selected) {
-      expect(selectedWire?.from.fill).toBe(scene.colors.strong);
+      expect(selectedWire?.from.fill).toBe(scene.colors.event);
       expect(selectedWire?.to.fill).toBe(scene.colors.surface);
     }
   };
@@ -3204,7 +3203,7 @@ test('event subscribers select only their exact typed binding through real expos
     await page.mouse.click(wire.click.x, wire.click.y);
     await frame();
     const selected = await inspect();
-    expect(selected.wires[key].color, `${key} is the selected binding`).toBe(selected.colors.strong);
+    expect(selected.wires[key].color, `${key} retains its event core hue when selected`).toBe(selected.colors.event);
     assertSelection(selected, key);
     await page.screenshot({ path: resolve(artifactDir, `event-selected-${key}.png`), animations: 'disabled' });
   }
@@ -3264,15 +3263,15 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
     arrowColor: string;
     rail: { start: Point; end: Point; midpoint: Point; pixels: number; leftLeg: Point; rightLeg: Point };
   };
-  type Scene = { scale: number; accent: string; routes: Record<string, RouteScene>; socketStates: Record<string, { fill: string; stroke: string }> };
+   type Scene = { scale: number; accent: string; routes: Record<string, RouteScene>; socketStates: Record<string, { fill: string; stroke: string; connectionSelected: boolean }> };
   const inspect = (): Promise<Scene> => page.evaluate((returnSpecs): Scene => {
     type Pt = { x: number; y: number };
     type Shape = {
       id(): string; name(): string; x(): number; y(): number; width(): number; height(): number; text(): string; align(): string;
       fill(): string; stroke(): string; getAbsolutePosition(top?: Shape): Pt; find(selector: string): Shape[];
-      getSceneFunc(): (context: {
-        beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
-        lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillStyle: string; strokeStyle: string; lineWidth: number;
+       getHitFunc(): (context: {
+         beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void;
+         lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillShape(shape: Shape): void; strokeShape(shape: Shape): void; fillStyle: string; strokeStyle: string; lineWidth: number;
       }, shape: Shape) => void;
     };
     type Layer = { name(): string; getNativeCanvasElement(): HTMLCanvasElement };
@@ -3351,13 +3350,17 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
           bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number) {
             if (current) { current.control1 = { x: a, y: b }; current.control2 = { x: c, y: d }; current.end = { x, y }; }
           },
-           lineTo() {}, closePath() {}, fill() { arrowColor = this.fillStyle; },
-          stroke() {
-            color = this.strokeStyle;
+         lineTo() {}, closePath() {}, fill() { arrowColor = wire.stroke(); },
+         fillShape() { arrowColor = wire.stroke(); }, strokeShape() {
+           color = wire.stroke();
+           if (current?.control1 && current.control2 && current.end) curves.push({ ...current, control1: current.control1, control2: current.control2, end: current.end });
+         },
+         stroke() {
+           color = wire.stroke();
             if (current?.control1 && current.control2 && current.end) curves.push({ ...current, control1: current.control1, control2: current.control2, end: current.end });
           }
         };
-         wire.getSceneFunc().call(wire, context, wire);
+          wire.getHitFunc().call(wire, context, wire);
          if (curves.length && distance(curves[0]!.start, terminals.source.point) < 0.1 && distance(curves.at(-1)!.end, terminals.target.point) < 0.1) candidates.push({ wire, curves, color, arrowColor });
       }
       if (candidates.length !== 1 || used.has(candidates[0]!.wire.id())) throw new Error(`Expected exactly one unclaimed rendered wire for ${key}, got ${candidates.length}`);
@@ -3386,9 +3389,9 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
       };
       if (!painted) throw new Error(`The composited wire/card layers do not paint the ${key} rail midpoint`);
     }
-    const socketStates: Record<string, { fill: string; stroke: string }> = {};
-    for (const cardItem of cards) for (const socket of cardItem.find('Circle').filter((item) => item.name().startsWith('socket-'))) {
-      socketStates[socket.name()] = { fill: socket.fill(), stroke: socket.stroke() };
+     const socketStates: Record<string, { fill: string; stroke: string; connectionSelected: boolean }> = {};
+     for (const cardItem of cards) for (const socket of cardItem.find('Circle').filter((item) => item.name().startsWith('socket-'))) {
+       socketStates[socket.name()] = { fill: socket.fill(), stroke: socket.stroke(), connectionSelected: Boolean(socket.getAttr('connectionSelected')) };
     }
     return { scale: stage.scaleX(), accent, action, actionStrong, surface, routes, socketStates };
   }, returnSpecs);
@@ -3486,12 +3489,13 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
    await page.mouse.click(forward.rail.midpoint.x, forward.rail.midpoint.y);
    await frame();
    const selectedForward = await inspect();
-    expect(selectedForward.routes.forward!.color).toBe(selectedForward.actionStrong);
-    expect(selectedForward.routes.forward!.arrowColor).toBe(selectedForward.actionStrong);
+     expect(selectedForward.routes.forward!.color).toBe(selectedForward.action);
+     expect(selectedForward.routes.forward!.arrowColor).toBe(selectedForward.action);
     for (const endpoint of ['source', 'target'] as const) {
       const socket = selectedForward.routes.forward![endpoint].socket;
-      expect(selectedForward.socketStates[socket.id]!.fill).toBe(endpoint === 'target' ? selectedForward.actionStrong : selectedForward.surface);
-      expect(selectedForward.socketStates[socket.id]!.stroke).toBe(selectedForward.actionStrong);
+       expect(selectedForward.socketStates[socket.id]!.fill).toBe(endpoint === 'target' ? selectedForward.action : selectedForward.surface);
+       expect(selectedForward.socketStates[socket.id]!.stroke).toBe(selectedForward.action);
+       expect(selectedForward.socketStates[socket.id]!.connectionSelected).toBe(true);
     }
     for (const key of returns) {
       expect(selectedForward.routes[key]!.color).toBe(selectedForward.action);
@@ -3504,15 +3508,16 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
      await page.mouse.click(route.rail.midpoint.x, route.rail.midpoint.y);
     await frame();
     const selected = await inspect();
-     expect(selected.routes[key]!.color).toBe(selected.actionStrong);
+      expect(selected.routes[key]!.color).toBe(selected.action);
      for (const other of ['forward', ...returns].filter((candidate) => candidate !== key)) {
        expect(selected.routes[other]!.color, `${key} click does not select ${other}`).toBe(selected.action);
     }
     expect(selected.routes.forward!.curves, `${key} selection leaves reciprocal forward curve geometry unchanged`).toEqual(forwardBefore);
     for (const endpoint of ['source', 'target'] as const) {
       const activeSocket = selected.routes[key]![endpoint].socket;
-       expect(selected.socketStates[activeSocket.id]!.stroke).toBe(selected.actionStrong);
-       expect(selected.socketStates[activeSocket.id]!.fill).toBe(endpoint === 'target' ? selected.actionStrong : selected.surface);
+        expect(selected.socketStates[activeSocket.id]!.stroke).toBe(selected.action);
+        expect(selected.socketStates[activeSocket.id]!.fill).toBe(endpoint === 'target' ? selected.action : selected.surface);
+        expect(selected.socketStates[activeSocket.id]!.connectionSelected).toBe(true);
       for (const other of ['forward', ...returns].filter((candidate) => candidate !== key)) {
         for (const otherEndpoint of ['source', 'target'] as const) {
           const otherSocket = selected.routes[other]![otherEndpoint].socket;
@@ -3532,16 +3537,17 @@ for (const returnCount of [2, 3, 4]) test(`${returnCount} same-direction returns
      await page.mouse.click(route.rail[side].x, route.rail[side].y);
      await frame();
      const selected = await inspect();
-      expect(selected.routes[key]!.color, `${key} ${side} wire is selected by a physical click`).toBe(selected.actionStrong);
-      expect(selected.routes[key]!.arrowColor, `${key} ${side} arrowhead is selected`).toBe(selected.actionStrong);
+       expect(selected.routes[key]!.color, `${key} ${side} wire core retains action color`).toBe(selected.action);
+       expect(selected.routes[key]!.arrowColor, `${key} ${side} arrowhead retains action color`).toBe(selected.action);
       for (const other of ['forward', ...returns].filter((candidate) => candidate !== key)) {
         expect(selected.routes[other]!.color, `${key} ${side} click does not select ${other}`).toBe(selected.action);
         expect(selected.routes[other]!.arrowColor, `${key} ${side} click leaves ${other} arrow alone`).toBe(selected.action);
       }
       for (const endpoint of ['source', 'target'] as const) {
         const socket = selected.routes[key]![endpoint].socket;
-        expect(selected.socketStates[socket.id]!.fill).toBe(endpoint === 'target' ? selected.actionStrong : selected.surface);
-        expect(selected.socketStates[socket.id]!.stroke).toBe(selected.actionStrong);
+         expect(selected.socketStates[socket.id]!.fill).toBe(endpoint === 'target' ? selected.action : selected.surface);
+         expect(selected.socketStates[socket.id]!.stroke).toBe(selected.action);
+         expect(selected.socketStates[socket.id]!.connectionSelected).toBe(true);
      }
      await screenshot(`selected-${key}-${side}-vertical-leg`);
    }
@@ -3693,7 +3699,7 @@ test('Room Controller action and event aliases keep typed direction and paint th
     type Shape = {
       id(): string; name(): string; text(): string; align(): string; x(): number; y(): number; width(): number;
       fill(): string; stroke(): string; getAttr(name: string): unknown; getAbsolutePosition(top?: Shape): Point; find(selector: string): Shape[];
-      getSceneFunc(): (context: { beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void; lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; strokeStyle: string; fillStyle: string }, shape: Shape) => void;
+       getHitFunc(): (context: { beginPath(): void; moveTo(x: number, y: number): void; bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number): void; lineTo(x: number, y: number): void; closePath(): void; stroke(): void; fill(): void; fillShape(shape: Shape): void; strokeShape(shape: Shape): void; strokeStyle: string; fillStyle: string }, shape: Shape) => void;
     };
     type Point = { x: number; y: number };
     const stage = (window as Window & { Konva?: { stages?: Shape[] } }).Konva?.stages?.[0];
@@ -3719,13 +3725,14 @@ test('Room Controller action and event aliases keep typed direction and paint th
         beginPath() { arrowMove = undefined; arrowLines.length = 0; },
         moveTo(x: number, y: number) { start ??= { x, y }; arrowMove = { x, y }; },
         bezierCurveTo(a: number, b: number, c: number, d: number, x: number, y: number) { control1 = { x: a, y: b }; control2 = { x: c, y: d }; end = { x, y }; },
-        lineTo(x: number, y: number) { arrowLines.push({ x, y }); }, closePath() {}, stroke() {}, fill() {}
-      };
-      wire.getSceneFunc().call(wire, context, wire);
+         lineTo(x: number, y: number) { arrowLines.push({ x, y }); }, closePath() {}, stroke() {}, fill() {},
+         strokeShape() {}, fillShape() { arrowColor = wire.stroke(); }
+       };
+       wire.getHitFunc().call(wire, context, wire);
       if (!start || !control1 || !control2 || !end || !arrowMove || arrowLines.length !== 2) throw new Error('Wire path or arrowhead missing');
       const midpoint = { x: (start.x + 3 * control1.x + 3 * control2.x + end.x) / 8, y: (start.y + 3 * control1.y + 3 * control2.y + end.y) / 8 };
       const route = { id: wire.id(), ownerId: wire.getAttr('ownerId') as string, kind: wire.getAttr('bindingKind') as string, start, end,
-        midpoint, midpointClick: midpoint, arrow: { x: (arrowMove.x + arrowLines[0]!.x + arrowLines[1]!.x) / 3, y: (arrowMove.y + arrowLines[0]!.y + arrowLines[1]!.y) / 3 }, color: context.strokeStyle, arrowColor: context.fillStyle };
+         midpoint, midpointClick: midpoint, arrow: { x: (arrowMove.x + arrowLines[0]!.x + arrowLines[1]!.x) / 3, y: (arrowMove.y + arrowLines[0]!.y + arrowLines[1]!.y) / 3 }, color: wire.stroke(), arrowColor: wire.stroke() };
       return route;
     });
     const match = (source: Endpoint, target: Endpoint, owner: string, kind: string): Link => {
@@ -3785,10 +3792,10 @@ test('Room Controller action and event aliases keep typed direction and paint th
   }, { point: selectedEvent.arrow });
   await page.mouse.click(eventClick.x, eventClick.y);
   let selected = await inspect();
-  expect(selected.links.projectorEvent.color).toBe(selected.colors.eventStrong);
-  expect(selected.links.projectorEvent.arrowColor).toBe(selected.colors.eventStrong);
+  expect(selected.links.projectorEvent.color).toBe(selected.colors.event);
+  expect(selected.links.projectorEvent.arrowColor).toBe(selected.colors.event);
   expect(selected.links.projectorEvent.target.fill).toBe(selected.colors.surface);
-  expect(selected.links.projectorEvent.target.stroke).toBe(selected.colors.eventStrong);
+  expect(selected.links.projectorEvent.target.stroke).toBe(selected.colors.event);
   expect(selected.links.action.color).toBe(selected.colors.action);
   expect(selected.links.controllerEvent.color).toBe(selected.colors.event);
   await screenshots('dark-selected-projector-event');
@@ -3816,10 +3823,10 @@ test('Room Controller action and event aliases keep typed direction and paint th
   expect(selected.links.action.id).toBe(initial.links.action.id);
   expect(selected.links.controllerEvent.id).toBe(initial.links.controllerEvent.id);
   expect(selected.links.projectorEvent.id).toBe(initial.links.projectorEvent.id);
-  expect(selected.links.projectorEvent.color).toBe(selected.colors.eventStrong);
-  expect(selected.links.projectorEvent.arrowColor).toBe(selected.colors.eventStrong);
+  expect(selected.links.projectorEvent.color).toBe(selected.colors.event);
+  expect(selected.links.projectorEvent.arrowColor).toBe(selected.colors.event);
   expect(selected.links.projectorEvent.target.fill).toBe(selected.colors.surface);
-  expect(selected.links.projectorEvent.target.stroke).toBe(selected.colors.eventStrong);
+  expect(selected.links.projectorEvent.target.stroke).toBe(selected.colors.event);
   expect(selected.links.action.color).toBe(selected.colors.action);
   expect(selected.links.action.arrowColor).toBe(selected.colors.action);
   expect(selected.links.controllerEvent.color).toBe(selected.colors.event);
@@ -5099,12 +5106,8 @@ test('selected real wire survives enrichment under native pan and zoom', async (
     expect(selectedWire.wireId).toBe(unselectedWire.wireId);
     expect(selectedWire.source.stroke).toBe(selectedWire.selectedStroke);
     expect(selectedWire.target.stroke).toBe(selectedWire.selectedStroke);
-    expect(
-      selectedWire.source.fill !== unselectedWire.source.fill || selectedWire.source.stroke !== unselectedWire.source.stroke
-    ).toBe(true);
-    expect(
-      selectedWire.target.fill !== unselectedWire.target.fill || selectedWire.target.stroke !== unselectedWire.target.stroke
-    ).toBe(true);
+    expect(selectedWire.source.connectionSelected).toBe(true);
+    expect(selectedWire.target.connectionSelected).toBe(true);
 
     const sceneBeforePatch = await inspectKonvaScene(page, true);
     expect(sceneBeforePatch.cardPositions).toHaveProperty('Alpha');
@@ -5143,6 +5146,8 @@ test('selected real wire survives enrichment under native pan and zoom', async (
     expect(wireAfterPatch.target.socketId).toBe(selectedWire.target.socketId);
     expect(wireAfterPatch.source.stroke).toBe(selectedWire.selectedStroke);
     expect(wireAfterPatch.target.stroke).toBe(selectedWire.selectedStroke);
+    expect(wireAfterPatch.source.connectionSelected).toBe(true);
+    expect(wireAfterPatch.target.connectionSelected).toBe(true);
     const identity = await page.evaluate(() => {
       type Shape = { id(): string; name(): string; find(selector: string): Shape[]; text(): string };
       type Stage = Shape & { find(selector: string): Shape[] };
@@ -5355,8 +5360,9 @@ test('late loopback events grow Dense from 2 to 22 ports on one side and preserv
     const denseButton = page.getByRole('button', { name: /Dense: Ports and bindings/ });
     await expect(denseButton).toContainText('+20');
     await denseButton.click();
-    const chooser = page.getByRole('dialog', { name: /Dense — ports and bindings/ });
+      const chooser = page.getByRole('dialog', { name: /^Connection details/ });
     await expect(chooser).toBeVisible();
+    await expect(chooser.locator('.canvas-binding-node-name')).toHaveText('Dense');
     await expect(chooser.getByText('22 bindings')).toBeVisible();
     await expect(chooser.getByRole('button', { name: 'Right overflow: 20 hidden ports' })).toBeVisible();
     await chooser.getByRole('button', { name: 'Expand ports' }).click();
@@ -5518,14 +5524,7 @@ for (const theme of ['light', 'dark'] as const) {
         sockets: card.find('Circle').filter(socket => socket.name().startsWith('socket-')).length,
         bottomRail: rail.visible(),
         wireCount: wires.length,
-        selected: wires.filter(wire => {
-          let selected = false;
-          const noop = () => undefined;
-          const context = { beginPath: noop, moveTo: noop, bezierCurveTo: noop, lineTo: noop, closePath: noop, fill: noop,
-            stroke() { selected ||= this.lineWidth === 3.2; }, lineWidth: 0 };
-          wire.getSceneFunc()(context, wire);
-          return selected;
-        }).map(wire => wire.id())
+         selected: document.querySelector('.canvas-failure')?.textContent ?? ''
       };
     });
     await expect.poll(async () => (await snapshot())?.wireCount).toBe(24);
@@ -5535,13 +5534,15 @@ for (const theme of ['light', 'dark'] as const) {
     expect(initial.bottomRail).toBe(true);
     expect(initial.sockets).toBeLessThan(16);
     await page.mouse.click(initial.pointer.x, initial.pointer.y);
-    const chooser = page.getByRole('dialog', { name: /Dense — right overflow/ });
+    const chooser = page.getByRole('dialog', { name: /^Connection details/ });
     await expect(chooser).toBeVisible();
+    await expect(chooser.locator('.canvas-binding-node-name')).toHaveText('Dense');
     await expect(chooser.getByText(/hidden ports · \d+ bindings/)).toBeVisible();
     const first = chooser.locator('[data-binding-id]').first();
     const firstId = await first.getAttribute('data-binding-id');
+    const firstAlias = await first.locator('.canvas-binding-endpoint-name').first().textContent();
     await first.click();
-    await expect.poll(async () => (await snapshot())?.selected).toEqual([firstId]);
+    await expect.poll(async () => (await snapshot())?.selected).toContain(firstAlias);
 
     const dragStart = { x: initial.pointer.x - 85, y: initial.pointer.y - 20 };
     await page.mouse.move(dragStart.x, dragStart.y);
@@ -5551,10 +5552,10 @@ for (const theme of ['light', 'dark'] as const) {
     const dragged = (await snapshot())!;
     expect(dragged.card.slice(0, 2)).not.toEqual(initial.card.slice(0, 2));
     expect(dragged.card[2]).toBe(initial.card[2]);
-    expect(dragged.selected).toEqual([firstId]);
+    expect(dragged.selected).toContain(firstAlias);
 
     await page.keyboard.press('p');
-    const keyboardChooser = page.getByRole('dialog', { name: /Dense — ports and bindings/ });
+    const keyboardChooser = page.getByRole('dialog', { name: /^Connection details/ });
     await expect(keyboardChooser).toBeVisible();
     await keyboardChooser.getByRole('button', { name: /Right overflow/ }).focus();
     await page.keyboard.press('Enter');
@@ -5562,9 +5563,10 @@ for (const theme of ['light', 'dark'] as const) {
     await page.keyboard.press('PageDown');
     await expect(chooser.getByText(/Page 2 of [23]/)).toBeVisible();
     const secondId = await chooser.locator('[data-binding-id]').first().getAttribute('data-binding-id');
+    const secondAlias = await chooser.locator('[data-binding-id]').first().locator('.canvas-binding-endpoint-name').first().textContent();
     expect(secondId).not.toBe(firstId);
     await page.keyboard.press('Enter');
-    await expect.poll(async () => (await snapshot())?.selected).toEqual([secondId]);
+    await expect.poll(async () => (await snapshot())?.selected).toContain(secondAlias);
     const after = (await snapshot())!;
     expect(after.camera).toEqual(initial.camera);
     expect(after.card).toEqual(dragged.card);
@@ -5580,7 +5582,7 @@ for (const theme of ['light', 'dark'] as const) {
     const compact = (await snapshot())!;
     expect(compact.card).toEqual(dragged.card);
     expect(compact.camera).toEqual(initial.camera);
-    expect(compact.selected).toEqual([secondId]);
+    expect(compact.selected).toContain(secondAlias);
   });
 }
 
@@ -5628,7 +5630,7 @@ test('arbitrates wheel zoom and preserves camera and layout during dense port pa
         rightNative: sockets('right').map(node => node._id),
         top: top?.isVisible() ? top.find('Text')[0]?.text() : undefined,
         bottom: bottom?.isVisible() ? bottom.find('Text')[0]?.text() : undefined,
-        selected: sockets('right').filter(node => node.radius() === 5).map(node => node.getAttr('accessibleDescription')),
+         selected: document.querySelector('.canvas-failure')?.textContent ?? '',
         pageBack: top?.isVisible() ? point(-46, 14, top) : undefined,
         belowChevron: bottom?.isVisible() ? point(-46, 14, bottom) : undefined,
         openBelow: bottom?.isVisible() ? point(-23, 11, bottom) : undefined,
@@ -5660,21 +5662,21 @@ test('arbitrates wheel zoom and preserves camera and layout during dense port pa
 
       const count = paged.openBelow!;
       await page.touchscreen.tap(count.x, count.y);
-      const chooser = page.getByRole('dialog', { name: 'Dense — right overflow below' });
+      const chooser = page.getByRole('dialog', { name: /^Connection details/ });
       await expect(chooser).toBeVisible();
       const first = chooser.locator('[data-binding-id]').first();
-      const name = (await first.textContent())?.match(/Port: (Outbound \d+)/)?.[1];
+      const name = await first.locator('.canvas-binding-endpoint-name').first().textContent();
       expect(name).toBeTruthy();
       await first.focus();
       await page.keyboard.press('Enter');
-      await expect.poll(async () => (await snapshot())?.selected).toEqual([name]);
+      await expect.poll(async () => (await snapshot())?.selected).toContain(name);
       await expect(page.locator('.canvas-stage')).toBeFocused();
       const revealed = (await snapshot())!;
       await page.keyboard.press('Shift+ArrowLeft');
       await page.keyboard.press('PageDown');
       await expect.poll(async () => (await snapshot())?.left[0]).toBe(`Inbound ${String(initial.left.length).padStart(2, '0')}`);
       expect((await snapshot())?.right).toEqual(revealed.right);
-      expect((await snapshot())?.selected).toEqual([name]);
+      expect((await snapshot())?.selected).toContain(name);
       expect((await snapshot())?.camera).toEqual(zoomed.camera);
       await page.keyboard.press('PageUp');
       await expect.poll(async () => (await snapshot())?.left).toEqual(initial.left);
@@ -5710,13 +5712,13 @@ test('arbitrates wheel zoom and preserves camera and layout during dense port pa
     expect((await snapshot())?.right).toEqual(initial.right);
     const point = (await snapshot())!.openBelow!;
     await page.mouse.click(point.x, point.y);
-    const chooser = page.getByRole('dialog', { name: 'Dense — right overflow below' });
+    const chooser = page.getByRole('dialog', { name: /^Connection details/ });
     await expect(chooser).toBeVisible();
     const first = chooser.locator('[data-binding-id]').first();
-    const name = (await first.textContent())?.match(/Port: (Outbound \d+)/)?.[1];
-    expect(name).toBeTruthy();
+    const name = (await first.locator('.canvas-binding-endpoint-name').first().textContent())?.trim();
+    expect(name).toMatch(/^Outbound \d+$/);
     await first.click();
-    await expect.poll(async () => (await snapshot())?.selected).toEqual([name]);
+    await expect.poll(async () => (await snapshot())?.selected).toContain(name);
     await expect(page.locator('.canvas-stage')).toBeFocused();
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('Shift+PageUp');

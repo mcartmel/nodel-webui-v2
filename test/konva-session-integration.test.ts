@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type Konva from 'konva';
 import { cardHeight, NODE_WIDTH, type FixtureNode } from '../src/experiments/konva-canvas/fixture';
-import { buildLocalGraph } from '../src/experiments/konva-canvas/local-graph';
+import { buildLocalGraph, prepareRemoteOwnerInspection } from '../src/experiments/konva-canvas/local-graph';
 import { pendingLocalCardReservations, restoreInitialLocalCards, restoreLateLocalCard } from '../src/experiments/konva-canvas/local-placement';
-import { localCardId } from '../src/experiments/konva-canvas/local-projection';
+import { localCardId, projectLocalGraph } from '../src/experiments/konva-canvas/local-projection';
 import { sessionLayoutStorageKey, type SessionCamera } from '../src/experiments/konva-canvas/session-layout';
 import { javaSimpleNameKey } from '../src/experiments/konva-canvas/local-simple-name';
 import type { RemoteEnrichmentBatch } from '../src/experiments/konva-canvas/remote-enrichment';
@@ -276,5 +277,86 @@ describe('live canvas session integration', () => {
     hide();
     expect(layout().camera).not.toEqual(before.camera);
     expect(layout().cards).toContainEqual([idFor('First'), cardStart.x + 150, cardStart.y + 90, true]);
+  });
+
+  it('keeps the traced logical port across slot recycling and enrichment, then narrows to one wire', async () => {
+    const graph = buildLocalGraph({ locals: [
+      { name: 'Gate', readState: 'read' },
+      { name: 'Frontend', readState: 'read', events: [
+        { alias: 'Preset', node: 'Gate', endpoint: 'Gate1Output' },
+        { alias: 'Switch', node: 'Gate', endpoint: 'Gate1Output' },
+        ...Array.from({ length: 10 }, (_, index) => ({ alias: `Aux${index}`, node: 'Gate', endpoint: `Unused${index}` }))
+      ] },
+      { name: 'Later', readState: 'unread' }
+    ] });
+    const { stage, view } = await mount(graph);
+    resizeTo(900, 540);
+    stage.position({ x: 0, y: 0 }).scale({ x: 0.5, y: 0.5 });
+    const gate = stage.findOne<Konva.Group>(`#${idFor('Gate')}`)!;
+    gate.position({ x: 380, y: 200 });
+    const status = () => document.querySelector('.canvas-failure')?.textContent;
+    const ring = () => gate.find('Circle').find(shape => shape.getAttr('accessibleDescription') === 'Gate1Output')!;
+    const slot = ring();
+    const point = slot.getAbsolutePosition();
+    const rect = gate.findOne<Konva.Rect>('Rect')!;
+    // jsdom has no hit canvas raster. Keep the real Stage transform, DOM
+    // listener order and Konva click handling, but supply the card hit here.
+    vi.spyOn(stage, 'getIntersection').mockImplementation(p => p.x >= point.x - 4 ? rect : null);
+    const pointer = (type: string, x = point.x + 2, y = point.y) => stage.container().dispatchEvent(Object.assign(
+      new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }),
+      { isPrimary: true, pointerId: 1, pointerType: 'touch' }
+    ));
+    const mouse = new MouseEvent('mouseup', { button: 0 });
+    const beforeWires = stage.find('.topology-wire');
+    const wireLayer = beforeWires[0]!.getLayer()!;
+    const overlay = wireLayer.findOne('.connection-selection-paint')!;
+    expect(overlay.isListening()).toBe(false);
+
+    pointer('pointerdown');
+    pointer('pointerup');
+    rect.fire('tap', { evt: mouse }, true); // compatibility tap must not clear the trace
+    expect(slot.getAttr('connectionSelected')).toBe(true);
+    expect(status()).toContain('Gate1Output, 2 event connections selected.');
+    expect(stage.find('.topology-wire')).toEqual(beforeWires);
+
+    pointer('pointerdown', 0, 0); // new press on the separate page control
+    gate.findOne<Konva.Group>('.overflow-rail-right')!.findOne('.overflow-page-hit')!.fire('click', { evt: mouse }, true);
+    expect(ring()).toBeUndefined();
+    expect(slot.getAttr('connectionSelected')).toBe(false);
+    const rail = gate.findOne<Konva.Group>('.overflow-rail-right-above')!;
+    expect(rail.findOne('.overflow-takeoff-local')!.getAttr('connectionSelected')).toBe(true);
+    expect(status()).toContain('2 event connections selected.');
+
+    const owner = [...graph.nodes.values()].find(node => node.name === 'Later')!;
+    view.renderer.patch({ ...batch('pending'), results: [{ owner, lookupState: 'found', source: 'local', issues: [], attempts: [],
+      ...prepareRemoteOwnerInspection(owner, { events: { Later: { node: 'Gate', event: 'Gate1Output' } } }) }] });
+    expect(status()).toContain('Gate1Output, 3 event connections selected.');
+    expect(wireLayer.getChildren().at(-1)).toBe(overlay);
+    expect(stage.find('.topology-wire').slice(0, beforeWires.length)).toEqual(beforeWires);
+
+    rail.findOne('.overflow-page-hit')!.fire('click', { evt: mouse }, true);
+    expect(ring()).toBe(slot);
+    expect(slot.getAttr('connectionSelected')).toBe(true);
+    const switchWire = projectLocalGraph(graph).edges.find(edge => edge.bindingAlias === 'Switch')!;
+    wireLayer.findOne(`#${switchWire.id}`)!.fire('click', { evt: mouse }, true);
+    expect(status()).toContain('Event delivery selected');
+    expect(stage.find('Circle').filter(shape => shape.getAttr('connectionSelected'))).toHaveLength(2);
+    expect(slot.getAttr('connectionSelected')).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(status()).toBe('Connection selection cleared.');
+    pointer('pointerdown');
+    pointer('pointercancel');
+    pointer('pointerup');
+    expect(stage.find('Circle').filter(shape => shape.getAttr('connectionSelected'))).toHaveLength(0);
+
+    const key = (key: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key, cancelable: true }));
+    pointer('pointerdown', 0, 0);
+    stage.container().focus();
+    for (let i = 0; i < 3 && !stage.container().getAttribute('aria-label')?.startsWith('Gate.'); i++) key('ArrowRight');
+    key(']');
+    expect(stage.container().getAttribute('aria-label')).toContain('Port: Gate1Output. Space traces this port.');
+    expect(key(' ')).toBe(false);
+    expect(status()).toContain('Gate1Output, 3 event connections selected.');
   });
 });

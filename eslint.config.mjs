@@ -80,7 +80,7 @@ export default tseslint.config(
   {
     ignores: ['dist/**', 'build/**', 'coverage/**', 'playwright-report/**', 'test-results/**', '.kilo/**',
       'experiments/konva-browser/canvas.pw.ts', 'experiments/konva-browser/lane-drop.pw.ts',
-      'experiments/konva-browser/local-mode.pw.ts', 'experiments/konva-browser/playwright.config.ts',
+      'experiments/konva-browser/local-mode.pw.ts', 'experiments/konva-browser/selection.pw.ts', 'experiments/konva-browser/playwright.config.ts',
       // Keep the four standalone legacy browser utilities outside the typed
       // ESLint project when opt-in Playwright specs are explicitly included.
       'experiments/konva-browser/*.mjs']

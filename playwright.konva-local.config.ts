@@ -13,7 +13,7 @@ if (previewURL.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].incl
 /** Browser acceptance for the isolated Konva local-mode build only. */
 export default defineConfig({
   testDir: './experiments/konva-browser',
-  testMatch: ['local-mode.pw.ts', 'edge-navigation.pw.ts'],
+  testMatch: ['local-mode.pw.ts', 'edge-navigation.pw.ts', 'selection.pw.ts'],
   outputDir: 'test-results/konva-local',
   fullyParallel: false,
   workers: 1,
